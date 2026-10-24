@@ -1,0 +1,15 @@
+[versions]
+neoform = "1.21.1-20240808.144430"
+neoforge = "21.1.264"
+moddev = "2.0.148"
+taffy = "1.1.5"
+junit = "6.1.3"
+
+[libraries]
+taffy = { module = "dev.vfyjxf:taffy", version.ref = "taffy" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+[plugins]
+moddev = { id = "net.neoforged.moddev", version.ref = "moddev" }

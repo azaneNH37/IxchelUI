@@ -1,0 +1,9 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "ixcheltest"
+version = "0.0.0"
+displayName = "Ixchel UI Test Host"
+description = "Development host mod for Ixchel UI. Not distributed."

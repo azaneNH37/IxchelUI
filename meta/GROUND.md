@@ -11,15 +11,22 @@ Ixchel UI：面向 Minecraft 的可嵌入 Web 风格 UI 库（HTML + 标准 CSS 
 
 ## Architecture
 
-尚无实现。候选分层（纯 Java 内核 / 仅 vanilla 类的适配层 / 加载器胶水）见 `ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md`，不视为已实现架构。
+```
+testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 → ixchel-core
+```
+
+依赖单向；可见性由编译期 classpath 强制：core 不含 MC，mc 层只见原版（NeoForm vanilla 模式），neoforge 层可见加载器 API。公共构建配置在 `build-logic` 约定插件中。目标分层与渲染/数据设计见 `ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md`。
 
 ## Modules
 
-（无）
+- ixchel-core: 纯 Java 内核（DOM/CSS/布局/事件/ViewModel），尚无源码，[draft]
+- ixchel-mc-1.21.1: 仅 vanilla 类的适配层，尚无源码，[draft]
+- ixchel-neoforge-1.21.1: NeoForge 加载器胶水，尚无源码，[draft]
+- testmod-neoforge-1.21.1: 开发期宿主 mod，库模块源码并入其中运行，不发布，[draft]
 
 ## In progress
 
-- 定位与适配层方案初版已完成（见上述 SD）；构建骨架、内核原型均未开始。
+- 构建骨架已就绪（`build` 与 `runClient` 通过）；内核原型未开始。
 
 ## Not here
 
