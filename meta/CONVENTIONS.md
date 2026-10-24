@@ -9,6 +9,9 @@
 - 布局只用 `dev.vfyjxf:taffy`，不引入 Yoga
 - 包名与 groupId 前缀统一为 `com.azane.ixchel`；artifactId 为 `ixchel-<层>[-<MC 版本>]`，MC 版本写在 artifactId 而非 version
 - 不发布 Maven Central；开发期用 `publishToMavenLocal`
+- `ixchel-core` 用 Java 17 工具链（#005）；sealed 层次（如 `DrawCommand`）以 visitor 分派，保留 17 下缺失的 switch 穷尽检查
+- 文本读写一律显式 `StandardCharsets.UTF_8`：Java 17 默认字符集依平台，中文 Windows 上为 GBK
+- 1.20.1 模块用 `net.neoforged.moddev.legacyforge`（mc 层用 `mcpVersion` 原版模式），1.21.1 模块用 `net.neoforged.moddev`；两个插件版本号相同
 
 ## 嵌入边界
 - 库自带资源（默认样式表、shader 源码）放包路径下，用 `Class.getResourceAsStream` 读取；不放 `assets/<固定 namespace>/` (#001)

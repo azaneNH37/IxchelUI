@@ -7,26 +7,33 @@ by: agent
 
 ## What this is
 
-Ixchel UI：面向 Minecraft 的可嵌入 Web 风格 UI 库（HTML + 标准 CSS 子集 + 客户端数据需求声明），以 shade 进宿主 mod 的方式交付，追求零全局副作用。当前仅有定位与前瞻方案，尚无代码。
+Ixchel UI：面向 Minecraft 的可嵌入 Web 风格 UI 库（HTML + 标准 CSS 子集 + 客户端数据需求声明），以 shade 进宿主 mod 的方式交付，零全局副作用，宿主拥有实际运行的版本；使用方的替代选项是手写原版 GUI，首要目标是自有 mod 的 UI 基础设施。当前仅有定位与前瞻方案，尚无代码。
 
 ## Architecture
 
 ```
-testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 → ixchel-core
+testmod-forge-1.20.1    → ixchel-forge-1.20.1    → ixchel-mc-1.20.1 → ixchel-core
+testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 ```
 
-依赖单向；可见性由编译期 classpath 强制：core 不含 MC，mc 层只见原版（NeoForm vanilla 模式），neoforge 层可见加载器 API。公共构建配置在 `build-logic` 约定插件中。目标分层与渲染/数据设计见 `ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md`。
+依赖单向；可见性由编译期 classpath 强制：core 不含 MC（Java 17，两个平台共用），mc 层只见原版（1.20.1 用 legacyforge `mcpVersion` 模式，1.21.1 用 NeoForm 模式），加载器层可见加载器 API。1.20.1 模块用 Java 17，1.21.1 模块用 Java 21。公共构建配置在 `build-logic` 约定插件中。目标分层与渲染/数据设计见 `ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md`；平台分工见 #005。
+
+目录按层分组，项目名保持扁平（项目名即 artifactId），映射写在 `settings.gradle.kts`：`:ixchel-mc-1.20.1` 位于 `mc/1.20.1/`。
 
 ## Modules
 
-- ixchel-core: 纯 Java 内核（DOM/CSS/布局/事件/ViewModel），尚无源码，[draft]
-- ixchel-mc-1.21.1: 仅 vanilla 类的适配层，尚无源码，[draft]
-- ixchel-neoforge-1.21.1: NeoForge 加载器胶水，尚无源码，[draft]
-- testmod-neoforge-1.21.1: 开发期宿主 mod，库模块源码并入其中运行，不发布，[draft]
+- ixchel-core (`core/`): 纯 Java 内核（DOM/CSS/布局/事件/ViewModel），Java 17，尚无源码，[draft]
+- ixchel-mc-1.20.1 (`mc/1.20.1/`): 仅 vanilla 类的适配层（Forge 1.20.1 完整 MVP），尚无源码，[draft]
+- ixchel-mc-1.21.1 (`mc/1.21.1/`): 仅 vanilla 类的适配层（NeoForge 1.21.1 对齐最小集），尚无源码，[draft]
+- ixchel-forge-1.20.1 (`loader/forge-1.20.1/`): Forge 加载器胶水，尚无源码，[draft]
+- ixchel-neoforge-1.21.1 (`loader/neoforge-1.21.1/`): NeoForge 加载器胶水，尚无源码，[draft]
+- testmod-forge-1.20.1 (`testmod/forge-1.20.1/`): Forge 1.20.1 开发期宿主 mod，库模块源码并入其中运行，不发布，[draft]
+- testmod-neoforge-1.21.1 (`testmod/neoforge-1.21.1/`): NeoForge 1.21.1 开发期宿主 mod，同上，[draft]
 
 ## In progress
 
-- 构建骨架已就绪（`build` 与 `runClient` 通过）；内核原型未开始。
+- 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；内核原型未开始。
+- 1.20.1 库模块发布 mojmap 还是 SRG 产物未定，待 shade 共存验证；目前 legacyforge 对两个 1.20.1 库模块的 `jar` 都自动 reobf 为 SRG。
 
 ## Not here
 

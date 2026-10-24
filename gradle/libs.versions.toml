@@ -1,4 +1,6 @@
 [versions]
+mcp = "1.20.1"
+forge = "1.20.1-47.3.19"
 neoform = "1.21.1-20240808.144430"
 neoforge = "21.1.264"
 moddev = "2.0.148"
@@ -13,3 +15,4 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 
 [plugins]
 moddev = { id = "net.neoforged.moddev", version.ref = "moddev" }
+moddev-legacyforge = { id = "net.neoforged.moddev.legacyforge", version.ref = "moddev" }
