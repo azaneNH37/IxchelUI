@@ -22,7 +22,7 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 
 ## Modules
 
-- ixchel-core (`core/`): 纯 Java 内核（模板/CSS/样式/布局/事件/绑定），单一模块内按包分层 (#006)，Java 17，尚无源码，[draft]
+- ixchel-core (`core/`): 纯 Java 内核（模板/CSS/样式/布局/事件/绑定），单一模块内按包分层 (#006)，Java 17；M1 原型完成（模板→样式→布局→DisplayList，弹药 HUD 黄金测试通过），事件/绑定/动画未开始，[draft]
 - ixchel-mc-1.20.1 (`mc/1.20.1/`): 仅 vanilla 类的适配层（Forge 1.20.1 完整 MVP），尚无源码，[draft]
 - ixchel-mc-1.21.1 (`mc/1.21.1/`): 仅 vanilla 类的适配层（NeoForge 1.21.1 对齐最小集），尚无源码，[draft]
 - ixchel-forge-1.20.1 (`loader/forge-1.20.1/`): Forge 加载器胶水，尚无源码，[draft]
@@ -32,7 +32,7 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 
 ## In progress
 
-- 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；内核原型未开始。
+- 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；core M1 完成，下一步 M2（mc 1.20.1 绘制与 HUD 宿主），M1 已知限制见 `ref/D-ixchel-module-breakdown-20261026.md` §3。
 - 1.20.1 库模块发布 mojmap 还是 SRG 产物未定，待 shade 配方验证；目前 legacyforge 对两个 1.20.1 库模块的 `jar` 都自动 reobf 为 SRG。
 - testmod 以 sourceSet 并入方式运行库，不经过 shade/relocate；shade 链路尚无覆盖。
 
