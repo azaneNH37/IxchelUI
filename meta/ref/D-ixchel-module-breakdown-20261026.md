@@ -33,14 +33,14 @@ flowchart LR
 |---|---|---|
 | `diag` | 源位置、诊断收集、开发期叠加层数据 | — |
 | `css.syntax` | CSS Syntax L3 分词、组件值 | diag |
-| `css.selector` | 选择器解析、优先级 | css.syntax |
+| `css.selector` | 选择器解析、优先级、匹配 | css.syntax, dom |
 | `css.property` | 属性注册表：名称、语法、初值、是否继承、是否影响布局、是否可过渡 | css.syntax |
-| `dom` / `template` | `Element` 树、类名与状态位；严格模板解析器 | diag, css.selector（`style` 属性） |
+| `dom` / `template` | `Element` 树、类名与状态位；严格模板解析器 | diag, css.property（计算值）, css.syntax（`style` 属性的声明） |
 | `style` | 规则索引、匹配、层叠、`var()`、计算值 | dom, css.* |
 | `anim` | transition、`@keyframes` | style |
 | `text` | 文本测量接口与结果缓存、换行 | — |
-| `layout` | `Element` ↔ taffy 节点同步、布局结果查询（mc 层据此写回 `Slot.x/y`） | dom, style, text |
-| `paint` | DisplayList 生成、裁剪栈 | layout, style |
+| `layout` | `Element` ↔ taffy 节点同步、布局结果查询（mc 层据此写回 `Slot.x/y`） | dom, css.property, text |
+| `paint` | DisplayList 生成、裁剪栈 | dom, css.property, layout, text |
 | `event` | 命中测试、三阶段派发、焦点、hover/active 状态位 | dom, layout |
 | `binding` | Value / Derived / Action / Scope，模板绑定 | dom, template |
 | `runtime` | `UiDocument`：组装上述阶段、帧驱动、热重载入口 | 全部 |
@@ -59,7 +59,14 @@ flowchart LR
 - 坐标是文档 GUI 像素，原点在视口左上；`LayoutBox` 存绝对坐标的 border box。模板顶层元素的父节点是尺寸等于视口的隐式根。
 - `font-size` 以 GUI 像素计，`9px` = vanilla 字体 1 倍（行高 9）；`DrawCommand.Text` 的 `(x, y)` 是行框左上角，基线对齐由 `McPainter` 处理。
 - `DrawCommand` 的子类型随实现加入，当前为 `Rect`/`Text`/`Image`/`PushClip`/`PopClip`；计划中的 `RoundRect`、`Border`、`NineSlice`、`Item`、`Custom` 在对应功能落地时再定字段。`Custom(kind, payload, x, y, w, h)` 供 mc 层原生元素（如第一人称模型预览）携带宿主数据穿过内核，内核不解释 `payload`。
-- `PropertyDef` 的 `syntax` 字段随 `css.syntax` 加入。
+- `Syntax.parse` 报错后返回 `null`，该声明整条丢弃；简写在解析期展开，`ComputedStyle` 只存长写属性。选择器列表中任一项非法则整条规则丢弃（同 CSS）。
+- 布局只在计算值引用、文本、字号或子节点列表变化，或视口变化时才跑 taffy；`ComputedStyle` 每次重算都是新对象，所以样式阶段重算过的元素一定会重新同步。
+
+M1 已知限制（均为开发期可见行为，后续按场景放开）：
+
+- 单位只有 `px`、`%`；所有 at-rule（含 `@media`、`@keyframes`）报错；`var()` 与自定义属性报错。
+- 文本两端空白被裁掉，`<span>a</span> / <span>b</span>` 中间得到 `"/"`。换行只在空格处断开，无空格的 CJK 文本不会换行。
+- `<img>` 没有固有尺寸，必须在样式里给出 `width`/`height`，否则为 0；固有尺寸要等 mc 层能查询纹理大小。
 
 黄金测试夹具在 `core/src/test/resources/golden/<场景>/`：`hud.html`、`hud.css`、`expected.txt`（DisplayList 的逐行文本形式，首行注明视口尺寸与测试用测量器）。期望坐标已用 taffy 1.1.5 按同样式手工搭树核对。
 
@@ -136,7 +143,7 @@ L3 前需核实启动器运行时是否包含 `jdk.httpserver` 模块。
 
 | 里程碑 | 内容 | 退出条件 |
 |---|---|---|
-| M1 | core 原型：模板 → 样式 → 布局 → DisplayList，单元测试覆盖弹药 HUD | 不碰 MC 产出正确绘制命令 |
+| M1（已完成） | core 原型：模板 → 样式 → 布局 → DisplayList，单元测试覆盖弹药 HUD | 不碰 MC 产出正确绘制命令 |
 | M2 | mc 1.20.1：McPainter、文本、HUD 宿主；binding 最小集（来源、派生、文本/属性绑定） | 游戏内显示随实际弹量变化的弹药 HUD；帧耗时对比；与 Iris、ImmediatelyFast 共存 |
 | M3 | 事件、binding 其余部分（`action`、`each`/`if`、`Scope`）、`UiScreen`：Z 键改装 | 与手写原版对比（见绑定文档 §7） |
 | M4 | shade 配方与 NeoForge 1.21.1 对齐最小集 | 两个不同版本副本共存；1.21.1 跑同一验收模板 |
@@ -158,7 +165,7 @@ M1（core，按依赖顺序；`dom`/`template` 与 2~3 可并行）：
 | 1 | `css.syntax` | 完整分词 |
 | 2 | `css.property` | 注册表机制完整；条目只覆盖弹药 HUD 用到的属性，后续按场景追加 |
 | 3 | `dom` / `template` | 严格解析器完整（#007） |
-| 4 | `css.selector` | 标签/类/id/后代/子代；状态伪类随 M3 的 `event` 加入 |
+| 4 | `css.selector` | 标签/类/id/后代/子代；`:hover`/`:active`/`:focus` 的解析与匹配已在 M1 完成，状态位由 M3 的 `event` 写入 |
 | 5 | `style` | 按最右侧选择器建索引、层叠、计算值；`var()` 可延后 |
 | 6 | `text` | 测量接口 + 等宽假实现（供单测） |
 | 7 | `layout` | taffy 同步与脏标记 |

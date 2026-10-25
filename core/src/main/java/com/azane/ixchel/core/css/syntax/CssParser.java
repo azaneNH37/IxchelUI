@@ -23,7 +23,12 @@ public final class CssParser {
     }
 
     public static List<Rule> parseStylesheet(String source, String file, Diagnostics diag) {
-        CssParser p = new CssParser(CssTokenizer.tokenize(source, new SourcePos(file, 1, 1), diag), diag);
+        return parseStylesheet(source, new SourcePos(file, 1, 1), diag);
+    }
+
+    /** {@code start} is where an inline {@code <style>} body begins. */
+    public static List<Rule> parseStylesheet(String source, SourcePos start, Diagnostics diag) {
+        CssParser p = new CssParser(CssTokenizer.tokenize(source, start, diag), diag);
         return p.ruleList();
     }
 
