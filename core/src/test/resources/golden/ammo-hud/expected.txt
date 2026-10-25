@@ -1,0 +1,7 @@
+// viewport 480x270; test text measurer: advance = 6 * size / 9 per char, line height = size
+image 351 217 39 13 tacz:textures/hud/gun.png #FFFFFFFF
+rect 393 217 1 18 #FFFFFFFF
+text 398 217 18 #FFFFFFFF "030"
+text 436 217 9 #FFAAAAAA "0120"
+image 436 226 10 10 tacz:textures/hud/fire_mode_auto.png #FFFFFFFF
+text 398 236 9 #FFAAAAAA "v1.1.4"

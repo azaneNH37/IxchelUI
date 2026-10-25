@@ -51,23 +51,17 @@ flowchart LR
 
 ### 3. 包间契约
 
-```java
-public final class Element {                     // dom
-    String tag; Element parent; List<Element> children;
-    ClassList classes; int stateBits;             // HOVER/ACTIVE/FOCUS…，由 event 写
-    Map<String, String> attrs; SourcePos pos;
-    ComputedStyle computed; LayoutBox box;        // style、layout 写入
-}
-public record PropertyDef<T>(String name, int id, Syntax<T> syntax, T initial,
-                             boolean inherited, boolean affectsLayout, boolean animatable) {}
-public final class ComputedStyle { final Object[] values; /* 以 PropertyDef.id 为下标 */ }
-public sealed interface DrawCommand permits Rect, RoundRect, Border, Text, Image, NineSlice, Item, PushClip, PopClip, Custom {
-    <R> R accept(Visitor<R> v);                   // Java 17 无模式匹配 switch，以 visitor 保留穷尽检查
-}
-public record Custom(String kind, Object payload, float x, float y, float w, float h) implements DrawCommand { … }
-```
+契约代码在 `com.azane.ixchel.core` 下：`dom.Node`/`Element`/`TextNode`/`LayoutBox`、`css.property.PropertyDef`/`PropertyRegistry`/`ComputedStyle`、`paint.DrawCommand`/`DisplayList`。读代码看不出的约定：
 
-`Custom` 供 mc 层原生元素（如第一人称模型预览）携带宿主数据穿过内核；内核不解释 `payload`。
+- `ComputedStyle` 放在 `css.property` 而不是 `style`：`Element` 持有它，放在 `style` 会形成 dom ↔ style 环。`LayoutBox` 同理放在 `dom`。
+- 树节点分 `Element` 与 `TextNode`：模板允许混排文本（如 `<span>a</span>/<span>b</span>`）。选择器只匹配 `Element`，`TextNode` 的样式取父元素。
+- 样式脏标记的粒度是子树：元素脏表示它与整棵子树都重算；祖先只记"有脏后代"，供样式阶段跳过干净子树。没有结构伪类与属性选择器，所以增删子节点、改属性不标脏。
+- 坐标是文档 GUI 像素，原点在视口左上；`LayoutBox` 存绝对坐标的 border box。模板顶层元素的父节点是尺寸等于视口的隐式根。
+- `font-size` 以 GUI 像素计，`9px` = vanilla 字体 1 倍（行高 9）；`DrawCommand.Text` 的 `(x, y)` 是行框左上角，基线对齐由 `McPainter` 处理。
+- `DrawCommand` 的子类型随实现加入，当前为 `Rect`/`Text`/`Image`/`PushClip`/`PopClip`；计划中的 `RoundRect`、`Border`、`NineSlice`、`Item`、`Custom` 在对应功能落地时再定字段。`Custom(kind, payload, x, y, w, h)` 供 mc 层原生元素（如第一人称模型预览）携带宿主数据穿过内核，内核不解释 `payload`。
+- `PropertyDef` 的 `syntax` 字段随 `css.syntax` 加入。
+
+黄金测试夹具在 `core/src/test/resources/golden/<场景>/`：`hud.html`、`hud.css`、`expected.txt`（DisplayList 的逐行文本形式，首行注明视口尺寸与测试用测量器）。期望坐标已用 taffy 1.1.5 按同样式手工搭树核对。
 
 ### 4. mc 层与加载器层
 
