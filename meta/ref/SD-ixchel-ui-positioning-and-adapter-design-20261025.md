@@ -1,8 +1,8 @@
 ---
 tags: [survey, design]
 date: 2026-10-25
-origin: 对 ApricityUI（AUI）与 LDLib2 的 UI 实现做选型调研后，讨论"如需 HTML/CSS 式 UI，应如何组合两者思路与 Java 生态现有库"，记录核心观点与前瞻方案初版；同日经本地源码复核修正了 AUI 跨版本结构、槽位可见性、依赖体量、版本视野等表述，并把定位论证改为以分发结构为核心。初稿写于 Kumiko 仓库，因前提不同（独立 mod 生态 vs 可嵌入库）迁出另立 Ixchel UI。
-related: [DECISIONS.md#001, DECISIONS.md#002, DECISIONS.md#003, DECISIONS.md#004, Kumiko 仓库 meta/ref/S-kumiko-product-value-and-primitives-20260922.md, Kumiko 仓库 meta/ref/SD-ldlib2-kernel-extraction-and-module-design-20260921.md]
+origin: 对 ApricityUI（AUI）与 LDLib2 的 UI 实现做选型调研后，讨论"如需 HTML/CSS 式 UI，应如何组合两者思路与 Java 生态现有库"，记录核心观点与前瞻方案初版；同日经本地源码复核修正了 AUI 跨版本结构、槽位可见性、依赖体量、版本视野等表述，并把定位论证改为以分发结构为核心。初稿写于 Kumiko 仓库，因前提不同（独立 mod 生态 vs 可嵌入库）迁出另立 Ixchel UI。2026-10-26 补充边界判据（§3.4）、shade 配方（§8），并把 §11 第 3 步改为配方验证；同日改用自写模板解析器（#007），补 GuiGraphics 不合批的源码事实与圆角推荐路径，数据层与模块划分拆到独立文档，Kumiko 中仍需引用的结论已迁入这两份文档；同日槽位接入拆到独立文档，并更正"`renderSlot` 为 protected、槽位命中无法经重写改变"的表述（1.20.1 `renderSlot` 为 private；命中可经 protected 的 `isHovering(int…)` 覆写）。
+related: [DECISIONS.md#001, DECISIONS.md#002, DECISIONS.md#003, DECISIONS.md#004, DECISIONS.md#006, DECISIONS.md#007, ref/D-ixchel-module-breakdown-20261026.md, ref/SD-ixchel-viewmodel-and-binding-20261026.md, ref/SDG-ixchel-container-slot-integration-20261026.md]
 ---
 
 # Ixchel UI: Positioning and Adapter Design
@@ -50,11 +50,10 @@ AUI 主题样本（15 套 `theme/*/*.css`，grep 行数）显示 Web 风格 CSS 
 
 ### 2. 来源：Kumiko
 
-Kumiko 是源于"现有方案不够简洁干净"这一直觉的研究项目，前提是独立 mod 及其上的生态；经长期比对后其结论收敛为 §0，后续不基于 Kumiko 开发。Ixchel UI 继承的结论：
+Kumiko 是源于"现有方案不够简洁干净"这一直觉的研究项目，前提是独立 mod 及其上的生态；经长期比对后其结论收敛为 §0，后续不基于 Kumiko 开发。Ixchel UI 继承的结论已迁入本仓库，无需再查 Kumiko：
 
-- 客户端数据原语的划分（可观察/派生值、目标及访问策略、动作、作用域、显示宿主），见 Kumiko 仓库 `meta/ref/S-kumiko-product-value-and-primitives-20260922.md` §7。
-- TACZ 四个场景作为验收样本（同一文档 §5）。
-- LDLib2 内核解剖：`StyleEngine`、`UIEventDispatcher` 零 MC 依赖可参考（Kumiko 仓库 `meta/ref/SD-ldlib2-kernel-extraction-and-module-design-20260921.md`）。
+- 客户端数据原语的划分、默认保证与必须保留的差异，TACZ 四个场景与验收矩阵：`ref/SD-ixchel-viewmodel-and-binding-20261026.md` §1、§2、§7。
+- LDLib2 内核中零 MC 依赖可参考的类：`ref/D-ixchel-module-breakdown-20261026.md` §10；vanilla Slot 硬约束与槽位接入：`ref/SDG-ixchel-container-slot-integration-20261026.md`。
 - 布局只用 taffy，不引入 Yoga。
 
 不继承：复制层、意图 RPC 与独立 mod 生态的设想。外部数据来源（其它 mod 的客户端缓存、网络副本等）一律由宿主接入；由于各份副本重定位后类名不同，数据端口只接受 JDK 类型（如 `Supplier<T>` + 变更监听）。
@@ -84,7 +83,7 @@ Ixchel 的零全局副作用约束换来第三种方式：每个宿主内含一�
 | 价值 | Web 风格编写（HTML + 标准 CSS 子集）+ 客户端数据需求声明（ViewModel） | 部署性质与手写原版相同但无编写收益，不如手写 |
 
 - 嵌入是前提而非卖点：它满足"不引入前置"的需求，但使用理由仍须来自编写体验与数据层。
-- 使用方的替代选项是**手写原版 GUI**：问题是"多 shade 约 0.7~2.6MB（视依赖选型，§6），换 HTML/CSS + ViewModel 是否值得"。
+- 使用方的替代选项是**手写原版 GUI**：问题是"多 shade 约 0.23MB 依赖加内核自身（§6），换 HTML/CSS + ViewModel 是否值得"。
 - 能接受前置的场景，AUI 已提供主题、DevTools、Grid/table 与 1.18.2~26.1 支持，LDLib2 在 GregTech 生态成熟；Ixchel 不追求同等功能覆盖。
 - 对使用者可见的差别是部署性质与数据层；严格 CSS 与开发期报错是体验取舍；内核不依赖 MC 是内部质量。
 
@@ -105,6 +104,25 @@ Ixchel 的零全局副作用约束换来第三种方式：每个宿主内含一�
 - 首要目标：自有 mod（TACZ-RESPAWN 等）的 UI 基础设施，比较对象是"在自有 mod 里手写原版或依赖现有 UI mod"。TACZ 这类大量进入整合包的 mod 对运行版本可控的需求最强。
 - 生态采用：仅在自用验证有效、且有第三方作者明确表达"要 Web 式 UI 但不接受前置"后再评估；目前无此证据。
 - 代价（须写入对外文档）：无法提供需全局单例的能力（如边移动边操作 HUD 的输入捕获，见 §9）；多份副本不共享缓存，无法跨 mod 统一主题；修复需各宿主各自升级。
+- 修复推送的分量：Iris、Sodium、ImmediatelyFast 等渲染兼容修复要每个宿主重新发版，宿主停更则缺陷留存。自用阶段库作者即宿主维护者，代价小；该代价随第三方宿主数量线性增长。Painter 尽量停在高层图元可缩小暴露面。
+- 许可：shade 要求库本身与所有被 shade 的依赖均为宽松许可（§4）。
+
+#### 3.4 边界判据
+
+重定位只隔离类。类以外的一切（文件路径、配置名、资源命名空间、存档/NBT 键、线程名）按宿主 modid 分区；无法分区的进程级状态（GL/`RenderSystem`、GLFW 光标与回调、`Minecraft.screen`）只借用并原样归还。
+
+| 需求 | 是否越界 | 处理 |
+|---|---|---|
+| 以宿主 modid 注册（shader、PIP 渲染器、HUD 层、资源重载监听） | 否 | 由宿主或加载器胶水层注册 |
+| 网络频道 | 否（按宿主 modid 可共存） | 不做是范围决定（无服务端、无复制层），不是结构限制 |
+| 访问受限成员 | 否 | 公开 API/事件 > 组合 > AT/AW 片段（幂等，写入宿主元数据）或反射（Forge 1.20.1 运行时为 SRG 名） |
+| 库自带 mixin、固定 ID、固定 namespace 资源、跨副本共享类型或资源、全局协调者 | 是 | 只把全局唯一的部分拆成最小运行时 mod（#002 路线 2，API 只用 JDK 类型），库主体仍 shade；不整体升级为 mod |
+
+对外类型：库的类型不出现在宿主公开 API；与其它 mod 交互只用原版/加载器类型，数据端口只用 JDK 类型（#004）。
+
+SD 预见范围内越界的只有可交互 HUD（§9）；Fabric 26.1 访问 `guiRenderState` 用 AW 或反射即不越界。跨副本"带版本号资源 ID 去重"不可行：需要固定 namespace 与协调者，且 `TextureManager.register` 对同 ID 会关闭旧纹理（1.20.1、1.21.1 源码已核实）。
+
+结论反转的条件：需求变成整合包级统一 UI（统一主题、跨 mod DevTools、共享输入捕获），该场景直接用 AUI；或第三方大量采用且渲染兼容修复频繁，此时只拆出全局部分。"库大、广泛使用、API 稳定"不构成理由：广泛使用放大仲裁风险，API 稳定只是拆出共享 mod 的前提。
 
 ### 4. 从 AUI / LDLib2 的取舍
 
@@ -146,11 +164,11 @@ Ixchel 的零全局副作用约束换来第三种方式：每个宿主内含一�
 
 ```text
 ui-core            纯 Java；编译期无 MC
-  解析   jsoup（仅作 HTML 树构建）+ 自写 CSS Syntax L3 分词与选择器解析
+  解析   自写严格模板解析器（#007）+ 自写 CSS Syntax L3 分词与选择器解析
   样式   选择器匹配（含优先级）+ 层叠 + var() + 过渡/关键帧
   布局   taffy-java + 文本测量回调
   事件   三阶段派发、焦点、hover
-  数据   Value / Derived / Action / Scope
+  数据   Value / Derived / Action / Scope（见 ref/SD-ixchel-viewmodel-and-binding-20261026.md）
   输出   绘制命令（DisplayList，内核与适配层的契约）
 ui-mc-<时代>        仅 vanilla 类：Painter、TextMeasurer、UiView、宿主辅助
 ui-<加载器>-<版本>  约百行胶水：资源重载监听、HUD 层、（日后）shader/pipeline 注册
@@ -160,14 +178,14 @@ ui-<加载器>-<版本>  约百行胶水：资源重载监听、HUD 层、（日
 
 | 库 | 体量 | 备注 |
 |---|---|---|
-| jsoup 1.21.1 | 499KB | 只用于构建 HTML 树；其选择器引擎无优先级、`:hover`、伪元素，层叠匹配器须自写 |
-| taffy 1.1.5 | 233KB | Java 17 字节码、MIT；runtime 依赖 `fastutil 8.5.12`，宿主 shade 时须排除（MC 自带） |
+| 自写模板解析器 | 估计约 0.5k 行（推断） | 替代 jsoup 1.21.1（499KB）：其 HTML5 容错建树会静默改写结构（#007）；jsoup 选择器引擎本也无优先级、`:hover`、伪元素，层叠匹配器无论如何须自写 |
+| taffy 1.1.5 | 233KB | Java 17 字节码、MIT；runtime 依赖 `fastutil 8.5.12`，宿主 shade 时须排除（MC 自带：1.20.1 为 8.5.9、1.21.1 为 8.5.12；taffy 引用的 11 个 fastutil 类在 8.5.9 中均存在，仅类级核对） |
 | 自写 CSS 分词/选择器解析 | 估计 1~2k 行（推断） | 首选：严格解析、错误带位置，符合 #003 开发期报错 |
 | 备选：ph-css 7.0.4 | 552KB + ph-commons 11.2.0 1.34MB | ph-css 8.x 改依赖 ph-commons 12 拆分的 6 个以上模块；容错方式偏浏览器宽松，与开发期报错目标相反 |
 
-依赖合计：首选方案约 0.73MB，选 ph-css 约 2.6MB。
+依赖合计：首选方案约 0.23MB（仅 taffy），选 ph-css 约 2.1MB。
 
-工作量粗估（推断）：内核 8~12k 行，每个适配层 1~2k 行；对照 AUI common 约 85k 行、LDLib2 `gui/ui` 35k 行；AUI 26.1 渲染适配核心（PIP renderer、`RenderService`、`PipelineRegistry`）约 1.45k 行。
+工作量粗估（推断）：内核 8~12k 行（包级拆分见 `ref/D-ixchel-module-breakdown-20261026.md` §2，合计约 11.7k），每个适配层 1~2k 行；对照 AUI common 约 85k 行、LDLib2 `gui/ui` 35k 行；AUI 26.1 渲染适配核心（PIP renderer、`RenderService`、`PipelineRegistry`）约 1.45k 行。
 
 Java 字节码目标：`ixchel-core` 以 Java 17 工具链编译与测试，供 1.20.1（Java 17）与 1.21.1（Java 21）共用（#005）。17 中 switch 模式匹配与 record 模式未转正，`DrawCommand` 等 sealed 层次以 visitor 分派保留穷尽检查；17 的默认字符集依平台（JEP 400 自 18 起改为 UTF-8），文本读写一律显式 UTF-8。
 
@@ -181,20 +199,17 @@ Java 字节码目标：`ixchel-core` 以 Java 17 工具链编译与测试，供 
 |---|---|---|---|
 | 输入 | `GuiEventListener` 各方法一一对应 | 小 | 仅在自有 Screen 内可得；HUD 无输入 |
 | 视口/时间 | `Screen.width/height`、`getGuiScale()`、`partialTick` | 小 | `@media` 语义需定义 |
-| 矩形 | `GuiGraphics.fill(int…)`，仅整数 | 小~中 | 浮点布局需像素对齐或自发顶点 |
+| 矩形 | `GuiGraphics.fill(int…)`，仅整数；每次调用末尾 `flushIfUnmanaged()` 即 `endBatch()`（`fillGradient`、`drawString` 同，1.20.1 与 1.21.1 均已读源码） | 小~中 | 浮点布局需像素对齐；逐条调用即逐条提交，Painter 须自写顶点合批 |
 | 文本测量 | `Font.width`、`Font.split`、`wordWrapHeight`，固定 `lineHeight` | 中 | 唯一的布局期同步回调；字号靠缩放，无字重、无整形 |
 | 文本绘制 | `drawString` 有 int/float 重载 | 小 | 浮点坐标下像素字体发虚 |
-| 图片 | `blit`、`blitSprite`（1.20.2+，推断）、`nine_slice` | 中 | 原始尺寸异步可知，需重新布局 |
+| 图片 | `blit`、`blitSprite`（1.20.2+，推断）、`nine_slice`；`innerBlit` 每次调用 `BufferUploader.drawWithShader` | 中 | 原始尺寸异步可知，需重新布局；逐条 blit 即逐条 draw call |
 | 裁剪 | `enableScissor(int×4)` 自带栈 | 小 | 仅整数矩形 |
 | 自定义着色器 | `ShaderInstance(ResourceProvider, …)` + `RegisterShadersEvent` | 大，随时代变 | 适配层最厚部分；可传入自定义 `ResourceProvider` 从包路径读取 shader |
 | 物品 | `renderItem` | 中~大 | 深度、z 偏移、与合批交互 |
-| 容器槽位 | `Slot.x/y` 为 `public final int` | 大 | 见下 |
+| 容器槽位 | `Slot.x/y` 为 `public final int`；槽位命中、物品绘制的钩子可见性因版本而异 | 大 | 见下 |
 | 原版控件 | 独立焦点/输入/渲染 | 大 | 不嵌入，自行实现 |
 
-槽位：`AbstractContainerScreen.isHovering(Slot, double, double)` 与 `findSlot` 在 vanilla 与 NeoForge 21.1.264 中均为 **private**，只有 `renderSlot` 为 protected，无法通过重写改变槽位命中。因此：
-
-1. 首选：Menu 中的 `Slot.x/y` 是槽位坐标的唯一来源，模板中的 `<item-slot>` 按其坐标绝对定位；内核布局须支持"外部固定位置"节点。这同时避免 JEI/EMI、Mouse Tweaks 类 mod 直接读 `Slot.x/y` 导致错位。
-2. 备选：AT 放开 `isHovering(Slot…)`，由宿主抄入自己的 AT 文件（AT 幂等，多份共存无冲突）。
+槽位：布局结果写回 `Slot.x/y`（反射绕过 final，#008），vanilla 命中、拖拽与 JEI/EMI/REI/Mouse Tweaks 都以它为准；命中判定通过覆写 protected 的 `isHovering(int,int,int,int,DD)` 感知遮挡与裁剪；1.20.1 的 `renderSlot` 为 private，自绘槽位物品需零面积裁剪且有可见代价，默认用 vanilla 绘制，增强由宿主开关开启（#009）。约束、实验与第三方依赖见 `ref/SDG-ixchel-container-slot-integration-20261026.md`。
 
 内核端口：
 
@@ -238,7 +253,7 @@ dependencies {
 shadowJar {
     relocate "com.azane.ixchel", "com.example.mymod.shadow.ixchel"
     relocate "dev.vfyjxf.taffy", "com.example.mymod.shadow.taffy"
-    relocate "org.jsoup",        "com.example.mymod.shadow.jsoup"
+    // 模板解析器自写（#007），无 jsoup 需要 relocate
     dependencies { exclude(dependency("it.unimi.dsi:fastutil")) } // MC 自带
 }
 ```
@@ -260,7 +275,7 @@ final UiView view = UiView.of(Ui.load(MODID, "ui/smith.html"), new SmithViewMode
 @Override public void removed() { view.close(); }
 ```
 
-在其上提供 `UiScreen`（整页）、`UiHud`（只显示，回调交给加载器 HUD 注册）、`UiContainerScreen<M>`（继承；槽位按 §7 以 Menu 坐标为准）。组合式嵌入允许已有界面（如 TACZ 工作台）逐块替换，是对采用最有利的一点。
+在其上提供 `UiScreen`（整页）、`UiHud`（只显示，回调交给加载器 HUD 注册）、`UiContainerScreen<M>`（继承；槽位布局写回 Menu 坐标，见 §7）。组合式嵌入允许已有界面（如 TACZ 工作台）逐块替换，是对采用最有利的一点。
 
 扩展点只开放两个：自定义标签（产出绘制命令或嵌入 MC 内容）与自定义数据源。
 
@@ -273,11 +288,18 @@ shade 带来的约束：
 | 版本由使用方钉死 | 只需源码级 API 稳定 |
 | 多版本使用方 | 模板/样式/ViewModel 共享，挂载代码按版本分 |
 | MC 自带的传递依赖 | fastutil 等不 shade、不重定位 |
+| 未重定位的依赖包、依赖自带的 `module-info.class` | 每个依赖一条 relocate；排除 `module-info.class`（含 `META-INF/versions/*/`）与签名文件；Forge 模块层下两个 jar 导出同一包会启动失败（经验，未本地复现） |
+| ServiceLoader 注册文件 | `mergeServiceFiles()` |
+| `minimize()` | 不用：会删除仅经反射或 ServiceLoader 访问的类 |
+| 包内资源路径 | 用相对路径 `getResourceAsStream("default.css")`，不依赖 relocator 改写字符串常量 |
+| 运行时命名（Forge 1.20.1） | 先 shade 再对 shadowJar 整体 reobf 一次（`obfuscation.reobfuscate`）；库模块发布 mojmap 还是 SRG 待 §11 第 3 步决定（对已是 SRG 的类再 reobf 推断为空操作，差别在消费方开发环境是否需先重映射） |
+| 版本锁定 | 消费方构建对库用 `strictly`；同一库不再 jarJar/include；消费方发布物不把库及其依赖列为运行时依赖 |
+| GPU 资源 | FBO、遮罩纹理惰性分配、用完释放，避免按副本数叠加 |
 
 ### 9. mixin 策略
 
 - mixin 不是禁区，但与"多份共存"冲突：配置由宿主声明，N 份重定位副本会对同一 vanilla 方法注入 N 次，导致全局状态争夺、加载顺序相关的冲突，`@Overwrite`/`@Redirect` 直接互斥。默认产物零 mixin。
-- AT / access widener 结果幂等，可用，但需使用方抄入自己的 AT 文件。当前设计不依赖；可能的需求点：槽位命中的备选方案（§7）、26.1 Fabric 上访问 `guiRenderState`。
+- AT / access widener 结果幂等，可用，但库模块编译期与宿主 jar 运行期须各有一份同内容的 AT，宿主漏配时运行到相关代码才抛 `IllegalAccessError`。可能的需求点：`Slot.x/y` 去 final（当前用反射，#008；Java ≥ 26 时改 AT）、26.1 Fabric 上访问 `guiRenderState`。
 - 不用 mixin 的覆盖面（NeoForge 21.1.264 核对）：`ScreenEvent.MouseButtonPressed.Pre`、`ScreenEvent.KeyPressed.Pre`、`InputEvent.MouseButton.Pre`、`InputEvent.MouseScrollingEvent`、`RenderGuiLayerEvent.Pre` 均可取消；`InputEvent.Key` 不可取消。透明 Screen（`isPauseScreen` 为 false、不画背景）可做可交互覆盖层，代价是玩家不能移动。
 - 唯一必须 mixin 的场景是"边移动边操作 HUD"（光标锁定与键盘拦截）。届时两条路线：
   1. 库提供静态钩子（`UiInputHooks`），mixin 由宿主在自己的配置中编写并承担冲突取舍。
@@ -286,26 +308,11 @@ shade 带来的约束：
 
 ### 10. 数据需求声明
 
-模板只引用名字，ViewModel 声明来源、派生与动作：
+模板只引用名字，ViewModel 用 `source` / `state` / `derive` / `action` 声明来源、本地状态、派生与动作，`Scope` 随宿主生命周期释放。表达式仅支持路径与 `!`，复杂逻辑写成 `Derived`；模板引用未声明名字或使用不支持的 CSS 属性时开发期报错；数据源可接已有客户端缓存，不强制任何复制层（#004）。
 
-```html
-<span bind:text="loaded"></span>/<span bind:text="reserve"></span>
-<button on:click="reload" bind:disabled="!canReload">装填</button>
-```
+语法、运行语义、实现、原型验证与待定项见 `ref/SD-ixchel-viewmodel-and-binding-20261026.md`。
 
-```java
-final class AmmoView extends ViewModel {
-  final Value<ItemStack> held      = source(ClientSources.mainHand());
-  final Derived<Integer> loaded    = derive(held, GunData::loadedAmmo);
-  final Derived<Integer> reserve   = derive(held, inv(), Ammo::reserve);
-  final Derived<Boolean> canReload = derive(loaded, reserve, (a, r) -> r > 0);
-  final Action<Void> reload        = action(() -> Intents.send(new Reload()));
-}
-```
-
-原语划分参考 Kumiko 仓库 `meta/ref/S-kumiko-product-value-and-primitives-20260922.md` §7：可观察/派生值 → `Value`/`Derived`；目标及访问策略 → `source(...)`；动作 → `Action`（回执不等于新状态）；作用域 → ViewModel 随宿主生命周期释放；物品位置与转移 → 仅 `UiContainerScreen` 挂 Slot 通道，MVP 后。表达式仅支持路径与 `!`，复杂逻辑写成 `Derived`。模板引用未声明名字或使用不支持的 CSS 属性时，开发期报错。数据源可接已有客户端缓存，不强制任何复制层。
-
-数据层是"价值"层中对使用者可见、也是本项目自身需求的重点，但目前设计最薄；MVP 验证须以 TACZ 场景中样板代码相对手写原版的实际减少量为准。
+数据层是"价值"层中对使用者可见、也是本项目自身需求的重点；MVP 验证须以 TACZ 场景中样板代码相对手写原版的实际减少量为准（验收矩阵见上述文档 §7）。
 
 ### 11. MVP 范围与验证顺序
 
@@ -320,18 +327,15 @@ final class AmmoView extends ViewModel {
 
 平台取舍（#005）：第一消费方 TACZ-RESPAWN 为 Forge 1.20.1 / Java 17，因此 1.20.1 做完整 MVP；NeoForge 1.21.1 跑同一套验收模板，用来验证内核与适配层的边界能跨加载器（Forge/NeoForge）、跨顶点 API 时代、跨运行时命名（SRG/mojmap）成立。两个平台都做完整 MVP 会让功能工作量翻倍，对验证没有额外收益。
 
-圆角/阴影/渐变的实现路径：
+圆角/阴影/渐变的实现路径（对比见 `ref/D-ixchel-module-breakdown-20261026.md` §6）：推荐但未定的是 C——CPU 生成覆盖率/SDF 纹理放入单张图集，自写 `POSITION_TEX_COLOR` 顶点做九宫格，纹理以宿主 modid 注册 `DynamicTexture`；无需注册 shader 且有抗锯齿。备选 A 为 CPU 三角化 + `POSITION_COLOR`（无 AA），B 为 SDF shader（MVP 即需 shader 注册，Painter 随顶点 API 时代分叉）。
 
-- CPU 三角化 + vanilla `POSITION_COLOR`：不注册 shader，无 AA，阴影只能近似。
-- SDF shader：效果正确，MVP 即需 shader 注册与自定义 `ResourceProvider`，Painter 随顶点 API 时代分叉（§7）。
-
-验收场景沿用 Kumiko 调研中的 TACZ 场景（同一文档 §5）：先 §5.3 弹药 HUD 与 §5.2 改装 Screen，§5.4 背包式改装验证 Slot 通道。
+验收场景为 TACZ 四个场景（`ref/SD-ixchel-viewmodel-and-binding-20261026.md` §1）：先弹药 HUD 与 Z 键改装 Screen，背包式改装验证 Slot 通道。里程碑见 `ref/D-ixchel-module-breakdown-20261026.md` §9。
 
 验证顺序：
 
 1. 纯 Java 内核原型，用单元测试从弹药 HUD 模板产出绘制命令，不碰 MC。
 2. 适配层在游戏内绘制（两个平台），确认零 mixin、不改主 target，并与 Iris、ImmediatelyFast 共存显示正常。
-3. 在 Forge 1.20.1 上重定位 shade 进两个测试 mod，故意使用不同版本，确认两份共存；同时验证"先 shade 再 reobf 到 SRG"的链路，以及库模块应发布 mojmap 还是 SRG 产物。此步不过则"宿主拥有运行版本"不成立，方案失去唯一的结构性差异。
+3. 在 Forge 1.20.1 上重定位 shade 进两个测试 mod，故意使用不同版本，固定发布配方：relocate 覆盖全部依赖、排除 `module-info`、shadowJar 接 reobf，并决定库模块发布 mojmap 还是 SRG 产物。两份副本的类级共存由重定位保证；此步检验的是配方，以及类以外的全局泄漏（资源 ID、GL 状态），后者在有 shader/纹理注册代码后才有测试对象。现有 testmod 以 sourceSet 并入运行，不覆盖此链路。
 4. 改装 Screen 验证事件、`Action` 与作用域生命周期，并与同场景手写原版实现对比代码量。
 
 ### 12. 风险与未决问题
@@ -342,7 +346,7 @@ final class AmmoView extends ViewModel {
 - 交互侧无 JS，LLM 生成的带脚本页面不可直接使用，需文档化边界。
 - 1.21.6+ 延迟 GUI 渲染下自定义着色器与 FBO 需走 PIP 或自定义 pipeline，物品与文本的层级交错是主要难点（AUI 26.1 已踩坑）。
 - 本库许可未定，倾向 MIT 或 Apache-2.0；须确保不引入 LGPL 代码。
-- 未决：1.20.1 库模块发布 mojmap 还是 SRG 产物（§11 验证第 3 步）；圆角/阴影/渐变实现路径（§11）；模板绑定语法的最终形态；`@media` 的 MC 语义；jar-in-jar 模式是否作为正式支持的分发方式。
+- 未决：1.20.1 库模块发布 mojmap 还是 SRG 产物（§11 验证第 3 步）；圆角/阴影/渐变是否正式采用路径 C（§11）；模板绑定语法中的提议项与 i18n 写法、来源轮询频率、动作重入策略（见数据绑定文档 §8）；ViewModel 结构描述格式（供预览与 VS Code 补全）；`@media` 的 MC 语义；jar-in-jar 模式是否作为正式支持的分发方式。
 
 ### 13. 证据来源
 
@@ -351,5 +355,5 @@ final class AmmoView extends ViewModel {
 - MC 1.21.1（官方映射，vanilla 与 NeoForge 21.1.264 源码）：`Slot`、`AbstractContainerScreen`、`GuiGraphics`、`ShaderInstance`、`Font`、`GuiEventListener`。
 - NeoForge 21.1.264：`InputEvent`、`ScreenEvent`、`RenderGuiLayerEvent`、`RegisterShadersEvent`。
 - TACZ-RESPAWN：`gradle.properties`（Forge 1.20.1）。
-- taffy-java：https://github.com/vfyjxf/taffy-java ；Maven Central：jsoup 1.21.1、ph-css 7.0.4 / 8.2.3、ph-commons 11.2.0 / 12.5.1、taffy 1.1.5（pom）。
+- taffy-java：https://github.com/vfyjxf/taffy-java ；Maven Central：jsoup 1.21.1（已弃用，#007）、ph-css 7.0.4 / 8.2.3、ph-commons 11.2.0 / 12.5.1、taffy 1.1.5（pom）。
 - ModDevGradle Legacy：https://github.com/neoforged/ModDevGradle/blob/main/LEGACY.md （同版本号的 `net.neoforged.moddev.legacyforge` 插件；`mcpVersion` 原版模式；`jar` 自动 reobf、`obfuscation.reobfuscate` 可用于 shadowJar）。

@@ -34,3 +34,27 @@
 - **context**: 第一消费方 TACZ-RESPAWN 为 Forge 1.20.1 / Java 17；内核与适配层的边界须在不同加载器、顶点 API 时代、运行时命名（SRG/mojmap）下都成立
 - **decision**: Forge 1.20.1 做完整 MVP；NeoForge 1.21.1 只做对齐最小集（弹药 HUD + 一个 Screen），两边跑同一套验收模板；`ixchel-core` 以 Java 17 编译与测试；shade 共存验证在 Forge 1.20.1 上做
 - **rejected**: 只做 NeoForge 1.21.1——第一消费方用不上；两个平台都做完整 MVP——功能工作量翻倍，对验证没有额外收益
+
+## #006 内核为单一 Gradle 模块，按包分层
+- **decided**: 2026-10-26
+- **context**: 内核各部分（CSS、DOM、样式、布局、事件、绑定）没有独立消费者；每多一个 artifact，宿主就多一项需要 shade 与 relocate 的依赖
+- **decision**: `ixchel-core` 保持一个 Gradle 模块，内部按包单向依赖，包划分见 `ref/D-ixchel-module-breakdown-20261026.md` §2
+- **rejected**: 拆成多个 Gradle 模块——没有独立消费者，只增加宿主的 shade 配置与版本对齐成本
+
+## #007 自写严格模板解析器，不用 jsoup
+- **decided**: 2026-10-26
+- **context**: jsoup 按 HTML5 容错算法建树（隐式闭合、adoption agency、foster parenting），会静默改写模板结构，且依赖本身约 499KB
+- **decision**: 自写类 XML 规则的严格解析器：标签必须闭合、属性必须加引号、未知标签/属性开发期报错并带文件:行:列
+- **rejected**: jsoup——静默改写与 #003 的开发期报错冲突，且增加 shade 体积
+
+## #008 `Slot.x/y` 以反射写入
+- **decided**: 2026-10-26
+- **context**: 布局结果须写回 `public final` 的 `Slot.x/y`；AT 要求库编译期与宿主 jar 运行期各带一份，宿主漏配时打开界面才抛 `IllegalAccessError`
+- **decision**: 1.20.1 / 1.21.1 用反射（`setAccessible` + `MethodHandle` setter）写入，宿主零配置；字段按开发名与 SRG 名依次查找，`UiContainerScreen` 初始化时缓存，失败立即报错；目标平台 Java ≥ 26（JEP 500 收紧）时改用 AT
+- **rejected**: AT——给每个宿主增加一处漏配即运行期崩溃的接入步骤；mixin `@Mutable`——违反 #002
+
+## #009 兼容优先，有冲突风险的增强须有特性开关
+- **decided**: 2026-10-26
+- **context**: 接管 vanilla 绘制或交互的增强（如 1.20.1 自绘槽位物品）会与注入同一位置的其它 mod 冲突
+- **decision**: 默认走 vanilla 路径；存在冲突风险的增强必须提供开关，以宿主 API 参数暴露（如 `slotItemRendering`，默认 `VANILLA`），库不自带配置文件，宿主自行决定是否接入玩家配置
+- **rejected**: 默认开启增强——冲突由玩家承担且难以定位；库级配置文件——多份重定位副本无法归属；按 `ModList` 自动切换——名单不全且无实际观察到的冲突

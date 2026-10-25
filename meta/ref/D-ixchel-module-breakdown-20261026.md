@@ -1,0 +1,189 @@
+---
+tags: [design]
+date: 2026-10-26
+origin: 梳理 Web 风格 UI 所需模块，确定内核包划分、包间契约、mc 与加载器层分块、里程碑、性能约束与编辑器分级；读 MC 源码确认 GuiGraphics 不合批；迁入 Kumiko 对 LDLib2 内核的可参考结论（vanilla Slot 相关结论已移到槽位接入文档）。同日补充实现顺序，并把 binding 最小集前移到 M2。
+related: [DECISIONS.md#003, DECISIONS.md#004, DECISIONS.md#006, DECISIONS.md#007, ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md, ref/SD-ixchel-viewmodel-and-binding-20261026.md, ref/SDG-ixchel-container-slot-integration-20261026.md]
+---
+
+# Ixchel UI: Module Breakdown
+
+## Summary
+
+三层不变：`ixchel-core`（纯 Java）→ `ixchel-mc-<时代>`（仅 vanilla）→ `ixchel-<加载器>-<版本>`（胶水）。core 是单一 Gradle 模块，内部按包单向分层（#006）；模板解析器自写（#007）。包间只通过四个契约交互：`Element` 树、`PropertyDef` 注册表、`ComputedStyle` 数组、sealed `DrawCommand`。
+
+性能上关键不在内核（典型界面一帧约 0.1 ms 量级）而在提交：`GuiGraphics` 的矩形、文本、贴图调用逐条刷新或逐条 draw call，Painter 必须自写顶点并按状态合批。
+
+## Detail
+
+### 1. 每帧流水线
+
+```mermaid
+flowchart LR
+  I[收件箱/轮询来源] --> B[刷新脏绑定] --> D[DOM 变更]
+  D --> S[样式: 匹配+层叠+计算值] --> L[布局: taffy + 文本测量]
+  L --> P[生成 DisplayList] --> M[McPainter 提交]
+  E[输入事件] --> D
+```
+
+每一级只在上游标脏时工作：无 DOM 变化跳过样式；计算值中与布局相关的属性未变则不 `setStyle`；taffy 树不脏则不 `computeLayout`；DisplayList 仍每帧提交（立即模式宿主）。
+
+### 2. core 包与依赖
+
+| 包 | 内容 | 依赖 |
+|---|---|---|
+| `diag` | 源位置、诊断收集、开发期叠加层数据 | — |
+| `css.syntax` | CSS Syntax L3 分词、组件值 | diag |
+| `css.selector` | 选择器解析、优先级 | css.syntax |
+| `css.property` | 属性注册表：名称、语法、初值、是否继承、是否影响布局、是否可过渡 | css.syntax |
+| `dom` / `template` | `Element` 树、类名与状态位；严格模板解析器 | diag, css.selector（`style` 属性） |
+| `style` | 规则索引、匹配、层叠、`var()`、计算值 | dom, css.* |
+| `anim` | transition、`@keyframes` | style |
+| `text` | 文本测量接口与结果缓存、换行 | — |
+| `layout` | `Element` ↔ taffy 节点同步、布局结果查询（mc 层据此写回 `Slot.x/y`） | dom, style, text |
+| `paint` | DisplayList 生成、裁剪栈 | layout, style |
+| `event` | 命中测试、三阶段派发、焦点、hover/active 状态位 | dom, layout |
+| `binding` | Value / Derived / Action / Scope，模板绑定 | dom, template |
+| `runtime` | `UiDocument`：组装上述阶段、帧驱动、热重载入口 | 全部 |
+
+`css.property` 是**唯一的支持清单**：解析、校验、开发期报错、特性文档与 VS Code `css.customData` 都由它生成，不另维护列表。
+
+规模粗估（推断）：core 合计约 11.7k 行，与 SD §6 的 8~12k 一致。对照：LDLib2 `gui/ui/style` 7.6k 行（含 `PropertyRegistry` 与 transition）、event 0.8k、layout 1.7k（Taffy 一侧）。
+
+### 3. 包间契约
+
+```java
+public final class Element {                     // dom
+    String tag; Element parent; List<Element> children;
+    ClassList classes; int stateBits;             // HOVER/ACTIVE/FOCUS…，由 event 写
+    Map<String, String> attrs; SourcePos pos;
+    ComputedStyle computed; LayoutBox box;        // style、layout 写入
+}
+public record PropertyDef<T>(String name, int id, Syntax<T> syntax, T initial,
+                             boolean inherited, boolean affectsLayout, boolean animatable) {}
+public final class ComputedStyle { final Object[] values; /* 以 PropertyDef.id 为下标 */ }
+public sealed interface DrawCommand permits Rect, RoundRect, Border, Text, Image, NineSlice, Item, PushClip, PopClip, Custom {
+    <R> R accept(Visitor<R> v);                   // Java 17 无模式匹配 switch，以 visitor 保留穷尽检查
+}
+public record Custom(String kind, Object payload, float x, float y, float w, float h) implements DrawCommand { … }
+```
+
+`Custom` 供 mc 层原生元素（如第一人称模型预览）携带宿主数据穿过内核；内核不解释 `payload`。
+
+### 4. mc 层与加载器层
+
+`ixchel-mc-<时代>`：
+
+| 块 | 职责 |
+|---|---|
+| `McPainter` | 消费 DisplayList：自写顶点、按渲染状态/纹理合批、scissor、物品与文本的插入点 |
+| `McTextMeasurer` | 基于 `Font` 实现 `text` 包的测量接口 |
+| `McResources` | 按宿主 modid 读取模板/样式/图片，注册 `DynamicTexture` 图集 |
+| `McInput` | `GuiEventListener` → event 包的输入转换 |
+| 宿主辅助 | `UiView`（可嵌入任意 Screen）、`UiScreen`、`UiHud`、`UiContainerScreen` |
+| 原生元素 + `ClientSources` | `<item>`、`<item-slot>` 等；mainHand、inventory 等来源及其快照与比较语义 |
+
+`ixchel-<加载器>-<版本>`：资源重载监听、HUD 层注册、开发期热重载触发、（日后）shader/pipeline 注册。
+
+### 5. 模板解析器（#007）
+
+- 规则类 XML：标签必须闭合或自闭合、属性必须加引号、不做隐式闭合；未知标签与属性开发期报错，带文件:行:列。
+- 仅识别注册过的元素（HTML 子集 + 原生元素）；`<style>` 与 `style` 属性交给 css 包。
+- 估计约 0.5k 行（推断）。
+
+jsoup 的问题在 HTML5 容错建树（隐式闭合、adoption agency、foster parenting）会静默改写结构，而非 DOM 模型本身。
+
+### 6. 圆角/阴影/渐变路径
+
+| 路径 | 做法 | 取舍 |
+|---|---|---|
+| A | CPU 三角化 + `POSITION_COLOR` | 无 shader；无抗锯齿；阴影只能近似 |
+| B | SDF shader | 效果最好；MVP 即需 shader 注册与自定义 `ResourceProvider`，Painter 随顶点 API 时代分叉 |
+| **C（推荐，未定）** | CPU 生成覆盖率/SDF 纹理放入单张图集，自写 `POSITION_TEX_COLOR` 顶点，九宫格拉伸；纹理以宿主 modid 注册 `DynamicTexture` | 无 shader、有抗锯齿；与图片共用合批路径；纹理按"半径×边框×模糊"键缓存 |
+
+### 7. 性能
+
+一次性基准（本地脚本，未入库；JIT 预热后取中位数）：
+
+| 项 | 规模 | 耗时 |
+|---|---|---|
+| 绑定，无变化 | 50 来源 / 200 绑定 | 0.5 µs |
+| 绑定，一个来源变化 | 同上 | 2.9 µs |
+| 样式匹配，朴素 | 300 节点 × 150 规则 | 242.4 µs |
+| 样式匹配，按最右侧类名建索引 | 同上 | 26.1 µs |
+| taffy 布局，无变化 | 301 节点 | 18.6 µs |
+| taffy 布局，单叶子变脏 | 同上 | 52.1 µs |
+| taffy 布局，全部变脏 | 同上 | 432.4 µs |
+
+未测：层叠与计算值、文本测量。
+
+MC 源码事实（1.20.1 与 1.21.1 vanilla）：`GuiGraphics.fill` / `fillGradient` / `drawString`（1.21.1 还有 `fillRenderType`）每次调用末尾 `flushIfUnmanaged()` → `bufferSource.endBatch()`；`innerBlit` 每次调用 `BufferUploader.drawWithShader`。即逐元素调用 = 逐元素一次提交。MC 一侧提交耗时约 0.5~2 ms（推断，未实测）。1.21.6+ 延迟渲染下原生是否合批未核实。
+
+由此的约束：
+
+- 样式规则按最右侧复合选择器（id/类/标签）建索引。
+- 只在影响布局的计算值变化时调用 taffy `setStyle`；树不脏时跳过 `computeLayout`。
+- 文本测量结果按（字符串、字号、宽度约束）缓存。
+- DisplayList 复用数组，稳态零分配。
+- Painter 自写顶点，只在渲染状态或纹理切换时提交；覆盖率纹理与图片同一图集。
+- M2 起在游戏内测量帧耗时，对照同界面手写原版实现。
+
+### 8. 编辑器支持分级
+
+| 级别 | 内容 | 时机 |
+|---|---|---|
+| L1 | 开发环境下文件监听热重载，错误显示在叠加层 | MVP |
+| L1+ | 由属性注册表与元素注册表生成 VS Code `html.customData` / `css.customData` | MVP 后低成本 |
+| L2 | 浏览器预览：预览用重置样式表模拟 MC 字体与像素对齐；ViewModel 结构描述 + mock 数据填充绑定 | 有外部使用者后 |
+| L3 | 游戏内开发服务器（`com.sun.net.httpserver`，只绑 127.0.0.1，默认关闭）+ GrapesJS 类可视化编辑器 | 不在规划内 |
+
+L3 前需核实启动器运行时是否包含 `jdk.httpserver` 模块。
+
+### 9. 里程碑（计划）
+
+| 里程碑 | 内容 | 退出条件 |
+|---|---|---|
+| M1 | core 原型：模板 → 样式 → 布局 → DisplayList，单元测试覆盖弹药 HUD | 不碰 MC 产出正确绘制命令 |
+| M2 | mc 1.20.1：McPainter、文本、HUD 宿主；binding 最小集（来源、派生、文本/属性绑定） | 游戏内显示随实际弹量变化的弹药 HUD；帧耗时对比；与 Iris、ImmediatelyFast 共存 |
+| M3 | 事件、binding 其余部分（`action`、`each`/`if`、`Scope`）、`UiScreen`：Z 键改装 | 与手写原版对比（见绑定文档 §7） |
+| M4 | shade 配方与 NeoForge 1.21.1 对齐最小集 | 两个不同版本副本共存；1.21.1 跑同一验收模板 |
+| M5 | `UiContainerScreen` 与 Slot 通道：背包式改装 | vanilla 物品事务行为不变；`ref/SDG-ixchel-container-slot-integration-20261026.md` §8 的 L1–L3 通过 |
+
+#### 实现顺序
+
+原则：契约先行；每个里程碑先打通最薄的一条端到端路径，再按验收场景加宽；会推翻设计的风险点用独立探针提前验证。
+
+M1 之前：
+
+1. 冻结 §3 四个契约的骨架与 `diag`。
+2. 先写验收夹具：弹药 HUD 模板、样式表与期望的 DisplayList（黄金测试）。M1 以它通过为退出条件。
+
+M1（core，按依赖顺序；`dom`/`template` 与 2~3 可并行）：
+
+| 序 | 包 | 本阶段范围 |
+|---|---|---|
+| 1 | `css.syntax` | 完整分词 |
+| 2 | `css.property` | 注册表机制完整；条目只覆盖弹药 HUD 用到的属性，后续按场景追加 |
+| 3 | `dom` / `template` | 严格解析器完整（#007） |
+| 4 | `css.selector` | 标签/类/id/后代/子代；状态伪类随 M3 的 `event` 加入 |
+| 5 | `style` | 按最右侧选择器建索引、层叠、计算值；`var()` 可延后 |
+| 6 | `text` | 测量接口 + 等宽假实现（供单测） |
+| 7 | `layout` | taffy 同步与脏标记 |
+| 8 | `paint` | DisplayList 生成、裁剪栈 |
+| 9 | `runtime` | `UiDocument` 组装帧流水线，黄金测试通过 |
+
+M2（mc 1.20.1 + forge 1.20.1）：`McResources` → `McTextMeasurer`（换掉假实现，复核换行）→ `McPainter`（矩形、文本，自写顶点合批）→ `UiHud` 与加载器 HUD 注册 → `binding` 最小集 + `ClientSources`（mainHand、inventory）→ 图片与物品绘制 → 开发期热重载（L1）→ 帧耗时与 Iris/ImmediatelyFast 共存。圆角路径 C 在弹药 HUD 实际用到时才进入。
+
+M3：`event`（命中、三阶段派发、焦点、状态位）与 `css.selector` 状态伪类 → `McInput` → `UiScreen` → `binding` 其余部分 → `anim`（transition）放在最后，不阻塞退出条件。
+
+M4：先 shade 配方（Forge 1.20.1，两个不同版本副本），再 `ixchel-mc-1.21.1`（顶点 API 时代分叉只落在 `McPainter`）与 neoforge 1.21.1 加载器胶水，跑同一套验收模板。
+
+M5：按槽位文档推进：反射写坐标与 `isHovering` 覆写 → `UiContainerScreen`（`VANILLA` 绘制）→ Slot 通道（轮询比较）→ 第三方 mod 兼容（L2）→ `IXCHEL` 绘制开关（#009）→ 生产环境 SRG 验证（L3）。
+
+提前探针（只用 mc 层 + testmod，不依赖 core，可在 M2 期间做）：槽位文档 §8 的 L1，验证 ModLauncher 下 `Slot` 包对反射开放、`isHovering` 覆写生效、1.20.1 零面积裁剪。失败会推翻 #008 或 #009，不应拖到 M5。
+
+### 10. 迁入的参考结论（Kumiko 调研）
+
+- LDLib2 中零 MC 依赖、可参考思路的类：`StyleEngine`、`HierarchicalStyleMatcher`、`StyleSelector` / `StyleRule` / `Stylesheet`、`PropertyRegistry`、`UIEventDispatcher`、`UIEvent`。LDLib2 为 LGPL，只参考思路，不复制代码。
+- LDLib2 的 `UIElement` 同时承载树、布局、样式、事件；Ixchel 把这四者分到 dom / layout / style / event 包，`Element` 只是数据。
+- vanilla Slot 的事务硬约束、坐标写回、命中、绘制与第三方 mod 兼容：见 `ref/SDG-ixchel-container-slot-integration-20261026.md`。
+- 不继承 Kumiko 的复制层与意图 RPC：引擎中 UI 是状态的投影，MC 中 UI 是状态的通道；LDLib2 的同步会话绑定在 `player.containerMenu` 上，在 HUD 与无 Menu 的 Screen 上不可用。
