@@ -1,6 +1,7 @@
 package com.azane.ixchel.core.dom;
 
 import com.azane.ixchel.core.css.property.ComputedStyle;
+import com.azane.ixchel.core.css.syntax.Rule;
 import com.azane.ixchel.core.diag.SourcePos;
 
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ public final class Element extends Node {
     private int stateBits;
     private int dirty = STYLE_DIRTY;
     private ComputedStyle computed;
+    private List<Rule.Declaration> inlineStyle = List.of();
 
     public Element(String tag, SourcePos pos) {
         super(pos);
@@ -118,6 +120,16 @@ public final class Element extends Node {
             stateBits = next;
             markStyleDirty();
         }
+    }
+
+    /** Declarations from the {@code style} attribute, parsed by the template loader. */
+    public List<Rule.Declaration> inlineStyle() {
+        return inlineStyle;
+    }
+
+    public void setInlineStyle(List<Rule.Declaration> declarations) {
+        inlineStyle = List.copyOf(declarations);
+        markStyleDirty();
     }
 
     public ComputedStyle computed() {

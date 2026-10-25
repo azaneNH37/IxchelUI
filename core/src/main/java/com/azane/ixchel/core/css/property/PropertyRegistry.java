@@ -13,21 +13,38 @@ import java.util.Map;
 public final class PropertyRegistry {
     private final List<PropertyDef<?>> byId = new ArrayList<>();
     private final Map<String, PropertyDef<?>> byName = new HashMap<>();
+    private final Map<String, Shorthand> shorthands = new HashMap<>();
 
-    public <T> PropertyDef<T> register(String name, T initial,
+    public <T> PropertyDef<T> register(String name, Syntax<T> syntax, T initial,
                                        boolean inherited, boolean affectsLayout, boolean animatable) {
-        if (byName.containsKey(name)) {
-            throw new IllegalArgumentException("property already registered: " + name);
-        }
-        PropertyDef<T> def = new PropertyDef<>(name, byId.size(), initial, inherited, affectsLayout, animatable);
+        checkFree(name);
+        PropertyDef<T> def = new PropertyDef<>(name, byId.size(), syntax, initial, inherited, affectsLayout, animatable);
         byId.add(def);
         byName.put(name, def);
         return def;
     }
 
-    /** {@code null} if unsupported. */
+    public Shorthand registerShorthand(String name, Shorthand.Expander expander, PropertyDef<?>... longhands) {
+        checkFree(name);
+        Shorthand s = new Shorthand(name, List.of(longhands), expander);
+        shorthands.put(name, s);
+        return s;
+    }
+
+    private void checkFree(String name) {
+        if (byName.containsKey(name) || shorthands.containsKey(name)) {
+            throw new IllegalArgumentException("property already registered: " + name);
+        }
+    }
+
+    /** {@code null} if not a longhand. */
     public PropertyDef<?> byName(String name) {
         return byName.get(name);
+    }
+
+    /** {@code null} if not a shorthand. */
+    public Shorthand shorthand(String name) {
+        return shorthands.get(name);
     }
 
     public PropertyDef<?> byId(int id) {

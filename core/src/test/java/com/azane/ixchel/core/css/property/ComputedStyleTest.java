@@ -10,8 +10,8 @@ class ComputedStyleTest {
     @Test
     void childInheritsOnlyInheritedPropertiesFromParent() {
         PropertyRegistry reg = new PropertyRegistry();
-        PropertyDef<Integer> color = reg.register("color", 0xFFFFFFFF, true, false, true);
-        PropertyDef<Float> width = reg.register("width", 0f, false, true, true);
+        PropertyDef<Integer> color = reg.register("color", Syntaxes.color(), 0xFFFFFFFF, true, false, true);
+        PropertyDef<Float> width = reg.register("width", Syntaxes.number(false), 0f, false, true, true);
 
         ComputedStyle parent = ComputedStyle.initial(reg);
         parent.set(color, 0xFFAAAAAA);
@@ -25,9 +25,11 @@ class ComputedStyleTest {
     @Test
     void duplicateNameIsRejectedAndIdsStayDense() {
         PropertyRegistry reg = new PropertyRegistry();
-        PropertyDef<Integer> a = reg.register("a", 0, false, false, false);
-        assertThrows(IllegalArgumentException.class, () -> reg.register("a", 1, false, false, false));
-        PropertyDef<Integer> b = reg.register("b", 0, false, false, false);
+        PropertyDef<Float> a = reg.register("a", Syntaxes.number(false), 0f, false, false, false);
+        assertThrows(IllegalArgumentException.class, () -> reg.register("a", Syntaxes.number(false), 1f, false, false, false));
+        assertThrows(IllegalArgumentException.class,
+                () -> reg.registerShorthand("a", Shorthand.pair(Syntaxes.number(false)), a, a));
+        PropertyDef<Float> b = reg.register("b", Syntaxes.number(false), 0f, false, false, false);
         assertEquals(1, b.id());
         assertSame(a, reg.byName("a"));
         assertEquals(2, reg.size());

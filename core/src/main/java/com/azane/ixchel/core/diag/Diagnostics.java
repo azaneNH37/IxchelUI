@@ -24,6 +24,10 @@ public final class Diagnostics {
         return errorCount > 0;
     }
 
+    public int errorCount() {
+        return errorCount;
+    }
+
     public List<Diagnostic> entries() {
         return Collections.unmodifiableList(entries);
     }
