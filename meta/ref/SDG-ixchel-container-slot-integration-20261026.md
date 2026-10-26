@@ -78,7 +78,7 @@ AT 路线实测（mc 层临时探针，已撤销）：
 反射的风险：
 
 - JEP 500（JDK 26 交付）：反射改 final 字段默认告警，后续版本默认抛异常；豁免参数 `--enable-final-field-mutation` 只对 boot layer 模块有效，mod 所在的用户层无法自行豁免。1.20.1/1.21.1 配套 Java 17/21 不受影响，玩家换更新 JDK 时会先告警。
-- 模块开放：MC jar 无 module-info，ModLauncher 下推断为自动模块、开放所有包；须在游戏内确认 `Slot.class.getModule().isOpen("net.minecraft.world.inventory")`。
+- 模块开放：L1 实测两个平台 `Slot` 均在具名模块 `minecraft` 中，`isOpen("net.minecraft.world.inventory")` 为 true（对所有模块与对 testmod 模块均开放），写入后读回正确；`MethodHandle` setter 写一对 `x/y` 在游戏内约 7 ns（Forge 1.20.1 / Java 17）与 30 ns（NeoForge 1.21.1 / Java 21，启动时单次测量），每帧几十个槽位可忽略。
 - 字段名：Forge 1.20.1 开发期为 `x`/`y`、生产为 SRG；NeoForge 1.21.1 运行期为 mojmap。按候选名依次查找，`UiContainerScreen` 初始化时即查找并缓存，失败立即报错。
 - JIT 对普通类 final 实例字段默认不做常量折叠（实测）；仅 `-XX:+TrustFinalNonStaticFields` 等非默认配置下有风险。
 
@@ -95,7 +95,7 @@ Ixchel 覆写 protected 的 `isHovering(int,int,int,int,DD)`：由 `x,y` 反查�
 | 需求 | Forge 1.20.1 | NeoForge 1.21.1 |
 |---|---|---|
 | 自定义悬停样式 | `getSlotColor` 返回 0，按 `hoveredSlot` 自画 | 同左，或覆写 `renderSlotHighlight` |
-| 覆盖层位于槽位物品之上、手持物品之下 | 在 `renderLabels` 中画（推断 z：槽位物品约 100+150，手持物品 232+150，需实测） | 同左 |
+| 覆盖层位于槽位物品之上、手持物品之下 | 在 `renderLabels` 中以 z=300 画（L1 实测：槽位物品 100+150 之上、手持物品 232+150 之下） | 同左 |
 | 槽位物品逐个裁剪、缩放、透明度动画 | 零面积裁剪盖掉 vanilla 的槽位循环，在 `renderLabels` 中自画 | 覆写 `renderSlot`，包一层裁剪/变换后调用 `super`，可逐槽位选择 |
 
 1.20.1 零面积裁剪的依据：`GuiGraphics.renderItem` 每个物品末尾 `flush()`，`applyScissor` 允许 0 宽高。槽位循环前没有 protected 钩子，但 renderables 中最后一个恰在循环前执行：
@@ -112,9 +112,9 @@ g.enableScissor(0, 0, 0, 0);
 
 vanilla 的 `renderSlot` 仍执行，其副作用（把无效目标移出 `quickCraftSlots` 并重算剩余）保留。代价：
 
-- 物品顶点构建两次（推断：几十个槽位在 1ms 内，需实测）。
+- 物品顶点构建两次：L1 实测（玩家背包 46 槽）`super.render` vanilla 约 700–840 µs、零面积裁剪加自绘约 745–805 µs，差值在采样噪声内，小于 0.1 ms。
 - 其它 mod 注入 `renderSlot` 的装饰（物品边框、稀有度光效类，具体 mod 未核实）一并被盖掉；AUI、LDLib2 在 `renderSlot` HEAD 取消，同样丢失。
-- 其它 mod 在 `ScreenEvent.Init.Post` 追加的 renderable 排在裁剪之后会不可见；需每帧把裁剪 renderable 移到末尾（`removeWidget` 后 `addRenderableOnly`，推断）。
+- 其它 mod 在 `ScreenEvent.Init.Post` 追加的 renderable 排在裁剪之后会不可见（L1 实测）；每帧把裁剪 renderable 移到末尾即恢复可见，`Screen.renderables` 是 public，直接 `remove` 后 `add`。
 - 触屏模式的拆分预览依赖 private 字段，不支持。
 
 不用 mixin 无法做到的只有两处：1.20.1 跳过 vanilla 物品绘制本身、两个平台截获手持物品绘制（AUI 截获 `renderFloatingItem`，LDLib2 自画拖拽预览）。
@@ -162,7 +162,7 @@ UiContainerScreen.builder(menu, template)
 | 步骤 | 内容 | 证明 |
 |---|---|---|
 | L0（已完成） | JVM 探针：final 字段反射写入、JIT、record | Java 17/21 语义与开销 |
-| L1 | 两个 testmod 各一个“槽位随布局移动”的测试 Screen：打印模块开放；悬停、点击、Shift、拖拽分发、双击收集、数字键、界面外丢弃；1.20.1 零面积裁剪、追加按钮可见性、覆盖层与手持物品的 z 顺序、重复绘制耗时 | 模块访问；vanilla 交互跟随新坐标；§5 推断项 |
+| L1（已完成） | 两个 testmod 各一个“槽位随布局移动”的测试 Screen（`testmod/*/…/probe/`，K 打开）：打印模块开放；悬停、点击、Shift、拖拽分发、双击收集、数字键、界面外丢弃；1.20.1 零面积裁剪、追加按钮可见性、覆盖层与手持物品的 z 顺序、重复绘制耗时 | 模块访问；vanilla 交互跟随新坐标（镜像与持续移动两种布局均跟随）；§3、§5 已按实测更新 |
 | L2 | 同一 Screen 装 JEI、EMI/REI、Mouse Tweaks | §6 静态分析结论 |
 | L3 | Forge 1.20.1 宿主 reobf + shade 后在真实启动器实例运行 | SRG 名查找；与 SD §11 第 3 步配方验证合并 |
 | L4（可选） | JDK 26 启动 | JEP 500 告警形态与归属模块 |
