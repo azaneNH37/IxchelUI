@@ -31,6 +31,7 @@ import dev.vfyjxf.taffy.tree.TaffyTree;
 import dev.vfyjxf.taffy.util.MeasureFunc;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -39,9 +40,14 @@ import java.util.Map;
 /**
  * Mirrors the DOM into a taffy tree and writes absolute, pixel-rounded border boxes into
  * {@link Node#box()}. Only nodes whose layout-affecting computed values, text or children changed are
- * touched; when nothing changed and the viewport is the same, taffy is not run at all.
+ * touched; when nothing changed and the viewport is the same, taffy is not run at all. A text change
+ * that answers every measurement taffy has asked of that node the same way (a counter going from 5 to
+ * 6 in a font with equal digit widths) cannot move anything, so it is re-shaped without running taffy.
  */
 public final class LayoutEngine {
+    /** Floats per recorded measurement: known width, known height, available width, then the answer. */
+    private static final int QUERY = 5;
+
     private static final class Slot {
         NodeId id;
         ComputedStyle style;
@@ -49,7 +55,31 @@ public final class LayoutEngine {
         String text;
         float fontSize;
         TextShaper.Shaped shaped;
+        float contentWidth;
+        /**
+         * Measurements taffy made of this text node since it was last marked dirty, {@link #QUERY}
+         * floats each; the available width is NaN for min-content and infinite for max-content.
+         */
+        float[] queries = new float[0];
+        int queryCount;
         int seen;
+
+        void record(float knownWidth, float knownHeight, float available, float width, float height) {
+            for (int i = 0; i < queryCount * QUERY; i += QUERY) {
+                if (same(queries[i], knownWidth) && same(queries[i + 1], knownHeight) && same(queries[i + 2], available)) {
+                    return;
+                }
+            }
+            if ((queryCount + 1) * QUERY > queries.length) {
+                queries = Arrays.copyOf(queries, Math.max(4, queryCount * 2) * QUERY);
+            }
+            int i = queryCount++ * QUERY;
+            queries[i] = knownWidth;
+            queries[i + 1] = knownHeight;
+            queries[i + 2] = available;
+            queries[i + 3] = width;
+            queries[i + 4] = height;
+        }
     }
 
     private final TaffyTree tree = new TaffyTree();
@@ -102,6 +132,7 @@ public final class LayoutEngine {
         for (Map.Entry<Node, Slot> en : slots.entrySet()) {
             if (en.getKey() instanceof TextNode) {
                 en.getValue().text = null;
+                en.getValue().queryCount = 0;
             }
         }
     }
@@ -159,31 +190,68 @@ public final class LayoutEngine {
             changed = true;
         }
         slot.seen = generation;
-        if (!t.text().equals(slot.text) || size != slot.fontSize) {
-            slot.text = t.text();
-            slot.fontSize = size;
-            tree.markDirty(slot.id);
-            changed = true;
+        String text = t.text();
+        if (size != slot.fontSize || !text.equals(slot.text)) {
+            if (size == slot.fontSize && measuresAlike(slot, text)) {
+                slot.text = text;
+                slot.shaped = shaper.shape(text, size, slot.contentWidth);
+            } else {
+                slot.text = text;
+                slot.fontSize = size;
+                slot.queryCount = 0;
+                tree.markDirty(slot.id);
+                changed = true;
+            }
         }
         return slot.id;
     }
 
+    /**
+     * Whether {@code text} gives every recorded measurement of the slot's current text the same answer.
+     * With nothing recorded there is nothing to compare, so the answer is no.
+     */
+    private boolean measuresAlike(Slot slot, String text) {
+        if (slot.queryCount == 0) {
+            return false;
+        }
+        float[] q = slot.queries;
+        for (int i = 0; i < slot.queryCount * QUERY; i += QUERY) {
+            FloatSize s = measure(text, slot.fontSize, q[i], q[i + 1], q[i + 2]);
+            if (!same(s.width, q[i + 3]) || !same(s.height, q[i + 4])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private MeasureFunc measure(Slot slot) {
         return (known, available) -> {
-            float maxWidth;
-            if (!Float.isNaN(known.width)) {
-                maxWidth = known.width;
-            } else if (available.width.isMinContent()) {
-                maxWidth = shaper.minContentWidth(slot.text, slot.fontSize);
-            } else if (available.width.isDefinite()) {
-                maxWidth = available.width.getValue();
-            } else {
-                maxWidth = Float.POSITIVE_INFINITY;
-            }
-            TextShaper.Shaped s = shaper.shape(slot.text, slot.fontSize, maxWidth);
-            return new FloatSize(Float.isNaN(known.width) ? s.width() : known.width,
-                    Float.isNaN(known.height) ? s.height() : known.height);
+            AvailableSpace a = available.width;
+            float availableWidth = a.isMinContent() ? Float.NaN : a.isDefinite() ? a.getValue() : Float.POSITIVE_INFINITY;
+            FloatSize s = measure(slot.text, slot.fontSize, known.width, known.height, availableWidth);
+            slot.record(known.width, known.height, availableWidth, s.width, s.height);
+            return s;
         };
+    }
+
+    /** {@code availableWidth}: NaN for min-content, infinite for max-content. */
+    private FloatSize measure(String text, float fontSize, float knownWidth, float knownHeight, float availableWidth) {
+        float maxWidth;
+        if (!Float.isNaN(knownWidth)) {
+            maxWidth = knownWidth;
+        } else if (Float.isNaN(availableWidth)) {
+            maxWidth = shaper.minContentWidth(text, fontSize);
+        } else {
+            maxWidth = availableWidth;
+        }
+        TextShaper.Shaped s = shaper.shape(text, fontSize, maxWidth);
+        return new FloatSize(Float.isNaN(knownWidth) ? s.width() : knownWidth,
+                Float.isNaN(knownHeight) ? s.height() : knownHeight);
+    }
+
+    /** Equality that also holds for NaN. */
+    private static boolean same(float a, float b) {
+        return Float.floatToIntBits(a) == Float.floatToIntBits(b);
     }
 
     private void writeBoxes(Node node, float parentX, float parentY) {
@@ -193,8 +261,8 @@ public final class LayoutEngine {
         float y = parentY + l.location().y;
         node.box().set(x, y, l.size().width, l.size().height);
         if (node instanceof TextNode) {
-            Layout raw = tree.getUnroundedLayout(slot.id);
-            slot.shaped = shaper.shape(slot.text, slot.fontSize, raw.contentBoxWidth());
+            slot.contentWidth = tree.getUnroundedLayout(slot.id).contentBoxWidth();
+            slot.shaped = shaper.shape(slot.text, slot.fontSize, slot.contentWidth);
         } else {
             for (Node c : ((Element) node).children()) {
                 writeBoxes(c, x, y);

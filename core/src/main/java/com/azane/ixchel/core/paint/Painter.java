@@ -32,7 +32,10 @@ public final class Painter {
     }
 
     private void paintChildren(Element e, DisplayList out) {
-        for (Node c : e.children()) {
+        // Indexed: the unmodifiable view allocates two objects per for-each, on every repaint.
+        List<Node> children = e.children();
+        for (int i = 0; i < children.size(); i++) {
+            Node c = children.get(i);
             if (c instanceof Element child) {
                 paintElement(child, out);
             } else {
