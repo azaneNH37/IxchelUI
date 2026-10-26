@@ -176,5 +176,5 @@ GitHub 的平台防护：fork PR 不传 secret、token 只读、不能修改 `.g
 - 冷构建实测（2026-10-26，PR #5 两次运行，均无缓存）：`./gradlew build` 5m03s 与 4m08s，44 个任务全部执行；`timeout-minutes` 定为 20。
 - 已确认：无 foojay 下载；`setup-gradle` 默认开启 wrapper 校验（日志 "All Gradle Wrapper jars are valid"）；PR 运行时缓存为只读（"Cache is read-only"），缓存从合入 `master` 后的首次运行开始写入。
 - 首个 `master` 运行（PR #5 合入后）：`./gradlew build` 4m40s，缓存写入约 12 s。PR #6 命中该缓存：恢复约 18 s，`./gradlew build` 38 s（44 个任务中 12 个取自 build cache），整个 job 69 s。待确认：私有期间每月 Actions 分钟数是否够用。
-- javadoc 的 doclint "no comment / no @param / no @return" 警告约 100 条，在 PR 上显示为 annotation；不导致失败。是否关闭 `missing` 类检查未定。
+- javadoc doclint 改为 `all,-missing`（2026-10-26 定）：保留语法类检查，去掉约 100 条"缺注释"告警，PR 上不再出现对应 annotation。
 - 转公开后：Pages 来源设为 GitHub Actions，VuePress 的 `base` 设为 `/IxchelUI/`（使用 `<user>.github.io/<repo>` 路径时）；确认 push ruleset 对个人账户公开仓库是否可用。

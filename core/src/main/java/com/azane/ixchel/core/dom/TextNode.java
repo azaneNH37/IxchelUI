@@ -16,6 +16,11 @@ public final class TextNode extends Node {
     }
 
     public void setText(String text) {
-        this.text = text;
+        if (!text.equals(this.text)) {
+            this.text = text;
+            if (parent != null) {
+                parent.markTreeChanged();
+            }
+        }
     }
 }

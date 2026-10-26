@@ -55,12 +55,16 @@ flowchart LR
 
 - `ComputedStyle` 放在 `css.property` 而不是 `style`：`Element` 持有它，放在 `style` 会形成 dom ↔ style 环。`LayoutBox` 同理放在 `dom`。
 - 树节点分 `Element` 与 `TextNode`：模板允许混排文本（如 `<span>a</span>/<span>b</span>`）。选择器只匹配 `Element`，`TextNode` 的样式取父元素。
-- 样式脏标记的粒度是子树：元素脏表示它与整棵子树都重算；祖先只记"有脏后代"，供样式阶段跳过干净子树。没有结构伪类与属性选择器，所以增删子节点、改属性不标脏。
+- 样式脏标记的粒度是子树：元素脏表示它与整棵子树都重算；祖先只记"有脏后代"，供样式阶段跳过干净子树。没有结构伪类与属性选择器，所以增删子节点、改普通属性不标父元素脏；例外：改 `id` 标该元素脏（参与 `#id` 匹配），已算过样式的元素被挂到（新）父节点下时标该元素脏（继承值与组合选择器随祖先变化）。`class`/`style` 不走 `setAttribute`，分别用 `addClass`/`removeClass` 与 `setInlineStyle`。
 - 坐标是文档 GUI 像素，原点在视口左上；`LayoutBox` 存绝对坐标的 border box。模板顶层元素的父节点是尺寸等于视口的隐式根。
 - `font-size` 以 GUI 像素计，`9px` = vanilla 字体 1 倍（行高 9）；`DrawCommand.Text` 的 `(x, y)` 是行框左上角，基线对齐由 `McPainter` 处理。
 - `DrawCommand` 的子类型随实现加入，当前为 `Rect`/`Text`/`Image`/`PushClip`/`PopClip`；计划中的 `RoundRect`、`Border`、`NineSlice`、`Item`、`Custom` 在对应功能落地时再定字段。`Custom(kind, payload, x, y, w, h)` 供 mc 层原生元素（如第一人称模型预览）携带宿主数据穿过内核，内核不解释 `payload`。
 - `Syntax.parse` 报错后返回 `null`，该声明整条丢弃；简写在解析期展开，`ComputedStyle` 只存长写属性。选择器列表中任一项非法则整条规则丢弃（同 CSS）。
-- 布局只在计算值引用、文本、字号或子节点列表变化，或视口变化时才跑 taffy；`ComputedStyle` 每次重算都是新对象，所以样式阶段重算过的元素一定会重新同步。
+- 布局只在计算值中 `affectsLayout` 属性变化、文本、字号或子节点列表变化，或视口变化时才跑 taffy；只改颜色、背景等的重算不调用 taffy `setStyle`。
+- 干净帧：上一帧以来无重算、无文本与子节点变化、视口不变、未调用 `invalidateText()` 时，`UiDocument.frame` 跳过布局同步与绘制，沿用上一帧的 `DisplayList`，core 不分配。`DisplayList` 带版本号，只在重绘时递增，`McPainter` 据此复用顶点缓冲。
+- 模板属性分三类：普通属性（按 `TagRegistry` 校验）、`bind:*`（连同名字与值的源位置原样保存在 `Element` 上，交给 binding 层校验）、尚未支持的 `on:*`/`each`/`as`/`key`/`if`/`t`（开发期报错）。`TagRegistry` 是实例：core 提供 HTML 子集，mc 层追加原生元素后传入加载。
+- 文本在 M2 是纯字符串：`Component` 由 mc 层 `getString()` 拍平，颜色、字重只由 CSS 给出。富文本以后以不透明宿主文本对象加入，测量与换行交给 mc 层（vanilla `StringSplitter`），core 不建模样式。字体或资源重载后宿主调用 `UiDocument.invalidateText()`。
+- 加载的 `Diagnostics` 留在 `UiDocument` 上：成功加载的警告与加载后才出现的错误（如延迟编译的内联样式）宿主都能读到，供开发期叠加层显示。
 
 M1 已知限制（均为开发期可见行为，后续按场景放开）：
 

@@ -4,6 +4,7 @@ import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Length;
+import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
@@ -37,8 +38,8 @@ import java.util.Map;
 
 /**
  * Mirrors the DOM into a taffy tree and writes absolute, pixel-rounded border boxes into
- * {@link Node#box()}. Only nodes whose computed style, text or children changed are touched; when
- * nothing changed and the viewport is the same, taffy is not run at all.
+ * {@link Node#box()}. Only nodes whose layout-affecting computed values, text or children changed are
+ * touched; when nothing changed and the viewport is the same, taffy is not run at all.
  */
 public final class LayoutEngine {
     private static final class Slot {
@@ -53,14 +54,18 @@ public final class LayoutEngine {
 
     private final TaffyTree tree = new TaffyTree();
     private final TextShaper shaper;
+    private final int[] layoutIds;
     private final Map<Node, Slot> slots = new IdentityHashMap<>();
     private int generation;
     private boolean changed;
+    /** Number of taffy layout runs; observed by tests. */
+    int computeCount;
     private float viewportWidth = Float.NaN;
     private float viewportHeight = Float.NaN;
 
-    public LayoutEngine(TextShaper shaper) {
+    public LayoutEngine(TextShaper shaper, PropertyRegistry registry) {
         this.shaper = shaper;
+        this.layoutIds = registry.layoutAffectingIds();
         tree.enableRounding();
     }
 
@@ -86,8 +91,19 @@ public final class LayoutEngine {
         if (!changed) {
             return;
         }
+        computeCount++;
         tree.computeLayout(rootId, TaffySize.of(AvailableSpace.definite(viewportWidth), AvailableSpace.definite(viewportHeight)));
         writeBoxes(root, 0, 0);
+    }
+
+    /** Fonts or glyph widths changed: drop cached measurements and re-measure every text node. */
+    public void invalidateText() {
+        shaper.invalidate();
+        for (Map.Entry<Node, Slot> en : slots.entrySet()) {
+            if (en.getKey() instanceof TextNode) {
+                en.getValue().text = null;
+            }
+        }
     }
 
     /** Lines of a text node as laid out; valid after {@link #layout}. */
@@ -113,9 +129,11 @@ public final class LayoutEngine {
         }
         slot.seen = generation;
         if (!isRoot && slot.style != e.computed()) {
+            if (slot.style == null || !slot.style.sameValues(e.computed(), layoutIds)) {
+                tree.setStyle(slot.id, toTaffy(e.computed()));
+                changed = true;
+            }
             slot.style = e.computed();
-            tree.setStyle(slot.id, toTaffy(slot.style));
-            changed = true;
         }
         List<Node> children = e.children();
         List<NodeId> ids = new ArrayList<>(children.size());
@@ -127,6 +145,7 @@ public final class LayoutEngine {
             tree.setChildren(slot.id, ids.toArray(new NodeId[0]));
             changed = true;
         }
+        e.clearTreeChange();
         return slot.id;
     }
 

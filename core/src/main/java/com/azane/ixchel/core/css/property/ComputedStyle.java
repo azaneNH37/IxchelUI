@@ -32,6 +32,16 @@ public final class ComputedStyle {
         return (T) values[def.id()];
     }
 
+    /** Whether both styles hold equal values for every property id in {@code ids}. */
+    public boolean sameValues(ComputedStyle other, int[] ids) {
+        for (int id : ids) {
+            if (!values[id].equals(other.values[id])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public <T> void set(PropertyDef<T> def, T value) {
         values[def.id()] = value;
     }

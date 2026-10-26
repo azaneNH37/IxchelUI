@@ -66,7 +66,7 @@ public final class CssProperties {
     public static final PropertyDef<Length> ROW_GAP = R.register("row-gap", GAP, Length.ZERO, false, true, true);
     public static final PropertyDef<Length> COLUMN_GAP = R.register("column-gap", GAP, Length.ZERO, false, true, true);
 
-    public static final PropertyDef<Overflow> OVERFLOW = R.register("overflow", keyword(Overflow.class), Overflow.VISIBLE, false, false, false);
+    public static final PropertyDef<Overflow> OVERFLOW = R.register("overflow", keyword(Overflow.class), Overflow.VISIBLE, false, true, false);
     public static final PropertyDef<Integer> BACKGROUND_COLOR = R.register("background-color", color(), 0x00000000, false, false, true);
     public static final PropertyDef<Integer> COLOR = R.register("color", color(), 0xFFFFFFFF, true, false, true);
     public static final PropertyDef<Length> FONT_SIZE = R.register("font-size", length(false, false, false), Length.px(9), true, true, true);
@@ -75,5 +75,6 @@ public final class CssProperties {
         R.registerShorthand("margin", Shorthand.box(MARGIN), MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT);
         R.registerShorthand("padding", Shorthand.box(PADDING), PADDING_TOP, PADDING_RIGHT, PADDING_BOTTOM, PADDING_LEFT);
         R.registerShorthand("gap", Shorthand.pair(GAP), ROW_GAP, COLUMN_GAP);
+        R.freeze();
     }
 }

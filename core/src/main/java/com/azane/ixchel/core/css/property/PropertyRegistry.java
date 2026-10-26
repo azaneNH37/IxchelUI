@@ -14,6 +14,8 @@ public final class PropertyRegistry {
     private final List<PropertyDef<?>> byId = new ArrayList<>();
     private final Map<String, PropertyDef<?>> byName = new HashMap<>();
     private final Map<String, Shorthand> shorthands = new HashMap<>();
+    private boolean frozen;
+    private int[] layoutIds;
 
     public <T> PropertyDef<T> register(String name, Syntax<T> syntax, T initial,
                                        boolean inherited, boolean affectsLayout, boolean animatable) {
@@ -21,6 +23,7 @@ public final class PropertyRegistry {
         PropertyDef<T> def = new PropertyDef<>(name, byId.size(), syntax, initial, inherited, affectsLayout, animatable);
         byId.add(def);
         byName.put(name, def);
+        layoutIds = null;
         return def;
     }
 
@@ -32,9 +35,25 @@ public final class PropertyRegistry {
     }
 
     private void checkFree(String name) {
+        if (frozen) {
+            throw new IllegalStateException("registry is frozen; cannot register " + name);
+        }
         if (byName.containsKey(name) || shorthands.containsKey(name)) {
             throw new IllegalArgumentException("property already registered: " + name);
         }
+    }
+
+    /** Rejects further registration; computed style arrays sized before a registration would be too short. */
+    public void freeze() {
+        frozen = true;
+    }
+
+    /** Ids of properties with {@link PropertyDef#affectsLayout()}; do not modify the array. */
+    public int[] layoutAffectingIds() {
+        if (layoutIds == null) {
+            layoutIds = byId.stream().filter(PropertyDef::affectsLayout).mapToInt(PropertyDef::id).toArray();
+        }
+        return layoutIds;
     }
 
     /** {@code null} if not a longhand. */

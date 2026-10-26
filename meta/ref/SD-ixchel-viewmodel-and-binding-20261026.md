@@ -99,10 +99,10 @@ final class GunModView extends ViewModel {
 | 项 | 规则 | 状态 |
 |---|---|---|
 | 表达式 | 路径 + `!`；复杂逻辑写成 `Derived` | ✅ |
-| 绑定目标 | `text`、任意属性、`class:<名字>`、`if`、`each`；不支持 `style:*`，样式变化走类名 | 🟡 |
+| 绑定目标 | `text`、任意属性、`class:<名字>` ✅（M2）；`if`、`each` 🟡（M3）；不支持 `style:*`，样式变化走类名 | ✅/🟡 |
 | 动作参数 | `on:x="act"` 或 `on:x="act(路径)"`，最多一个参数 | 🟡 |
-| i18n | `t="语言键"`；`bind:text` 接受 `Component`；字面文本开发期警告 | 🟡 |
-| 值转文本 | `String.valueOf`；格式化写进 `Derived` | 🟡 |
+| i18n | `t="语言键"`；字面文本开发期警告 | 🟡 |
+| 值转文本 | `String.valueOf`；格式化（如补零）写进 `Derived`。`Component` 在 mc 层以 `getString()` 拍平为纯文本，颜色、字重只由 CSS 给出；富文本（保留 Component 内联样式）以后作为不透明宿主文本对象加入，测量与换行交给 mc 层的 vanilla `StringSplitter`，core 不建模样式 | ✅ |
 | 交互状态 | `:hover` / `:active` / `:focus` 由 event 包写状态位，不经 ViewModel | ✅ |
 | 校验 | 未声明的名字、record 上不存在的组件、不支持的 CSS 属性 → 开发期报错带文件:行:列 | ✅ |
 
@@ -201,9 +201,8 @@ record 中包含 `ItemStack` 时 record 的 `equals` 退化为引用比较，相
 
 ### 8. 待定
 
-- §3 中所有 🟡 项：绑定目标清单、动作参数语法、i18n 写法（`t` 属性）。
+- §3 中剩余 🟡 项：`if`/`each`、动作参数语法、i18n 写法（`t` 属性）。
 - 锁定型目标来源的 API 形态与 `valid` 语义（M5 前定）。
-- 来源轮询频率：每帧（默认）或每 tick。
 - 动作进行中再次触发：丢弃（默认）、排队或并发。
 - `derive` 参数上限：3（默认）或可变参数。
 

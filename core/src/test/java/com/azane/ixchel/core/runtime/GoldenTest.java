@@ -2,6 +2,7 @@ package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.text.TextMeasurer;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -38,9 +39,8 @@ class GoldenTest {
     void displayListMatchesExpectation(String name) throws IOException {
         String dir = "golden/" + name + "/";
         UiDocument doc = UiDocument.load(resource(dir + "hud.html"), "hud.html",
-                List.of(new UiDocument.CssSource(resource(dir + "hud.css"), "hud.css")), MONO);
-        DisplayList out = new DisplayList();
-        doc.frame(480, 270, out);
+                List.of(new UiDocument.CssSource(resource(dir + "hud.css"), "hud.css")), TagRegistry.HTML, MONO);
+        DisplayList out = doc.frame(480, 270);
 
         String expected = resource(dir + "expected.txt").lines()
                 .filter(l -> !l.startsWith("//") && !l.isBlank())

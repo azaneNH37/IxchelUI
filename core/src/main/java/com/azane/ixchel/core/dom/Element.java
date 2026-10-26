@@ -17,9 +17,13 @@ import java.util.Set;
  * from the template, bindings and events; {@link #computed()} and {@link #box()} are written by the
  * style and layout passes.
  *
- * <p>Style invalidation: a class or state change marks the element style-dirty, which means the
- * element and its whole subtree are restyled; its ancestors get a descendant-dirty mark so the style
- * pass can skip clean subtrees.
+ * <p>Style invalidation: a class, state or {@code id} change marks the element style-dirty, which
+ * means the element and its whole subtree are restyled; its ancestors get a descendant-dirty mark so
+ * the style pass can skip clean subtrees. An already styled element appended under a parent is
+ * marked style-dirty too, since inherited values and combinator matches depend on its ancestors.
+ *
+ * <p>Tree changes (child-list changes here or text changes in a child) mark the element and its
+ * ancestors as {@linkplain #hasTreeChange() changed} until the layout pass clears them.
  */
 public final class Element extends Node {
     public static final int HOVER = 1;
@@ -28,13 +32,16 @@ public final class Element extends Node {
 
     private static final int STYLE_DIRTY = 1;
     private static final int DESCENDANT_STYLE_DIRTY = 1 << 1;
+    private static final int TREE_CHANGED = 1 << 2;
 
     private final String tag;
     private final List<Node> children = new ArrayList<>();
+    private final List<Node> childrenView = Collections.unmodifiableList(children);
     private final Set<String> classes = new LinkedHashSet<>();
     private final Map<String, String> attributes = new LinkedHashMap<>();
+    private final List<BindAttribute> bindings = new ArrayList<>();
     private int stateBits;
-    private int dirty = STYLE_DIRTY;
+    private int dirty = STYLE_DIRTY | TREE_CHANGED;
     private ComputedStyle computed;
     private List<Rule.Declaration> inlineStyle = List.of();
 
@@ -47,8 +54,9 @@ public final class Element extends Node {
         return tag;
     }
 
+    /** Unmodifiable live view. */
     public List<Node> children() {
-        return Collections.unmodifiableList(children);
+        return childrenView;
     }
 
     /** Appends {@code child}, detaching it from its current parent first. */
@@ -65,8 +73,14 @@ public final class Element extends Node {
         }
         children.add(child);
         child.parent = this;
-        if (child instanceof Element e && e.dirty != 0) {
-            markDescendantStyleDirty(this);
+        markTreeChanged();
+        if (child instanceof Element e) {
+            if (e.computed != null) {
+                e.dirty |= STYLE_DIRTY;
+            }
+            if (e.dirty != 0) {
+                markDescendantStyleDirty(this);
+            }
         }
     }
 
@@ -76,6 +90,7 @@ public final class Element extends Node {
         }
         children.remove(child);
         child.parent = null;
+        markTreeChanged();
     }
 
     public Set<String> classes() {
@@ -98,6 +113,7 @@ public final class Element extends Node {
         }
     }
 
+    /** Plain attributes; {@code class} and {@code style} are not stored here. */
     public Map<String, String> attributes() {
         return Collections.unmodifiableMap(attributes);
     }
@@ -106,8 +122,32 @@ public final class Element extends Node {
         return attributes.get(name);
     }
 
+    /**
+     * Sets a plain attribute; changing {@code id} marks the element style-dirty.
+     *
+     * @throws IllegalArgumentException for {@code class} (use {@link #addClass}/{@link #removeClass})
+     *         and {@code style} (use {@link #setInlineStyle})
+     */
     public void setAttribute(String name, String value) {
-        attributes.put(name, value);
+        switch (name) {
+            case "class" -> throw new IllegalArgumentException("use addClass/removeClass instead of setAttribute(\"class\")");
+            case "style" -> throw new IllegalArgumentException("use setInlineStyle instead of setAttribute(\"style\")");
+            default -> {
+            }
+        }
+        String old = attributes.put(name, value);
+        if (name.equals("id") && !value.equals(old)) {
+            markStyleDirty();
+        }
+    }
+
+    /** {@code bind:*} attributes from the template, in source order. */
+    public List<BindAttribute> bindings() {
+        return Collections.unmodifiableList(bindings);
+    }
+
+    public void addBinding(BindAttribute binding) {
+        bindings.add(binding);
     }
 
     public boolean hasState(int bit) {
@@ -150,17 +190,32 @@ public final class Element extends Node {
 
     /** Called by the style pass once this element and its subtree are up to date. */
     public void clearStyleDirty() {
-        dirty = 0;
+        dirty &= TREE_CHANGED;
     }
 
     public void markStyleDirty() {
         dirty |= STYLE_DIRTY;
         markDescendantStyleDirty(parent);
     }
-
     private static void markDescendantStyleDirty(Element from) {
         for (Element a = from; a != null && (a.dirty & DESCENDANT_STYLE_DIRTY) == 0; a = a.parent) {
             a.dirty |= DESCENDANT_STYLE_DIRTY;
+        }
+    }
+
+    /** Whether the child list of this element or a descendant, or the text of a descendant, changed. */
+    public boolean hasTreeChange() {
+        return (dirty & TREE_CHANGED) != 0;
+    }
+
+    /** Called by the layout pass once it has synced this element's children. */
+    public void clearTreeChange() {
+        dirty &= ~TREE_CHANGED;
+    }
+
+    void markTreeChanged() {
+        for (Element a = this; a != null && (a.dirty & TREE_CHANGED) == 0; a = a.parent) {
+            a.dirty |= TREE_CHANGED;
         }
     }
 }

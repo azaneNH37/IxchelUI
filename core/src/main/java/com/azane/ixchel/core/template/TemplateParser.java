@@ -1,6 +1,7 @@
 package com.azane.ixchel.core.template;
 
 import com.azane.ixchel.core.css.syntax.CssParser;
+import com.azane.ixchel.core.dom.BindAttribute;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
@@ -17,16 +18,20 @@ import java.util.Set;
  * reported to {@link Diagnostics}; parsing continues past errors so one load reports as many as it can.
  */
 public final class TemplateParser {
+    private static final Set<String> RESERVED = Set.of("each", "as", "key", "if", "t");
+
     private final String src;
     private final String file;
+    private final TagRegistry tags;
     private final Diagnostics diag;
     private final int[] lineStarts;
     private final List<Template.StyleSource> styles = new ArrayList<>();
     private int i;
 
-    private TemplateParser(String source, String file, Diagnostics diag) {
+    private TemplateParser(String source, String file, TagRegistry tags, Diagnostics diag) {
         this.src = source.replace("\r\n", "\n").replace('\r', '\n').replace('\f', '\n');
         this.file = file;
+        this.tags = tags;
         this.diag = diag;
         List<Integer> starts = new ArrayList<>();
         starts.add(0);
@@ -38,8 +43,8 @@ public final class TemplateParser {
         lineStarts = starts.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    public static Template parse(String source, String file, Diagnostics diag) {
-        TemplateParser p = new TemplateParser(source, file, diag);
+    public static Template parse(String source, String file, TagRegistry tags, Diagnostics diag) {
+        TemplateParser p = new TemplateParser(source, file, tags, diag);
         List<Node> roots = new ArrayList<>();
         while (true) {
             p.parseNodes(roots, true);
@@ -95,7 +100,7 @@ public final class TemplateParser {
         SourcePos openPos = pos(open);
         i++;
         String tag = readName(false);
-        boolean known = TagRegistry.isKnownTag(tag);
+        boolean known = tags.isKnownTag(tag);
         if (!known) {
             diag.error(openPos, "unknown tag <" + tag + ">");
         }
@@ -198,7 +203,19 @@ public final class TemplateParser {
         if (!tagKnown) {
             return;
         }
-        if (!TagRegistry.isAllowedAttribute(tag, name)) {
+        if (name.startsWith("bind:")) {
+            if (tag.equals("style")) {
+                diag.error(namePos, "<style> takes no attributes");
+            } else {
+                element.addBinding(new BindAttribute(name, decode(valueStart, end, false), namePos, pos(valueStart)));
+            }
+            return;
+        }
+        if (isReserved(name)) {
+            diag.error(namePos, "attribute '" + name + "' is not supported yet");
+            return;
+        }
+        if (!tags.isAllowedAttribute(tag, name)) {
             diag.error(namePos, "unknown attribute '" + name + "' on <" + tag + ">");
             return;
         }
@@ -214,6 +231,11 @@ public final class TemplateParser {
             case "style" -> element.setInlineStyle(CssParser.parseDeclarations(value, pos(valueStart), diag));
             default -> element.setAttribute(name, value);
         }
+    }
+
+    /** Template attributes with planned meaning that are not implemented yet ({@code on:*}, structural). */
+    static boolean isReserved(String attribute) {
+        return attribute.startsWith("on:") || RESERVED.contains(attribute);
     }
 
     private void parseStyleContent(SourcePos openPos) {
@@ -248,16 +270,13 @@ public final class TemplateParser {
 
     private String readName(boolean attribute) {
         int start = i;
-        boolean colon = false;
         if (i < src.length() && isAsciiLetter(src.charAt(i))) {
             i++;
             while (i < src.length()) {
                 char c = src.charAt(i);
                 if (isAsciiLetter(c) || (c >= '0' && c <= '9') || c == '-') {
                     i++;
-                } else if (attribute && c == ':' && !colon && i + 1 < src.length()
-                        && isAsciiLetter(src.charAt(i + 1))) {
-                    colon = true;
+                } else if (attribute && c == ':' && i + 1 < src.length() && isAsciiLetter(src.charAt(i + 1))) {
                     i++;
                 } else {
                     break;
