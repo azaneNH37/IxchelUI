@@ -45,6 +45,10 @@ public final class Element extends Node {
     private ComputedStyle computed;
     private List<Rule.Declaration> inlineStyle = List.of();
     private Object payload;
+    private List<Registration> listeners;
+
+    private record Registration(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
+    }
 
     public Element(String tag, SourcePos pos) {
         super(pos);
@@ -159,6 +163,31 @@ public final class Element extends Node {
     /** Sets the payload. Like plain attributes it marks nothing dirty; the binding that writes it requests the repaint. */
     public void setPayload(Object payload) {
         this.payload = payload;
+    }
+
+    /** Adds a listener; {@code capture} listeners run on the way down, the others while bubbling up. */
+    public void addEventListener(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
+        if (listeners == null) {
+            listeners = new ArrayList<>(2);
+        }
+        listeners.add(new Registration(type, capture, listener));
+    }
+
+    /**
+     * Runs this element's listeners for {@code event} in its current phase: capture listeners while
+     * capturing, the others while bubbling, all of them in registration order at the target.
+     */
+    public void runListeners(UiEvent event) {
+        if (listeners == null) {
+            return;
+        }
+        UiEvent.Phase phase = event.phase();
+        for (int i = 0, n = listeners.size(); i < n; i++) {
+            Registration r = listeners.get(i);
+            if (r.type == event.type() && (phase == UiEvent.Phase.TARGET || r.capture == (phase == UiEvent.Phase.CAPTURE))) {
+                r.listener.handle(event);
+            }
+        }
     }
 
     public boolean hasState(int bit) {

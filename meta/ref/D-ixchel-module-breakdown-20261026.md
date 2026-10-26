@@ -41,7 +41,7 @@ flowchart LR
 | `text` | 文本测量接口与结果缓存、换行 | — |
 | `layout` | `Element` ↔ taffy 节点同步、布局结果查询（mc 层据此写回 `Slot.x/y`） | dom, css.property, text |
 | `paint` | DisplayList 生成、裁剪栈 | dom, css.property, layout, text |
-| `event` | 命中测试、三阶段派发、焦点、hover/active 状态位 | dom, layout |
+| `event` | 命中测试、三阶段派发、焦点（`tabindex`、Tab 切换）、hover/active/focus 状态位；`UiEvent` 与监听器存放在 `dom`（`Element` 持有监听器，binding 注册 `on:*` 时不必依赖 event） | dom, layout, css.property |
 | `binding` | Value / Derived / Action / Scope，模板绑定 | dom, template |
 | `runtime` | `UiDocument`：组装上述阶段、帧驱动、热重载入口 | 全部 |
 

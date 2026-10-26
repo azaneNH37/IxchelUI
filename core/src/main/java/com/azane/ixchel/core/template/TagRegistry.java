@@ -17,8 +17,8 @@ import java.util.Set;
  * only a binding can set ({@code <item bind:item="gun"/>}).
  */
 public final class TagRegistry {
-    /** Attributes every element except {@code <style>} accepts. */
-    public static final Set<String> GLOBAL_ATTRIBUTES = Set.of("class", "id", "style");
+    /** Attributes every element except {@code <style>} accepts; {@code tabindex} makes an element focusable. */
+    public static final Set<String> GLOBAL_ATTRIBUTES = Set.of("class", "id", "style", "tabindex");
 
     /** The HTML subset core understands: {@code div}, {@code span}, {@code img src}, {@code style}. */
     public static final TagRegistry HTML = new Builder(Map.of(), Map.of())

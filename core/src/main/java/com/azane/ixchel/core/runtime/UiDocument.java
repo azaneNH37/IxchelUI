@@ -8,6 +8,7 @@ import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.paint.DisplayList;
@@ -41,6 +42,7 @@ public final class UiDocument {
     private final Painter painter;
     private final Bindings bindings;
     private final DisplayList displayList = new DisplayList();
+    private final EventDispatcher events;
     private float viewportWidth = Float.NaN;
     private float viewportHeight = Float.NaN;
     private boolean textInvalidated;
@@ -53,6 +55,7 @@ public final class UiDocument {
         this.layout = layout;
         this.painter = new Painter(layout, tags);
         this.bindings = bindings;
+        this.events = new EventDispatcher(root);
     }
 
     /** Loads a document without a view model; any {@code bind:*} attribute is an error. */
@@ -106,6 +109,14 @@ public final class UiDocument {
         return diagnostics;
     }
 
+    /**
+     * Input against the last frame's layout, in GUI pixels; each method returns whether the UI took
+     * the input (see {@link EventDispatcher}). State changes show from the next frame on.
+     */
+    public EventDispatcher events() {
+        return events;
+    }
+
     /** Fonts or glyph widths changed (resource reload, Force Unicode): re-measure all text next frame. */
     public void invalidateText() {
         layout.invalidateText();
@@ -130,6 +141,7 @@ public final class UiDocument {
         style.restyle(root);
         layout.layout(root, viewportWidth, viewportHeight);
         painter.paint(root, displayList);
+        events.afterLayout();
         return displayList;
     }
 }
