@@ -149,7 +149,7 @@ L3 前需核实启动器运行时是否包含 `jdk.httpserver` 模块。
 |---|---|---|
 | M1（已完成） | core 原型：模板 → 样式 → 布局 → DisplayList，单元测试覆盖弹药 HUD | 不碰 MC 产出正确绘制命令 |
 | M2（已完成，ImmediatelyFast 共存移到 M4） | mc 1.20.1：McPainter、文本、HUD 宿主；binding 最小集（来源、派生、文本/属性绑定） | 游戏内显示随实际弹量变化的弹药 HUD；帧耗时对比；与 Iris、ImmediatelyFast 共存 |
-| M3 | 事件、binding 其余部分（`action`、`each`/`if`、`Scope`）、`UiScreen`：Z 键改装 | 与手写原版对比（见绑定文档 §7） |
+| M3（已完成） | 事件、binding 其余部分（`action`、`each`/`if`、`Scope`）、`UiScreen`：Z 键改装 | 与手写原版对比（见绑定文档 §7） |
 | M4 | shade 配方与 NeoForge 1.21.1 对齐最小集 | 两个不同版本副本共存；1.21.1 跑同一验收模板；生产环境与 ImmediatelyFast 共存 |
 | M5 | `UiContainerScreen` 与 Slot 通道：背包式改装 | vanilla 物品事务行为不变；`ref/SDG-ixchel-container-slot-integration-20261026.md` §8 的 L1–L3 通过 |
 
@@ -188,6 +188,19 @@ M2 结果（2026-10-26，Forge 1.20.1 开发环境，AMD 核显，`gradlew :test
 Ixchel 两种条件下都比手写版快约 25–30%：手写版每帧重算备弹数并逐条提交，Ixchel 在数据不变时跳过取值与布局，矩形与图片合批。Iris 在 Forge 1.20.1 上对应 Oculus（依赖 Embeddium），开光影后 HUD 位置、颜色与物品图标正常（截图核对）。ImmediatelyFast 的 common mixin 不带 refmap、注解里直接写 SRG 名，开发环境重映射不改注解，注入失败、客户端启动即崩，只能在生产环境验证，随 M4 的 shade 产物一起做。
 
 M3：`event`（命中、三阶段派发、焦点、状态位）与 `css.selector` 状态伪类 → `McInput` → `UiScreen` → `binding` 其余部分 → `anim`（transition）放在最后，不阻塞退出条件。
+
+M3 结果（2026-10-27，同 M2 环境，`gradlew :testmod-forge-1.20.1:runClient -Pbench=refit` 无人值守）：`RefitBench` 交替打开 Ixchel 改装界面（Z 键）与功能、失败处理一致的手写原版版本 `VanillaRefitScreen`（V 键），计 Screen 渲染 Pre→Post 的 CPU 时间（结束前 flush，含提交）与客户端线程分配；"变化"窗每 tick 改一次界面上显示的配件数量。两轮结果：
+
+| 窗 | Ixchel 中位数 / p95 µs | 原版中位数 / p95 µs | Ixchel / 原版每帧分配 |
+|---|---|---|---|
+| 无变化 | 145.7 / 237.5，144.6 / 237.6 | 211.0 / 327.2，191.2 / 299.2 | 约 83 KB / 约 86 KB |
+| 频繁变化 | 150.5 / 1058.4，161.0 / 660.7 | 211.2 / 345.1，189.2 / 290.7 | 约 190 KB / 约 89 KB |
+
+- 无变化帧 Ixchel 快约 25–30%；每次变化 Ixchel 多约 0.6–0.9 ms、约 0.6 MB 分配，原版只多约 3 KB。原因推断为每次变化都整份重算样式与布局、中间对象不复用（未 profile）。在未做增量失效与对象复用前属预期，此表作为基线，优化后用同一命令重跑对比。
+- 代码量：Ixchel 243 行（ViewModel 117、模板 45、样式 81，另约 10 行订阅），原版 331 行。
+- 目标失效：服务端把枪移出锁定格再放回，两版界面都保持打开，`valid` 先变为失效再恢复，4 项检查通过。
+- 行为差异：原版保留按钮点击音效与 Tab 焦点切换，Ixchel 尚无；原版打开时弹 "Inspecting Scope" 提示（`selectType` 调用），Ixchel 因订阅晚于初值设置而不弹。
+- transition 限制：只在同单位长度、数字、预乘颜色之间插值，其余属性过渡瞬切；`steps()` 开发期报错；时间取整到微秒；首次样式与 `display: none` 前后不产生过渡；反向按 CSS Transitions 缩短时长。游戏内以 120ms 背景色过渡截图核对（20 ms 中途、303 ms 终态）。
 
 M4：先 shade 配方（Forge 1.20.1，两个不同版本副本），再 `ixchel-mc-1.21.1`（顶点 API 时代分叉只落在 `McPainter`）与 neoforge 1.21.1 加载器胶水，跑同一套验收模板。
 
