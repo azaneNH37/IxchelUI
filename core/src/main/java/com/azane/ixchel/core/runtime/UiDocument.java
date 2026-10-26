@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.anim.Transitions;
 import com.azane.ixchel.core.binding.Bindings;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.CssProperties;
@@ -24,11 +25,12 @@ import com.azane.ixchel.core.text.TextShaper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 
 /**
  * One loaded UI: template tree under an implicit viewport-sized root, its styles, bindings, and the
- * per-frame pipeline bindings → style → layout → paint. A frame in which nothing changed does no work
- * and keeps the previous {@link DisplayList}.
+ * per-frame pipeline bindings → transitions → style → layout → paint. A frame in which nothing
+ * changed and no transition runs does no work and keeps the previous {@link DisplayList}.
  */
 public final class UiDocument {
     /** A stylesheet file; {@code file} is used in error positions. */
@@ -43,12 +45,14 @@ public final class UiDocument {
     private final Bindings bindings;
     private final DisplayList displayList = new DisplayList();
     private final EventDispatcher events;
+    private final Transitions transitions;
+    private LongSupplier clock = System::nanoTime;
     private float viewportWidth = Float.NaN;
     private float viewportHeight = Float.NaN;
     private boolean textInvalidated;
 
     private UiDocument(Element root, Diagnostics diagnostics, StyleEngine style, LayoutEngine layout, Bindings bindings,
-                       TagRegistry tags) {
+                       TagRegistry tags, Transitions transitions) {
         this.root = root;
         this.diagnostics = diagnostics;
         this.style = style;
@@ -56,6 +60,7 @@ public final class UiDocument {
         this.painter = new Painter(layout, tags);
         this.bindings = bindings;
         this.events = new EventDispatcher(root);
+        this.transitions = transitions;
     }
 
     /** Loads a document without a view model; any {@code bind:*} attribute is an error. */
@@ -89,11 +94,12 @@ public final class UiDocument {
             root.appendChild(n);
         }
         Bindings bindings = Bindings.compile(root, model, textOf, tags, diag);
-        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, compiled, diag);
+        Transitions transitions = new Transitions(CssProperties.REGISTRY, root);
+        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, compiled, diag, transitions);
         style.restyle(root);
         diag.throwIfErrors();
         LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY);
-        return new UiDocument(root, diag, style, layout, bindings, tags);
+        return new UiDocument(root, diag, style, layout, bindings, tags, transitions);
     }
 
     /** The implicit root; its children are the template's top-level elements. */
@@ -129,7 +135,8 @@ public final class UiDocument {
      * something was repainted.
      */
     public DisplayList frame(float viewportWidth, float viewportHeight) {
-        boolean dirty = bindings.update() || textInvalidated
+        boolean animating = transitions.advance(clock.getAsLong());
+        boolean dirty = bindings.update() || animating || textInvalidated
                 || root.isStyleDirty() || root.hasStyleDirtyDescendant() || root.hasTreeChange()
                 || viewportWidth != this.viewportWidth || viewportHeight != this.viewportHeight;
         if (!dirty) {
@@ -143,5 +150,10 @@ public final class UiDocument {
         painter.paint(root, displayList);
         events.afterLayout();
         return displayList;
+    }
+
+    /** Replaces the transition clock ({@link System#nanoTime} by default); for tests. */
+    void clock(LongSupplier clock) {
+        this.clock = clock;
     }
 }

@@ -37,6 +37,7 @@
   align-items: center;
   padding: 1px;
   margin-bottom: 1px;
+  transition: background-color 120ms;
 }
 
 .row:hover,
@@ -72,6 +73,7 @@
   padding: 2px;
   align-items: center;
   background-color: #FFFFFF30;
+  transition: background-color 120ms;
 }
 
 .gone,

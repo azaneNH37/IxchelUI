@@ -1,0 +1,120 @@
+package com.azane.ixchel.core.runtime;
+
+import com.azane.ixchel.core.css.property.Easing;
+import com.azane.ixchel.core.diag.UiLoadException;
+import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.template.TagRegistry;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class UiDocumentTransitionTest {
+    private long nowMs;
+
+    private UiDocument load(String html, String css) {
+        UiDocument doc = UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")),
+                TagRegistry.HTML, GoldenTest.MONO);
+        doc.clock(() -> nowMs * 1_000_000);
+        return doc;
+    }
+
+    private String frameAt(UiDocument doc, long ms) {
+        nowMs = ms;
+        return GoldenTest.print(doc.frame(100, 100));
+    }
+
+    private static Element first(UiDocument doc) {
+        return (Element) doc.root().children().get(0);
+    }
+
+    @Test
+    void colorTransitionRunsToItsEndThenFramesStopRepainting() {
+        UiDocument doc = load("<div class=\"box\"></div>", """
+                .box { width: 10px; height: 10px; background-color: #000; transition: background-color 100ms linear }
+                .on { background-color: #fff }
+                """);
+        assertEquals("rect 0 0 10 10 #FF000000", frameAt(doc, 0));
+        first(doc).addClass("on");
+        assertEquals("rect 0 0 10 10 #FF000000", frameAt(doc, 0));
+        assertEquals("rect 0 0 10 10 #FF808080", frameAt(doc, 50));
+        assertEquals("rect 0 0 10 10 #FFFFFFFF", frameAt(doc, 100));
+        long version = doc.frame(100, 100).version();
+        nowMs = 200;
+        assertEquals(version, doc.frame(100, 100).version());
+    }
+
+    @Test
+    void reversingHalfwayTakesHalfTheTimeBack() {
+        UiDocument doc = load("<div class=\"box\"></div>", """
+                .box { width: 10px; height: 10px; background-color: #000; transition: background-color 100ms linear }
+                .on { background-color: #fff }
+                """);
+        frameAt(doc, 0);
+        first(doc).addClass("on");
+        frameAt(doc, 0);
+        assertEquals("rect 0 0 10 10 #FF808080", frameAt(doc, 50));
+        first(doc).removeClass("on");
+        frameAt(doc, 50);
+        assertEquals("rect 0 0 10 10 #FF404040", frameAt(doc, 75));
+        assertEquals("rect 0 0 10 10 #FF000000", frameAt(doc, 100));
+    }
+
+    @Test
+    void longhandListsCycleAndDelayHoldsTheStartValue() {
+        UiDocument doc = load("<div class=\"box\"></div>", """
+                .box { width: 10px; height: 10px; background-color: #fff;
+                       transition-property: width, height; transition-duration: 100ms;
+                       transition-delay: 0s, 50ms; transition-timing-function: linear }
+                .big { width: 20px; height: 20px }
+                """);
+        frameAt(doc, 0);
+        first(doc).addClass("big");
+        frameAt(doc, 0);
+        assertEquals("rect 0 0 15 10 #FFFFFFFF", frameAt(doc, 50));
+        assertEquals("rect 0 0 20 15 #FFFFFFFF", frameAt(doc, 100));
+        assertEquals("rect 0 0 20 20 #FFFFFFFF", frameAt(doc, 150));
+    }
+
+    @Test
+    void valuesThatCannotInterpolateChangeAtOnce() {
+        UiDocument doc = load("<div class=\"box\"></div>", """
+                .box { width: 50%; height: 10px; background-color: #fff; transition: all 100ms linear }
+                .px { width: 20px }
+                .auto { width: auto; height: 20px }
+                """);
+        frameAt(doc, 0);
+        first(doc).addClass("px");
+        assertEquals("rect 0 0 20 10 #FFFFFFFF", frameAt(doc, 0));
+        first(doc).addClass("auto");
+        assertEquals("rect 0 0 100 10 #FFFFFFFF", frameAt(doc, 0));
+        assertEquals("rect 0 0 100 15 #FFFFFFFF", frameAt(doc, 50));
+    }
+
+    @Test
+    void unsupportedTransitionValuesAreLoadErrors() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div class=\"a\"></div>", """
+                .a { transition: display 1s }
+                .b { transition-duration: 0 }
+                .c { transition-timing-function: steps(2) }
+                .d { transition: none, width 1s }
+                .e { transition-property: colr }
+                """));
+        String m = e.getMessage();
+        assertTrue(m.startsWith("5 errors"), m);
+        assertTrue(m.contains("'display' cannot be transitioned"), m);
+        assertTrue(m.contains("0s"), m);
+        assertTrue(m.contains("unsupported easing"), m);
+        assertTrue(m.contains("'none' must be the only item"), m);
+        assertTrue(m.contains("unsupported property 'colr'"), m);
+    }
+
+    @Test
+    void easeMatchesTheCssCurve() {
+        assertEquals(0.8024f, Easing.EASE.apply(0.5f), 1e-3f);
+        assertEquals(0.3153f, Easing.EASE_IN.apply(0.5f), 1e-3f);
+    }
+}

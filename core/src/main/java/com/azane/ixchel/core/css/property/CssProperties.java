@@ -9,14 +9,22 @@ import com.azane.ixchel.core.css.property.Keywords.JustifyContent;
 import com.azane.ixchel.core.css.property.Keywords.Overflow;
 import com.azane.ixchel.core.css.property.Keywords.Position;
 
+import java.util.List;
+
 import static com.azane.ixchel.core.css.property.Syntaxes.color;
+import static com.azane.ixchel.core.css.property.Syntaxes.commaList;
+import static com.azane.ixchel.core.css.property.Syntaxes.easing;
 import static com.azane.ixchel.core.css.property.Syntaxes.keyword;
 import static com.azane.ixchel.core.css.property.Syntaxes.length;
 import static com.azane.ixchel.core.css.property.Syntaxes.number;
+import static com.azane.ixchel.core.css.property.Syntaxes.time;
+import static com.azane.ixchel.core.css.property.Syntaxes.transitionProperty;
 
 /**
  * The supported property set. Departures from CSS initial values: {@code display} is {@code flex}
  * and {@code flex-direction} is {@code column} (no document flow), {@code color} is white.
+ * Animatable properties are those whose values {@code anim} may interpolate; the
+ * {@code transition-*} lists are cycled per property as in CSS.
  */
 public final class CssProperties {
     private CssProperties() {
@@ -71,10 +79,21 @@ public final class CssProperties {
     public static final PropertyDef<Integer> COLOR = R.register("color", color(), 0xFFFFFFFF, true, false, true);
     public static final PropertyDef<Length> FONT_SIZE = R.register("font-size", length(false, false, false), Length.px(9), true, true, true);
 
+    public static final PropertyDef<List<String>> TRANSITION_PROPERTY =
+            R.register("transition-property", transitionProperty(R), List.of("all"), false, false, false);
+    public static final PropertyDef<List<Float>> TRANSITION_DURATION =
+            R.register("transition-duration", commaList(time(false)), List.of(0f), false, false, false);
+    public static final PropertyDef<List<Easing>> TRANSITION_TIMING_FUNCTION =
+            R.register("transition-timing-function", commaList(easing()), List.of(Easing.EASE), false, false, false);
+    public static final PropertyDef<List<Float>> TRANSITION_DELAY =
+            R.register("transition-delay", commaList(time(true)), List.of(0f), false, false, false);
+
     static {
         R.registerShorthand("margin", Shorthand.box(MARGIN), MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT);
         R.registerShorthand("padding", Shorthand.box(PADDING), PADDING_TOP, PADDING_RIGHT, PADDING_BOTTOM, PADDING_LEFT);
         R.registerShorthand("gap", Shorthand.pair(GAP), ROW_GAP, COLUMN_GAP);
+        R.registerShorthand("transition", Shorthand.transition(R),
+                TRANSITION_PROPERTY, TRANSITION_DURATION, TRANSITION_TIMING_FUNCTION, TRANSITION_DELAY);
         R.freeze();
     }
 }

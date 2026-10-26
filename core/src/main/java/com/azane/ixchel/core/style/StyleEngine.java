@@ -28,7 +28,18 @@ public final class StyleEngine {
     private static final Comparator<Entry> CASCADE_ORDER =
             Comparator.comparingInt(Entry::specificity).thenComparingInt(Entry::order);
 
+    /**
+     * Sees each freshly cascaded style before it is stored, and may change it; children inherit
+     * the changed values. Used by transitions.
+     */
+    @FunctionalInterface
+    public interface Hook {
+        /** @param previous the element's style before this restyle, {@code null} on its first */
+        void computed(Element e, ComputedStyle previous, ComputedStyle next);
+    }
+
     private final PropertyRegistry registry;
+    private final Hook hook;
     private final Diagnostics diag;
     private final Map<String, List<Entry>> byId = new HashMap<>();
     private final Map<String, List<Entry>> byClass = new HashMap<>();
@@ -39,7 +50,13 @@ public final class StyleEngine {
 
     /** {@code diag} receives errors from inline styles, which are compiled on first use. */
     public StyleEngine(PropertyRegistry registry, List<StyleSheet> sheets, Diagnostics diag) {
+        this(registry, sheets, diag, (e, previous, next) -> {
+        });
+    }
+
+    public StyleEngine(PropertyRegistry registry, List<StyleSheet> sheets, Diagnostics diag, Hook hook) {
         this.registry = registry;
+        this.hook = hook;
         this.diag = diag;
         int order = 0;
         for (StyleSheet sheet : sheets) {
@@ -82,7 +99,9 @@ public final class StyleEngine {
             }
             boolean self = force || e.isStyleDirty();
             if (self) {
-                e.setComputed(compute(e, parent.computed()));
+                ComputedStyle next = compute(e, parent.computed());
+                hook.computed(e, e.computed(), next);
+                e.setComputed(next);
             }
             if (self || e.hasStyleDirtyDescendant()) {
                 restyleChildren(e, self);

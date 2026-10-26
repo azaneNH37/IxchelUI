@@ -47,16 +47,23 @@ public final class Syntaxes {
 
     /**
      * A length in {@code px} (unitless {@code 0} allowed), optionally also a percentage and {@code auto}.
+     * Interpolates between two lengths of the same unit; {@code auto} and mixed units do not.
      */
     public static Syntax<Length> length(boolean percent, boolean auto, boolean negative) {
-        return (value, pos, diag) -> {
+        return interpolating((value, pos, diag) -> {
             ComponentValue v = single(value, pos, diag);
             return v == null ? null : lengthOf(v, percent, auto, negative, diag);
-        };
+        }, (a, b, p) -> {
+            if (a.unit() != b.unit() || a.unit() == Length.Unit.AUTO) {
+                return null;
+            }
+            float v = mix(a.value(), b.value(), p);
+            return new Length(negative ? v : Math.max(0, v), a.unit());
+        });
     }
 
     public static Syntax<Float> number(boolean negative) {
-        return (value, pos, diag) -> {
+        return interpolating((value, pos, diag) -> {
             ComponentValue v = single(value, pos, diag);
             if (v == null) {
                 return null;
@@ -70,15 +77,255 @@ public final class Syntaxes {
             }
             diag.error(v.pos(), "expected a number");
             return null;
+        }, (a, b, p) -> {
+            float v = mix(a, b, p);
+            return negative ? v : Math.max(0, v);
+        });
+    }
+
+    /**
+     * ARGB. {@code #rgb}, {@code #rgba}, {@code #rrggbb}, {@code #rrggbbaa}, {@code rgb()}/{@code rgba()}, a few names.
+     * Interpolates in premultiplied sRGB, as CSS does for these color forms.
+     */
+    public static Syntax<Integer> color() {
+        return interpolating((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            return v == null ? null : colorOf(v, diag);
+        }, Syntaxes::mixColor);
+    }
+
+    /** A {@code <time>} in seconds, written with {@code s} or {@code ms}. */
+    public static Syntax<Float> time(boolean negative) {
+        return (value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            return v == null ? null : timeOf(v, negative, diag);
         };
     }
 
-    /** ARGB. {@code #rgb}, {@code #rgba}, {@code #rrggbb}, {@code #rrggbbaa}, {@code rgb()}/{@code rgba()}, a few names. */
-    public static Syntax<Integer> color() {
+    /** {@code linear}, {@code ease}, {@code ease-in}, {@code ease-out}, {@code ease-in-out} or {@code cubic-bezier()}. */
+    public static Syntax<Easing> easing() {
         return (value, pos, diag) -> {
             ComponentValue v = single(value, pos, diag);
-            return v == null ? null : colorOf(v, diag);
+            return v == null ? null : easingOf(v, diag);
         };
+    }
+
+    /** One or more {@code item} values separated by commas; the result is unmodifiable. */
+    public static <T> Syntax<List<T>> commaList(Syntax<T> item) {
+        return (value, pos, diag) -> {
+            List<List<ComponentValue>> items = splitCommas(value, pos, diag);
+            if (items == null) {
+                return null;
+            }
+            List<T> out = new ArrayList<>(items.size());
+            for (List<ComponentValue> i : items) {
+                T t = item.parse(i, i.get(0).pos(), diag);
+                if (t == null) {
+                    return null;
+                }
+                out.add(t);
+            }
+            return List.copyOf(out);
+        };
+    }
+
+    /**
+     * {@code transition-property}: {@code none} (an empty list), or comma-separated {@code all},
+     * animatable longhands and shorthands whose longhands are all animatable, kept as written.
+     */
+    public static Syntax<List<String>> transitionProperty(PropertyRegistry registry) {
+        return (value, pos, diag) -> {
+            List<List<ComponentValue>> items = splitCommas(value, pos, diag);
+            if (items == null) {
+                return null;
+            }
+            List<String> out = new ArrayList<>(items.size());
+            for (List<ComponentValue> i : items) {
+                ComponentValue v = single(i, i.get(0).pos(), diag);
+                String name = v == null ? null : transitionNameOf(v, registry, diag);
+                if (name == null) {
+                    return null;
+                }
+                if (name.equals("none")) {
+                    if (items.size() > 1) {
+                        diag.error(v.pos(), "'none' must be the only value");
+                        return null;
+                    }
+                    return List.of();
+                }
+                out.add(name);
+            }
+            return List.copyOf(out);
+        };
+    }
+
+    @FunctionalInterface
+    private interface Mixer<T> {
+        T mix(T from, T to, float p);
+    }
+
+    private static <T> Syntax<T> interpolating(Syntax<T> parser, Mixer<T> mixer) {
+        return new Syntax<>() {
+            @Override
+            public T parse(List<ComponentValue> value, SourcePos pos, Diagnostics diag) {
+                return parser.parse(value, pos, diag);
+            }
+
+            @Override
+            public T interpolate(T from, T to, float p) {
+                return mixer.mix(from, to, p);
+            }
+        };
+    }
+
+    private static float mix(float a, float b, float p) {
+        return a + (b - a) * p;
+    }
+
+    private static Integer mixColor(Integer from, Integer to, float p) {
+        int a = from;
+        int b = to;
+        float fromAlpha = (a >>> 24) / 255f;
+        float toAlpha = (b >>> 24) / 255f;
+        float alpha = Math.max(0, Math.min(1, mix(fromAlpha, toAlpha, p)));
+        if (alpha == 0) {
+            return 0;
+        }
+        int out = Math.round(alpha * 255) << 24;
+        for (int shift = 16; shift >= 0; shift -= 8) {
+            float c = mix((a >> shift & 0xFF) * fromAlpha, (b >> shift & 0xFF) * toAlpha, p) / alpha;
+            out |= Math.round(Math.max(0, Math.min(255, c))) << shift;
+        }
+        return out;
+    }
+
+    /** The comma-separated items of {@code value} without whitespace; {@code null} after an error. */
+    static List<List<ComponentValue>> splitCommas(List<ComponentValue> value, SourcePos pos, Diagnostics diag) {
+        List<List<ComponentValue>> items = new ArrayList<>();
+        List<ComponentValue> current = new ArrayList<>();
+        SourcePos last = pos;
+        for (ComponentValue v : significant(value)) {
+            if (v instanceof Token t && t.is(Token.Kind.COMMA)) {
+                if (current.isEmpty()) {
+                    diag.error(t.pos(), "empty item before ','");
+                    return null;
+                }
+                items.add(current);
+                current = new ArrayList<>();
+                last = t.pos();
+            } else {
+                current.add(v);
+            }
+        }
+        if (current.isEmpty()) {
+            diag.error(last, "empty item after ','");
+            return null;
+        }
+        items.add(current);
+        return items;
+    }
+
+    static Float timeOf(ComponentValue v, boolean negative, Diagnostics diag) {
+        if (v instanceof Token t && t.is(Token.Kind.DIMENSION)) {
+            double seconds;
+            if (t.unit().equalsIgnoreCase("s")) {
+                seconds = t.number();
+            } else if (t.unit().equalsIgnoreCase("ms")) {
+                seconds = t.number() / 1000;
+            } else {
+                diag.error(t.pos(), "expected a time in s or ms");
+                return null;
+            }
+            if (!negative && seconds < 0) {
+                diag.error(t.pos(), "negative time not allowed");
+                return null;
+            }
+            return (float) seconds;
+        }
+        if (v instanceof Token t && t.is(Token.Kind.NUMBER) && t.number() == 0) {
+            diag.error(t.pos(), "time needs a unit: 0s");
+            return null;
+        }
+        diag.error(v.pos(), "expected a time in s or ms");
+        return null;
+    }
+
+    private static final Map<String, Easing> EASING_KEYWORDS = Map.of(
+            "linear", Easing.LINEAR,
+            "ease", Easing.EASE,
+            "ease-in", Easing.EASE_IN,
+            "ease-out", Easing.EASE_OUT,
+            "ease-in-out", Easing.EASE_IN_OUT);
+
+    /** Whether {@code v} is meant as an easing function, supported or not. */
+    static boolean looksLikeEasing(ComponentValue v) {
+        if (v instanceof Token t && t.is(Token.Kind.IDENT)) {
+            String name = t.value().toLowerCase(Locale.ROOT);
+            return EASING_KEYWORDS.containsKey(name) || name.equals("step-start") || name.equals("step-end");
+        }
+        return v instanceof ComponentValue.Function;
+    }
+
+    static Easing easingOf(ComponentValue v, Diagnostics diag) {
+        if (v instanceof Token t && t.is(Token.Kind.IDENT)) {
+            Easing e = EASING_KEYWORDS.get(t.value().toLowerCase(Locale.ROOT));
+            if (e != null) {
+                return e;
+            }
+        } else if (v instanceof ComponentValue.Function f && f.name().equalsIgnoreCase("cubic-bezier")) {
+            return cubicBezier(f, diag);
+        }
+        diag.error(v.pos(), "unsupported easing (use linear, ease, ease-in, ease-out, ease-in-out or cubic-bezier())");
+        return null;
+    }
+
+    private static Easing cubicBezier(ComponentValue.Function f, Diagnostics diag) {
+        float[] p = new float[4];
+        int n = 0;
+        for (ComponentValue a : significant(f.args())) {
+            if (a instanceof Token t && t.is(Token.Kind.COMMA)) {
+                continue;
+            }
+            if (!(a instanceof Token t && t.is(Token.Kind.NUMBER)) || n == 4) {
+                diag.error(a.pos(), "cubic-bezier() takes four numbers");
+                return null;
+            }
+            p[n++] = (float) t.number();
+        }
+        if (n != 4) {
+            diag.error(f.pos(), "cubic-bezier() takes four numbers");
+            return null;
+        }
+        if (p[0] < 0 || p[0] > 1 || p[2] < 0 || p[2] > 1) {
+            diag.error(f.pos(), "cubic-bezier() x values must be between 0 and 1");
+            return null;
+        }
+        return new Easing(p[0], p[1], p[2], p[3]);
+    }
+
+    /** A {@code transition-property} name, lower-cased; {@code none} is returned for the caller to check. */
+    static String transitionNameOf(ComponentValue v, PropertyRegistry registry, Diagnostics diag) {
+        if (!(v instanceof Token t && t.is(Token.Kind.IDENT))) {
+            diag.error(v.pos(), "expected a property name");
+            return null;
+        }
+        String name = t.value().toLowerCase(Locale.ROOT);
+        if (name.equals("all") || name.equals("none")) {
+            return name;
+        }
+        PropertyDef<?> def = registry.byName(name);
+        Shorthand shorthand = def == null ? registry.shorthand(name) : null;
+        if (def == null && shorthand == null) {
+            diag.error(t.pos(), "unsupported property '" + name + "'");
+            return null;
+        }
+        for (PropertyDef<?> d : def != null ? List.<PropertyDef<?>>of(def) : shorthand.longhands()) {
+            if (!d.animatable()) {
+                diag.error(t.pos(), "'" + d.name() + "' cannot be transitioned");
+                return null;
+            }
+        }
+        return name;
     }
 
     static Length lengthOf(ComponentValue v, boolean percent, boolean auto, boolean negative, Diagnostics diag) {
