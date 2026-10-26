@@ -33,7 +33,7 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 ## In progress
 
 - 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；core M1 完成，下一步 M2（mc 1.20.1 绘制与 HUD 宿主），M1 已知限制见 `ref/D-ixchel-module-breakdown-20261026.md` §3。
-- CI：`check`（`.github/workflows/check.yml`，PR 与 `master` 上全量 `./gradlew build`）已上线，`master` ruleset 要求它通过；`release` 与 `docs` 流程未实现。见 #010 与 `ref/D-ixchel-ci-workflows-20261026.md`。
+- CI：`check`（`.github/workflows/check.yml`，PR 与 `master` 上全量 `./gradlew build`）已上线，`master` ruleset 要求它通过，admin 可在 PR 上用 `--admin` 越过；`release` 与 `docs` 流程未实现。见 #010 与 `ref/D-ixchel-ci-workflows-20261026.md`。
 - 1.20.1 库模块发布 mojmap 还是 SRG 产物未定，待 shade 配方验证；目前 legacyforge 对两个 1.20.1 库模块的 `jar` 都自动 reobf 为 SRG。
 - testmod 以 sourceSet 并入方式运行库，不经过 shade/relocate；shade 链路尚无覆盖。
 

@@ -18,7 +18,7 @@ related: [DECISIONS.md#010, DECISIONS.md#001, ref/D-ixchel-module-breakdown-2026
 | 项 | 现状（2026-10-26） | 对 CI 的影响 |
 |---|---|---|
 | 可见性 | 早期开发期私有，后续转公开 | 私有期间 Actions 按分钟计费（Windows 按 2 倍计）、Pages 需付费套餐、fork PR 默认不运行 workflow；转公开后分钟与 Pages 免费 |
-| 合入 | ruleset `master`（作用于默认分支）：禁止删除与强推、线性历史、必须走 PR 且只允许 squash、0 个必需 approve，必需检查 `build`（GitHub Actions）且要求分支与 `master` 同步；无 bypass；维护者只有一人 | `check` 的 job 名 `build` 即必需检查的 context，改 job 名须同步改 ruleset。注意：旧版分支保护接口（`branches/master/protection`）看不到 ruleset，查规则用 `rules/branches/master` |
+| 合入 | ruleset `master`（作用于默认分支）：禁止删除与强推、线性历史、必须走 PR 且只允许 squash、0 个必需 approve，必需检查 `build`（GitHub Actions）且要求分支与 `master` 同步；bypass：仓库 admin（`RepositoryRole` 5），`bypass_mode: pull_request`，只能在 PR 上越过检查，不能直推；维护者只有一人 | `check` 的 job 名 `build` 即必需检查的 context，改 job 名须同步改 ruleset。快速合入：`gh pr merge --squash --admin`，CI 仍在 PR 与 `master` 上运行，红了在 `master` 上补修；有协作者后撤销 bypass。注意：旧版分支保护接口（`branches/master/protection`）看不到 ruleset，查规则用 `rules/branches/master` |
 | 发布 | `ixchel.library` 已配 `maven-publish`；不发 Maven Central，开发期 `publishToMavenLocal` | 暂无远端仓库 |
 | 版本 | `gradle.properties` 中 `version=0.1.0-SNAPSHOT` | 发版版本以此为准（#010） |
 | 构建 | 已开 Gradle build cache 与 configuration cache；mc/loader/testmod 用 MDG（legacyforge / NeoForm）；toolchain 由 foojay 插件兜底下载 | 首次构建要下载并反编译 MC，须缓存 Gradle User Home |
