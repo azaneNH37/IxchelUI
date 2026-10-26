@@ -1,0 +1,15 @@
+.box {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  flex-direction: row;
+  align-items: center;
+  padding: 2px;
+  background-color: #80000080;
+}
+
+.held {
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+}
