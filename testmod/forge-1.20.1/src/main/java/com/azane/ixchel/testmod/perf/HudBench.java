@@ -38,8 +38,8 @@ public final class HudBench {
     private static final KeyMapping SWITCH =
             new KeyMapping("key.ixcheltest.hud_bench", GLFW.GLFW_KEY_J, "key.categories.misc");
 
-    /** Set by {@code -Pbench}: cycle the layers unattended, screenshot each window, then quit. */
-    private static final boolean AUTO = "auto".equals(System.getProperty("ixcheltest.bench"));
+    /** Set by {@code -Pbench} (or {@code -Pbench=hud}): cycle the layers unattended, screenshot each window, then quit. */
+    private static final boolean AUTO = "hud".equals(System.getProperty("ixcheltest.bench"));
     /** Windows in auto mode: one warm-up, then ixchel/vanilla alternating. */
     private static final int AUTO_WINDOWS = 5;
 

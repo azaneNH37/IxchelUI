@@ -13,27 +13,41 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
-/** Z opens the refit screen on the held crossbow. */
+/** Z opens the refit screen on the held crossbow, V the hand-written vanilla version of it. */
 public final class RefitClient {
     private static final KeyMapping OPEN = new KeyMapping("key.ixcheltest.refit", GLFW.GLFW_KEY_Z, "key.categories.misc");
+    private static final KeyMapping OPEN_VANILLA =
+            new KeyMapping("key.ixcheltest.refit_vanilla", GLFW.GLFW_KEY_V, "key.categories.misc");
 
     private RefitClient() {
     }
 
     public static void init(IEventBus modBus) {
-        modBus.addListener((RegisterKeyMappingsEvent e) -> e.register(OPEN));
+        modBus.addListener((RegisterKeyMappingsEvent e) -> {
+            e.register(OPEN);
+            e.register(OPEN_VANILLA);
+        });
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e) -> {
+            if (e.phase != TickEvent.Phase.END) {
+                return;
+            }
             Minecraft mc = Minecraft.getInstance();
-            while (e.phase == TickEvent.Phase.END && OPEN.consumeClick()) {
-                if (mc.player != null && mc.screen == null && Attachments.isGun(mc.player.getMainHandItem())) {
-                    mc.setScreen(open(mc.player.getInventory().selected));
+            boolean canOpen = mc.player != null && mc.screen == null && Attachments.isGun(mc.player.getMainHandItem());
+            while (OPEN.consumeClick()) {
+                if (canOpen) {
+                    mc.setScreen(screen(new RefitView(mc.player.getInventory().selected)));
+                }
+            }
+            while (OPEN_VANILLA.consumeClick()) {
+                if (canOpen) {
+                    mc.setScreen(new VanillaRefitScreen(mc.player.getInventory().selected));
                 }
             }
         });
+        RefitBench.init();
     }
 
-    private static UiScreen open(int slot) {
-        RefitView view = new RefitView(slot);
+    static UiScreen screen(RefitView view) {
         // A consumer outside the UI tree (TACZ moves the first-person camera): the action bar names
         // the attachment being looked at. The subscription ends when the screen closes.
         view.subscribe(view.selectedType, () -> {

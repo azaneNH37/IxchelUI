@@ -19,10 +19,11 @@ legacyForge {
             client()
             // Hot reload of UI templates and stylesheets straight from the source tree (L1).
             systemProperty("ixchel.devResources.ixcheltest", file("src/main/resources").absolutePath)
-            // `-Pbench`: straight into the dev world, HudBench cycles and screenshots unattended, then quits.
-            if (providers.gradleProperty("bench").isPresent) {
-                systemProperty("ixcheltest.bench", "auto")
-                programArguments.addAll("--quickPlaySingleplayer", "New World")
+            // `-Pbench` (or `-Pbench=hud`): BenchWorld opens the dev world (creating it if missing),
+            // HudBench cycles and screenshots unattended, then quits. `-Pbench=refit` runs RefitBench.
+            val bench = providers.gradleProperty("bench")
+            if (bench.isPresent) {
+                systemProperty("ixcheltest.bench", bench.get().ifEmpty { "hud" })
             }
         }
     }
