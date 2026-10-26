@@ -17,6 +17,8 @@ legacyForge {
     runs {
         register("client") {
             client()
+            // Hot reload of UI templates and stylesheets straight from the source tree (L1).
+            systemProperty("ixchel.devResources.ixcheltest", file("src/main/resources").absolutePath)
         }
     }
 

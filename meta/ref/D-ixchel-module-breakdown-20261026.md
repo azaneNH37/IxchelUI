@@ -136,7 +136,7 @@ MC 源码事实（1.20.1 与 1.21.1 vanilla）：`GuiGraphics.fill` / `fillGradi
 
 | 级别 | 内容 | 时机 |
 |---|---|---|
-| L1 | 开发环境下文件监听热重载，错误显示在叠加层 | MVP |
+| L1（已完成，Forge 1.20.1） | 开发环境下文件监听热重载，错误显示在叠加层。宿主以 `-Dixchel.devResources.<modid>=<资源根目录>` 开启：模板与样式直接读源码目录，保存即重载；加载失败保留上一版并在叠加层列出错误，运行期错误也列出；图片仍走打包资源 | MVP |
 | L1+ | 由属性注册表与元素注册表生成 VS Code `html.customData` / `css.customData` | MVP 后低成本 |
 | L2 | 浏览器预览：预览用重置样式表模拟 MC 字体与像素对齐；ViewModel 结构描述 + mock 数据填充绑定 | 有外部使用者后 |
 | L3 | 游戏内开发服务器（`com.sun.net.httpserver`，只绑 127.0.0.1，默认关闭）+ GrapesJS 类可视化编辑器 | 不在规划内 |

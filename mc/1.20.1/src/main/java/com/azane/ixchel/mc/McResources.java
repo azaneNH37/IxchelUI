@@ -16,12 +16,18 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Reads UI files from the host mod's resources ({@code assets/<hostModId>/<path>}). */
+/**
+ * Reads UI files from the host mod's resources ({@code assets/<hostModId>/<path>}), or from its
+ * source tree when a {@link DevResources} is given.
+ */
 public final class McResources {
     private final String hostModId;
+    private final DevResources dev;
 
-    public McResources(String hostModId) {
+    /** @param dev the development source, or {@code null} to read packed resources */
+    public McResources(String hostModId, DevResources dev) {
         this.hostModId = hostModId;
+        this.dev = dev;
     }
 
     /**
@@ -42,6 +48,9 @@ public final class McResources {
     }
 
     public String read(ResourceManager resources, String path) {
+        if (dev != null) {
+            return dev.read(path);
+        }
         ResourceLocation id = new ResourceLocation(hostModId, path);
         try (InputStream in = resources.getResourceOrThrow(id).open()) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
