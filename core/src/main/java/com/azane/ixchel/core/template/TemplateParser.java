@@ -18,7 +18,8 @@ import java.util.Set;
  * reported to {@link Diagnostics}; parsing continues past errors so one load reports as many as it can.
  */
 public final class TemplateParser {
-    private static final Set<String> RESERVED = Set.of("each", "as", "key", "if", "t");
+    private static final Set<String> RESERVED = Set.of("t");
+    private static final Set<String> STRUCTURAL = Set.of("each", "as", "key", "if");
 
     private final String src;
     private final String file;
@@ -203,7 +204,7 @@ public final class TemplateParser {
         if (!tagKnown) {
             return;
         }
-        if (name.startsWith("bind:") || name.startsWith("on:")) {
+        if (isBindingAttribute(name)) {
             if (tag.equals("style")) {
                 diag.error(namePos, "<style> takes no attributes");
             } else {
@@ -233,7 +234,12 @@ public final class TemplateParser {
         }
     }
 
-    /** Template attributes with planned meaning that are not implemented yet (structural, i18n). */
+    /** Attributes interpreted by the binding layer: {@code bind:*}, {@code on:*}, {@code each/as/key/if}. */
+    static boolean isBindingAttribute(String attribute) {
+        return attribute.startsWith("bind:") || attribute.startsWith("on:") || STRUCTURAL.contains(attribute);
+    }
+
+    /** Template attributes with planned meaning that are not implemented yet (i18n). */
     static boolean isReserved(String attribute) {
         return RESERVED.contains(attribute);
     }

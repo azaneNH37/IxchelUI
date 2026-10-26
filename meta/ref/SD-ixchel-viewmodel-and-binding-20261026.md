@@ -99,8 +99,8 @@ final class GunModView extends ViewModel {
 | 项 | 规则 | 状态 |
 |---|---|---|
 | 表达式 | 路径 + `!`；复杂逻辑写成 `Derived` | ✅ |
-| 绑定目标 | `text`、任意属性、`class:<名字>` ✅（M2）；`if`、`each` 🟡（M3）；不支持 `style:*`，样式变化走类名 | ✅/🟡 |
-| 动作参数 | `on:x="act"` 或 `on:x="act(路径)"`，最多一个参数 | 🟡 |
+| 绑定目标 | `text`、任意属性、`class:<名字>`（M2）；`if`、`each`（M3，`each` 必须带 `as` 与 `key`，`key` 是从行名出发的路径；`each` 与 `if` 不能在同一元素上）；不支持 `style:*`，样式变化走类名 | ✅ |
+| 动作参数 | `on:x="act"` 或 `on:x="act(路径)"`，最多一个参数，加载期按 `Action<A>` 的 `A` 检查类型；事件名为 `click`、`mousedown`、`mouseup`、`wheel`、`keydown`、`keyup` | ✅ |
 | i18n | `t="语言键"`；字面文本开发期警告 | 🟡 |
 | 值转文本 | `String.valueOf`；格式化（如补零）写进 `Derived`。`Component` 在 mc 层以 `getString()` 拍平为纯文本，颜色、字重只由 CSS 给出；富文本（保留 Component 内联样式）以后作为不透明宿主文本对象加入，测量与换行交给 mc 层的 vanilla `StringSplitter`，core 不建模样式 | ✅ |
 | 交互状态 | `:hover` / `:active` / `:focus` 由 event 包写状态位，不经 ViewModel | ✅ |
@@ -124,6 +124,8 @@ final class GunModView extends ViewModel {
 总体：显式依赖、版本号、推脏拉值。依赖在构造时写死，只能指向已构造的节点，因此**从构造上不可能成环**，也不需要线程局部的依赖追踪上下文；代价是条件分支里没用到的依赖变化也会触发一次重算。
 
 M2 已实现的最小集（`core/.../binding`）：节点基类命名为 `Cell`（`dom.Node` 已占用该名）；只有轮询型 `Source.polled`，没有推送型；`ViewModel` 的 `source`/`state`/`derive`（1~3 参数）；绑定目标为 `text`、`class:<名字>`、普通属性，表达式为字段名加可选 `!`，路径报"尚未支持"。"推脏"简化为整个 ViewModel 一个脏标记：没有任何来源或 state 变化时，这一帧不读取任何节点；有变化时遍历全部绑定，`Derived` 按上游 version 判断是否需要重算。`action`、`Scope`、`subscribe`、`each`/`if` 留到 M3。`Component` 由 mc 层 `McResources` 用 `getString()` 拍平。
+
+M3 补齐（`core/.../binding`）：`action(Runnable|Consumer)` 为同步动作；`task(Supplier|Function)` 返回 `CompletableFuture`，有 `pending`/`error`（同名无法区分同参数个数的 lambda，故异步另起名 `task`）。`Scope` 只有 ViewModel 一级：收件箱（任意线程 `post`，帧开始执行）与所拥有的订阅，`close()` 后丢弃；`subscribe(cell, listener)` 放在 ViewModel 上（订阅归它的 `Scope`），在帧开始、单元格版本变化时回调。`each` 行与 `if` 块没有子 `Scope`：动作与订阅都属于 ViewModel，行里只有绑定与 DOM 监听器，随节点一起丢弃。路径经 record 组件逐级取值，每级一个 `Derived`（相等截断）；`each` 行值存在不通知模型的行单元格里。块内容在加载期用一份不挂载的副本校验，未挂载时出错也在加载期报告。
 
 ```java
 abstract sealed class Node<T> permits Value, Derived {
@@ -176,7 +178,7 @@ record 中包含 `ItemStack` 时 record 的 `equals` 退化为引用比较，相
 | `Scope` 关闭后迟到的回执被丢弃 | 通过 |
 | 无人读取的 `Derived` 计算次数为 0 | 通过 |
 
-未覆盖：`each` 的 key 比对、子 `Scope`、路径绑定。
+未覆盖：路径绑定、`each`、`if` 已在 M3 由 `UiDocumentBindingTest` 覆盖；子 `Scope` 未实现（见 §5 M3 补齐）。
 
 性能（同一原型，JIT 预热后取中位数）：50 个轮询来源、200 个派生加绑定，无变化一帧 0.5 µs，一个来源变化 2.9 µs。绑定层不是瓶颈；整帧预算见 `ref/D-ixchel-module-breakdown-20261026.md` §7。
 
@@ -203,7 +205,7 @@ record 中包含 `ItemStack` 时 record 的 `equals` 退化为引用比较，相
 
 ### 8. 待定
 
-- §3 中剩余 🟡 项：`if`/`each`、动作参数语法、i18n 写法（`t` 属性）。
+- §3 中剩余 🟡 项：i18n 写法（`t` 属性）。
 - 锁定型目标来源的 API 形态与 `valid` 语义（M5 前定）。
 - 动作进行中再次触发：丢弃（默认）、排队或并发。
 - `derive` 参数上限：3（默认）或可变参数。

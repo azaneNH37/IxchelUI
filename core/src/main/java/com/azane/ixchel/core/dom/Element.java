@@ -66,6 +66,14 @@ public final class Element extends Node {
 
     /** Appends {@code child}, detaching it from its current parent first. */
     public void appendChild(Node child) {
+        insertChild(child.parent == this ? children.size() - 1 : children.size(), child);
+    }
+
+    /**
+     * Inserts {@code child} at {@code index}, detaching it from its current parent first; the index
+     * counts children after that removal.
+     */
+    public void insertChild(int index, Node child) {
         if (child instanceof Element e) {
             for (Element a = this; a != null; a = a.parent) {
                 if (a == e) {
@@ -76,7 +84,7 @@ public final class Element extends Node {
         if (child.parent != null) {
             child.parent.removeChild(child);
         }
-        children.add(child);
+        children.add(index, child);
         child.parent = this;
         markTreeChanged();
         if (child instanceof Element e) {

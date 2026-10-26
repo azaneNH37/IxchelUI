@@ -18,13 +18,16 @@ import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
- * The {@code bind:*} and {@code on:*} attributes of one document, resolved against its view model.
+ * The binding attributes of one document ({@code bind:*}, {@code on:*}, {@code each}/{@code if}),
+ * resolved against its view model.
  *
  * <pre>{@code
  * <span bind:text="loaded"></span>          <!-- value as text; the element must be empty -->
@@ -35,6 +38,9 @@ import java.util.function.Function;
  * <div bind:class:busy="reload.pending"></div>  <!-- an action's pending / error -->
  * <div on:click="reload"></div>             <!-- runs an action; the event counts as handled -->
  * <div on:click="select(row)"></div>        <!-- with the value of a path as its argument -->
+ * <div if="!hasSelection">…</div>           <!-- mounted while true; not read while unmounted -->
+ * <div each="slots" as="s" key="s.type"     <!-- one copy per list element, matched by key -->
+ *      on:click="select(s)" bind:class:on="s.selected"></div>
  * }</pre>
  *
  * Expressions are a path with an optional {@code !}; anything more goes into a {@link Derived}. Every
@@ -45,16 +51,17 @@ public final class Bindings {
     public static final Function<Object, String> PLAIN_TEXT = v -> v == null ? "" : String.valueOf(v);
 
     private final ViewModel model;
-    private final List<Binding> bindings;
+    private final Group root;
 
-    private Bindings(ViewModel model, List<Binding> bindings) {
+    private Bindings(ViewModel model, Group root) {
         this.model = model;
-        this.bindings = bindings;
+        this.root = root;
     }
 
     /**
-     * Resolves every binding under {@code root}, registers event handlers and writes the initial
-     * values into the DOM. Problems go to {@code diag} with the attribute's position; a template with
+     * Resolves every binding under {@code root}, registers event handlers, expands {@code each} and
+     * {@code if} blocks, and writes the initial values into the DOM. Problems go to {@code diag} with
+     * the attribute's position; block contents are checked even while not mounted. A template with
      * bindings or handlers needs a model.
      *
      * @param model  the view model, or {@code null} for a template without bindings
@@ -63,26 +70,43 @@ public final class Bindings {
     public static Bindings compile(Element root, ViewModel model, Function<Object, String> textOf,
                                    TagRegistry tags, Diagnostics diag) {
         Compiler c = new Compiler(model, textOf, tags, diag);
-        List<Binding> out = new ArrayList<>();
-        c.collect(root, out);
-        Bindings b = new Bindings(model, out);
-        b.update();
+        Group group = new Group();
+        c.collect(root, group);
+        Bindings b = new Bindings(model, group);
+        if (!diag.hasErrors()) {
+            b.update();
+        }
         return b;
     }
 
     /**
-     * Runs posted work, polls the model's sources and writes changed values into the DOM. Returns
-     * whether anything was written; when no source or state changed, no cell is read.
+     * Runs posted work, polls the model's sources and writes changed values into the DOM, mounting
+     * and unmounting block contents. Returns whether the DOM changed; when no source or state
+     * changed, no cell is read. Unmounted contents are not read.
      */
     public boolean update() {
         if (model == null || !model.poll()) {
             return false;
         }
-        boolean wrote = false;
-        for (int i = 0, n = bindings.size(); i < n; i++) {
-            wrote |= bindings.get(i).update();
+        return root.update();
+    }
+
+    /** Something refreshed once per changed frame, in document order. */
+    private interface Part {
+        boolean update();
+    }
+
+    /** The bindings and blocks of one compiled subtree. */
+    private static final class Group {
+        final List<Part> parts = new ArrayList<>();
+
+        boolean update() {
+            boolean wrote = false;
+            for (int i = 0, n = parts.size(); i < n; i++) {
+                wrote |= parts.get(i).update();
+            }
+            return wrote;
         }
-        return wrote;
     }
 
     /** A resolved expression: the cell to read and its declared value type. */
@@ -90,11 +114,15 @@ public final class Bindings {
     }
 
     private static final class Compiler {
+        private static final Set<String> STRUCTURAL = Set.of("each", "as", "key", "if");
+
         private final ViewModel model;
         private final Map<String, Field> fields;
         private final Function<Object, String> textOf;
         private final TagRegistry tags;
         private final Diagnostics diag;
+        /** {@code as} names visible to the subtree being compiled. */
+        private Map<String, Ref> aliases = Map.of();
 
         Compiler(ViewModel model, Function<Object, String> textOf, TagRegistry tags, Diagnostics diag) {
             this.model = model;
@@ -104,8 +132,12 @@ public final class Bindings {
             this.diag = diag;
         }
 
-        void collect(Element e, List<Binding> out) {
+        /** Compiles {@code e}'s own attributes and its subtree into {@code out}; block templates leave the tree. */
+        void collect(Element e, Group out) {
             for (BindAttribute a : e.bindings()) {
+                if (STRUCTURAL.contains(a.name())) {
+                    continue;
+                }
                 if (model == null) {
                     diag.error(a.namePos(), "'" + a.name() + "' needs a view model, but this document has none");
                 } else if (a.name().startsWith("on:")) {
@@ -113,15 +145,141 @@ public final class Bindings {
                 } else {
                     Binding b = binding(e, a);
                     if (b != null) {
-                        out.add(b);
+                        out.parts.add(b);
                     }
                 }
             }
-            for (Node n : e.children()) {
+            Object prev = null;
+            for (Node n : List.copyOf(e.children())) {
+                if (n instanceof Element child && hasStructural(child)) {
+                    e.removeChild(child);
+                    Block block = model == null ? null : block(child, e, prev);
+                    if (model == null) {
+                        diag.error(child.pos(), "<" + child.tag() + "> has each/if, but this document has no view model");
+                    }
+                    if (block != null) {
+                        out.parts.add(block);
+                        prev = block;
+                    }
+                    continue;
+                }
                 if (n instanceof Element child) {
                     collect(child, out);
                 }
+                prev = n;
             }
+        }
+
+        /** Compiles {@code e} seeing the {@code as} names in {@code scope}. */
+        void collectWith(Element e, Map<String, Ref> scope, Group out) {
+            Map<String, Ref> saved = aliases;
+            aliases = scope;
+            try {
+                collect(e, out);
+            } finally {
+                aliases = saved;
+            }
+        }
+
+        private static boolean hasStructural(Element e) {
+            for (BindAttribute a : e.bindings()) {
+                if (STRUCTURAL.contains(a.name())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private Block block(Element template, Element parent, Object prev) {
+            BindAttribute each = null;
+            BindAttribute as = null;
+            BindAttribute key = null;
+            BindAttribute cond = null;
+            for (BindAttribute a : template.bindings()) {
+                switch (a.name()) {
+                    case "each" -> each = a;
+                    case "as" -> as = a;
+                    case "key" -> key = a;
+                    case "if" -> cond = a;
+                    default -> {
+                    }
+                }
+            }
+            if (each != null && cond != null) {
+                diag.error(cond.namePos(), "'each' and 'if' cannot share an element; wrap one in a <div>");
+                return null;
+            }
+            if (each == null) {
+                BindAttribute stray = as != null ? as : key;
+                if (stray != null) {
+                    diag.error(stray.namePos(), "'" + stray.name() + "' only goes with 'each'");
+                    return null;
+                }
+                return ifBlock(template, parent, prev, cond);
+            }
+            return eachBlock(template, parent, prev, each, as, key);
+        }
+
+        private Block ifBlock(Element template, Element parent, Object prev, BindAttribute cond) {
+            String expr = cond.value().trim();
+            boolean negate = expr.startsWith("!");
+            Ref ref = resolve(cond, negate ? expr.substring(1).trim() : expr);
+            if (ref == null) {
+                return null;
+            }
+            if (!isBoolean(ref.type)) {
+                diag.error(cond.valuePos(), "'if' needs a Boolean, but '" + expr + "' is " + ref.type.getTypeName());
+                return null;
+            }
+            collectWith(cloneTree(template), aliases, new Group());
+            return new IfBlock(this, aliases, template, parent, prev, ref.cell, negate, cond);
+        }
+
+        private Block eachBlock(Element template, Element parent, Object prev, BindAttribute each,
+                                BindAttribute as, BindAttribute key) {
+            if (as == null || key == null) {
+                diag.error(each.namePos(), "'each' needs 'as' (the row name) and 'key' (a path identifying a row)");
+                return null;
+            }
+            String alias = as.value().trim();
+            if (!isIdentifier(alias)) {
+                diag.error(as.valuePos(), "'as' takes a name, got '" + as.value() + "'");
+                return null;
+            }
+            Ref list = resolve(each, each.value().trim());
+            if (list == null) {
+                return null;
+            }
+            if (!List.class.isAssignableFrom(rawClass(list.type))) {
+                diag.error(each.valuePos(), "'each' needs a List, but '" + each.value().trim() + "' is "
+                        + list.type.getTypeName());
+                return null;
+            }
+            Type element = typeArgument(list.type);
+            Ref row = new Ref(new Value<>(model, null, null), element == null ? Object.class : element);
+            Map<String, Ref> rowScope = new HashMap<>(aliases);
+            rowScope.put(alias, row);
+            String keyExpr = key.value().trim();
+            if (!keyExpr.equals(alias) && !keyExpr.startsWith(alias + ".")) {
+                diag.error(key.valuePos(), "'key' is a path from the row '" + alias + "', got '" + keyExpr + "'");
+                return null;
+            }
+            Map<String, Ref> saved = aliases;
+            aliases = rowScope;
+            Ref keyRef;
+            try {
+                keyRef = resolve(key, keyExpr);
+            } finally {
+                aliases = saved;
+            }
+            if (keyRef == null) {
+                return null;
+            }
+            collectWith(cloneTree(template), rowScope, new Group());
+            @SuppressWarnings("unchecked")
+            Value<Object> keyInput = (Value<Object>) row.cell;
+            return new EachBlock(this, aliases, template, parent, prev, list.cell, alias, row.type,
+                    keyInput, keyRef.cell, each, key);
         }
 
         private Binding binding(Element e, BindAttribute a) {
@@ -252,33 +410,35 @@ public final class Bindings {
                     return null;
                 }
             }
-            Field field = fields.get(parts[0]);
-            if (field == null) {
-                diag.error(a.valuePos(), "'" + parts[0] + "' is not a field of " + model.getClass().getSimpleName());
-                return null;
-            }
-            Object value = read(field);
-            if (value == null) {
-                diag.error(a.valuePos(), "field '" + parts[0] + "' of " + model.getClass().getSimpleName() + " is null");
-                return null;
-            }
-            Ref ref;
+            Ref ref = aliases.get(parts[0]);
             int next = 1;
-            if (value instanceof Action<?> action) {
-                String member = parts.length > 1 ? parts[1] : "";
-                switch (member) {
-                    case "pending" -> ref = new Ref(action.pending(), Boolean.class);
-                    case "error" -> ref = new Ref(action.error(), Throwable.class);
-                    default -> {
-                        diag.error(a.valuePos(), "an action is not a value; bind '" + parts[0] + ".pending' or '"
-                                + parts[0] + ".error'");
-                        return null;
-                    }
+            if (ref == null) {
+                Field field = fields.get(parts[0]);
+                if (field == null) {
+                    diag.error(a.valuePos(), "'" + parts[0] + "' is not a field of " + model.getClass().getSimpleName());
+                    return null;
                 }
-                next = 2;
-            } else {
-                Type t = typeArgument(field.getGenericType());
-                ref = new Ref((Cell<?>) value, t == null ? Object.class : t);
+                Object value = read(field);
+                if (value == null) {
+                    diag.error(a.valuePos(), "field '" + parts[0] + "' of " + model.getClass().getSimpleName() + " is null");
+                    return null;
+                }
+                if (value instanceof Action<?> action) {
+                    String member = parts.length > 1 ? parts[1] : "";
+                    switch (member) {
+                        case "pending" -> ref = new Ref(action.pending(), Boolean.class);
+                        case "error" -> ref = new Ref(action.error(), Throwable.class);
+                        default -> {
+                            diag.error(a.valuePos(), "an action is not a value; bind '" + parts[0] + ".pending' or '"
+                                    + parts[0] + ".error'");
+                            return null;
+                        }
+                    }
+                    next = 2;
+                } else {
+                    Type t = typeArgument(field.getGenericType());
+                    ref = new Ref((Cell<?>) value, t == null ? Object.class : t);
+                }
             }
             for (int i = next; i < parts.length; i++) {
                 ref = component(a, ref, parts[i]);
@@ -419,8 +579,254 @@ public final class Bindings {
         return true;
     }
 
+    /** A deep copy of a block template without its own structural attributes; bindings are not resolved. */
+    private static Element cloneTree(Element src) {
+        Element e = copy(src);
+        for (BindAttribute a : src.bindings()) {
+            if (!Compiler.STRUCTURAL.contains(a.name())) {
+                e.addBinding(a);
+            }
+        }
+        return e;
+    }
+
+    private static Element copy(Element src) {
+        Element e = new Element(src.tag(), src.pos());
+        for (String cls : src.classes()) {
+            e.addClass(cls);
+        }
+        src.attributes().forEach(e::setAttribute);
+        if (!src.inlineStyle().isEmpty()) {
+            e.setInlineStyle(src.inlineStyle());
+        }
+        for (Node n : src.children()) {
+            if (n instanceof Element c) {
+                Element child = copy(c);
+                for (BindAttribute a : c.bindings()) {
+                    child.addBinding(a);
+                }
+                e.appendChild(child);
+            } else {
+                e.appendChild(new TextNode(((TextNode) n).text(), n.pos()));
+            }
+        }
+        return e;
+    }
+
+    /** One mounted copy of a block template with its compiled bindings. */
+    private static final class Instance {
+        final Element root;
+        final Group group = new Group();
+        final Value<Object> row;
+
+        Instance(Element root, Value<Object> row) {
+            this.root = root;
+            this.row = row;
+        }
+    }
+
+    /**
+     * Template content mounted by data. Mounted nodes sit after {@code prev} (a static sibling, an
+     * earlier block, or {@code null} for the start of {@code parent}).
+     */
+    private abstract static class Block implements Part {
+        final Compiler compiler;
+        final Map<String, Ref> scope;
+        final Element template;
+        final Element parent;
+        final Object prev;
+
+        Block(Compiler compiler, Map<String, Ref> scope, Element template, Element parent, Object prev) {
+            this.compiler = compiler;
+            this.scope = scope;
+            this.template = template;
+            this.parent = parent;
+            this.prev = prev;
+        }
+
+        /** The last node this block has mounted, or {@code null}. */
+        abstract Node lastMounted();
+
+        /** Where this block's first node goes. */
+        final int start() {
+            for (Object p = prev; p != null; ) {
+                if (p instanceof Node n) {
+                    return parent.children().indexOf(n) + 1;
+                }
+                Block b = (Block) p;
+                Node last = b.lastMounted();
+                if (last != null) {
+                    return parent.children().indexOf(last) + 1;
+                }
+                p = b.prev;
+            }
+            return 0;
+        }
+
+        final Instance instantiate(Map<String, Ref> instanceScope, Value<Object> row) {
+            Instance i = new Instance(cloneTree(template), row);
+            compiler.collectWith(i.root, instanceScope, i.group);
+            return i;
+        }
+    }
+
+    /** {@code if="path"}: mounted while the Boolean is true; recreated on each false-to-true change. */
+    private static final class IfBlock extends Block {
+        private final Cell<?> cond;
+        private final boolean negate;
+        private final BindAttribute attribute;
+        private Instance instance;
+        private boolean failing;
+
+        IfBlock(Compiler compiler, Map<String, Ref> scope, Element template, Element parent, Object prev,
+                Cell<?> cond, boolean negate, BindAttribute attribute) {
+            super(compiler, scope, template, parent, prev);
+            this.cond = cond;
+            this.negate = negate;
+            this.attribute = attribute;
+        }
+
+        @Override
+        Node lastMounted() {
+            return instance == null ? null : instance.root;
+        }
+
+        @Override
+        public boolean update() {
+            boolean on;
+            try {
+                on = Boolean.TRUE.equals(cond.get()) != negate;
+                failing = false;
+            } catch (RuntimeException ex) {
+                if (!failing) {
+                    failing = true;
+                    compiler.diag.error(attribute.valuePos(), "'" + attribute.value() + "' threw " + ex);
+                }
+                on = instance != null;
+            }
+            boolean wrote = false;
+            if (on && instance == null) {
+                instance = instantiate(scope, null);
+                parent.insertChild(start(), instance.root);
+                wrote = true;
+            } else if (!on && instance != null) {
+                parent.removeChild(instance.root);
+                instance = null;
+                return true;
+            }
+            if (instance != null) {
+                wrote |= instance.group.update();
+            }
+            return wrote;
+        }
+    }
+
+    /**
+     * {@code each="list" as="row" key="row.id"}: one copy of the template per element, matched to the
+     * previous frame's copies by key. A kept copy keeps its nodes (and so hover, focus and layout
+     * state) and only sees the new row value; copies are moved into list order.
+     */
+    private static final class EachBlock extends Block {
+        private final Cell<?> list;
+        private final String alias;
+        private final Type rowType;
+        private final Value<Object> keyInput;
+        private final Cell<?> key;
+        private final BindAttribute eachAttribute;
+        private final BindAttribute keyAttribute;
+        private Map<Object, Instance> rows = new LinkedHashMap<>();
+        private boolean failing;
+        private boolean reportedDuplicate;
+
+        EachBlock(Compiler compiler, Map<String, Ref> scope, Element template, Element parent, Object prev,
+                  Cell<?> list, String alias, Type rowType, Value<Object> keyInput, Cell<?> key,
+                  BindAttribute eachAttribute, BindAttribute keyAttribute) {
+            super(compiler, scope, template, parent, prev);
+            this.list = list;
+            this.alias = alias;
+            this.rowType = rowType;
+            this.keyInput = keyInput;
+            this.key = key;
+            this.eachAttribute = eachAttribute;
+            this.keyAttribute = keyAttribute;
+        }
+
+        @Override
+        Node lastMounted() {
+            Node last = null;
+            for (Instance i : rows.values()) {
+                last = i.root;
+            }
+            return last;
+        }
+
+        @Override
+        public boolean update() {
+            List<?> items;
+            try {
+                items = (List<?>) list.get();
+                failing = false;
+            } catch (RuntimeException ex) {
+                if (!failing) {
+                    failing = true;
+                    compiler.diag.error(eachAttribute.valuePos(), "'" + eachAttribute.value() + "' threw " + ex);
+                }
+                return updateRows();
+            }
+            boolean wrote = false;
+            Map<Object, Instance> next = new LinkedHashMap<>();
+            if (items != null) {
+                for (Object item : items) {
+                    keyInput.replace(item);
+                    Object k = key.get();
+                    if (next.containsKey(k)) {
+                        if (!reportedDuplicate) {
+                            reportedDuplicate = true;
+                            compiler.diag.error(keyAttribute.valuePos(), "duplicate key " + k + " in '"
+                                    + eachAttribute.value() + "'; later rows with it are skipped");
+                        }
+                        continue;
+                    }
+                    Instance row = rows.remove(k);
+                    if (row == null) {
+                        Value<Object> cell = new Value<>(compiler.model, null, null);
+                        cell.replace(item);
+                        Map<String, Ref> rowScope = new HashMap<>(scope);
+                        rowScope.put(alias, new Ref(cell, rowType));
+                        row = instantiate(rowScope, cell);
+                    } else {
+                        row.row.replace(item);
+                    }
+                    next.put(k, row);
+                }
+            }
+            for (Instance gone : rows.values()) {
+                parent.removeChild(gone.root);
+                wrote = true;
+            }
+            rows = next;
+            int index = start();
+            for (Instance row : rows.values()) {
+                if (index >= parent.children().size() || parent.children().get(index) != row.root) {
+                    parent.insertChild(index, row.root);
+                    wrote = true;
+                }
+                index++;
+            }
+            return updateRows() || wrote;
+        }
+
+        private boolean updateRows() {
+            boolean wrote = false;
+            for (Instance row : rows.values()) {
+                wrote |= row.group.update();
+            }
+            return wrote;
+        }
+    }
+
     /** One bound attribute; writes the DOM only when the value differs from the last write. */
-    private abstract static class Binding {
+    private abstract static class Binding implements Part {
         private final Cell<?> cell;
         private final boolean negate;
         private final BindAttribute attribute;
@@ -435,7 +841,8 @@ public final class Bindings {
         }
 
         /** A failing computation keeps the last written value and is reported once until it recovers. */
-        final boolean update() {
+        @Override
+        public final boolean update() {
             Object v;
             try {
                 v = cell.get();

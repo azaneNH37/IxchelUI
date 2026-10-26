@@ -7,6 +7,7 @@ import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
+import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -163,10 +165,16 @@ class UiDocumentBindingTest {
 
     static final class Picker extends ViewModel {
         final List<String> sent = new ArrayList<>();
-        final List<String> seen = new ArrayList<>();
+        int detailReads;
         CompletableFuture<Void> reply;
         final Value<Row> row = state(new Row("ammo", 1));
         final Value<String> selected = state("none");
+        final Value<List<Row>> rows = state(List.of(new Row("a", 1), new Row("b", 2)));
+        final Value<Boolean> show = state(false);
+        final Derived<String> detail = derive(selected, s -> {
+            detailReads++;
+            return "sel " + s;
+        });
         final Action<Row> select = action(r -> selected.set(r.name()));
         final Action<Void> reload = task(() -> {
             sent.add("reload");
@@ -255,5 +263,78 @@ class UiDocumentBindingTest {
         assertTrue(m.contains("t.html:4:16:") && m.contains("'reload' takes no argument"), m);
         assertTrue(m.contains("t.html:5:16:") && m.contains("but 'selected' is java.lang.String"), m);
         assertTrue(m.contains("t.html:6:17:") && m.contains("an action is not a value"), m);
+    }
+
+    @Test
+    void eachKeepsRowNodesByKeyAndPlacesRowsInListOrderBetweenStaticSiblings() {
+        Picker m = new Picker();
+        UiDocument doc = load("""
+                <span>[</span><span each="rows" as="r" key="r.name" class="r" on:click="select(r)" bind:text="r.count"></span><span>]</span>
+                """, ".r { width: 10px; height: 10px }", m);
+        assertEquals("""
+                text 0 0 9 #FFFFFFFF "["
+                text 0 9 9 #FFFFFFFF "1"
+                text 0 19 9 #FFFFFFFF "2"
+                text 0 29 9 #FFFFFFFF "]\"""", GoldenTest.print(doc.frame(100, 100)));
+        Element a = (Element) doc.root().children().get(1);
+
+        m.rows.set(List.of(new Row("c", 3), new Row("b", 2), new Row("a", 5)));
+        assertEquals("""
+                text 0 0 9 #FFFFFFFF "["
+                text 0 9 9 #FFFFFFFF "3"
+                text 0 19 9 #FFFFFFFF "2"
+                text 0 29 9 #FFFFFFFF "5"
+                text 0 39 9 #FFFFFFFF "]\"""", GoldenTest.print(doc.frame(100, 100)));
+        assertSame(a, doc.root().children().get(3), "row 'a' kept its node and only took the new value");
+
+        doc.events().mousePressed(5, 32, 0);
+        doc.events().mouseReleased(5, 32, 0);
+        m.rows.set(List.of());
+        assertEquals("text 0 0 9 #FFFFFFFF \"[\"\ntext 0 9 9 #FFFFFFFF \"]\"", GoldenTest.print(doc.frame(100, 100)));
+        assertEquals("a", m.selected.get(), "the handler passed its own row");
+    }
+
+    @Test
+    void ifMountsWhileTrueAndUnmountedContentIsNotRead() {
+        Picker m = new Picker();
+        UiDocument doc = load("""
+                <div if="show"><span bind:text="detail"></span></div><div if="!show"><span>none</span></div>
+                """, "", m);
+        assertEquals("text 0 0 9 #FFFFFFFF \"none\"", GoldenTest.print(doc.frame(100, 100)));
+        m.selected.set("x");
+        doc.frame(100, 100);
+        assertEquals(0, m.detailReads);
+
+        m.show.set(true);
+        assertEquals("text 0 0 9 #FFFFFFFF \"sel x\"", GoldenTest.print(doc.frame(100, 100)), "mounted before the else branch");
+        assertEquals(1, m.detailReads);
+        m.show.set(false);
+        m.selected.set("y");
+        assertEquals("text 0 0 9 #FFFFFFFF \"none\"", GoldenTest.print(doc.frame(100, 100)));
+        assertEquals(1, m.detailReads);
+    }
+
+    @Test
+    void loadReportsBadBlocksAndBadBindingsInsideUnmountedContent() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
+                <div each="rows"></div>
+                <div each="row" as="r" key="r"></div>
+                <div if="selected"></div>
+                <div each="rows" as="r" key="row.name"></div>
+                <div as="r"></div>
+                <div each="rows" as="r" key="r" if="show"></div>
+                <div if="show"><span bind:text="nope"></span></div>
+                <div each="rows" as="r" key="r.name"><span bind:text="r.missing"></span></div>
+                """, "", new Picker()));
+        String m = e.getMessage();
+        assertTrue(m.startsWith("8 errors"), m);
+        assertTrue(m.contains("t.html:1:6:") && m.contains("needs 'as'"), m);
+        assertTrue(m.contains("t.html:2:12:") && m.contains("'each' needs a List"), m);
+        assertTrue(m.contains("t.html:3:10:") && m.contains("'if' needs a Boolean"), m);
+        assertTrue(m.contains("t.html:4:30:") && m.contains("'key' is a path from the row 'r'"), m);
+        assertTrue(m.contains("t.html:5:6:") && m.contains("'as' only goes with 'each'"), m);
+        assertTrue(m.contains("t.html:6:33:") && m.contains("cannot share an element"), m);
+        assertTrue(m.contains("t.html:7:33:") && m.contains("'nope' is not a field"), m);
+        assertTrue(m.contains("t.html:8:55:") && m.contains("Row has no component 'missing'"), m);
     }
 }

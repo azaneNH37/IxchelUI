@@ -92,7 +92,7 @@ public final class TagRegistry {
                 if (!isName(a, true)) {
                     throw new IllegalArgumentException("malformed attribute name '" + a + "'");
                 }
-                if (GLOBAL_ATTRIBUTES.contains(a) || a.startsWith("bind:") || a.startsWith("on:") || TemplateParser.isReserved(a)) {
+                if (GLOBAL_ATTRIBUTES.contains(a) || TemplateParser.isBindingAttribute(a) || TemplateParser.isReserved(a)) {
                     throw new IllegalArgumentException("attribute '" + a + "' cannot be registered on <" + tag + ">");
                 }
                 set.add(a);
@@ -112,7 +112,8 @@ public final class TagRegistry {
                 throw new IllegalArgumentException("<" + tag + "> is already registered");
             }
             if (!isName(payload, false) || GLOBAL_ATTRIBUTES.contains(payload)
-                    || TemplateParser.isReserved(payload) || Set.of(extraAttributes).contains(payload)) {
+                    || TemplateParser.isReserved(payload) || TemplateParser.isBindingAttribute(payload)
+                    || Set.of(extraAttributes).contains(payload)) {
                 throw new IllegalArgumentException("'" + payload + "' cannot be the payload of <" + tag + ">");
             }
             tag(tag, extraAttributes);

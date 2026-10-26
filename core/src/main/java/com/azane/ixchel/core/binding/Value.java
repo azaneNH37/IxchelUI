@@ -41,6 +41,14 @@ public final class Value<T> extends Cell<T> {
         }
     }
 
+    /** Sets a row value without flagging the model: the block writing it already runs in a changed frame. */
+    void replace(T v) {
+        if (version == 0 || !Objects.equals(value, v)) {
+            value = v;
+            version++;
+        }
+    }
+
     /** Reads the source; returns whether the value changed. */
     boolean poll() {
         T live = source.live.get();
