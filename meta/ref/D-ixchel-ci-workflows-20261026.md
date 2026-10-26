@@ -18,7 +18,7 @@ related: [DECISIONS.md#010, DECISIONS.md#001, ref/D-ixchel-module-breakdown-2026
 | 项 | 现状（2026-10-26） | 对 CI 的影响 |
 |---|---|---|
 | 可见性 | 早期开发期私有，后续转公开 | 私有期间 Actions 按分钟计费（Windows 按 2 倍计）、Pages 需付费套餐、fork PR 默认不运行 workflow；转公开后分钟与 Pages 免费 |
-| 合入 | 只开 squash；`master` 无分支保护；维护者只有一人 | required check 需另配 ruleset，并要求分支与 `master` 同步（与"先 rebase 再 fast-forward"一致） |
+| 合入 | ruleset `master`（作用于默认分支）：禁止删除与强推、线性历史、必须走 PR 且只允许 squash、0 个必需 approve，必需检查 `build`（GitHub Actions）且要求分支与 `master` 同步；无 bypass；维护者只有一人 | `check` 的 job 名 `build` 即必需检查的 context，改 job 名须同步改 ruleset。注意：旧版分支保护接口（`branches/master/protection`）看不到 ruleset，查规则用 `rules/branches/master` |
 | 发布 | `ixchel.library` 已配 `maven-publish`；不发 Maven Central，开发期 `publishToMavenLocal` | 暂无远端仓库 |
 | 版本 | `gradle.properties` 中 `version=0.1.0-SNAPSHOT` | 发版版本以此为准（#010） |
 | 构建 | 已开 Gradle build cache 与 configuration cache；mc/loader/testmod 用 MDG（legacyforge / NeoForm）；toolchain 由 foojay 插件兜底下载 | 首次构建要下载并反编译 MC，须缓存 Gradle User Home |
@@ -111,7 +111,7 @@ jobs:
 | 任务输出 | `caches/build-cache-1`（仓库已开 `org.gradle.caching=true`） | 未变模块不重编译、不重跑测试 |
 | Gradle 发行包、toolchain | `wrapper/dists`、`jdks` | 免重复下载 |
 
-本机全量 `build` 后实测（2026-10-26，本机 Gradle User Home 与其它项目共用，`modules-2` 等偏大）：`neoformruntime` 1.5 GiB、`modules-2` 0.8 GiB、`caches/9.2.1`（transforms 等）1.1 GiB、`jdks` 1.0 GiB、`wrapper` 0.3 GiB。CI 用 `setup-java` 后不含 `jdks`，单条缓存估计 3 GiB 以内，10 GB 配额够用。
+本机全量 `build` 后实测（2026-10-26，本机 Gradle User Home 与其它项目共用，`modules-2` 等偏大）：`neoformruntime` 1.5 GiB、`modules-2` 0.8 GiB、`caches/9.2.1`（transforms 等）1.1 GiB、`jdks` 1.0 GiB、`wrapper` 0.3 GiB。CI 上首个 `master` 运行写入的缓存（压缩后）：`setup-gradle` 拆成 8 条，合计约 1.0 GiB（主条目 `gradle-home` 455 MiB、依赖 332 MiB、wrapper 128 MiB、transforms 65 MiB、其余 < 40 MiB），10 GB 配额够用。
 
 规则：
 
@@ -175,7 +175,6 @@ GitHub 的平台防护：fork PR 不传 secret、token 只读、不能修改 `.g
 
 - 冷构建实测（2026-10-26，PR #5 两次运行，均无缓存）：`./gradlew build` 5m03s 与 4m08s，44 个任务全部执行；`timeout-minutes` 定为 20。
 - 已确认：无 foojay 下载；`setup-gradle` 默认开启 wrapper 校验（日志 "All Gradle Wrapper jars are valid"）；PR 运行时缓存为只读（"Cache is read-only"），缓存从合入 `master` 后的首次运行开始写入。
-- 待确认：合入后首个 `master` 运行写入的缓存大小，之后 PR 命中缓存时的耗时，以及私有期间每月 Actions 分钟数是否够用。
+- 首个 `master` 运行（PR #5 合入后）：`./gradlew build` 4m40s，缓存写入约 12 s。PR #6 命中该缓存：恢复约 18 s，`./gradlew build` 38 s（44 个任务中 12 个取自 build cache），整个 job 69 s。待确认：私有期间每月 Actions 分钟数是否够用。
 - javadoc 的 doclint "no comment / no @param / no @return" 警告约 100 条，在 PR 上显示为 annotation；不导致失败。是否关闭 `missing` 类检查未定。
-- `master` ruleset 能否在当前账户套餐下对私有仓库生效（目前分支保护接口返回的是 404 "Branch not protected"，不是要求升级套餐的 403，推断可用）。
 - 转公开后：Pages 来源设为 GitHub Actions，VuePress 的 `base` 设为 `/IxchelUI/`（使用 `<user>.github.io/<repo>` 路径时）；确认 push ruleset 对个人账户公开仓库是否可用。
