@@ -8,6 +8,7 @@ import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.layout.LayoutEngine;
+import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.text.TextShaper;
 
 import java.util.List;
@@ -17,9 +18,11 @@ public final class Painter {
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
 
     private final LayoutEngine layout;
+    private final TagRegistry tags;
 
-    public Painter(LayoutEngine layout) {
+    public Painter(LayoutEngine layout, TagRegistry tags) {
         this.layout = layout;
+        this.tags = tags;
     }
 
     /** Clears {@code out} and paints the children of the implicit root into it. */
@@ -50,6 +53,8 @@ public final class Painter {
         }
         if (e.tag().equals("img")) {
             out.add(new DrawCommand.Image(b.x(), b.y(), b.width(), b.height(), e.attribute("src"), OPAQUE_WHITE));
+        } else if (e.payload() != null && tags.payloadAttribute(e.tag()) != null) {
+            out.add(new DrawCommand.Custom(e.tag(), e.payload(), b.x(), b.y(), b.width(), b.height()));
         }
         boolean clip = cs.get(CssProperties.OVERFLOW) == Keywords.Overflow.HIDDEN;
         if (clip) {

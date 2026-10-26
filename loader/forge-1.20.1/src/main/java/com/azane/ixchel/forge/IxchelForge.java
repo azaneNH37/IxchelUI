@@ -1,7 +1,7 @@
 package com.azane.ixchel.forge;
 
 import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.mc.McElements;
 import com.azane.ixchel.mc.McResources;
 import com.azane.ixchel.mc.UiHud;
 import net.minecraft.client.gui.GuiGraphics;
@@ -58,7 +58,7 @@ public final class IxchelForge {
 
         @Override
         public void onResourceManagerReload(ResourceManager manager) {
-            hud = new UiHud(resources.load(manager, templatePath, cssPaths, TagRegistry.HTML, model.get()));
+            hud = new UiHud(resources.load(manager, templatePath, cssPaths, McElements.TAGS, model.get()));
         }
 
         @Override

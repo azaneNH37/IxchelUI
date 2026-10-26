@@ -67,6 +67,11 @@ class GoldenTest {
             }
 
             @Override
+            public String visitCustom(DrawCommand.Custom c) {
+                return c.kind() + " " + n(c.x()) + " " + n(c.y()) + " " + n(c.width()) + " " + n(c.height()) + " " + c.payload();
+            }
+
+            @Override
             public String visitPushClip(DrawCommand.PushClip c) {
                 return "clip " + n(c.x()) + " " + n(c.y()) + " " + n(c.width()) + " " + n(c.height());
             }

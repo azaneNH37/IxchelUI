@@ -45,12 +45,13 @@ public final class UiDocument {
     private float viewportHeight = Float.NaN;
     private boolean textInvalidated;
 
-    private UiDocument(Element root, Diagnostics diagnostics, StyleEngine style, LayoutEngine layout, Bindings bindings) {
+    private UiDocument(Element root, Diagnostics diagnostics, StyleEngine style, LayoutEngine layout, Bindings bindings,
+                       TagRegistry tags) {
         this.root = root;
         this.diagnostics = diagnostics;
         this.style = style;
         this.layout = layout;
-        this.painter = new Painter(layout);
+        this.painter = new Painter(layout, tags);
         this.bindings = bindings;
     }
 
@@ -89,7 +90,7 @@ public final class UiDocument {
         style.restyle(root);
         diag.throwIfErrors();
         LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY);
-        return new UiDocument(root, diag, style, layout, bindings);
+        return new UiDocument(root, diag, style, layout, bindings, tags);
     }
 
     /** The implicit root; its children are the template's top-level elements. */

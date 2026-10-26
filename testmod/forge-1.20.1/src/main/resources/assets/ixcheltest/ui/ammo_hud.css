@@ -52,3 +52,9 @@
 .ammo.empty {
   color: #FF5555;
 }
+
+.held {
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+}

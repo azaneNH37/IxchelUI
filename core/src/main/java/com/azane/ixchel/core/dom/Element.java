@@ -44,6 +44,7 @@ public final class Element extends Node {
     private int dirty = STYLE_DIRTY | TREE_CHANGED;
     private ComputedStyle computed;
     private List<Rule.Declaration> inlineStyle = List.of();
+    private Object payload;
 
     public Element(String tag, SourcePos pos) {
         super(pos);
@@ -148,6 +149,16 @@ public final class Element extends Node {
 
     public void addBinding(BindAttribute binding) {
         bindings.add(binding);
+    }
+
+    /** The host object a native element is drawn from; set by its payload binding. */
+    public Object payload() {
+        return payload;
+    }
+
+    /** Sets the payload. Like plain attributes it marks nothing dirty; the binding that writes it requests the repaint. */
+    public void setPayload(Object payload) {
+        this.payload = payload;
     }
 
     public boolean hasState(int bit) {

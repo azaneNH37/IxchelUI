@@ -26,6 +26,7 @@ import java.util.function.Function;
  * <span bind:text="loaded"></span>        <!-- value as text; the element must be empty -->
  * <div bind:class:empty="isEmpty"></div>  <!-- Boolean toggles a class -->
  * <img bind:src="icon"/>                  <!-- value as a plain attribute -->
+ * <item bind:item="gun"></item>            <!-- host object as a native element's payload -->
  * <div bind:class:full="!isEmpty"></div>  <!-- '!' negates a Boolean -->
  * }</pre>
  *
@@ -139,6 +140,9 @@ public final class Bindings {
             TextNode text = new TextNode("", a.valuePos());
             e.appendChild(text);
             return new TextBinding(cell, negate, a, diag, textOf, text);
+        }
+        if (target.equals(tags.payloadAttribute(e.tag()))) {
+            return new PayloadBinding(cell, negate, a, diag, e);
         }
         if (isClass) {
             String cls = target.substring("class:".length());
@@ -309,6 +313,25 @@ public final class Bindings {
                 return false;
             }
             element.setAttribute(name, s);
+            return true;
+        }
+    }
+
+    /** Payloads are host objects without a reliable {@code equals}; any new identity is a change. */
+    private static final class PayloadBinding extends Binding {
+        private final Element element;
+
+        PayloadBinding(Cell<?> cell, boolean negate, BindAttribute a, Diagnostics diag, Element element) {
+            super(cell, negate, a, diag);
+            this.element = element;
+        }
+
+        @Override
+        boolean write(Object value) {
+            if (value == element.payload()) {
+                return false;
+            }
+            element.setPayload(value);
             return true;
         }
     }

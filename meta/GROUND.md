@@ -23,7 +23,7 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 ## Modules
 
 - ixchel-core (`core/`): 纯 Java 内核（模板/CSS/样式/布局/事件/绑定），单一模块内按包分层 (#006)，Java 17；M1 原型完成（模板→样式→布局→DisplayList，弹药 HUD 黄金测试通过），binding 最小集已实现（见绑定文档 §5），事件/动画未开始，[draft]
-- ixchel-mc-1.20.1 (`mc/1.20.1/`): 仅 vanilla 类的适配层（Forge 1.20.1 完整 MVP）；已有 `McPainter`、`McTextMeasurer`、`McResources`、`UiHud`、`ClientSources`（mainHand、inventory），[draft]
+- ixchel-mc-1.20.1 (`mc/1.20.1/`): 仅 vanilla 类的适配层（Forge 1.20.1 完整 MVP）；已有 `McPainter`（矩形、图片、文本、`<item>`）、`McTextMeasurer`、`McResources`、`McElements`、`UiHud`、`ClientSources`（mainHand、inventory），[draft]
 - ixchel-mc-1.21.1 (`mc/1.21.1/`): 仅 vanilla 类的适配层（NeoForge 1.21.1 对齐最小集），尚无源码，[draft]
 - ixchel-forge-1.20.1 (`loader/forge-1.20.1/`): Forge 加载器胶水；已有 `IxchelForge.registerHud`（资源重载时重新加载文档，HUD 层置于最上），[draft]
 - ixchel-neoforge-1.21.1 (`loader/neoforge-1.21.1/`): NeoForge 加载器胶水，尚无源码，[draft]
@@ -32,7 +32,7 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 
 ## In progress
 
-- 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；M2 进行中：Forge 1.20.1 上弹药 HUD 已在游戏内显示，并通过 binding 随主手物品变化；下一步图片图集与物品绘制。M1 已知限制见 `ref/D-ixchel-module-breakdown-20261026.md` §3。
+- 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；M2 进行中：Forge 1.20.1 上弹药 HUD 已在游戏内显示，通过 binding 随主手物品变化，并绘制手持物品；图片图集推迟到圆角路径 C 落地（两者共用一张图集），`<img>` 仍须在 CSS 中写宽高。下一步开发期热重载（L1）与错误叠加层。M1 已知限制见 `ref/D-ixchel-module-breakdown-20261026.md` §3。
 - CI：`check`（`.github/workflows/check.yml`，PR 与 `master` 上全量 `./gradlew build`）已上线，`master` ruleset 要求它通过，admin 可在 PR 上用 `--admin` 越过；`release` 与 `docs` 流程未实现。见 #010 与 `ref/D-ixchel-ci-workflows-20261026.md`。
 - 1.20.1 库模块发布 mojmap 还是 SRG 产物未定，待 shade 配方验证；目前 legacyforge 对两个 1.20.1 库模块的 `jar` 都自动 reobf 为 SRG。
 - testmod 以 sourceSet 并入方式运行库，不经过 shade/relocate；shade 链路尚无覆盖。

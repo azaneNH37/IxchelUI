@@ -130,4 +130,28 @@ class UiDocumentBindingTest {
                 () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", List.of(), TagRegistry.HTML, GoldenTest.MONO));
         assertTrue(none.getMessage().contains("needs a view model"), none.getMessage());
     }
+
+    static final class Held extends ViewModel {
+        Object live = "sword";
+        final Value<Object> stack = source(Source.polled(() -> live, v -> v, (a, b) -> a == b));
+    }
+
+    @Test
+    void aNativeElementPaintsItsBoundPayloadAndOnlyABindingCanSetIt() {
+        TagRegistry tags = TagRegistry.HTML.extend().nativeTag("item", "item").build();
+        Held m = new Held();
+        UiDocument doc = UiDocument.load("<item class=\"i\" bind:item=\"stack\"></item>", "t.html",
+                List.of(new UiDocument.CssSource(".i { width: 16px; height: 16px }", "t.css")), tags,
+                GoldenTest.MONO, m, Bindings.PLAIN_TEXT);
+        assertEquals("item 0 0 16 16 sword", GoldenTest.print(doc.frame(100, 100)));
+
+        m.live = "bow";
+        assertEquals("item 0 0 16 16 bow", GoldenTest.print(doc.frame(100, 100)));
+        m.live = null;
+        assertEquals("", GoldenTest.print(doc.frame(100, 100)));
+
+        UiLoadException e = assertThrows(UiLoadException.class, () -> UiDocument.load(
+                "<item item=\"sword\"></item>", "t.html", List.of(), tags, GoldenTest.MONO));
+        assertTrue(e.getMessage().contains("unknown attribute 'item'"), e.getMessage());
+    }
 }

@@ -6,7 +6,8 @@ package com.azane.ixchel.core.paint;
  * keeps the exhaustiveness check when a command type is added.
  */
 public sealed interface DrawCommand
-        permits DrawCommand.Rect, DrawCommand.Text, DrawCommand.Image, DrawCommand.PushClip, DrawCommand.PopClip {
+        permits DrawCommand.Rect, DrawCommand.Text, DrawCommand.Image, DrawCommand.Custom,
+        DrawCommand.PushClip, DrawCommand.PopClip {
 
     <R> R accept(Visitor<R> v);
 
@@ -17,6 +18,8 @@ public sealed interface DrawCommand
 
         R visitImage(Image c);
 
+        R visitCustom(Custom c);
+
         R visitPushClip(PushClip c);
 
         R visitPopClip(PopClip c);
@@ -26,6 +29,17 @@ public sealed interface DrawCommand
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitRect(this);
+        }
+    }
+
+    /**
+     * A native element ({@link com.azane.ixchel.core.template.TagRegistry.Builder#nativeTag}) for the
+     * host to draw in its border box. {@code kind} is the tag; the core never looks inside {@code payload}.
+     */
+    record Custom(String kind, Object payload, float x, float y, float width, float height) implements DrawCommand {
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitCustom(this);
         }
     }
 
