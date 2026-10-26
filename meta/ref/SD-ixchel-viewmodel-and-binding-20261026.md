@@ -123,6 +123,8 @@ final class GunModView extends ViewModel {
 
 总体：显式依赖、版本号、推脏拉值。依赖在构造时写死，只能指向已构造的节点，因此**从构造上不可能成环**，也不需要线程局部的依赖追踪上下文；代价是条件分支里没用到的依赖变化也会触发一次重算。
 
+M2 已实现的最小集（`core/.../binding`）：节点基类命名为 `Cell`（`dom.Node` 已占用该名）；只有轮询型 `Source.polled`，没有推送型；`ViewModel` 的 `source`/`state`/`derive`（1~3 参数）；绑定目标为 `text`、`class:<名字>`、普通属性，表达式为字段名加可选 `!`，路径报"尚未支持"。"推脏"简化为整个 ViewModel 一个脏标记：没有任何来源或 state 变化时，这一帧不读取任何节点；有变化时遍历全部绑定，`Derived` 按上游 version 判断是否需要重算。`action`、`Scope`、`subscribe`、`each`/`if` 留到 M3。`Component` 由 mc 层 `McResources` 用 `getString()` 拍平。
+
 ```java
 abstract sealed class Node<T> permits Value, Derived {
     final List<Node<?>> dependents; final List<Binding<?>> observers;

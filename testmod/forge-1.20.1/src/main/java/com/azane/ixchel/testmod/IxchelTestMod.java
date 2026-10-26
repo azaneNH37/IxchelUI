@@ -16,7 +16,7 @@ public final class IxchelTestMod {
         if (FMLEnvironment.dist.isClient()) {
             ProbeClient.init(context.getModEventBus());
             IxchelForge.registerHud(context.getModEventBus(), MOD_ID, "ammo_hud",
-                    "ui/ammo_hud.html", List.of("ui/ammo_hud.css"));
+                    "ui/ammo_hud.html", List.of("ui/ammo_hud.css"), AmmoHudView::new);
         }
     }
 }

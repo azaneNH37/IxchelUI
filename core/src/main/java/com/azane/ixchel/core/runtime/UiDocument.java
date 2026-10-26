@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.syntax.CssParser;
 import com.azane.ixchel.core.diag.Diagnostics;
@@ -20,11 +22,12 @@ import com.azane.ixchel.core.text.TextShaper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
- * One loaded UI: template tree under an implicit viewport-sized root, its styles, and the per-frame
- * pipeline style → layout → paint. A frame in which nothing changed does no work and keeps the
- * previous {@link DisplayList}.
+ * One loaded UI: template tree under an implicit viewport-sized root, its styles, bindings, and the
+ * per-frame pipeline bindings → style → layout → paint. A frame in which nothing changed does no work
+ * and keeps the previous {@link DisplayList}.
  */
 public final class UiDocument {
     /** A stylesheet file; {@code file} is used in error positions. */
@@ -36,26 +39,38 @@ public final class UiDocument {
     private final StyleEngine style;
     private final LayoutEngine layout;
     private final Painter painter;
+    private final Bindings bindings;
     private final DisplayList displayList = new DisplayList();
     private float viewportWidth = Float.NaN;
     private float viewportHeight = Float.NaN;
     private boolean textInvalidated;
 
-    private UiDocument(Element root, Diagnostics diagnostics, StyleEngine style, LayoutEngine layout) {
+    private UiDocument(Element root, Diagnostics diagnostics, StyleEngine style, LayoutEngine layout, Bindings bindings) {
         this.root = root;
         this.diagnostics = diagnostics;
         this.style = style;
         this.layout = layout;
         this.painter = new Painter(layout);
+        this.bindings = bindings;
+    }
+
+    /** Loads a document without a view model; any {@code bind:*} attribute is an error. */
+    public static UiDocument load(String template, String templateFile, List<CssSource> sheets,
+                                  TagRegistry tags, TextMeasurer measurer) {
+        return load(template, templateFile, sheets, tags, measurer, null, Bindings.PLAIN_TEXT);
     }
 
     /**
      * Parses and validates everything up front; external sheets apply before inline {@code <style>}
      * blocks. Every error found is reported in one {@link UiLoadException}; warnings stay readable
-     * through {@link #diagnostics()}.
+     * through {@link #diagnostics()}. Bindings are resolved and their initial values written here.
+     *
+     * @param model  the view model {@code bind:*} attributes refer to, or {@code null}
+     * @param textOf converts bound values to text (the mc layer flattens components)
      */
     public static UiDocument load(String template, String templateFile, List<CssSource> sheets,
-                                  TagRegistry tags, TextMeasurer measurer) {
+                                  TagRegistry tags, TextMeasurer measurer, ViewModel model,
+                                  Function<Object, String> textOf) {
         Diagnostics diag = new Diagnostics();
         Template t = TemplateParser.parse(template, templateFile, tags, diag);
         List<StyleSheet> compiled = new ArrayList<>();
@@ -69,11 +84,12 @@ public final class UiDocument {
         for (Node n : t.roots()) {
             root.appendChild(n);
         }
+        Bindings bindings = Bindings.compile(root, model, textOf, tags, diag);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, compiled, diag);
         style.restyle(root);
         diag.throwIfErrors();
         LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY);
-        return new UiDocument(root, diag, style, layout);
+        return new UiDocument(root, diag, style, layout, bindings);
     }
 
     /** The implicit root; its children are the template's top-level elements. */
@@ -81,7 +97,10 @@ public final class UiDocument {
         return root;
     }
 
-    /** Load warnings, plus problems found after load (such as inline styles compiled on first use). */
+    /**
+     * Load warnings, plus problems found after load: inline styles compiled on first use, and derived
+     * values that threw (the binding keeps its last value).
+     */
     public Diagnostics diagnostics() {
         return diagnostics;
     }
@@ -98,7 +117,7 @@ public final class UiDocument {
      * something was repainted.
      */
     public DisplayList frame(float viewportWidth, float viewportHeight) {
-        boolean dirty = textInvalidated
+        boolean dirty = bindings.update() || textInvalidated
                 || root.isStyleDirty() || root.hasStyleDirtyDescendant() || root.hasTreeChange()
                 || viewportWidth != this.viewportWidth || viewportHeight != this.viewportHeight;
         if (!dirty) {

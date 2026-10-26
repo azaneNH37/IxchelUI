@@ -3,12 +3,12 @@
   <div class="bar"></div>
   <div class="info">
     <div class="counts">
-      <span class="ammo">030</span>
+      <span class="ammo" bind:class:empty="isEmpty" bind:text="loadedText"></span>
       <div class="side">
-        <span class="reserve">0120</span>
+        <span class="reserve" bind:text="reserve"></span>
         <img class="fire-mode" src="ixcheltest:textures/hud/fire_mode_auto.png"/>
       </div>
     </div>
-    <span class="version">v1.1.4</span>
+    <span class="version" bind:text="name"></span>
   </div>
 </div>
