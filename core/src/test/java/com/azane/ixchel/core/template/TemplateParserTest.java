@@ -149,7 +149,7 @@ class TemplateParserTest {
     @Test
     void plannedAttributesAreRejectedAsNotYetSupported() {
         Diagnostics diag = new Diagnostics();
-        TemplateParser.parse("<div on:click=\"go\" if=\"x\"></div>", "t.html", TagRegistry.HTML, diag);
+        TemplateParser.parse("<div t=\"go\" if=\"x\"></div>", "t.html", TagRegistry.HTML, diag);
         assertEquals(2, diag.entries().size(), diag.entries().toString());
         assertTrue(diag.entries().stream().allMatch(d -> d.message().contains("not supported yet")));
     }

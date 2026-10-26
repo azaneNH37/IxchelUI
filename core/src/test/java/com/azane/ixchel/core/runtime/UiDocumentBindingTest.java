@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Bindings;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
@@ -9,7 +10,9 @@ import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -112,16 +115,16 @@ class UiDocumentBindingTest {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
                 <div bind:text="missing"></div>
                 <div bind:class:x="loaded"></div>
-                <div bind:text="gun.ammo"></div>
+                <div bind:text="text.length"></div>
                 <span bind:text="text">x</span>
                 <div bind:style="text"></div>
                 <div bind:title="text"></div>
                 """, "", new Ammo()));
         String m = e.getMessage();
         assertTrue(m.startsWith("6 errors"), m);
-        assertTrue(m.contains("t.html:1:17:") && m.contains("'missing' is not a Value or Derived field"), m);
+        assertTrue(m.contains("t.html:1:17:") && m.contains("'missing' is not a field of Ammo"), m);
         assertTrue(m.contains("t.html:2:20:") && m.contains("needs a Boolean"), m);
-        assertTrue(m.contains("t.html:3:17:") && m.contains("not supported yet"), m);
+        assertTrue(m.contains("t.html:3:17:") && m.contains("java.lang.String is not a record"), m);
         assertTrue(m.contains("t.html:4:7:") && m.contains("leave it empty"), m);
         assertTrue(m.contains("t.html:5:6:") && m.contains("toggle a class"), m);
         assertTrue(m.contains("t.html:6:6:") && m.contains("unknown binding target 'bind:title'"), m);
@@ -153,5 +156,104 @@ class UiDocumentBindingTest {
         UiLoadException e = assertThrows(UiLoadException.class, () -> UiDocument.load(
                 "<item item=\"sword\"></item>", "t.html", List.of(), tags, GoldenTest.MONO));
         assertTrue(e.getMessage().contains("unknown attribute 'item'"), e.getMessage());
+    }
+
+    record Row(String name, int count) {
+    }
+
+    static final class Picker extends ViewModel {
+        final List<String> sent = new ArrayList<>();
+        final List<String> seen = new ArrayList<>();
+        CompletableFuture<Void> reply;
+        final Value<Row> row = state(new Row("ammo", 1));
+        final Value<String> selected = state("none");
+        final Action<Row> select = action(r -> selected.set(r.name()));
+        final Action<Void> reload = task(() -> {
+            sent.add("reload");
+            reply = new CompletableFuture<>();
+            return reply;
+        });
+    }
+
+    @Test
+    void aPathReadsARecordComponentAndAnEqualComponentRepaintsNothing() {
+        Picker m = new Picker();
+        UiDocument doc = load("<span bind:text=\"row.name\"></span>", "", m);
+        assertEquals("text 0 0 9 #FFFFFFFF \"ammo\"", GoldenTest.print(doc.frame(100, 100)));
+        long version = doc.frame(100, 100).version();
+        m.row.set(new Row("ammo", 2));
+        assertEquals(version, doc.frame(100, 100).version(), "count is not bound");
+        m.row.set(new Row("fuel", 2));
+        assertEquals("text 0 0 9 #FFFFFFFF \"fuel\"", GoldenTest.print(doc.frame(100, 100)));
+    }
+
+    @Test
+    void aClickRunsTheActionWithItsArgumentAndTheChangeShowsNextFrame() {
+        Picker m = new Picker();
+        UiDocument doc = load("""
+                <div class="b" on:click="select(row)"></div><span bind:text="selected"></span>
+                """, ".b { width: 10px; height: 10px }", m);
+        doc.frame(100, 100);
+        assertTrue(doc.events().mousePressed(5, 5, 0));
+        assertTrue(doc.events().mouseReleased(5, 5, 0));
+        assertEquals("text 0 10 9 #FFFFFFFF \"ammo\"", GoldenTest.print(doc.frame(100, 100)));
+    }
+
+    @Test
+    void aTaskIsPendingUntilItsReplyArrivesAndAfterCloseLateRepliesAreDropped() throws Exception {
+        Picker m = new Picker();
+        UiDocument doc = load("<div class=\"b\" on:click=\"reload\" bind:class:busy=\"reload.pending\"></div>",
+                ".b { width: 10px; height: 10px } .busy { background-color: #fff }", m);
+        List<String> notified = new ArrayList<>();
+        m.subscribe(m.reload.pending(), () -> notified.add("pending=" + m.reload.pending().get()));
+        doc.frame(100, 100);
+
+        click(doc);
+        click(doc);
+        assertEquals(List.of("reload"), m.sent, "a second click while pending is dropped");
+        assertEquals("rect 0 0 10 10 #FFFFFFFF", GoldenTest.print(doc.frame(100, 100)));
+
+        Thread t = new Thread(() -> m.reply.completeExceptionally(new IllegalStateException("no ammo")));
+        t.start();
+        t.join();
+        assertEquals("", GoldenTest.print(doc.frame(100, 100)), "the reply is applied on the next frame");
+        assertEquals("no ammo", m.reload.error().get().getMessage());
+        assertEquals(List.of("pending=true", "pending=false"), notified);
+
+        click(doc);
+        assertEquals(null, m.reload.error().get(), "running again clears the error");
+        doc.frame(100, 100);
+        m.close();
+        m.reply.complete(null);
+        doc.frame(100, 100);
+        assertEquals(true, m.reload.pending().get(), "a reply after close is dropped");
+        assertEquals(List.of("pending=true", "pending=false", "pending=true"), notified);
+        click(doc);
+        assertEquals(List.of("reload", "reload"), m.sent, "a closed model runs no actions");
+    }
+
+    private static void click(UiDocument doc) {
+        doc.events().mousePressed(5, 5, 0);
+        doc.events().mouseReleased(5, 5, 0);
+    }
+
+    @Test
+    void loadReportsEveryBadHandler() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
+                <div on:hover="reload"></div>
+                <div on:click="row"></div>
+                <div on:click="select"></div>
+                <div on:click="reload(row)"></div>
+                <div on:click="select(selected)"></div>
+                <div bind:text="reload"></div>
+                """, "", new Picker()));
+        String m = e.getMessage();
+        assertTrue(m.startsWith("6 errors"), m);
+        assertTrue(m.contains("t.html:1:6:") && m.contains("unknown event 'hover'"), m);
+        assertTrue(m.contains("t.html:2:16:") && m.contains("'row' is not an Action field"), m);
+        assertTrue(m.contains("t.html:3:16:") && m.contains("pass it as select(path)"), m);
+        assertTrue(m.contains("t.html:4:16:") && m.contains("'reload' takes no argument"), m);
+        assertTrue(m.contains("t.html:5:16:") && m.contains("but 'selected' is java.lang.String"), m);
+        assertTrue(m.contains("t.html:6:17:") && m.contains("an action is not a value"), m);
     }
 }

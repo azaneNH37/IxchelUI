@@ -1,16 +1,20 @@
 package com.azane.ixchel.core.binding;
 
 import com.azane.ixchel.core.diag.Diagnostics;
-import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.BindAttribute;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
+import com.azane.ixchel.core.dom.UiEvent;
 import com.azane.ixchel.core.template.TagRegistry;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,17 +24,21 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * The {@code bind:*} attributes of one document, resolved against its view model.
+ * The {@code bind:*} and {@code on:*} attributes of one document, resolved against its view model.
  *
  * <pre>{@code
- * <span bind:text="loaded"></span>        <!-- value as text; the element must be empty -->
- * <div bind:class:empty="isEmpty"></div>  <!-- Boolean toggles a class -->
- * <img bind:src="icon"/>                  <!-- value as a plain attribute -->
- * <item bind:item="gun"></item>            <!-- host object as a native element's payload -->
- * <div bind:class:full="!isEmpty"></div>  <!-- '!' negates a Boolean -->
+ * <span bind:text="loaded"></span>          <!-- value as text; the element must be empty -->
+ * <div bind:class:empty="isEmpty"></div>    <!-- Boolean toggles a class; '!' negates -->
+ * <img bind:src="icon"/>                    <!-- value as a plain attribute -->
+ * <item bind:item="gun"></item>              <!-- host object as a native element's payload -->
+ * <span bind:text="selected.name"></span>   <!-- path: record components, read when the record changes -->
+ * <div bind:class:busy="reload.pending"></div>  <!-- an action's pending / error -->
+ * <div on:click="reload"></div>             <!-- runs an action; the event counts as handled -->
+ * <div on:click="select(row)"></div>        <!-- with the value of a path as its argument -->
  * }</pre>
  *
- * Expressions are a cell name with an optional {@code !}; anything more goes into a {@link Derived}.
+ * Expressions are a path with an optional {@code !}; anything more goes into a {@link Derived}. Every
+ * name, record component and type is checked at load.
  */
 public final class Bindings {
     /** Converts a bound value to text: {@code null} is empty, everything else {@link String#valueOf}. */
@@ -45,25 +53,26 @@ public final class Bindings {
     }
 
     /**
-     * Resolves every binding under {@code root} and writes the initial values into the DOM. Problems
-     * go to {@code diag} with the attribute's position; a template with bindings needs a model.
+     * Resolves every binding under {@code root}, registers event handlers and writes the initial
+     * values into the DOM. Problems go to {@code diag} with the attribute's position; a template with
+     * bindings or handlers needs a model.
      *
      * @param model  the view model, or {@code null} for a template without bindings
      * @param textOf converts bound values for {@code bind:text} and attribute bindings
      */
     public static Bindings compile(Element root, ViewModel model, Function<Object, String> textOf,
                                    TagRegistry tags, Diagnostics diag) {
-        Map<String, Field> fields = model == null ? Map.of() : cellFields(model.getClass());
+        Compiler c = new Compiler(model, textOf, tags, diag);
         List<Binding> out = new ArrayList<>();
-        collect(root, model, fields, textOf, tags, diag, out);
+        c.collect(root, out);
         Bindings b = new Bindings(model, out);
         b.update();
         return b;
     }
 
     /**
-     * Polls the model's sources and writes changed values into the DOM. Returns whether anything was
-     * written; when no source or state changed, no cell is read.
+     * Runs posted work, polls the model's sources and writes changed values into the DOM. Returns
+     * whether anything was written; when no source or state changed, no cell is read.
      */
     public boolean update() {
         if (model == null || !model.poll()) {
@@ -76,101 +85,262 @@ public final class Bindings {
         return wrote;
     }
 
-    private static void collect(Element e, ViewModel model, Map<String, Field> fields,
-                                Function<Object, String> textOf, TagRegistry tags, Diagnostics diag,
-                                List<Binding> out) {
-        for (BindAttribute a : e.bindings()) {
-            Binding b = resolve(e, a, model, fields, textOf, tags, diag);
-            if (b != null) {
-                out.add(b);
-            }
-        }
-        for (Node n : e.children()) {
-            if (n instanceof Element child) {
-                collect(child, model, fields, textOf, tags, diag, out);
-            }
-        }
+    /** A resolved expression: the cell to read and its declared value type. */
+    private record Ref(Cell<?> cell, Type type) {
     }
 
-    private static Binding resolve(Element e, BindAttribute a, ViewModel model, Map<String, Field> fields,
-                                   Function<Object, String> textOf, TagRegistry tags, Diagnostics diag) {
-        if (model == null) {
-            diag.error(a.namePos(), "'" + a.name() + "' needs a view model, but this document has none");
-            return null;
+    private static final class Compiler {
+        private final ViewModel model;
+        private final Map<String, Field> fields;
+        private final Function<Object, String> textOf;
+        private final TagRegistry tags;
+        private final Diagnostics diag;
+
+        Compiler(ViewModel model, Function<Object, String> textOf, TagRegistry tags, Diagnostics diag) {
+            this.model = model;
+            this.fields = model == null ? Map.of() : modelFields(model.getClass());
+            this.textOf = textOf;
+            this.tags = tags;
+            this.diag = diag;
         }
-        String target = a.name().substring("bind:".length());
-        String expr = a.value().trim();
-        boolean negate = expr.startsWith("!");
-        String name = negate ? expr.substring(1).trim() : expr;
-        if (name.indexOf('.') >= 0) {
-            diag.error(a.valuePos(), "binding paths ('" + name + "') are not supported yet; derive the value instead");
-            return null;
-        }
-        if (!isIdentifier(name)) {
-            diag.error(a.valuePos(), "expected a view model field name, got '" + a.value() + "'");
-            return null;
-        }
-        Field field = fields.get(name);
-        if (field == null) {
-            diag.error(a.valuePos(), "'" + name + "' is not a Value or Derived field of "
-                    + model.getClass().getSimpleName());
-            return null;
-        }
-        Cell<?> cell;
-        try {
-            cell = (Cell<?>) field.get(model);
-        } catch (IllegalAccessException ex) {
-            throw new IllegalStateException(ex);
-        }
-        if (cell == null) {
-            diag.error(a.valuePos(), "field '" + name + "' of " + model.getClass().getSimpleName() + " is null");
-            return null;
-        }
-        boolean isClass = target.startsWith("class:");
-        if ((negate || isClass) && valueType(field) != Boolean.class) {
-            diag.error(a.valuePos(), (negate ? "'!'" : "'" + a.name() + "'") + " needs a Boolean, but '"
-                    + name + "' is " + field.getGenericType().getTypeName());
-            return null;
-        }
-        if (target.equals("text")) {
-            if (!e.children().isEmpty()) {
-                diag.error(a.namePos(), "bind:text replaces the content of <" + e.tag() + ">; leave it empty");
-                return null;
-            }
-            TextNode text = new TextNode("", a.valuePos());
-            e.appendChild(text);
-            return new TextBinding(cell, negate, a, diag, textOf, text);
-        }
-        if (target.equals(tags.payloadAttribute(e.tag()))) {
-            return new PayloadBinding(cell, negate, a, diag, e);
-        }
-        if (isClass) {
-            String cls = target.substring("class:".length());
-            if (!isClassName(cls)) {
-                diag.error(a.namePos(), "'" + cls + "' is not a valid class name");
-                return null;
-            }
-            return new ClassBinding(cell, negate, a, diag, e, cls);
-        }
-        switch (target) {
-            case "class" -> diag.error(a.namePos(), "bind:class takes a class name: bind:class:<name>");
-            case "style" -> diag.error(a.namePos(), "bind:style is not supported; toggle a class instead");
-            default -> {
-                if (target.indexOf(':') >= 0 || !tags.isAllowedAttribute(e.tag(), target)) {
-                    diag.error(a.namePos(), "unknown binding target '" + a.name() + "' on <" + e.tag() + ">");
+
+        void collect(Element e, List<Binding> out) {
+            for (BindAttribute a : e.bindings()) {
+                if (model == null) {
+                    diag.error(a.namePos(), "'" + a.name() + "' needs a view model, but this document has none");
+                } else if (a.name().startsWith("on:")) {
+                    handler(e, a);
                 } else {
-                    return new AttributeBinding(cell, negate, a, diag, textOf, e, target);
+                    Binding b = binding(e, a);
+                    if (b != null) {
+                        out.add(b);
+                    }
+                }
+            }
+            for (Node n : e.children()) {
+                if (n instanceof Element child) {
+                    collect(child, out);
                 }
             }
         }
-        return null;
+
+        private Binding binding(Element e, BindAttribute a) {
+            String target = a.name().substring("bind:".length());
+            String expr = a.value().trim();
+            boolean negate = expr.startsWith("!");
+            Ref ref = resolve(a, negate ? expr.substring(1).trim() : expr);
+            if (ref == null) {
+                return null;
+            }
+            boolean isClass = target.startsWith("class:");
+            if ((negate || isClass) && !isBoolean(ref.type)) {
+                diag.error(a.valuePos(), (negate ? "'!'" : "'" + a.name() + "'") + " needs a Boolean, but '"
+                        + a.value().trim() + "' is " + ref.type.getTypeName());
+                return null;
+            }
+            if (target.equals("text")) {
+                if (!e.children().isEmpty()) {
+                    diag.error(a.namePos(), "bind:text replaces the content of <" + e.tag() + ">; leave it empty");
+                    return null;
+                }
+                TextNode text = new TextNode("", a.valuePos());
+                e.appendChild(text);
+                return new TextBinding(ref.cell, negate, a, diag, textOf, text);
+            }
+            if (target.equals(tags.payloadAttribute(e.tag()))) {
+                return new PayloadBinding(ref.cell, negate, a, diag, e);
+            }
+            if (isClass) {
+                String cls = target.substring("class:".length());
+                if (!isClassName(cls)) {
+                    diag.error(a.namePos(), "'" + cls + "' is not a valid class name");
+                    return null;
+                }
+                return new ClassBinding(ref.cell, negate, a, diag, e, cls);
+            }
+            switch (target) {
+                case "class" -> diag.error(a.namePos(), "bind:class takes a class name: bind:class:<name>");
+                case "style" -> diag.error(a.namePos(), "bind:style is not supported; toggle a class instead");
+                default -> {
+                    if (target.indexOf(':') >= 0 || !tags.isAllowedAttribute(e.tag(), target)) {
+                        diag.error(a.namePos(), "unknown binding target '" + a.name() + "' on <" + e.tag() + ">");
+                    } else {
+                        return new AttributeBinding(ref.cell, negate, a, diag, textOf, e, target);
+                    }
+                }
+            }
+            return null;
+        }
+
+        /** {@code on:<event>="action"} or {@code on:<event>="action(path)"}. */
+        private void handler(Element e, BindAttribute a) {
+            String eventName = a.name().substring("on:".length());
+            UiEvent.Type type = UiEvent.Type.byTemplateName(eventName);
+            if (type == null) {
+                diag.error(a.namePos(), "unknown event '" + eventName + "'; supported: " + eventNames());
+                return;
+            }
+            String expr = a.value().trim();
+            int open = expr.indexOf('(');
+            String name = open < 0 ? expr : expr.substring(0, open).trim();
+            String argExpr = null;
+            if (open >= 0) {
+                if (!expr.endsWith(")")) {
+                    diag.error(a.valuePos(), "expected 'action' or 'action(path)', got '" + a.value() + "'");
+                    return;
+                }
+                argExpr = expr.substring(open + 1, expr.length() - 1).trim();
+                if (argExpr.isEmpty() || argExpr.indexOf(',') >= 0) {
+                    diag.error(a.valuePos(), "an action takes one argument path or none, got '" + a.value() + "'");
+                    return;
+                }
+            }
+            Field field = isIdentifier(name) ? fields.get(name) : null;
+            if (field == null || field.getType() != Action.class) {
+                diag.error(a.valuePos(), "'" + name + "' is not an Action field of " + model.getClass().getSimpleName());
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            Action<Object> action = (Action<Object>) read(field);
+            if (action == null) {
+                diag.error(a.valuePos(), "field '" + name + "' of " + model.getClass().getSimpleName() + " is null");
+                return;
+            }
+            Type param = typeArgument(field.getGenericType());
+            boolean wantsArg = param != null && param != Void.class;
+            if (argExpr == null && wantsArg) {
+                diag.error(a.valuePos(), "'" + name + "' takes a " + param.getTypeName() + "; pass it as " + name + "(path)");
+                return;
+            }
+            if (argExpr != null && !wantsArg) {
+                diag.error(a.valuePos(), "'" + name + "' takes no argument");
+                return;
+            }
+            Cell<?> arg = null;
+            if (argExpr != null) {
+                Ref ref = resolve(a, argExpr);
+                if (ref == null) {
+                    return;
+                }
+                if (param instanceof Class<?> || param instanceof ParameterizedType) {
+                    Class<?> want = rawClass(param);
+                    if (!want.isAssignableFrom(box(rawClass(ref.type)))) {
+                        diag.error(a.valuePos(), "'" + name + "' takes a " + param.getTypeName() + ", but '"
+                                + argExpr + "' is " + ref.type.getTypeName());
+                        return;
+                    }
+                }
+                arg = ref.cell;
+            }
+            Cell<?> argCell = arg;
+            e.addEventListener(type, false, ev -> {
+                try {
+                    action.run(argCell == null ? null : argCell.get());
+                } catch (RuntimeException ex) {
+                    diag.error(a.valuePos(), "'" + a.value() + "' threw " + ex);
+                }
+                ev.consume();
+            });
+        }
+
+        /** Resolves {@code name(.component)*}; reports and returns {@code null} on failure. */
+        private Ref resolve(BindAttribute a, String path) {
+            String[] parts = path.split("\\.", -1);
+            for (String p : parts) {
+                if (!isIdentifier(p)) {
+                    diag.error(a.valuePos(), "expected a view model field or a path like 'a.b', got '" + a.value() + "'");
+                    return null;
+                }
+            }
+            Field field = fields.get(parts[0]);
+            if (field == null) {
+                diag.error(a.valuePos(), "'" + parts[0] + "' is not a field of " + model.getClass().getSimpleName());
+                return null;
+            }
+            Object value = read(field);
+            if (value == null) {
+                diag.error(a.valuePos(), "field '" + parts[0] + "' of " + model.getClass().getSimpleName() + " is null");
+                return null;
+            }
+            Ref ref;
+            int next = 1;
+            if (value instanceof Action<?> action) {
+                String member = parts.length > 1 ? parts[1] : "";
+                switch (member) {
+                    case "pending" -> ref = new Ref(action.pending(), Boolean.class);
+                    case "error" -> ref = new Ref(action.error(), Throwable.class);
+                    default -> {
+                        diag.error(a.valuePos(), "an action is not a value; bind '" + parts[0] + ".pending' or '"
+                                + parts[0] + ".error'");
+                        return null;
+                    }
+                }
+                next = 2;
+            } else {
+                Type t = typeArgument(field.getGenericType());
+                ref = new Ref((Cell<?>) value, t == null ? Object.class : t);
+            }
+            for (int i = next; i < parts.length; i++) {
+                ref = component(a, ref, parts[i]);
+                if (ref == null) {
+                    return null;
+                }
+            }
+            return ref;
+        }
+
+        private Ref component(BindAttribute a, Ref base, String name) {
+            Class<?> raw = rawClass(base.type);
+            if (!raw.isRecord()) {
+                diag.error(a.valuePos(), "'" + name + "' in '" + a.value() + "': " + base.type.getTypeName()
+                        + " is not a record");
+                return null;
+            }
+            for (RecordComponent rc : raw.getRecordComponents()) {
+                if (rc.getName().equals(name)) {
+                    MethodHandle accessor = accessor(rc.getAccessor());
+                    Cell<?> cell = new Derived<>(new Cell<?>[]{base.cell}, args -> {
+                        if (args[0] == null) {
+                            return null;
+                        }
+                        try {
+                            return accessor.invoke(args[0]);
+                        } catch (RuntimeException | Error ex) {
+                            throw ex;
+                        } catch (Throwable ex) {
+                            throw new IllegalStateException(ex);
+                        }
+                    });
+                    return new Ref(cell, rc.getGenericType());
+                }
+            }
+            diag.error(a.valuePos(), raw.getSimpleName() + " has no component '" + name + "'");
+            return null;
+        }
+
+        private Object read(Field f) {
+            try {
+                return f.get(model);
+            } catch (IllegalAccessException ex) {
+                throw new IllegalStateException(ex);
+            }
+        }
     }
 
-    private static Map<String, Field> cellFields(Class<?> type) {
+    private static String eventNames() {
+        List<String> names = new ArrayList<>();
+        for (UiEvent.Type t : UiEvent.Type.values()) {
+            names.add(t.templateName());
+        }
+        return String.join(", ", names);
+    }
+
+    private static Map<String, Field> modelFields(Class<?> type) {
         Map<String, Field> out = new HashMap<>();
         for (Class<?> c = type; c != ViewModel.class; c = c.getSuperclass()) {
             for (Field f : c.getDeclaredFields()) {
-                if (!Modifier.isStatic(f.getModifiers()) && Cell.class.isAssignableFrom(f.getType())) {
+                if (!Modifier.isStatic(f.getModifiers())
+                        && (Cell.class.isAssignableFrom(f.getType()) || f.getType() == Action.class)) {
                     f.setAccessible(true);
                     out.putIfAbsent(f.getName(), f);
                 }
@@ -179,8 +349,49 @@ public final class Bindings {
         return out;
     }
 
-    private static Type valueType(Field f) {
-        return f.getGenericType() instanceof ParameterizedType p ? p.getActualTypeArguments()[0] : null;
+    private static MethodHandle accessor(Method m) {
+        try {
+            m.setAccessible(true);
+            return MethodHandles.lookup().unreflect(m);
+        } catch (IllegalAccessException | RuntimeException ex) {
+            throw new IllegalStateException("cannot read " + m, ex);
+        }
+    }
+
+    /** The first type argument of a parameterized field type, or {@code null}. */
+    private static Type typeArgument(Type t) {
+        return t instanceof ParameterizedType p ? p.getActualTypeArguments()[0] : null;
+    }
+
+    private static Class<?> rawClass(Type t) {
+        if (t instanceof Class<?> c) {
+            return c;
+        }
+        if (t instanceof ParameterizedType p && p.getRawType() instanceof Class<?> c) {
+            return c;
+        }
+        return Object.class;
+    }
+
+    private static Class<?> box(Class<?> c) {
+        if (!c.isPrimitive()) {
+            return c;
+        }
+        return switch (c.getName()) {
+            case "boolean" -> Boolean.class;
+            case "int" -> Integer.class;
+            case "long" -> Long.class;
+            case "float" -> Float.class;
+            case "double" -> Double.class;
+            case "char" -> Character.class;
+            case "byte" -> Byte.class;
+            case "short" -> Short.class;
+            default -> Void.class;
+        };
+    }
+
+    private static boolean isBoolean(Type t) {
+        return t == Boolean.class || t == boolean.class;
     }
 
     private static boolean isIdentifier(String s) {
@@ -231,8 +442,7 @@ public final class Bindings {
             } catch (RuntimeException ex) {
                 if (!failing) {
                     failing = true;
-                    SourcePos pos = attribute.valuePos();
-                    diag.error(pos, "'" + attribute.value() + "' threw " + ex);
+                    diag.error(attribute.valuePos(), "'" + attribute.value() + "' threw " + ex);
                 }
                 return false;
             }

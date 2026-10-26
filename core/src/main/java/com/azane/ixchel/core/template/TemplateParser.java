@@ -203,7 +203,7 @@ public final class TemplateParser {
         if (!tagKnown) {
             return;
         }
-        if (name.startsWith("bind:")) {
+        if (name.startsWith("bind:") || name.startsWith("on:")) {
             if (tag.equals("style")) {
                 diag.error(namePos, "<style> takes no attributes");
             } else {
@@ -233,9 +233,9 @@ public final class TemplateParser {
         }
     }
 
-    /** Template attributes with planned meaning that are not implemented yet ({@code on:*}, structural). */
+    /** Template attributes with planned meaning that are not implemented yet (structural, i18n). */
     static boolean isReserved(String attribute) {
-        return attribute.startsWith("on:") || RESERVED.contains(attribute);
+        return RESERVED.contains(attribute);
     }
 
     private void parseStyleContent(SourcePos openPos) {
