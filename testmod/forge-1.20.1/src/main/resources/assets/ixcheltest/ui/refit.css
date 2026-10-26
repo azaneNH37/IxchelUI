@@ -1,0 +1,81 @@
+.screen {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel {
+  width: 330px;
+  padding: 6px;
+  background-color: #101418E0;
+}
+
+.title {
+  margin-bottom: 6px;
+  color: #FFFF55;
+}
+
+.body {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.column {
+  width: 106px;
+  margin-right: 4px;
+  align-items: stretch;
+}
+
+.label {
+  margin-bottom: 3px;
+  color: #AAAAAA;
+}
+
+.row {
+  flex-direction: row;
+  align-items: center;
+  padding: 1px;
+  margin-bottom: 1px;
+}
+
+.row:hover,
+.button:hover {
+  background-color: #FFFFFF40;
+}
+
+.row.selected {
+  background-color: #4060FF60;
+}
+
+.row.installed {
+  color: #55FF55;
+}
+
+.row.missing {
+  color: #777777;
+}
+
+.options.busy,
+.button.busy {
+  background-color: #FFFF5530;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 3px;
+}
+
+.button {
+  margin-top: 3px;
+  padding: 2px;
+  align-items: center;
+  background-color: #FFFFFF30;
+}
+
+.gone,
+.error {
+  margin-top: 4px;
+  color: #FF5555;
+}

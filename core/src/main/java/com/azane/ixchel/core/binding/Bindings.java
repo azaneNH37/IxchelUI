@@ -74,7 +74,11 @@ public final class Bindings {
         c.collect(root, group);
         Bindings b = new Bindings(model, group);
         if (!diag.hasErrors()) {
-            b.update();
+            // A model reused across reloads may have nothing new to poll; the new DOM still needs its values.
+            if (model != null) {
+                model.poll();
+            }
+            group.update();
         }
         return b;
     }

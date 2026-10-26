@@ -22,8 +22,8 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 
 ## Modules
 
-- ixchel-core (`core/`): 纯 Java 内核（模板/CSS/样式/布局/事件/绑定），单一模块内按包分层 (#006)，Java 17；M1 原型完成（模板→样式→布局→DisplayList，弹药 HUD 黄金测试通过），binding 最小集已实现（见绑定文档 §5），事件/动画未开始，[draft]
-- ixchel-mc-1.20.1 (`mc/1.20.1/`): 仅 vanilla 类的适配层（Forge 1.20.1 完整 MVP）；已有 `McPainter`（矩形、图片、文本、`<item>`）、`McTextMeasurer`、`McResources`、`McElements`、`UiHud`、`ClientSources`（mainHand、inventory），[draft]
+- ixchel-core (`core/`): 纯 Java 内核（模板/CSS/样式/布局/事件/绑定），单一模块内按包分层 (#006)，Java 17；M1 原型完成（模板→样式→布局→DisplayList，弹药 HUD 黄金测试通过），binding 已有 source/state/derive、action/task、Scope/subscribe、each/if（见绑定文档 §5），event 已有命中测试与三阶段分派，动画未开始，[draft]
+- ixchel-mc-1.20.1 (`mc/1.20.1/`): 仅 vanilla 类的适配层（Forge 1.20.1 完整 MVP）；已有 `McPainter`（矩形、图片、文本、`<item>`）、`McTextMeasurer`、`McResources`、`McElements`、`UiHud`、`UiScreen`（整屏 UI，输入先交文档，关闭即关 view model）、`ClientSources`（mainHand、inventorySlot、inventory），[draft]
 - ixchel-mc-1.21.1 (`mc/1.21.1/`): 仅 vanilla 类的适配层（NeoForge 1.21.1 对齐最小集），尚无源码，[draft]
 - ixchel-forge-1.20.1 (`loader/forge-1.20.1/`): Forge 加载器胶水；已有 `IxchelForge.registerHud`（资源重载时重新加载文档，HUD 层置于最上；开发期热重载与错误叠加层，见模块拆解 §8 L1），[draft]
 - ixchel-neoforge-1.21.1 (`loader/neoforge-1.21.1/`): NeoForge 加载器胶水，尚无源码，[draft]
@@ -32,7 +32,8 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 
 ## In progress
 
-- 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；M2 完成（Forge 1.20.1 弹药 HUD 随数据变化、物品绘制、热重载 L1、帧耗时优于手写版、与 Oculus 光影共存），结果见 `ref/D-ixchel-module-breakdown-20261026.md` §9；ImmediatelyFast 共存随 M4 在生产环境验证。下一步 M3。图片图集推迟到圆角路径 C 落地（两者共用一张图集），`<img>` 仍须在 CSS 中写宽高。M1 已知限制见同文档 §3。
+- 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；M2 完成（Forge 1.20.1 弹药 HUD 随数据变化、物品绘制、热重载 L1、帧耗时优于手写版、与 Oculus 光影共存），结果见 `ref/D-ixchel-module-breakdown-20261026.md` §9；ImmediatelyFast 共存随 M4 在生产环境验证。图片图集推迟到圆角路径 C 落地（两者共用一张图集），`<img>` 仍须在 CSS 中写宽高。M1 已知限制见同文档 §3。
+- M3 进行中：event、action/Scope/subscribe、each/if、`UiScreen` + testmod Z 键改装界面（服务端校验装卸、激光草稿、锁定打开时的格子）已合入；改装界面游戏内已验证装卸、报错、Remove、Esc 不暂停。未验证：服务端移走目标格物品后显示失效提示（客户端在界面打开时无法切换格子，须用延时命令测）。剩余 PR-E（手写 vanilla 改装界面对比）、PR-F（transition）。
 - testmod 调试参数：`-Pcompat` 加载 Oculus + Embeddium；`-Pbench` 直接进入 `New World`，`HudBench` 自动交替计时、截图后退出（手动时按 J 切换）。
 - CI：`check`（`.github/workflows/check.yml`，PR 与 `master` 上全量 `./gradlew build`）已上线，`master` ruleset 要求它通过，admin 可在 PR 上用 `--admin` 越过；`release` 与 `docs` 流程未实现。见 #010 与 `ref/D-ixchel-ci-workflows-20261026.md`。
 - 1.20.1 库模块发布 mojmap 还是 SRG 产物未定，待 shade 配方验证；目前 legacyforge 对两个 1.20.1 库模块的 `jar` 都自动 reobf 为 SRG。

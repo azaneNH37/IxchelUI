@@ -48,9 +48,9 @@ public final class DevResources {
     /**
      * Watches {@code paths} (relative to {@code assets/<modid>/}) on a daemon thread and runs
      * {@code onChange} on the client thread after they change; a burst of events from one save
-     * runs it once.
+     * runs it once. Closing the returned handle stops the watcher.
      */
-    public void watch(List<String> paths, Runnable onChange) {
+    public AutoCloseable watch(List<String> paths, Runnable onChange) {
         Set<Path> files = new HashSet<>();
         Set<Path> dirs = new HashSet<>();
         for (String p : paths) {
@@ -93,5 +93,6 @@ public final class DevResources {
         }, "ixchel-dev-reload");
         t.setDaemon(true);
         t.start();
+        return service;
     }
 }

@@ -29,6 +29,18 @@ public final class ClientSources {
     }
 
     /**
+     * The stack in inventory slot {@code slot}, locked to that slot: switching the selected hotbar slot
+     * does not change it. An editing screen opened on the held item uses this with the selected slot
+     * at open; whether the stack is still the item being edited is the view model's call.
+     */
+    public static Source<ItemStack> inventorySlot(int slot) {
+        return Source.polled(() -> {
+            LocalPlayer p = Minecraft.getInstance().player;
+            return p == null ? ItemStack.EMPTY : p.getInventory().getItem(slot);
+        }, ItemStack::copy, ClientSources::sameStack);
+    }
+
+    /**
      * Every inventory slot in {@link Inventory} order (hotbar and main, armor, offhand); empty
      * without a player. The list is an unmodifiable snapshot.
      */
