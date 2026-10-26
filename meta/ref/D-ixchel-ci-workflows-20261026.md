@@ -58,13 +58,14 @@ flowchart LR
 | 阶段 | 项目 | 内容 | 能拦下的问题 |
 |---|---|---|---|
 | toolchain | 全部 | 解析 JDK 17 与 21（CI 中直接用 `setup-java` 装好的，实测无 foojay 下载） | — |
-| MC 产物 | mc、loader、testmod 共 6 个 | MDG `createMinecraftArtifacts`：下载、反混淆、反编译（不重编译 MC） | 版本号错、上游不可达 |
-| 编译 | 全部 7 个 | `compileJava` | 编译错误；core 引用 MC 类（编译期 classpath 没有 MC） |
+| MC 产物 | mc、loader、testmod 共 8 个 | MDG `createMinecraftArtifacts`：下载、反混淆、反编译（不重编译 MC） | 版本号错、上游不可达 |
+| 编译 | 全部 9 个 | `compileJava` | 编译错误；core 引用 MC 类（编译期 classpath 没有 MC） |
 | 打包 | 5 个库 | `jar`、`sourcesJar`、`javadocJar`；1.20.1 两个库的 `jar` 自动 reobf 为 SRG | **javadoc 的 doclint 错误**（`withJavadocJar()` 使 javadoc 成为隐含检查） |
 | 打包 | 2 个 testmod | `jar`（Forge 侧也 reobf） | — |
+| 打包 | 2 个 shade testmod | `shadowJar`（relocate Ixchel 与 taffy）后 reobf | shade 配方失效：配置属性、relocate、shadow 产物的 reobf |
 | 测试 | core | JUnit，含弹药 HUD 黄金测试 | 行为回归 |
 
-`build` 不包含：`runClient`、gametest、格式化与静态分析（仓库未配）、shade 产物验证。
+`build` 不包含：`runClient`、gametest、格式化与静态分析（仓库未配）、shade 副本在游戏内的共存（只在生产实例手动验证）。
 
 workflow 骨架（实际文件 `.github/workflows/check.yml`）：
 
@@ -164,7 +165,7 @@ GitHub 的平台防护：fork PR 不传 secret、token 只读、不能修改 `.g
 | 项 | 原因 | 何时加 |
 |---|---|---|
 | `runClient` 游戏内冒烟、Iris/ImmediatelyFast 共存 | 需要 GPU 与图形界面；M2 退出条件按手动验证 | 不计划 |
-| shade 双副本共存 | M4 前没有 shade 配方 | M4 作为 `check` 内的一个 Gradle 任务加入，不另开流程 |
+| shade 双副本游戏内共存 | 需要真实启动器实例与图形界面；构建与 relocate 已由 `build` 中的 shade testmod 覆盖 | 不计划 |
 | 定时构建 | 没有会悄悄变化的外部依赖 | 出现时再加 |
 | Windows runner | 见 §2 取舍 | 出现实际的字符集回归时再加；转公开后分钟数不再计费，可重新评估 |
 | 文档站部署 | 私有期间 Pages 需付费套餐，且站点本身会公开 | 仓库转公开后 |

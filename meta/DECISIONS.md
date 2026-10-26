@@ -64,3 +64,9 @@
 - **context**: 仓库无 CI，`master` 只靠"PR + squash"约束；需要自动跑测，并为发版与文档站自动更新预留触发规则
 - **decision**: `check` 在 `pull_request`→`master` 与 `push: master` 上跑全量 `./gradlew build`，仅 Linux，设为 required check，不用 secret、token 只读，缓存只由 `master` 写入；仓库 admin 可在 PR 上 bypass（`gh pr merge --squash --admin`，不等 CI，失败时在 master 上补修），不可直推 `master`，有协作者后撤销 bypass；不使用 `pull_request_target`；发版由 `v*` tag 触发，tag 须等于 `gradle.properties` 的非 SNAPSHOT 版本；文档为本仓库 `docs/` 下的 VuePress 站，随发版部署到本仓库 GitHub Pages（仓库转公开后启用）；暂不做远端发布，仍用 `publishToMavenLocal`。细节见 `ref/D-ixchel-ci-workflows-20261026.md`
 - **rejected**: 按路径过滤 mc/loader 构建——required check 被跳过时 PR 会一直挂起；私有期间加 Windows runner——分钟数按 2 倍计，字符集问题已由显式 UTF-8 约定覆盖；CI 用 tag 注入版本号——源码中看不到发版号；文档另开仓库——参考页由代码生成，拆开后跨仓库同步需额外 token 且文档与代码不能同 PR 修改；GitHub wiki——无导航/搜索/组件，推送需另配权限；快速开发用脚本整体开关 required check——容易忘记切回，且每次切换都要改仓库设置；取消 PR 直推 `master`——违反项目分支规则
+
+## #011 1.20.1 库模块发布 SRG 产物
+- **decided**: 2026-10-27
+- **context**: Forge 1.20.1 运行时为 SRG；宿主要 shade、relocate 后再 reobf 整个 jar，库产物的命名决定了消费方要不要先重映射
+- **decision**: 沿用 legacyforge 默认，`ixchel-mc-1.20.1` 与 `ixchel-forge-1.20.1` 的 `jar` 发布为 SRG。消费方用 `obfuscation.createRemappingConfiguration(shade)` 把这两个模块重映射回 mojmap，`ixchel-core` 直接 shade，shadowJar 之后 `obfuscation.reobfuscate(tasks.shadowJar, …)`。reobf 变体不带依赖声明，所以三个模块要逐个列出。配方见 `testmod/shade-b-forge-1.20.1/build.gradle.kts`，已在生产实例中与另一份不同版本的副本共存运行
+- **rejected**: 发布 mojmap 产物——legacyforge 下要额外关掉默认 reobf 并另配发布变体；消费方的 reobf 本来就要对 shade 后的整个 jar 再做一次，不会更省事，且未实测

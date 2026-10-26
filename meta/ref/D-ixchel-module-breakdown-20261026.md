@@ -150,7 +150,7 @@ L3 前需核实启动器运行时是否包含 `jdk.httpserver` 模块。
 | M1（已完成） | core 原型：模板 → 样式 → 布局 → DisplayList，单元测试覆盖弹药 HUD | 不碰 MC 产出正确绘制命令 |
 | M2（已完成，ImmediatelyFast 共存移到 M4） | mc 1.20.1：McPainter、文本、HUD 宿主；binding 最小集（来源、派生、文本/属性绑定） | 游戏内显示随实际弹量变化的弹药 HUD；帧耗时对比；与 Iris、ImmediatelyFast 共存 |
 | M3（已完成） | 事件、binding 其余部分（`action`、`each`/`if`、`Scope`）、`UiScreen`：Z 键改装 | 与手写原版对比（见绑定文档 §7） |
-| M4 | shade 配方与 NeoForge 1.21.1 对齐最小集 | 两个不同版本副本共存；1.21.1 跑同一验收模板；生产环境与 ImmediatelyFast 共存 |
+| M4（已完成） | shade 配方与 NeoForge 1.21.1 对齐最小集 | 两个不同版本副本共存；1.21.1 跑同一验收模板；生产环境与 ImmediatelyFast 共存 |
 | M5 | `UiContainerScreen` 与 Slot 通道：背包式改装 | vanilla 物品事务行为不变；`ref/SDG-ixchel-container-slot-integration-20261026.md` §8 的 L1–L3 通过 |
 
 #### 实现顺序
@@ -185,7 +185,7 @@ M2 结果（2026-10-26，Forge 1.20.1 开发环境，AMD 核显，`gradlew :test
 | 无光影（两窗） | 215 / 336 µs，166 / 268 µs | 300 / 454 µs，231 / 346 µs |
 | Oculus 1.8.0 + Complementary Reimagined r5.9.3（两窗） | 233 / 372 µs，207 / 318 µs | 333 / 520 µs，297 / 448 µs |
 
-Ixchel 两种条件下都比手写版快约 25–30%：手写版每帧重算备弹数并逐条提交，Ixchel 在数据不变时跳过取值与布局，矩形与图片合批。Iris 在 Forge 1.20.1 上对应 Oculus（依赖 Embeddium），开光影后 HUD 位置、颜色与物品图标正常（截图核对）。ImmediatelyFast 的 common mixin 不带 refmap、注解里直接写 SRG 名，开发环境重映射不改注解，注入失败、客户端启动即崩，只能在生产环境验证，随 M4 的 shade 产物一起做。
+Ixchel 两种条件下都比手写版快约 25–30%：手写版每帧重算备弹数并逐条提交，Ixchel 在数据不变时跳过取值与布局，矩形与图片合批。Iris 在 Forge 1.20.1 上对应 Oculus（依赖 Embeddium），开光影后 HUD 位置、颜色与物品图标正常（截图核对）。ImmediatelyFast 的 common mixin 不带 refmap、注解里直接写 SRG 名，开发环境重映射不改注解，注入失败、客户端启动即崩，只能在生产环境验证；M4 已在生产环境验证共存（见下方"M4 shade"）。
 
 M3：`event`（命中、三阶段派发、焦点、状态位）与 `css.selector` 状态伪类 → `McInput` → `UiScreen` → `binding` 其余部分 → `anim`（transition）放在最后，不阻塞退出条件。
 
@@ -221,6 +221,18 @@ M4 变化帧（2026-10-27，JFR 分配采样 + core 内探针）：
 - 未来方向（未排期）：
   - CSS `contain: size layout` 布局边界：作者显式标注、须有确定宽高；外层 taffy 树里当固定尺寸叶子，子树用独立 taffy 树计算。
   - 或者 fork/补丁 taffy-java，削减缓存命中与 flex item 的对象分配；代价是长期维护 fork，且 shade 时重定位的是 fork。
+
+M4 shade（2026-10-27，Forge 1.20.1）：
+
+- 配方：`testmod/shade-{a,b}-forge-1.20.1`，shadow 9.6.1。`shade` 配置带 runtime/library/jar/external 属性，排除 fastutil；shadowJar relocate `com.azane.ixchel` 与 `dev.vfyjxf.taffy`；`obfuscation.reobfuscate(tasks.shadowJar, …)`，`jar` 改 classifier `slim`。发布产物经 `-PshadeIxchel` 重映射的方式见 #011。
+- 产物核对：A 的 jar 有 125 个 ixchel 类和 98 个 taffy 类，全部重定位；fastutil 引用保持原包名；`McPainter` 中的 MC 调用全部为 SRG `m_` 名，没有残留的 mojmap 名。
+- 生产环境：portablemc 启动 `forge:1.20.1-47.3.19`，mods 为 ImmediatelyFast-Forge 1.5.5+1.20.4、shade-a（当前源码）和 shade-b（从 mavenLocal 的 `0.1.0-m3` 构建；B 的 jar 中没有 M4 新增的 `measuresAlike`）。两个 HUD 同时正常显示；日志里两份 `IxchelForge` 各自从自己的 jar 加载，没有类冲突，也没有 mixin 报错。
+
+M4 NeoForge 1.21.1（2026-10-27，`gradlew :testmod-neoforge-1.21.1:runClient`，用临时脚本无人值守运行，脚本已删除）：
+
+- 弹药 HUD 和 Z 键改装界面直接用 Forge 侧的模板、样式与贴图，未作改动，渲染结果一致（截图核对）。
+- 改装流程：安装玻璃板后 `pending` 先为 true；服务端约 6 tick 后回包，`scope = glass`，背包里的玻璃板 5→4，望远镜退回背包。
+- 1.21.1 的 `Screen.renderBackground` 自带模糊，所以改装界面背后是模糊的世界，这与 1.20.1 不同，由原版行为决定。
 
 M5：按槽位文档推进：反射写坐标与 `isHovering` 覆写 → `UiContainerScreen`（`VANILLA` 绘制）→ Slot 通道（轮询比较）→ 第三方 mod 兼容（L2）→ `IXCHEL` 绘制开关（#009）→ 生产环境 SRG 验证（L3）。
 
