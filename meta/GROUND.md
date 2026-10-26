@@ -32,7 +32,8 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 
 ## In progress
 
-- 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；M2 进行中：Forge 1.20.1 上弹药 HUD 已在游戏内显示，通过 binding 随主手物品变化，并绘制手持物品；开发期热重载 L1 已完成；图片图集推迟到圆角路径 C 落地（两者共用一张图集），`<img>` 仍须在 CSS 中写宽高。下一步帧耗时对比与 Iris/ImmediatelyFast 共存。M1 已知限制见 `ref/D-ixchel-module-breakdown-20261026.md` §3。
+- 双平台构建骨架已就绪（`build` 与两个 testmod 的 `runClient` 通过）；M2 完成（Forge 1.20.1 弹药 HUD 随数据变化、物品绘制、热重载 L1、帧耗时优于手写版、与 Oculus 光影共存），结果见 `ref/D-ixchel-module-breakdown-20261026.md` §9；ImmediatelyFast 共存随 M4 在生产环境验证。下一步 M3。图片图集推迟到圆角路径 C 落地（两者共用一张图集），`<img>` 仍须在 CSS 中写宽高。M1 已知限制见同文档 §3。
+- testmod 调试参数：`-Pcompat` 加载 Oculus + Embeddium；`-Pbench` 直接进入 `New World`，`HudBench` 自动交替计时、截图后退出（手动时按 J 切换）。
 - CI：`check`（`.github/workflows/check.yml`，PR 与 `master` 上全量 `./gradlew build`）已上线，`master` ruleset 要求它通过，admin 可在 PR 上用 `--admin` 越过；`release` 与 `docs` 流程未实现。见 #010 与 `ref/D-ixchel-ci-workflows-20261026.md`。
 - 1.20.1 库模块发布 mojmap 还是 SRG 产物未定，待 shade 配方验证；目前 legacyforge 对两个 1.20.1 库模块的 `jar` 都自动 reobf 为 SRG。
 - testmod 以 sourceSet 并入方式运行库，不经过 shade/relocate；shade 链路尚无覆盖。

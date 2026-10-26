@@ -19,6 +19,11 @@ legacyForge {
             client()
             // Hot reload of UI templates and stylesheets straight from the source tree (L1).
             systemProperty("ixchel.devResources.ixcheltest", file("src/main/resources").absolutePath)
+            // `-Pbench`: straight into the dev world, HudBench cycles and screenshots unattended, then quits.
+            if (providers.gradleProperty("bench").isPresent) {
+                systemProperty("ixcheltest.bench", "auto")
+                programArguments.addAll("--quickPlaySingleplayer", "New World")
+            }
         }
     }
 
@@ -35,4 +40,19 @@ dependencies {
     implementation(project(":ixchel-forge-1.20.1"))
     // Plain Java libraries are not loaded in Forge runs unless added here.
     "additionalRuntimeClasspath"(libs.taffy)
+}
+
+// M2 coexistence check: `gradlew :testmod-forge-1.20.1:runClient -Pcompat` also loads Oculus (the Forge
+// port of Iris, which needs Embeddium), remapped from SRG for the dev runtime. ImmediatelyFast cannot
+// run here: its common mixins carry SRG names without a refmap, which dev remapping does not rewrite.
+if (providers.gradleProperty("compat").isPresent) {
+    repositories {
+        maven("https://api.modrinth.com/maven") {
+            content { includeGroup("maven.modrinth") }
+        }
+    }
+    dependencies {
+        "modRuntimeOnly"("maven.modrinth:embeddium:0.3.31+mc1.20.1")
+        "modRuntimeOnly"("maven.modrinth:oculus:1.20.1-1.8.0")
+    }
 }

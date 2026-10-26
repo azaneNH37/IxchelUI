@@ -148,9 +148,9 @@ L3 前需核实启动器运行时是否包含 `jdk.httpserver` 模块。
 | 里程碑 | 内容 | 退出条件 |
 |---|---|---|
 | M1（已完成） | core 原型：模板 → 样式 → 布局 → DisplayList，单元测试覆盖弹药 HUD | 不碰 MC 产出正确绘制命令 |
-| M2 | mc 1.20.1：McPainter、文本、HUD 宿主；binding 最小集（来源、派生、文本/属性绑定） | 游戏内显示随实际弹量变化的弹药 HUD；帧耗时对比；与 Iris、ImmediatelyFast 共存 |
+| M2（已完成，ImmediatelyFast 共存移到 M4） | mc 1.20.1：McPainter、文本、HUD 宿主；binding 最小集（来源、派生、文本/属性绑定） | 游戏内显示随实际弹量变化的弹药 HUD；帧耗时对比；与 Iris、ImmediatelyFast 共存 |
 | M3 | 事件、binding 其余部分（`action`、`each`/`if`、`Scope`）、`UiScreen`：Z 键改装 | 与手写原版对比（见绑定文档 §7） |
-| M4 | shade 配方与 NeoForge 1.21.1 对齐最小集 | 两个不同版本副本共存；1.21.1 跑同一验收模板 |
+| M4 | shade 配方与 NeoForge 1.21.1 对齐最小集 | 两个不同版本副本共存；1.21.1 跑同一验收模板；生产环境与 ImmediatelyFast 共存 |
 | M5 | `UiContainerScreen` 与 Slot 通道：背包式改装 | vanilla 物品事务行为不变；`ref/SDG-ixchel-container-slot-integration-20261026.md` §8 的 L1–L3 通过 |
 
 #### 实现顺序
@@ -177,6 +177,15 @@ M1（core，按依赖顺序；`dom`/`template` 与 2~3 可并行）：
 | 9 | `runtime` | `UiDocument` 组装帧流水线，黄金测试通过 |
 
 M2（mc 1.20.1 + forge 1.20.1）：`McResources` → `McTextMeasurer`（换掉假实现，复核换行）→ `McPainter`（矩形、文本，自写顶点合批）→ `UiHud` 与加载器 HUD 注册 → `binding` 最小集 + `ClientSources`（mainHand、inventory）→ 图片与物品绘制 → 开发期热重载（L1）→ 帧耗时与 Iris/ImmediatelyFast 共存。圆角路径 C 在弹药 HUD 实际用到时才进入。
+
+M2 结果（2026-10-26，Forge 1.20.1 开发环境，AMD 核显，`gradlew :testmod-forge-1.20.1:runClient -Pcompat -Pbench` 无人值守）：`HudBench` 交替绘制 Ixchel 弹药 HUD 与图元相同的手写 `GuiGraphics` 版本，计 overlay Pre→Post 的 CPU 时间（含提交，不含 GPU），每窗 600 帧、丢弃预热窗。
+
+| 条件 | Ixchel 中位数 / p95 | 手写版中位数 / p95 |
+|---|---|---|
+| 无光影（两窗） | 215 / 336 µs，166 / 268 µs | 300 / 454 µs，231 / 346 µs |
+| Oculus 1.8.0 + Complementary Reimagined r5.9.3（两窗） | 233 / 372 µs，207 / 318 µs | 333 / 520 µs，297 / 448 µs |
+
+Ixchel 两种条件下都比手写版快约 25–30%：手写版每帧重算备弹数并逐条提交，Ixchel 在数据不变时跳过取值与布局，矩形与图片合批。Iris 在 Forge 1.20.1 上对应 Oculus（依赖 Embeddium），开光影后 HUD 位置、颜色与物品图标正常（截图核对）。ImmediatelyFast 的 common mixin 不带 refmap、注解里直接写 SRG 名，开发环境重映射不改注解，注入失败、客户端启动即崩，只能在生产环境验证，随 M4 的 shade 产物一起做。
 
 M3：`event`（命中、三阶段派发、焦点、状态位）与 `css.selector` 状态伪类 → `McInput` → `UiScreen` → `binding` 其余部分 → `anim`（transition）放在最后，不阻塞退出条件。
 

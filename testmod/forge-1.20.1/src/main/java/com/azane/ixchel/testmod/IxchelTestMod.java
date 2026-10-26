@@ -1,6 +1,7 @@
 package com.azane.ixchel.testmod;
 
 import com.azane.ixchel.forge.IxchelForge;
+import com.azane.ixchel.testmod.perf.HudBench;
 import com.azane.ixchel.testmod.probe.ProbeClient;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -17,6 +18,7 @@ public final class IxchelTestMod {
             ProbeClient.init(context.getModEventBus());
             IxchelForge.registerHud(context.getModEventBus(), MOD_ID, "ammo_hud",
                     "ui/ammo_hud.html", List.of("ui/ammo_hud.css"), AmmoHudView::new);
+            HudBench.init(context.getModEventBus());
         }
     }
 }
