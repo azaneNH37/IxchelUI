@@ -27,7 +27,7 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 - ixchel-mc-1.21.1 (`mc/1.21.1/`): 仅 vanilla 类的适配层（NeoForge 1.21.1 对齐最小集）；由 mc/1.20.1 复制后改写，类与契约相同。顶点 API 分叉只在 `McPainter`（`Tesselator.begin` / `addVertex` / `buildOrThrow`），其余是 API 改名（`ResourceLocation.fromNamespaceAndPath`、`isSameItemSameComponents`、`renderBackground`/`mouseScrolled` 新签名），[draft]
 - ixchel-forge-1.20.1 (`loader/forge-1.20.1/`): Forge 加载器胶水；已有 `IxchelForge.registerHud`（资源重载时重新加载文档，HUD 层置于最上；开发期热重载与错误叠加层，见模块拆解 §8 L1），[draft]
 - ixchel-neoforge-1.21.1 (`loader/neoforge-1.21.1/`): NeoForge 加载器胶水；已有 `IxchelNeoForge.registerHud`，契约与 `IxchelForge` 相同。HUD 层用 `RegisterGuiLayersEvent.registerAboveAll` 注册，层 id 为 `<宿主 modid>:<layerId>`，[draft]
-- sample-forge-1.20.1 (`sample/forge-1.20.1/`): Forge 1.20.1 示例兼开发期宿主 mod（modid `ixchelsample`），库模块源码并入其中运行，不发布。H 键打开示例索引（`Samples.all()` 登记）；现有示例：改装（Z）、背包改装（容器）、状态 HUD、拾取提示 HUD、路径点界面；另有 `probe/` 槽位探针与 `perf/` 基准，[draft]
+- sample-forge-1.20.1 (`sample/forge-1.20.1/`): Forge 1.20.1 示例兼开发期宿主 mod（modid `ixchelsample`），库模块源码并入其中运行，不发布。H 键打开示例索引（`Samples.all()` 登记）；现有示例：改装（Z）、背包改装（容器）、状态 HUD、拾取提示 HUD、路径点界面；另有 `probe/` 槽位探针与 `perf/` 基准。后续场景与迁移计划见 `ref/SD-ixchel-sample-scenarios-20261028.md`，[draft]
 - testmod-neoforge-1.21.1 (`testmod/neoforge-1.21.1/`): NeoForge 1.21.1 开发期宿主 mod，同上。只有弹药 HUD 与 Z 键改装界面，模板、样式和贴图与 Forge 侧相同。改装数据放在 `CUSTOM_DATA` 组件，网络用 `CustomPacketPayload`；没有 V 键原版对照、`-Pbench`、`-Pcompat`，[draft]
 - testmod-shade-{a,b}-forge-1.20.1 (`testmod/shade-{a,b}-forge-1.20.1/`): shade 验证用的两个宿主 mod（modid `ixchelshadea`/`ixchelshadeb`），各自 shade 并 relocate 一份 Ixchel 到 `com.azane.shadetest.{a,b}.shadow`，再 reobf。`build` 会编译、打包它们；B 加 `-PshadeIxchel=<版本>` 时改从 mavenLocal 取已发布版本，不发布，[draft]
 
