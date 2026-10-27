@@ -135,8 +135,9 @@ public final class TemplateParser {
             }
             parseAttribute(element, known, seen);
         }
-        if (known && tag.equals("img") && element.attribute("src") == null) {
-            diag.error(openPos, "<img> requires a 'src' attribute");
+        if (known && tag.equals("img") && element.attribute("src") == null
+                && element.bindings().stream().noneMatch(b -> b.name().equals("bind:src"))) {
+            diag.error(openPos, "<img> requires a 'src' attribute or a 'bind:src' binding");
         }
 
         if (isStyle) {

@@ -3,6 +3,7 @@ package com.azane.ixchel.forge;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.UiLoadException;
+import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.mc.DevOverlay;
 import com.azane.ixchel.mc.DevResources;
 import com.azane.ixchel.mc.McElements;
@@ -36,9 +37,9 @@ public final class IxchelForge {
     }
 
     /**
-     * Registers a HUD layer above all vanilla layers. The document is loaded from the host's
-     * resources on every resource reload (startup and F3+T), each time with a fresh view model; a
-     * load error fails that reload.
+     * Registers a HUD layer above all vanilla layers, shown until {@link Hud#show hidden}. The
+     * document is loaded from the host's resources on every resource reload (startup and F3+T), each
+     * time with a fresh view model (the previous one is closed); a load error fails that reload.
      *
      * <p>In a development run with {@code -Dixchel.devResources.<hostModId>=<resource root>}, the
      * template and stylesheets are read from that directory and reloaded when saved. A failed load
@@ -52,8 +53,8 @@ public final class IxchelForge {
      * @param model        creates the view model the template binds to; may return {@code null} for
      *                     a template without bindings
      */
-    public static void registerHud(IEventBus modBus, String hostModId, String layerId, String templatePath,
-                                   List<String> cssPaths, Supplier<? extends ViewModel> model) {
+    public static Hud registerHud(IEventBus modBus, String hostModId, String layerId, String templatePath,
+                                  List<String> cssPaths, Supplier<? extends ViewModel> model) {
         DevResources dev = FMLEnvironment.production ? null : DevResources.forHost(hostModId);
         HudLayer layer = new HudLayer(new McResources(hostModId, dev), dev != null, templatePath, cssPaths, model);
         if (dev != null) {
@@ -63,6 +64,7 @@ public final class IxchelForge {
         }
         modBus.addListener((RegisterClientReloadListenersEvent e) -> e.registerReloadListener(layer));
         modBus.addListener((RegisterGuiOverlaysEvent e) -> e.registerAboveAll(layerId, layer));
+        return new Hud(layer);
     }
 
     /**
@@ -80,6 +82,32 @@ public final class IxchelForge {
         });
     }
 
+    /** A registered HUD layer. Client thread only. */
+    public static final class Hud {
+        private final HudLayer layer;
+
+        private Hud(HudLayer layer) {
+            this.layer = layer;
+        }
+
+        /** Whether the layer is drawn; a hidden layer does no work, not even polling its sources. */
+        public boolean shown() {
+            return layer.shown;
+        }
+
+        public void show(boolean shown) {
+            layer.shown = shown;
+        }
+
+        /**
+         * The current document, for querying or driving it; {@code null} before the first resource
+         * load. Replaced, with a fresh view model, on every reload.
+         */
+        public UiDocument document() {
+            return layer.hud == null ? null : layer.hud.document();
+        }
+    }
+
     private static final class HudLayer implements IGuiOverlay, ResourceManagerReloadListener {
         private final McResources resources;
         private final boolean dev;
@@ -87,6 +115,8 @@ public final class IxchelForge {
         private final List<String> cssPaths;
         private final Supplier<? extends ViewModel> model;
         private UiHud hud;
+        private ViewModel hudModel;
+        private boolean shown = true;
         private List<Diagnostic> loadErrors = List.of();
 
         HudLayer(McResources resources, boolean dev, String templatePath, List<String> cssPaths,
@@ -104,20 +134,33 @@ public final class IxchelForge {
         }
 
         void load(ResourceManager manager) {
+            ViewModel m = model.get();
             try {
-                hud = new UiHud(resources.load(manager, templatePath, cssPaths, McElements.TAGS, model.get()));
+                hud = new UiHud(resources.load(manager, templatePath, cssPaths, McElements.TAGS, m));
                 loadErrors = List.of();
             } catch (UiLoadException e) {
+                if (m != null) {
+                    m.close();
+                }
                 if (!dev) {
                     throw e;
                 }
                 LOG.error("Ixchel UI: {} failed to load, keeping the previous version\n{}", templatePath, e.getMessage());
                 loadErrors = e.diagnostics().stream().filter(d -> d.severity() == Diagnostic.Severity.ERROR).toList();
+                return;
             }
+            // The replaced document's model: its subscriptions and pending replies end with it.
+            if (hudModel != null) {
+                hudModel.close();
+            }
+            hudModel = m;
         }
 
         @Override
         public void render(ForgeGui gui, GuiGraphics g, float partialTick, int screenWidth, int screenHeight) {
+            if (!shown) {
+                return;
+            }
             if (hud != null) {
                 hud.render(g);
             }

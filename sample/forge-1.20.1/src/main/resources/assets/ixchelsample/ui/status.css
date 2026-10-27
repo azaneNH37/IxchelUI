@@ -1,0 +1,118 @@
+/* Icons come from vanilla's HUD sheet, 9×9 each; a heart or a shank is the empty icon with the
+   full or half icon on top. */
+.status {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 188px;
+  padding: 3px;
+  background-color: #00000060;
+}
+
+.line {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 1px;
+}
+
+.icons {
+  width: 81px;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.icon {
+  width: 8px;
+  height: 9px;
+  background-image: url("minecraft:textures/gui/icons.png");
+  background-size: 256px 256px;
+  background-repeat: no-repeat;
+}
+
+.fill {
+  width: 9px;
+  height: 9px;
+  background-repeat: no-repeat;
+  background-size: 256px 256px;
+}
+
+.fill.full,
+.fill.half {
+  background-image: url("minecraft:textures/gui/icons.png");
+}
+
+.heart { background-position: -16px 0; }
+.heart .fill.full { background-position: -52px 0; }
+.heart .fill.half { background-position: -61px 0; }
+
+.armor { background-position: -16px -9px; }
+.armor.half { background-position: -25px -9px; }
+.armor.full { background-position: -34px -9px; }
+
+.food { background-position: -16px -27px; }
+.food .fill.full { background-position: -52px -27px; }
+.food .fill.half { background-position: -61px -27px; }
+
+.value {
+  margin-left: 2px;
+  color: #FFFFFF;
+}
+
+.value.low {
+  color: #FF5555;
+}
+
+/* The experience bar, 182×5 in the sheet. */
+.xp {
+  width: 182px;
+  height: 5px;
+  margin-top: 2px;
+  background-image: url("minecraft:textures/gui/icons.png");
+  background-size: 256px 256px;
+  background-position: 0 -64px;
+  background-repeat: no-repeat;
+}
+
+.xp-fill {
+  height: 5px;
+  background-image: url("minecraft:textures/gui/icons.png");
+  background-size: 256px 256px;
+  background-position: 0 -69px;
+  background-repeat: no-repeat;
+  transition: width 300ms;
+}
+
+.level {
+  align-self: center;
+  color: #80FF20;
+}
+
+.effects {
+  margin-top: 3px;
+}
+
+.effect {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 1px;
+  padding: 1px;
+  transition: background-color 300ms;
+}
+
+.effect.ending {
+  background-color: #FF555550;
+}
+
+.effect-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 3px;
+}
+
+.effect-name {
+  color: #FFFFFF;
+}
+
+.effect-time {
+  color: #AAAAAA;
+}

@@ -4,6 +4,8 @@ import com.azane.ixchel.core.anim.Transitions;
 import com.azane.ixchel.core.binding.Bindings;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.CssProperties;
+import com.azane.ixchel.core.css.selector.Selector;
+import com.azane.ixchel.core.css.selector.SelectorParser;
 import com.azane.ixchel.core.css.syntax.CssParser;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
@@ -110,6 +112,39 @@ public final class UiDocument {
     /** The implicit root; its children are the template's top-level elements. */
     public Element root() {
         return root;
+    }
+
+    /**
+     * The mounted elements matching a selector list, in document order, as in the DOM; the selector
+     * syntax is the stylesheets'. Elements inside an unmounted {@code if} or not yet created by
+     * {@code each} are not in the tree.
+     *
+     * @throws IllegalArgumentException if {@code selectors} is not a valid selector list
+     */
+    public List<Element> querySelectorAll(String selectors) {
+        Diagnostics diag = new Diagnostics();
+        SourcePos pos = new SourcePos("querySelectorAll", 1, 1);
+        List<Selector> list = SelectorParser.parseList(CssParser.parseValue(selectors, pos, diag), pos, diag);
+        if (diag.hasErrors()) {
+            throw new IllegalArgumentException("invalid selector '" + selectors + "': " + diag.entries());
+        }
+        List<Element> out = new ArrayList<>();
+        collect(root, list, out);
+        return out;
+    }
+
+    private static void collect(Element parent, List<Selector> selectors, List<Element> out) {
+        for (Node n : parent.children()) {
+            if (n instanceof Element e) {
+                for (Selector s : selectors) {
+                    if (s.matches(e)) {
+                        out.add(e);
+                        break;
+                    }
+                }
+                collect(e, selectors, out);
+            }
+        }
     }
 
     /**

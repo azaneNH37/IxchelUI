@@ -74,6 +74,11 @@ public class UiScreen extends Screen {
         }
     }
 
+    /** The current document, for querying or driving it; {@code null} only when the first development load failed. */
+    public UiDocument document() {
+        return document;
+    }
+
     @Override
     protected void init() {
         if (dev != null && watcher == null) {

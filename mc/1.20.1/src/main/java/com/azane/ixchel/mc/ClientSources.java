@@ -10,14 +10,31 @@ import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 /**
- * Sources for the local player's items. {@link ItemStack} has no {@code equals} and is modified in
- * place, so these snapshot by copying and compare by item, tags and count. Without a player (menus,
+ * Sources for the local player. {@link ItemStack} has no {@code equals} and is modified in place, so
+ * the item sources snapshot by copying and compare by item, tags and count. Without a player (menus,
  * loading) they read as empty.
  */
 public final class ClientSources {
     private ClientSources() {
+    }
+
+    /**
+     * A value read from the local player once per frame, or {@code absent} without a player. For
+     * immutable values compared with {@code equals} (numbers, strings, records and lists of them);
+     * stacks go through the item sources below.
+     *
+     * <pre>{@code
+     * final Value<Float> health = source(ClientSources.player(LocalPlayer::getHealth, 0f));
+     * }</pre>
+     */
+    public static <T> Source<T> player(Function<? super LocalPlayer, ? extends T> read, T absent) {
+        return Source.polled(() -> {
+            LocalPlayer p = Minecraft.getInstance().player;
+            return p == null ? absent : read.apply(p);
+        });
     }
 
     /** The stack in the main hand; follows the selected hotbar slot. */

@@ -1,0 +1,35 @@
+<div class="status">
+  <div class="line">
+    <div class="icons">
+      <div class="icon heart" each="hearts" as="h" key="h.index">
+        <div class="fill" bind:class:full="h.full" bind:class:half="h.half"></div>
+      </div>
+    </div>
+    <span class="value" bind:class:low="low" bind:text="healthText"></span>
+  </div>
+  <div class="line" if="hasArmor">
+    <div class="icons">
+      <div class="icon armor" each="armorIcons" as="a" key="a.index" bind:class:full="a.full" bind:class:half="a.half"></div>
+    </div>
+  </div>
+  <div class="line">
+    <div class="icons">
+      <div class="icon food" each="foodIcons" as="f" key="f.index">
+        <div class="fill" bind:class:full="f.full" bind:class:half="f.half"></div>
+      </div>
+    </div>
+  </div>
+  <div class="xp">
+    <div class="xp-fill" bind:style:width="progressWidth"></div>
+  </div>
+  <span class="level" bind:text="levelText"></span>
+  <div class="effects" if="hasEffects">
+    <div class="effect" each="effects" as="e" key="e.id" bind:class:ending="e.ending">
+      <img class="effect-icon" bind:src="e.icon"/>
+      <div class="effect-text">
+        <span class="effect-name" bind:text="e.name"></span>
+        <span class="effect-time" bind:text="e.time"></span>
+      </div>
+    </div>
+  </div>
+</div>

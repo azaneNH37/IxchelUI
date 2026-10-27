@@ -38,6 +38,11 @@ public class UiScreen extends Screen {
         this.doc = new ScreenDocument(hostModId, templatePath, cssPaths, McElements.TAGS, model, () -> { });
     }
 
+    /** The current document, for querying or driving it; {@code null} only when the first development load failed. */
+    public UiDocument document() {
+        return doc.document();
+    }
+
     @Override
     protected void init() {
         doc.watch();

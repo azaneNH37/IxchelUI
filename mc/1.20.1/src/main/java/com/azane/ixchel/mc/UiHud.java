@@ -34,6 +34,10 @@ public final class UiHud {
         }
     }
 
+    public UiDocument document() {
+        return document;
+    }
+
     /** Errors found after load, such as a derived value that threw; empty for a healthy document. */
     public List<Diagnostic> runtimeErrors() {
         if (document.diagnostics().errorCount() == 0) {

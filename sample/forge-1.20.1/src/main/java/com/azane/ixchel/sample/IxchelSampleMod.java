@@ -7,6 +7,7 @@ import com.azane.ixchel.sample.probe.ProbeClient;
 import com.azane.ixchel.sample.refit.RefitClient;
 import com.azane.ixchel.sample.refit.RefitNetwork;
 import com.azane.ixchel.sample.refit.RefitMenus;
+import com.azane.ixchel.sample.status.StatusHud;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
@@ -28,6 +29,7 @@ public final class IxchelSampleMod {
             HudBench.init(context.getModEventBus());
             RefitClient.init(context.getModEventBus());
             Samples.initClient(context.getModEventBus());
+            StatusHud.init(context.getModEventBus());
         }
     }
 }

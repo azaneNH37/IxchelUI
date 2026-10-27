@@ -487,6 +487,11 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
                 || super.keyReleased(key, scanCode, modifiers);
     }
 
+    /** The current document, for querying or driving it; {@code null} only when the first development load failed. */
+    public UiDocument document() {
+        return doc.document();
+    }
+
     /** Puts the slots back where the menu had them: a menu can outlive the screen ({@code player.inventoryMenu}). */
     @Override
     public void removed() {

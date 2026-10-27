@@ -3,6 +3,7 @@ package com.azane.ixchel.sample;
 import com.azane.ixchel.mc.UiScreen;
 import com.azane.ixchel.sample.check.Script;
 import com.azane.ixchel.sample.refit.RefitClient;
+import com.azane.ixchel.sample.status.StatusHud;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -24,7 +25,8 @@ public final class Samples {
     public static List<Sample> all() {
         return List.of(
                 RefitClient.refitSample(),
-                RefitClient.backpackSample());
+                RefitClient.backpackSample(),
+                StatusHud.sample());
     }
 
     public static UiScreen indexScreen() {
