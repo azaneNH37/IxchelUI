@@ -1,15 +1,18 @@
 package com.azane.ixchel.core.dom;
 
 import com.azane.ixchel.core.css.property.ComputedStyle;
+import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.css.syntax.Rule;
 import com.azane.ixchel.core.diag.SourcePos;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -17,10 +20,11 @@ import java.util.Set;
  * from the template, bindings and events; {@link #computed()} and {@link #box()} are written by the
  * style and layout passes.
  *
- * <p>Style invalidation: a class, state or {@code id} change marks the element style-dirty, which
- * means the element and its whole subtree are restyled; its ancestors get a descendant-dirty mark so
- * the style pass can skip clean subtrees. An already styled element appended under a parent is
- * marked style-dirty too, since inherited values and combinator matches depend on its ancestors.
+ * <p>Style invalidation: a class, state, {@code id}, inline style or bound style change marks the
+ * element style-dirty, which means the element and its whole subtree are restyled; its ancestors get
+ * a descendant-dirty mark so the style pass can skip clean subtrees. An already styled element
+ * appended under a parent is marked style-dirty too, since inherited values and combinator matches
+ * depend on its ancestors.
  *
  * <p>Tree changes (child-list changes here or text changes in a child) mark the element and its
  * ancestors as {@linkplain #hasTreeChange() changed} until the layout pass clears them.
@@ -52,6 +56,8 @@ public final class Element extends Node {
     private Object payload;
     private float scrollTop;
     private float maxScrollTop;
+    private Map<PropertyDef<?>, Object> boundStyle;
+    private Map<PropertyDef<?>, Object> boundStyleView = Map.of();
     private List<Registration> listeners;
 
     private record Registration(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
@@ -225,6 +231,34 @@ public final class Element extends Node {
     public void setInlineStyle(List<Rule.Declaration> declarations) {
         inlineStyle = List.copyOf(declarations);
         markStyleDirty();
+    }
+
+    /**
+     * Values written by {@code bind:style:*}, keyed by longhand; unmodifiable live view. Each acts as
+     * this element's only inline declaration of its property: it replaces the {@code style}
+     * attribute's declaration of that property and is never {@code !important}.
+     */
+    public Map<PropertyDef<?>, Object> boundStyle() {
+        return boundStyleView;
+    }
+
+    /**
+     * Sets the bound value of {@code property} (its value type, or a CSS-wide keyword from
+     * {@code style.Declarations}); {@code null} removes it, so the cascade applies again. A change marks
+     * the element style-dirty.
+     */
+    public void setBoundStyle(PropertyDef<?> property, Object value) {
+        if (boundStyle == null) {
+            if (value == null) {
+                return;
+            }
+            boundStyle = new IdentityHashMap<>(4);
+            boundStyleView = Collections.unmodifiableMap(boundStyle);
+        }
+        Object old = value == null ? boundStyle.remove(property) : boundStyle.put(property, value);
+        if (!Objects.equals(old, value)) {
+            markStyleDirty();
+        }
     }
 
     public ComputedStyle computed() {

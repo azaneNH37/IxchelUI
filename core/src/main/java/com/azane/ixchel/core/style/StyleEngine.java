@@ -12,17 +12,22 @@ import com.azane.ixchel.core.dom.Node;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Selector matching, cascade and inheritance. Precedence, lowest first: rule declarations by
  * (specificity, sheet order, rule order), inline style, then the same two groups for
- * {@code !important}.
+ * {@code !important}. An element's {@linkplain Element#boundStyle() bound values} are inline
+ * declarations that replace the {@code style} attribute's declarations of the same properties.
  */
 public final class StyleEngine {
     private record Entry(Selector selector, List<Declarations.Compiled> declarations, int specificity, int order) {
+    }
+
+    /** An element's compiled {@code style} attribute and the list it was compiled from. */
+    private record Inline(List<Rule.Declaration> source, List<Declarations.Compiled> compiled) {
     }
 
     private static final Comparator<Entry> CASCADE_ORDER =
@@ -45,10 +50,11 @@ public final class StyleEngine {
     private final Map<String, List<Entry>> byClass = new HashMap<>();
     private final Map<String, List<Entry>> byTag = new HashMap<>();
     private final List<Entry> universal = new ArrayList<>();
-    private final Map<List<Rule.Declaration>, List<Declarations.Compiled>> inlineCache = new IdentityHashMap<>();
+    /** Weakly keyed, so entries leave with their elements; a new inline style replaces its element's entry. */
+    private final Map<Element, Inline> inlineCache = new WeakHashMap<>();
     private final List<Entry> scratch = new ArrayList<>();
 
-    /** {@code diag} receives errors from inline styles, which are compiled on first use. */
+    /** {@code diag} receives errors from inline styles, compiled when an element is restyled with a new one. */
     public StyleEngine(PropertyRegistry registry, List<StyleSheet> sheets, Diagnostics diag) {
         this(registry, sheets, diag, (e, previous, next) -> {
         });
@@ -124,8 +130,9 @@ public final class StyleEngine {
         collect(universal, e, matched);
         matched.sort(CASCADE_ORDER);
 
-        List<Declarations.Compiled> inline = e.inlineStyle().isEmpty() ? List.of()
-                : inlineCache.computeIfAbsent(e.inlineStyle(), d -> Declarations.compile(d, registry, diag));
+        List<Declarations.Compiled> inline = inline(e);
+        Map<PropertyDef<?>, Object> bound = e.boundStyle();
+        boolean anyBound = !bound.isEmpty();
 
         ComputedStyle cs = ComputedStyle.inheriting(registry, parent);
         for (int pass = 0; pass < 2; pass++) {
@@ -133,10 +140,37 @@ public final class StyleEngine {
             for (Entry m : matched) {
                 apply(m.declarations, important, cs, parent);
             }
-            apply(inline, important, cs, parent);
+            for (Declarations.Compiled d : inline) {
+                if (d.important() == important && !(anyBound && bound.containsKey(d.property()))) {
+                    set(cs, d.property(), d.value(), parent);
+                }
+            }
+            if (!important && anyBound) {
+                for (Map.Entry<PropertyDef<?>, Object> b : bound.entrySet()) {
+                    set(cs, b.getKey(), b.getValue(), parent);
+                }
+            }
         }
         matched.clear();
         return cs;
+    }
+
+    private List<Declarations.Compiled> inline(Element e) {
+        List<Rule.Declaration> source = e.inlineStyle();
+        if (source.isEmpty()) {
+            return List.of();
+        }
+        Inline cached = inlineCache.get(e);
+        if (cached == null || cached.source != source) {
+            cached = new Inline(source, Declarations.compile(source, registry, diag));
+            inlineCache.put(e, cached);
+        }
+        return cached.compiled;
+    }
+
+    /** Elements with a compiled inline style held for reuse; for tests. */
+    int inlineCacheSize() {
+        return inlineCache.size();
     }
 
     private static void collect(List<Entry> candidates, Element e, List<Entry> out) {

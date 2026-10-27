@@ -42,6 +42,19 @@ public final class CssParser {
         return p.declarationList(values);
     }
 
+    /**
+     * A lone declaration value, such as a {@code bind:style:*} value from code: its component values
+     * with leading and trailing whitespace removed. Positions are offset as in {@link #parseDeclarations}.
+     */
+    public static List<ComponentValue> parseValue(String source, SourcePos start, Diagnostics diag) {
+        CssParser p = new CssParser(CssTokenizer.tokenize(source, start, diag), diag);
+        List<ComponentValue> values = new ArrayList<>();
+        while (!p.peek().is(Token.Kind.EOF)) {
+            values.add(p.componentValue());
+        }
+        return List.copyOf(trim(values));
+    }
+
     private Token peek() {
         return tokens.get(i);
     }

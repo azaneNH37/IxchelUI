@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -125,5 +126,50 @@ class StyleEngineTest {
         assertTrue(errors.get(1).startsWith("t.css:3:6: error: unsupported property 'widht'"), errors.get(1));
         assertTrue(errors.get(2).contains("t.css:3:26:") && errors.get(2).contains("10px"), errors.get(2));
         assertTrue(errors.get(3).startsWith("t.css:3:37: error: invalid hex color"), errors.get(3));
+    }
+
+    @Test
+    void boundValuesReplaceTheStyleAttributesDeclarationsButNotImportantRules() {
+        Diagnostics diag = new Diagnostics();
+        StyleEngine engine = engine(".a { width: 1px; height: 2px !important; color: #f00 }", diag);
+        Element root = new Element("#root", POS);
+        Element a = el(root, "div", "a");
+        a.setInlineStyle(CssParser.parseDeclarations("width: 9px !important; margin: 3px", POS, diag));
+        a.setBoundStyle(CssProperties.WIDTH, Length.px(20));
+        a.setBoundStyle(CssProperties.HEIGHT, Length.px(30));
+        a.setBoundStyle(CssProperties.MARGIN_TOP, Length.px(7));
+        a.setBoundStyle(CssProperties.COLOR, Declarations.Wide.INHERIT);
+        engine.restyle(root);
+
+        assertEquals(List.of(), diag.entries());
+        assertEquals(Length.px(20), a.computed().get(CssProperties.WIDTH));
+        assertEquals(Length.px(2), a.computed().get(CssProperties.HEIGHT));
+        assertEquals(Length.px(7), a.computed().get(CssProperties.MARGIN_TOP));
+        assertEquals(Length.px(3), a.computed().get(CssProperties.MARGIN_LEFT));
+        assertEquals(0xFFFFFFFF, a.computed().get(CssProperties.COLOR));
+
+        a.setBoundStyle(CssProperties.MARGIN_TOP, Length.px(7));
+        assertFalse(a.isStyleDirty(), "an equal bound value is no change");
+        a.setBoundStyle(CssProperties.WIDTH, null);
+        engine.restyle(root);
+        assertEquals(Length.px(9), a.computed().get(CssProperties.WIDTH));
+    }
+
+    @Test
+    void replacingTheInlineStyleKeepsOneCompiledEntryPerElement() {
+        Diagnostics diag = new Diagnostics();
+        StyleEngine engine = engine("", diag);
+        Element root = new Element("#root", POS);
+        Element a = el(root, "div");
+        Element b = el(root, "div");
+        b.setInlineStyle(CssParser.parseDeclarations("height: 4px", POS, diag));
+        for (int i = 0; i < 500; i++) {
+            a.setInlineStyle(CssParser.parseDeclarations("width: " + i + "px", POS, diag));
+            engine.restyle(root);
+        }
+
+        assertEquals(Length.px(499), a.computed().get(CssProperties.WIDTH));
+        assertEquals(Length.px(4), b.computed().get(CssProperties.HEIGHT));
+        assertEquals(2, engine.inlineCacheSize());
     }
 }

@@ -7,6 +7,7 @@ import com.azane.ixchel.core.css.syntax.ComponentValue;
 import com.azane.ixchel.core.css.syntax.Rule;
 import com.azane.ixchel.core.css.syntax.Token;
 import com.azane.ixchel.core.diag.Diagnostics;
+import com.azane.ixchel.core.diag.SourcePos;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,19 @@ public final class Declarations {
         return out;
     }
 
+    /**
+     * A longhand's value as a declaration in a stylesheet gives it: the property's value type or a
+     * {@link Wide}; {@code null} after reporting an invalid or empty value.
+     */
+    public static Object value(PropertyDef<?> property, List<ComponentValue> value, SourcePos pos, Diagnostics diag) {
+        if (value.isEmpty()) {
+            diag.error(pos, "missing value for '" + property.name() + "'");
+            return null;
+        }
+        Wide wide = wideKeyword(value);
+        return wide != null ? wide : property.syntax().parse(value, pos, diag);
+    }
+
     private static void compileOne(Rule.Declaration d, PropertyRegistry registry, Diagnostics diag, List<Compiled> out) {
         if (d.name().startsWith("--")) {
             diag.error(d.pos(), "custom properties are not supported yet");
@@ -43,18 +57,18 @@ public final class Declarations {
             diag.error(d.pos(), "unsupported property '" + d.name() + "'");
             return;
         }
-        if (d.value().isEmpty()) {
-            diag.error(d.pos(), "missing value for '" + d.name() + "'");
-            return;
-        }
-        Wide wide = wideKeyword(d.value());
         if (def != null) {
-            Object v = wide != null ? wide : def.syntax().parse(d.value(), d.pos(), diag);
+            Object v = value(def, d.value(), d.pos(), diag);
             if (v != null) {
                 out.add(new Compiled(def, v, d.important()));
             }
             return;
         }
+        if (d.value().isEmpty()) {
+            diag.error(d.pos(), "missing value for '" + d.name() + "'");
+            return;
+        }
+        Wide wide = wideKeyword(d.value());
         if (wide != null) {
             for (PropertyDef<?> l : shorthand.longhands()) {
                 out.add(new Compiled(l, wide, d.important()));

@@ -1,5 +1,8 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.Value;
+import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.Easing;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
@@ -92,6 +95,26 @@ class UiDocumentTransitionTest {
         first(doc).addClass("auto");
         assertEquals("rect 0 0 100 10 #FFFFFFFF", frameAt(doc, 0));
         assertEquals("rect 0 0 100 15 #FFFFFFFF", frameAt(doc, 50));
+    }
+
+    static final class Fill extends ViewModel {
+        final Value<Integer> width = state(10);
+    }
+
+    @Test
+    void aBoundValueChangeRunsTheTransition() {
+        Fill m = new Fill();
+        UiDocument doc = UiDocument.load("<div class=\"box\" bind:style:width=\"width\"></div>", "t.html",
+                List.of(new UiDocument.CssSource(
+                        ".box { height: 10px; background-color: #fff; transition: width 100ms linear }", "t.css")),
+                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
+        doc.clock(() -> nowMs * 1_000_000);
+        assertEquals("rect 0 0 10 10 #FFFFFFFF", frameAt(doc, 0));
+
+        m.width.set(30);
+        assertEquals("rect 0 0 10 10 #FFFFFFFF", frameAt(doc, 0));
+        assertEquals("rect 0 0 20 10 #FFFFFFFF", frameAt(doc, 50));
+        assertEquals("rect 0 0 30 10 #FFFFFFFF", frameAt(doc, 100));
     }
 
     @Test

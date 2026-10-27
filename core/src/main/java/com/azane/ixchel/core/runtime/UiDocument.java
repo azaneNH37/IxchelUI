@@ -98,7 +98,7 @@ public final class UiDocument {
         for (Node n : t.roots()) {
             root.appendChild(n);
         }
-        Bindings bindings = Bindings.compile(root, model, textOf, tags, diag);
+        Bindings bindings = Bindings.compile(root, model, textOf, tags, CssProperties.REGISTRY, diag);
         Transitions transitions = new Transitions(CssProperties.REGISTRY, root);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, compiled, diag, transitions);
         style.restyle(root);
@@ -114,8 +114,8 @@ public final class UiDocument {
 
     /**
      * Load warnings, plus problems found after load: inline styles compiled on first use, derived
-     * values that threw (the binding keeps its last value), and background images that could not be
-     * sized or tiled when painted.
+     * values that threw and invalid {@code bind:style:*} values (the binding keeps its last value), and
+     * background images that could not be sized or tiled when painted.
      */
     public Diagnostics diagnostics() {
         return diagnostics;

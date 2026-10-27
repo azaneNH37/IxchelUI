@@ -47,7 +47,8 @@ public final class Syntaxes {
 
     /**
      * A length in {@code px} (unitless {@code 0} allowed), optionally also a percentage and {@code auto}.
-     * Interpolates between two lengths of the same unit; {@code auto} and mixed units do not.
+     * Interpolates between two lengths of the same unit; {@code auto} and mixed units do not. A
+     * number from code is px.
      */
     public static Syntax<Length> length(boolean percent, boolean auto, boolean negative) {
         return interpolating((value, pos, diag) -> {
@@ -59,7 +60,7 @@ public final class Syntaxes {
             }
             float v = mix(a.value(), b.value(), p);
             return new Length(negative ? v : Math.max(0, v), a.unit());
-        });
+        }, "px");
     }
 
     public static Syntax<Float> number(boolean negative) {
@@ -80,7 +81,7 @@ public final class Syntaxes {
         }, (a, b, p) -> {
             float v = mix(a, b, p);
             return negative ? v : Math.max(0, v);
-        });
+        }, "");
     }
 
     /**
@@ -91,7 +92,7 @@ public final class Syntaxes {
         return interpolating((value, pos, diag) -> {
             ComponentValue v = single(value, pos, diag);
             return v == null ? null : colorOf(v, diag);
-        }, Syntaxes::mixColor);
+        }, Syntaxes::mixColor, null);
     }
 
     /** A {@code <time>} in seconds, written with {@code s} or {@code ms}. */
@@ -253,7 +254,8 @@ public final class Syntaxes {
         T mix(T from, T to, float p);
     }
 
-    private static <T> Syntax<T> interpolating(Syntax<T> parser, Mixer<T> mixer) {
+    /** {@code numberUnit} as in {@link Syntax#numberUnit()}. */
+    private static <T> Syntax<T> interpolating(Syntax<T> parser, Mixer<T> mixer, String numberUnit) {
         return new Syntax<>() {
             @Override
             public T parse(List<ComponentValue> value, SourcePos pos, Diagnostics diag) {
@@ -263,6 +265,11 @@ public final class Syntaxes {
             @Override
             public T interpolate(T from, T to, float p) {
                 return mixer.mix(from, to, p);
+            }
+
+            @Override
+            public String numberUnit() {
+                return numberUnit;
             }
         };
     }

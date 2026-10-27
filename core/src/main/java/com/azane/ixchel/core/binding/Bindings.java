@@ -1,11 +1,20 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.css.property.PropertyDef;
+import com.azane.ixchel.core.css.property.PropertyRegistry;
+import com.azane.ixchel.core.css.property.Shorthand;
+import com.azane.ixchel.core.css.syntax.ComponentValue;
+import com.azane.ixchel.core.css.syntax.CssParser;
+import com.azane.ixchel.core.css.syntax.Token;
+import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.Diagnostics;
+import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.BindAttribute;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.UiEvent;
+import com.azane.ixchel.core.style.Declarations;
 import com.azane.ixchel.core.template.TagRegistry;
 
 import java.lang.invoke.MethodHandle;
@@ -20,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -34,6 +44,8 @@ import java.util.function.Function;
  * <div bind:class:empty="isEmpty"></div>    <!-- Boolean toggles a class; '!' negates -->
  * <img bind:src="icon"/>                    <!-- value as a plain attribute -->
  * <item bind:item="gun"></item>              <!-- host object as a native element's payload -->
+ * <div bind:style:width="xpPercent"></div>  <!-- one longhand: a String in its CSS syntax ("37.5%"),
+ *                                                a Number as px or a plain number, null to unset -->
  * <span bind:text="selected.name"></span>   <!-- path: record components, read when the record changes -->
  * <div bind:class:busy="reload.pending"></div>  <!-- an action's pending / error -->
  * <div on:click="reload"></div>             <!-- runs an action; the event counts as handled -->
@@ -45,6 +57,12 @@ import java.util.function.Function;
  *
  * Expressions are a path with an optional {@code !}; anything more goes into a {@link Derived}. Every
  * name, record component and type is checked at load.
+ *
+ * <p>A {@code bind:style:<property>} value is an inline declaration of that property: it overrides
+ * stylesheet rules (except {@code !important} ones) and replaces the {@code style} attribute's
+ * declaration of the same property, and its changes run transitions like any style change. The
+ * property must be a supported longhand; a Number is only taken by length (px) and number properties.
+ * An invalid value keeps the last valid one and is reported once until a valid value arrives.
  */
 public final class Bindings {
     /** Converts a bound value to text: {@code null} is empty, everything else {@link String#valueOf}. */
@@ -64,12 +82,13 @@ public final class Bindings {
      * the attribute's position; block contents are checked even while not mounted. A template with
      * bindings or handlers needs a model.
      *
-     * @param model  the view model, or {@code null} for a template without bindings
-     * @param textOf converts bound values for {@code bind:text} and attribute bindings
+     * @param model      the view model, or {@code null} for a template without bindings
+     * @param textOf     converts bound values for {@code bind:text} and attribute bindings
+     * @param properties the properties {@code bind:style:*} may set
      */
     public static Bindings compile(Element root, ViewModel model, Function<Object, String> textOf,
-                                   TagRegistry tags, Diagnostics diag) {
-        Compiler c = new Compiler(model, textOf, tags, diag);
+                                   TagRegistry tags, PropertyRegistry properties, Diagnostics diag) {
+        Compiler c = new Compiler(model, textOf, tags, properties, diag);
         Group group = new Group();
         c.collect(root, group);
         Bindings b = new Bindings(model, group);
@@ -124,15 +143,18 @@ public final class Bindings {
         private final Map<String, Field> fields;
         private final Function<Object, String> textOf;
         private final TagRegistry tags;
+        private final PropertyRegistry properties;
         private final Diagnostics diag;
         /** {@code as} names visible to the subtree being compiled. */
         private Map<String, Ref> aliases = Map.of();
 
-        Compiler(ViewModel model, Function<Object, String> textOf, TagRegistry tags, Diagnostics diag) {
+        Compiler(ViewModel model, Function<Object, String> textOf, TagRegistry tags, PropertyRegistry properties,
+                 Diagnostics diag) {
             this.model = model;
             this.fields = model == null ? Map.of() : modelFields(model.getClass());
             this.textOf = textOf;
             this.tags = tags;
+            this.properties = properties;
             this.diag = diag;
         }
 
@@ -320,9 +342,12 @@ public final class Bindings {
                 }
                 return new ClassBinding(ref.cell, negate, a, diag, e, cls);
             }
+            if (target.startsWith("style:")) {
+                return styleBinding(e, a, ref, negate);
+            }
             switch (target) {
                 case "class" -> diag.error(a.namePos(), "bind:class takes a class name: bind:class:<name>");
-                case "style" -> diag.error(a.namePos(), "bind:style is not supported; toggle a class instead");
+                case "style" -> diag.error(a.namePos(), "bind:style takes a property name: bind:style:<property>");
                 default -> {
                     if (target.indexOf(':') >= 0 || !tags.isAllowedAttribute(e.tag(), target)) {
                         diag.error(a.namePos(), "unknown binding target '" + a.name() + "' on <" + e.tag() + ">");
@@ -332,6 +357,38 @@ public final class Bindings {
                 }
             }
             return null;
+        }
+
+        /** {@code bind:style:<longhand>} with a String, Number or Object path. */
+        private Binding styleBinding(Element e, BindAttribute a, Ref ref, boolean negate) {
+            String name = a.name().substring("bind:style:".length()).toLowerCase(Locale.ROOT);
+            PropertyDef<?> property = properties.byName(name);
+            if (property == null) {
+                Shorthand shorthand = properties.shorthand(name);
+                if (shorthand == null) {
+                    diag.error(a.namePos(), "unsupported property '" + name + "' in '" + a.name() + "'");
+                } else {
+                    List<String> longhands = new ArrayList<>();
+                    for (PropertyDef<?> l : shorthand.longhands()) {
+                        longhands.add(l.name());
+                    }
+                    diag.error(a.namePos(), "'" + name + "' is a shorthand; bind its longhands instead: "
+                            + String.join(", ", longhands));
+                }
+                return null;
+            }
+            Class<?> raw = box(rawClass(ref.type));
+            boolean number = Number.class.isAssignableFrom(raw);
+            if (negate || !(number || raw == String.class || raw == Object.class)) {
+                diag.error(a.valuePos(), "'" + a.name() + "' takes a String or a Number, but '" + a.value().trim()
+                        + "' is " + (negate ? "a Boolean" : ref.type.getTypeName()));
+                return null;
+            }
+            if (number && property.syntax().numberUnit() == null) {
+                diag.error(a.valuePos(), "'" + name + "' takes no plain numbers; bind a String with its CSS value");
+                return null;
+            }
+            return new StyleBinding(ref.cell, a, diag, e, property);
         }
 
         /** {@code on:<event>="action"} or {@code on:<event>="action(path)"}. */
@@ -833,8 +890,8 @@ public final class Bindings {
     private abstract static class Binding implements Part {
         private final Cell<?> cell;
         private final boolean negate;
-        private final BindAttribute attribute;
-        private final Diagnostics diag;
+        final BindAttribute attribute;
+        final Diagnostics diag;
         private boolean failing;
 
         Binding(Cell<?> cell, boolean negate, BindAttribute attribute, Diagnostics diag) {
@@ -954,6 +1011,94 @@ public final class Bindings {
             }
             element.setPayload(value);
             return true;
+        }
+    }
+
+    /**
+     * {@code bind:style:<property>}: writes the element's bound value of one longhand. An unchanged
+     * value is not parsed again; an invalid one keeps the last valid value and is reported once
+     * until a valid value arrives.
+     */
+    private static final class StyleBinding extends Binding {
+        private static final Object NONE = new Object();
+        private final Element element;
+        private final PropertyDef<?> property;
+        private Object last = NONE;
+        private boolean invalid;
+
+        StyleBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element, PropertyDef<?> property) {
+            super(cell, false, a, diag);
+            this.element = element;
+            this.property = property;
+        }
+
+        @Override
+        boolean write(Object value) {
+            if (Objects.equals(value, last)) {
+                return false;
+            }
+            last = value;
+            Object parsed = null;
+            if (value != null) {
+                Diagnostics problems = new Diagnostics();
+                parsed = parse(value, problems);
+                if (parsed == null) {
+                    if (!invalid) {
+                        invalid = true;
+                        diag.error(attribute.valuePos(), "'" + attribute.value() + "' gave " + describe(value)
+                                + " for '" + property.name() + "': " + firstError(problems));
+                    }
+                    return false;
+                }
+            }
+            invalid = false;
+            if (Objects.equals(parsed, element.boundStyle().get(property))) {
+                return false;
+            }
+            element.setBoundStyle(property, parsed);
+            return true;
+        }
+
+        /** The property's value or a CSS-wide keyword; {@code null} after reporting to {@code problems}. */
+        private Object parse(Object value, Diagnostics problems) {
+            SourcePos pos = attribute.valuePos();
+            if (value instanceof String s) {
+                List<ComponentValue> css = CssParser.parseValue(s, pos, problems);
+                return problems.hasErrors() ? null : Declarations.value(property, css, pos, problems);
+            }
+            if (value instanceof Number n) {
+                String unit = property.syntax().numberUnit();
+                double d = n.doubleValue();
+                if (unit == null) {
+                    problems.error(pos, "this property takes no plain numbers; give a String with its CSS value");
+                    return null;
+                }
+                if (!Double.isFinite(d)) {
+                    problems.error(pos, "not a finite number");
+                    return null;
+                }
+                Token t = unit.isEmpty() ? new Token(Token.Kind.NUMBER, "", d, "", pos)
+                        : new Token(Token.Kind.DIMENSION, "", d, unit, pos);
+                return property.syntax().parse(List.of(t), pos, problems);
+            }
+            problems.error(pos, "expected a String or a Number");
+            return null;
+        }
+
+        private static String describe(Object value) {
+            if (value instanceof String s) {
+                return "'" + s + "'";
+            }
+            return value instanceof Number ? value.toString() : "a " + value.getClass().getName();
+        }
+
+        private static String firstError(Diagnostics problems) {
+            for (Diagnostic d : problems.entries()) {
+                if (d.severity() == Diagnostic.Severity.ERROR) {
+                    return d.message();
+                }
+            }
+            throw new IllegalStateException("no error reported");
         }
     }
 }

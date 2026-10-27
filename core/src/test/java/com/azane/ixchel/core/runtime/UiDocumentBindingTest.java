@@ -128,7 +128,7 @@ class UiDocumentBindingTest {
         assertTrue(m.contains("t.html:2:20:") && m.contains("needs a Boolean"), m);
         assertTrue(m.contains("t.html:3:17:") && m.contains("java.lang.String is not a record"), m);
         assertTrue(m.contains("t.html:4:7:") && m.contains("leave it empty"), m);
-        assertTrue(m.contains("t.html:5:6:") && m.contains("toggle a class"), m);
+        assertTrue(m.contains("t.html:5:6:") && m.contains("bind:style takes a property name: bind:style:<property>"), m);
         assertTrue(m.contains("t.html:6:6:") && m.contains("unknown binding target 'bind:title'"), m);
 
         UiLoadException none = assertThrows(UiLoadException.class,
@@ -337,5 +337,93 @@ class UiDocumentBindingTest {
         assertTrue(m.contains("t.html:6:33:") && m.contains("cannot share an element"), m);
         assertTrue(m.contains("t.html:7:33:") && m.contains("'nope' is not a field"), m);
         assertTrue(m.contains("t.html:8:55:") && m.contains("Row has no component 'missing'"), m);
+    }
+
+    static final class Bars extends ViewModel {
+        final Value<Object> width = state("40%");
+        final Value<Integer> left = state(5);
+        final Value<String> tint = state("#f00");
+    }
+
+    @Test
+    void boundStyleTakesCssTextAndNumbersOverridesTheCascadeAndNullFallsBack() {
+        Bars m = new Bars();
+        UiDocument doc = load("<div class=\"fill\" style=\"width: 50px !important; height: 4px\" bind:style:width=\"width\""
+                + " bind:style:left=\"left\" bind:style:background-color=\"tint\"></div>",
+                ".fill { width: 10px; left: 1px; background-color: #00f }", m);
+        assertEquals("rect 5 0 40 4 #FFFF0000", GoldenTest.print(doc.frame(100, 100)));
+
+        m.width.set(20);
+        assertEquals("rect 5 0 20 4 #FFFF0000", GoldenTest.print(doc.frame(100, 100)));
+        m.width.set(25.0);
+        m.left.set(12);
+        assertEquals("rect 12 0 25 4 #FFFF0000", GoldenTest.print(doc.frame(100, 100)));
+
+        m.width.set(null);
+        m.left.set(null);
+        m.tint.set(null);
+        assertEquals("rect 1 0 50 4 #FF0000FF", GoldenTest.print(doc.frame(100, 100)));
+        assertEquals(0, doc.diagnostics().errorCount());
+    }
+
+    static final class Widths extends ViewModel {
+        final Value<String> width = state("20px");
+        final Value<Object> tint = state("#fff");
+    }
+
+    @Test
+    void anInvalidBoundValueKeepsTheLastValidOneAndIsReportedOnceUntilItRecovers() {
+        Widths m = new Widths();
+        UiDocument doc = load("<div style=\"height: 4px\" bind:style:width=\"width\" bind:style:background-color=\"tint\"></div>",
+                "", m);
+        assertEquals("rect 0 0 20 4 #FFFFFFFF", GoldenTest.print(doc.frame(100, 100)));
+
+        m.width.set("wide");
+        assertEquals("rect 0 0 20 4 #FFFFFFFF", GoldenTest.print(doc.frame(100, 100)));
+        m.width.set("30 px");
+        doc.frame(100, 100);
+        assertEquals(1, doc.diagnostics().errorCount());
+        assertEquals("t.html:1:44: error: 'width' gave 'wide' for 'width': expected a length in px, a percentage or auto",
+                doc.diagnostics().entries().get(0).toString());
+
+        m.width.set("30px");
+        assertEquals("rect 0 0 30 4 #FFFFFFFF", GoldenTest.print(doc.frame(100, 100)));
+        m.width.set("-5px");
+        m.tint.set(7);
+        assertEquals("rect 0 0 30 4 #FFFFFFFF", GoldenTest.print(doc.frame(100, 100)));
+        m.tint.set(true);
+        doc.frame(100, 100);
+        assertEquals(3, doc.diagnostics().errorCount());
+        assertTrue(doc.diagnostics().entries().get(1).message().contains("negative value not allowed"));
+        assertTrue(doc.diagnostics().entries().get(2).message().contains("gave 7 for 'background-color': this property takes no plain numbers"));
+    }
+
+    static final class Styled extends ViewModel {
+        final Value<String> w = state("1px");
+        final Value<Boolean> flag = state(true);
+        final Value<Integer> n = state(1);
+        final Value<String> bad = state("x y");
+    }
+
+    @Test
+    void loadReportsBadStyleBindingsWithTheirPositions() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
+                <div bind:style:wdth="w"></div>
+                <div bind:style:margin="w"></div>
+                <div bind:style:width="flag"></div>
+                <div bind:style:color="n"></div>
+                """, "", new Styled()));
+        String m = e.getMessage();
+        assertTrue(m.startsWith("4 errors"), m);
+        assertTrue(m.contains("t.html:1:6:") && m.contains("unsupported property 'wdth'"), m);
+        assertTrue(m.contains("t.html:2:6:") && m.contains("'margin' is a shorthand; bind its longhands instead: "
+                + "margin-top, margin-right, margin-bottom, margin-left"), m);
+        assertTrue(m.contains("t.html:3:24:") && m.contains("takes a String or a Number, but 'flag' is java.lang.Boolean"), m);
+        assertTrue(m.contains("t.html:4:24:") && m.contains("'color' takes no plain numbers"), m);
+
+        UiLoadException initial = assertThrows(UiLoadException.class,
+                () -> load("<div bind:style:width=\"bad\"></div>", "", new Styled()));
+        assertTrue(initial.getMessage().contains("t.html:1:24:")
+                && initial.getMessage().contains("'bad' gave 'x y' for 'width': expected a single value"), initial.getMessage());
     }
 }

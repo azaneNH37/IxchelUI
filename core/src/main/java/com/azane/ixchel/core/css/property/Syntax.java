@@ -23,4 +23,12 @@ public interface Syntax<T> {
     default T interpolate(T from, T to, float p) {
         return null;
     }
+
+    /**
+     * The unit a plain number from code (a {@code bind:style:*} value) stands for: {@code "px"} for
+     * lengths, {@code ""} for numbers. {@code null}, the default, when the syntax takes no such numbers.
+     */
+    default String numberUnit() {
+        return null;
+    }
 }
