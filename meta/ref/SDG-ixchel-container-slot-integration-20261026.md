@@ -162,9 +162,9 @@ UiContainerScreen.builder(menu, template)
 | 步骤 | 内容 | 证明 |
 |---|---|---|
 | L0（已完成） | JVM 探针：final 字段反射写入、JIT、record | Java 17/21 语义与开销 |
-| L1（已完成） | 两个 testmod 各一个“槽位随布局移动”的测试 Screen（`testmod/*/…/probe/`，K 打开）：打印模块开放；悬停、点击、Shift、拖拽分发、双击收集、数字键、界面外丢弃；1.20.1 零面积裁剪、追加按钮可见性、覆盖层与手持物品的 z 顺序、重复绘制耗时 | 模块访问；vanilla 交互跟随新坐标（镜像与持续移动两种布局均跟随）；§3、§5 已按实测更新 |
-| L2 | 同一 Screen 装 JEI、EMI/REI、Mouse Tweaks | §6 静态分析结论 |
-| L3 | Forge 1.20.1 宿主 reobf + shade 后在真实启动器实例运行 | SRG 名查找；与 SD §11 第 3 步配方验证合并 |
+| L1（已完成） | 两个开发宿主各一个“槽位随布局移动”的测试 Screen（`sample/forge-1.20.1` 与 `testmod/neoforge-1.21.1` 的 `probe/`，K 打开）：打印模块开放；悬停、点击、Shift、拖拽分发、双击收集、数字键、界面外丢弃；1.20.1 零面积裁剪、追加按钮可见性、覆盖层与手持物品的 z 顺序、重复绘制耗时 | 模块访问；vanilla 交互跟随新坐标（镜像与持续移动两种布局均跟随）；§3、§5 已按实测更新 |
+| L2（已完成，Forge 1.20.1） | 背包改装界面装 JEI 或 EMI，均加 Mouse Tweaks（`-Pslotcompat=jei\|emi -Pbench=backpack`），含真实光标悬停检查；REI 未跑 | §6 静态分析结论 |
+| L3（已完成） | shade-a（relocate + reobf）在生产实例中以 `IXCHEL` 绘制打开玩家背包的 `UiContainerScreen`，真实点击移动物品，关闭后检查槽位坐标已还原（`ContainerCheck`，`-Dixchelshadea.check=container`） | `Slot.x/y` 与 `Screen.renderables` 的 SRG 名查找 |
 | L4（可选） | JDK 26 启动 | JEP 500 告警形态与归属模块 |
 
 ### 9. 已定与后续

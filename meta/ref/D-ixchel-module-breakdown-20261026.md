@@ -151,7 +151,7 @@ L3 前需核实启动器运行时是否包含 `jdk.httpserver` 模块。
 | M2（已完成，ImmediatelyFast 共存移到 M4） | mc 1.20.1：McPainter、文本、HUD 宿主；binding 最小集（来源、派生、文本/属性绑定） | 游戏内显示随实际弹量变化的弹药 HUD；帧耗时对比；与 Iris、ImmediatelyFast 共存 |
 | M3（已完成） | 事件、binding 其余部分（`action`、`each`/`if`、`Scope`）、`UiScreen`：Z 键改装 | 与手写原版对比（见绑定文档 §7） |
 | M4（已完成） | shade 配方与 NeoForge 1.21.1 对齐最小集 | 两个不同版本副本共存；1.21.1 跑同一验收模板；生产环境与 ImmediatelyFast 共存 |
-| M5 | `UiContainerScreen` 与 Slot 通道：背包式改装 | vanilla 物品事务行为不变；`ref/SDG-ixchel-container-slot-integration-20261026.md` §8 的 L1–L3 通过 |
+| M5（已完成） | `UiContainerScreen` 与 Slot 通道：背包式改装 | vanilla 物品事务行为不变；`ref/SDG-ixchel-container-slot-integration-20261026.md` §8 的 L1–L3 通过 |
 
 #### 实现顺序
 
@@ -235,6 +235,8 @@ M4 NeoForge 1.21.1（2026-10-27，`gradlew :testmod-neoforge-1.21.1:runClient`�
 - 1.21.1 的 `Screen.renderBackground` 自带模糊，所以改装界面背后是模糊的世界，这与 1.20.1 不同，由原版行为决定。
 
 M5：按槽位文档推进：反射写坐标与 `isHovering` 覆写 → `UiContainerScreen`（`VANILLA` 绘制）→ Slot 通道（轮询比较）→ 第三方 mod 兼容（L2）→ `IXCHEL` 绘制开关（#009）→ 生产环境 SRG 验证（L3）。
+
+M5 结果（2026-10-27）：`UiContainerScreen` + `<item-slot>` + 背包式改装（#32）；L2 在 `-Pslotcompat=jei|emi` 下由 `-Pbench=backpack` 跑，含真实光标悬停检查（#33）；`IXCHEL` 绘制逐槽裁剪、槽位随滚动移动（#34）；关闭时还原槽位坐标，L3 由 shade-a 的 `ContainerCheck`（`-Dixchelshadea.check=container`）在生产实例跑（#35）。详见槽位文档 §8。
 
 提前探针（只用 mc 层 + testmod，不依赖 core，可在 M2 期间做）：槽位文档 §8 的 L1，验证 ModLauncher 下 `Slot` 包对反射开放、`isHovering` 覆写生效、1.20.1 零面积裁剪。失败会推翻 #008 或 #009，不应拖到 M5。
 
