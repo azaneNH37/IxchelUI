@@ -57,3 +57,22 @@ if (providers.gradleProperty("compat").isPresent) {
         "modRuntimeOnly"("maven.modrinth:oculus:1.20.1-1.8.0")
     }
 }
+
+// M5 slot compatibility (L2): `-Pslotcompat=jei` loads JEI and Mouse Tweaks, `-Pslotcompat=emi` loads EMI
+// and Mouse Tweaks, next to the backpack refit (`-Pbench=backpack`).
+val slotCompat = providers.gradleProperty("slotcompat")
+if (slotCompat.isPresent) {
+    repositories {
+        maven("https://api.modrinth.com/maven") {
+            content { includeGroup("maven.modrinth") }
+        }
+    }
+    dependencies {
+        "modRuntimeOnly"("maven.modrinth:mouse-tweaks:1.20.1-2.25.1-forge")
+        when (slotCompat.get()) {
+            "jei" -> "modRuntimeOnly"("maven.modrinth:jei:15.74.0.230")
+            "emi" -> "modRuntimeOnly"("maven.modrinth:emi:1.1.24+1.20.1+forge")
+            else -> throw GradleException("slotcompat must be jei or emi")
+        }
+    }
+}

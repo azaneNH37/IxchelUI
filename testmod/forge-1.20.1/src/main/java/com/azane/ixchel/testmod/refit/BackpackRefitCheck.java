@@ -2,6 +2,7 @@ package com.azane.ixchel.testmod.refit;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.MouseHandler;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.server.MinecraftServer;
@@ -15,6 +16,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import org.slf4j.Logger;
 
+import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.UUID;
@@ -55,6 +57,13 @@ final class BackpackRefitCheck {
             checkLayout();
             shot("backpack-open");
         });
+        // Hover through the real cursor, as vanilla, JEI and EMI read it during render: the sticks slot.
+        step(5, () -> hover(hotbar(STICKS)));
+        step(10, () -> {
+            expectClient("sticks slot is hovered", s -> s.getSlotUnderMouse() == s.getMenu().slots.get(hotbar(STICKS)));
+            shot("backpack-hover");
+        });
+        step(5, () -> hoverAt(0, 0));
         // Place one iron bars from the hotbar into the muzzle slot, put the rest back.
         step(5, () -> click(hotbar(BARS), 0));
         step(5, () -> click(MUZZLE, 0));
@@ -170,11 +179,35 @@ final class BackpackRefitCheck {
     }
 
     private static void shiftClick(int slotIndex) {
-        // Vanilla reads Shift from the window; hold it for the press.
+        // Sent as a packet: vanilla reads Shift from the window, which an unattended run cannot hold.
         Slot slot = screen().getMenu().slots.get(slotIndex);
         Minecraft mc = Minecraft.getInstance();
         mc.gameMode.handleInventoryMouseClick(screen().getMenu().containerId, slot.index, 0,
                 net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
+    }
+
+    private static void hover(int slotIndex) {
+        Slot slot = screen().getMenu().slots.get(slotIndex);
+        hoverAt(left() + slot.x + 8, top() + slot.y + 8);
+    }
+
+    /**
+     * Sets the cursor position vanilla hands to {@code render}. The window is not focused in an
+     * unattended run, so moving the OS cursor does not reach the game; the dev run has mojmap names.
+     */
+    private static void hoverAt(double x, double y) {
+        Minecraft mc = Minecraft.getInstance();
+        double scale = mc.getWindow().getGuiScale();
+        try {
+            Field xpos = MouseHandler.class.getDeclaredField("xpos");
+            Field ypos = MouseHandler.class.getDeclaredField("ypos");
+            xpos.setAccessible(true);
+            ypos.setAccessible(true);
+            xpos.setDouble(mc.mouseHandler, x * scale);
+            ypos.setDouble(mc.mouseHandler, y * scale);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static void clickAt(double x, double y) {
