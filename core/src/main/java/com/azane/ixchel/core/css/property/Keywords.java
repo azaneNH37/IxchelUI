@@ -20,6 +20,14 @@ public final class Keywords {
 
     public enum JustifyContent { FLEX_START, FLEX_END, CENTER, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY }
 
-    /** {@code hidden} clips to the padding box; there is no scrolling. */
-    public enum Overflow { VISIBLE, HIDDEN }
+    /**
+     * Every value but {@code visible} makes a scroll container: it clips its descendants to its border
+     * box (there are no borders, so that is the padding box), its automatic minimum size as a flex
+     * item is 0, and its content can be moved by a vertical scroll offset ({@link
+     * com.azane.ixchel.core.dom.Element#scrollTop()}). The wheel scrolls only {@code auto} and
+     * {@code scroll}; {@code hidden} scrolls programmatically. {@code scroll} always draws a scrollbar
+     * track and thumb, {@code auto} draws a thumb only while the content overflows. Content that
+     * overflows horizontally is clipped but cannot be scrolled.
+     */
+    public enum Overflow { VISIBLE, HIDDEN, SCROLL, AUTO }
 }

@@ -30,7 +30,8 @@ import java.util.function.LongSupplier;
 /**
  * One loaded UI: template tree under an implicit viewport-sized root, its styles, bindings, and the
  * per-frame pipeline bindings → transitions → style → layout → paint. A frame in which nothing
- * changed and no transition runs does no work and keeps the previous {@link DisplayList}.
+ * changed and no transition runs does no work and keeps the previous {@link DisplayList}; one in
+ * which only {@linkplain Element#setScrollTop scroll offsets} changed repaints without style or layout.
  */
 public final class UiDocument {
     /** A stylesheet file; {@code file} is used in error positions. */
@@ -50,6 +51,8 @@ public final class UiDocument {
     private float viewportWidth = Float.NaN;
     private float viewportHeight = Float.NaN;
     private boolean textInvalidated;
+    /** Frames that ran style and layout; observed by tests. */
+    int pipelineRuns;
 
     private UiDocument(Element root, Diagnostics diagnostics, StyleEngine style, LayoutEngine layout, Bindings bindings,
                        TagRegistry tags, Transitions transitions) {
@@ -140,11 +143,16 @@ public final class UiDocument {
                 || root.isStyleDirty() || root.hasStyleDirtyDescendant() || root.hasTreeChange()
                 || viewportWidth != this.viewportWidth || viewportHeight != this.viewportHeight;
         if (!dirty) {
+            if (root.needsRepaint()) {
+                painter.paint(root, displayList);
+                events.afterLayout();
+            }
             return displayList;
         }
         this.viewportWidth = viewportWidth;
         this.viewportHeight = viewportHeight;
         textInvalidated = false;
+        pipelineRuns++;
         style.restyle(root);
         layout.layout(root, viewportWidth, viewportHeight);
         painter.paint(root, displayList);

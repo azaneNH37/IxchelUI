@@ -15,8 +15,14 @@ import java.util.List;
  * bubble dispatch, the {@code :hover} / {@code :active} / {@code :focus} state bits, and focus.
  *
  * <p>Hit testing follows paint order: a later sibling paints on top and wins; {@code display: none}
- * subtrees are skipped and {@code overflow: hidden} clips its descendants. Text is not a target.
- * {@code :hover} and {@code :active} cover the target and its ancestors, as in CSS.
+ * subtrees are skipped and scroll containers ({@code overflow} other than {@code visible}) clip their
+ * descendants and move them up by their {@link Element#scrollTop()}, as paint does. Text is not a
+ * target. {@code :hover} and {@code :active} cover the target and its ancestors, as in CSS.
+ *
+ * <p>Wheel default action: a wheel event no listener {@linkplain UiEvent#consume() consumed} scrolls
+ * the nearest {@code overflow: auto} or {@code scroll} element at or above the target that can still
+ * move that way, by {@link #WHEEL_STEP} (18) GUI pixels, two lines of vanilla text, per wheel unit; at its
+ * limit the scroll goes to the next such ancestor. Hover is then re-tested under the pointer.
  *
  * <p>An element is focusable when it has a {@code tabindex} attribute. Pressing a mouse button focuses
  * the nearest focusable element under the pointer, or clears focus; Tab and Shift+Tab move focus in
@@ -27,6 +33,9 @@ import java.util.List;
  * otherwise. Client thread only.
  */
 public final class EventDispatcher {
+    /** GUI pixels scrolled per unit of wheel delta (one notch of a usual mouse wheel). */
+    public static final float WHEEL_STEP = 18;
+
     private final Element root;
     private final List<Element> hovered = new ArrayList<>();
     private final List<Element> active = new ArrayList<>();
@@ -100,7 +109,14 @@ public final class EventDispatcher {
         Element target = hitTest(x, y);
         UiEvent e = UiEvent.wheel(target, x, y, delta);
         dispatch(e);
-        return target != root || e.isConsumed();
+        if (e.isConsumed()) {
+            return true;
+        }
+        if (scroll(target, (float) -delta * WHEEL_STEP)) {
+            setStatePath(hovered, hitTest(x, y), Element.HOVER);
+            return true;
+        }
+        return target != root;
     }
 
     public boolean keyPressed(int key, int modifiers) {
@@ -127,8 +143,9 @@ public final class EventDispatcher {
     }
 
     /**
-     * Called after a layout pass: elements may have moved under a still pointer or left the tree, so
-     * hover is re-tested and detached elements lose focus and press state.
+     * Called after a layout pass or a repaint for a scroll offset change: elements may have moved under
+     * a still pointer or left the tree, so hover is re-tested and detached elements lose focus and
+     * press state.
      */
     public void afterLayout() {
         if (focused != null && !isConnected(focused)) {
@@ -162,25 +179,42 @@ public final class EventDispatcher {
         }
     }
 
+    /** {@code (x, y)} in the coordinates {@code e} is laid out in, i.e. undone by the scroll offsets above it. */
     private static Element hit(Element e, float x, float y) {
         if (e.computed() == null || e.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE) {
             return null;
         }
         LayoutBox b = e.box();
         boolean inside = x >= b.x() && y >= b.y() && x < b.x() + b.width() && y < b.y() + b.height();
-        if (!inside && e.computed().get(CssProperties.OVERFLOW) == Keywords.Overflow.HIDDEN) {
+        if (!inside && e.computed().get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE) {
             return null;
         }
+        float childY = y + e.scrollTop();
         List<Node> children = e.children();
         for (int i = children.size() - 1; i >= 0; i--) {
             if (children.get(i) instanceof Element c) {
-                Element h = hit(c, x, y);
+                Element h = hit(c, x, childY);
                 if (h != null) {
                     return h;
                 }
             }
         }
         return inside ? e : null;
+    }
+
+    /** Scrolls the nearest wheel-scrollable element from {@code from} up that moves by {@code dy}; whether one did. */
+    private static boolean scroll(Element from, float dy) {
+        for (Element a = from; a != null; a = a.parent()) {
+            Keywords.Overflow o = a.computed() == null ? Keywords.Overflow.VISIBLE : a.computed().get(CssProperties.OVERFLOW);
+            if (o == Keywords.Overflow.AUTO || o == Keywords.Overflow.SCROLL) {
+                float before = a.scrollTop();
+                a.setScrollTop(before + dy);
+                if (a.scrollTop() != before) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Sets {@code bit} on {@code target} and its ancestors below the root, clearing it on {@code current} elsewhere. */

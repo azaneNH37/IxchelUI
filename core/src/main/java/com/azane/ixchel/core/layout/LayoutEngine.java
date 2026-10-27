@@ -254,20 +254,49 @@ public final class LayoutEngine {
         return Float.floatToIntBits(a) == Float.floatToIntBits(b);
     }
 
-    private void writeBoxes(Node node, float parentX, float parentY) {
+    /**
+     * Writes the boxes of {@code node}'s subtree and returns the bottom edge, in document coordinates,
+     * of what it adds to an ancestor scroll container's scrollable overflow: its border box, extended by
+     * its descendants' unless it clips them. A scroll container's own range covers the margin boxes of
+     * its in-flow children plus its bottom padding (as browsers do for flex containers), and every
+     * descendant's contribution; {@code display: none} children add nothing.
+     */
+    private float writeBoxes(Node node, float parentX, float parentY) {
         Slot slot = slots.get(node);
         Layout l = tree.getLayout(slot.id);
         float x = parentX + l.location().x;
         float y = parentY + l.location().y;
+        float bottom = y + l.size().height;
         node.box().set(x, y, l.size().width, l.size().height);
         if (node instanceof TextNode) {
             slot.contentWidth = tree.getUnroundedLayout(slot.id).contentBoxWidth();
             slot.shaped = shaper.shape(slot.text, slot.fontSize, slot.contentWidth);
-        } else {
-            for (Node c : ((Element) node).children()) {
-                writeBoxes(c, x, y);
+            return bottom;
+        }
+        Element e = (Element) node;
+        float overflowEnd = bottom;
+        float inFlowEnd = y;
+        List<Node> children = e.children();
+        for (int i = 0; i < children.size(); i++) {
+            Node c = children.get(i);
+            float end = writeBoxes(c, x, y);
+            ComputedStyle ccs = c instanceof Element ce ? ce.computed() : null;
+            if (ccs != null && ccs.get(CssProperties.DISPLAY) == Keywords.Display.NONE) {
+                continue;
+            }
+            overflowEnd = Math.max(overflowEnd, end);
+            if (ccs == null || ccs.get(CssProperties.POSITION) != Keywords.Position.ABSOLUTE) {
+                float marginBottom = tree.getLayout(slots.get(c).id).margin().bottom;
+                inFlowEnd = Math.max(inFlowEnd, c.box().y() + c.box().height() + marginBottom);
             }
         }
+        ComputedStyle cs = e.computed();
+        if (cs == null || cs.get(CssProperties.OVERFLOW) == Keywords.Overflow.VISIBLE) {
+            e.setMaxScrollTop(0);
+            return overflowEnd;
+        }
+        e.setMaxScrollTop(Math.max(overflowEnd, inFlowEnd + l.padding().bottom) - bottom);
+        return bottom;
     }
 
     private static TaffyStyle rootStyle(float w, float h) {
@@ -304,8 +333,12 @@ public final class LayoutEngine {
         s.alignSelf = AlignItems.valueOf(cs.get(CssProperties.ALIGN_SELF).name());
         s.justifyContent = AlignContent.valueOf(cs.get(CssProperties.JUSTIFY_CONTENT).name());
         s.gap = TaffySize.of(lp(cs.get(CssProperties.COLUMN_GAP)), lp(cs.get(CssProperties.ROW_GAP)));
-        Overflow o = cs.get(CssProperties.OVERFLOW) == Keywords.Overflow.HIDDEN ? Overflow.HIDDEN : Overflow.VISIBLE;
-        s.overflow = new TaffyPoint<>(o, o);
+        s.overflow = switch (cs.get(CssProperties.OVERFLOW)) {
+            case VISIBLE -> new TaffyPoint<>(Overflow.VISIBLE, Overflow.VISIBLE);
+            case HIDDEN -> new TaffyPoint<>(Overflow.HIDDEN, Overflow.HIDDEN);
+            // No space is reserved: the scrollbar is drawn over the content (scrollbarWidth stays 0).
+            case SCROLL, AUTO -> new TaffyPoint<>(Overflow.SCROLL, Overflow.SCROLL);
+        };
         return s;
     }
 

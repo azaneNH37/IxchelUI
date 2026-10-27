@@ -24,6 +24,9 @@ import java.util.Set;
  *
  * <p>Tree changes (child-list changes here or text changes in a child) mark the element and its
  * ancestors as {@linkplain #hasTreeChange() changed} until the layout pass clears them.
+ *
+ * <p>A {@linkplain #setScrollTop scroll offset} change only moves painted content: it marks the tree's
+ * top element as {@linkplain #needsRepaint() needing a repaint}, without style or layout work.
  */
 public final class Element extends Node {
     public static final int HOVER = 1;
@@ -33,6 +36,8 @@ public final class Element extends Node {
     private static final int STYLE_DIRTY = 1;
     private static final int DESCENDANT_STYLE_DIRTY = 1 << 1;
     private static final int TREE_CHANGED = 1 << 2;
+    /** Only meaningful on the top element of a tree. */
+    private static final int REPAINT = 1 << 3;
 
     private final String tag;
     private final List<Node> children = new ArrayList<>();
@@ -45,6 +50,8 @@ public final class Element extends Node {
     private ComputedStyle computed;
     private List<Rule.Declaration> inlineStyle = List.of();
     private Object payload;
+    private float scrollTop;
+    private float maxScrollTop;
     private List<Registration> listeners;
 
     private record Registration(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
@@ -228,6 +235,55 @@ public final class Element extends Node {
         this.computed = computed;
     }
 
+    /**
+     * How far the content of this scroll container ({@code overflow} other than {@code visible}) is
+     * moved up, in whole GUI pixels; descendants paint and hit-test that much higher than their
+     * {@linkplain #box() layout box}. Always 0 for other elements.
+     */
+    public float scrollTop() {
+        return scrollTop;
+    }
+
+    /**
+     * The largest {@link #scrollTop()} the last layout allows: the scrollable overflow below the box.
+     * 0 when the content fits, for elements that are not scroll containers, and before the first layout.
+     */
+    public float maxScrollTop() {
+        return maxScrollTop;
+    }
+
+    /**
+     * Sets the scroll offset, rounded to whole pixels and clamped to {@code [0, maxScrollTop()]}. A
+     * change is painted by the next frame without restyle or relayout.
+     */
+    public void setScrollTop(float top) {
+        float next = Math.max(0, Math.min(Math.round(top), maxScrollTop));
+        if (next != scrollTop) {
+            scrollTop = next;
+            Element t = this;
+            while (t.parent != null) {
+                t = t.parent;
+            }
+            t.dirty |= REPAINT;
+        }
+    }
+
+    /** Called by the layout pass with the new scrollable range; the offset is clamped into it. */
+    public void setMaxScrollTop(float max) {
+        maxScrollTop = Math.max(0, max);
+        scrollTop = Math.min(scrollTop, maxScrollTop);
+    }
+
+    /** On the top element of a tree: whether a scroll offset below changed since the last paint. */
+    public boolean needsRepaint() {
+        return (dirty & REPAINT) != 0;
+    }
+
+    /** Called by the paint pass on the element it painted from. */
+    public void clearRepaint() {
+        dirty &= ~REPAINT;
+    }
+
     public boolean isStyleDirty() {
         return (dirty & STYLE_DIRTY) != 0;
     }
@@ -238,7 +294,7 @@ public final class Element extends Node {
 
     /** Called by the style pass once this element and its subtree are up to date. */
     public void clearStyleDirty() {
-        dirty &= TREE_CHANGED;
+        dirty &= ~(STYLE_DIRTY | DESCENDANT_STYLE_DIRTY);
     }
 
     public void markStyleDirty() {
