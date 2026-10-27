@@ -17,7 +17,8 @@ import java.util.List;
 /**
  * A full screen drawn and driven by one document. Mouse and keyboard go to the document first; input
  * it does not take falls back to {@link Screen} (Escape closes). Closing the screen closes the view
- * model, so late replies and subscriptions end with it. Does not pause a single-player game.
+ * model, so late replies and subscriptions end with it. An {@code <item>} under the pointer shows its
+ * vanilla tooltip ({@link ItemTooltips}). Does not pause a single-player game.
  *
  * <pre>{@code
  * mc.setScreen(new UiScreen(MODID, "ui/refit.html", List.of("ui/refit.css"), new RefitView(slot)));
@@ -94,6 +95,9 @@ public class UiScreen extends Screen {
         }
         if (dev != null) {
             DevOverlay.draw(g, loadErrors.isEmpty() ? runtimeErrors() : loadErrors);
+        }
+        if (document != null) {
+            ItemTooltips.render(g, font, document.events().hitTest(mouseX, mouseY), painter.topZ(), mouseX, mouseY);
         }
     }
 

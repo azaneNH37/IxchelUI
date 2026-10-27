@@ -6,8 +6,18 @@ plugins {
 
 neoForge {
     neoFormVersion = libs.versions.neoform.get()
+    // Plain JUnit tests of the math in this module see Minecraft's libraries (JOML); no game is started.
+    addModdingDependenciesTo(sourceSets.test.get())
 }
 
 dependencies {
     api(project(":ixchel-core"))
+
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

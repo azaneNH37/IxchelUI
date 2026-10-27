@@ -8,6 +8,7 @@ import com.azane.ixchel.mc.DevResources;
 import com.azane.ixchel.mc.McElements;
 import com.azane.ixchel.mc.McResources;
 import com.azane.ixchel.mc.UiHud;
+import com.azane.ixchel.mc.WorldProjection;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -20,6 +21,8 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -62,6 +65,20 @@ public final class IxchelNeoForge {
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath(hostModId, layerId);
         modBus.addListener((RegisterClientReloadListenersEvent e) -> e.registerReloadListener(layer));
         modBus.addListener((RegisterGuiLayersEvent e) -> e.registerAboveAll(id, layer));
+    }
+
+    /**
+     * Lets {@link WorldProjection} see the camera every frame the level is drawn. Call once, on the
+     * client only (for example from the client mod constructor); it adds a listener to the game event bus.
+     */
+    public static void registerWorldProjection() {
+        NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent e) -> {
+            // After the sky: fired once per level render, sky drawn or not, with the final matrices.
+            if (e.getStage() == RenderLevelStageEvent.Stage.AFTER_SKY) {
+                WorldProjection.capture(e.getModelViewMatrix(), e.getProjectionMatrix(),
+                        e.getCamera().getPosition(), e.getCamera().getPartialTickTime());
+            }
+        });
     }
 
     private static final class HudLayer implements LayeredDraw.Layer, ResourceManagerReloadListener {

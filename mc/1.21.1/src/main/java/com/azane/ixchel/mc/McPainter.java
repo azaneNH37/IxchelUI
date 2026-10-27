@@ -68,6 +68,14 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         pose = null;
     }
 
+    /**
+     * The depth, in the pose {@link #paint} drew in, above everything it drew; an overlay such as a
+     * tooltip raised by this much paints on top.
+     */
+    public float topZ() {
+        return afterItem ? z + ITEM_DEPTH : z;
+    }
+
     @Override
     public Void visitRect(DrawCommand.Rect c) {
         raiseAboveItems();
@@ -146,7 +154,8 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         return null;
     }
 
-    private static ItemStack itemOf(Object payload) {
+    /** The stack an {@code <item>} payload stands for right now; see {@link #visitCustom}. */
+    static ItemStack itemOf(Object payload) {
         if (payload instanceof ItemStack stack) {
             return stack;
         }
