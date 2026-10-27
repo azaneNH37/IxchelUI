@@ -3,6 +3,7 @@ package com.azane.ixchel.sample;
 import com.azane.ixchel.mc.UiScreen;
 import com.azane.ixchel.sample.check.Script;
 import com.azane.ixchel.sample.refit.RefitClient;
+import com.azane.ixchel.sample.pickup.PickupHud;
 import com.azane.ixchel.sample.status.StatusHud;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -26,7 +27,8 @@ public final class Samples {
         return List.of(
                 RefitClient.refitSample(),
                 RefitClient.backpackSample(),
-                StatusHud.sample());
+                StatusHud.sample(),
+                PickupHud.sample());
     }
 
     public static UiScreen indexScreen() {

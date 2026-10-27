@@ -77,6 +77,23 @@ public final class Element extends Node {
         return childrenView;
     }
 
+    /** The text of every descendant text node, in document order, as in the DOM. */
+    public String textContent() {
+        StringBuilder sb = new StringBuilder();
+        appendText(sb);
+        return sb.toString();
+    }
+
+    private void appendText(StringBuilder sb) {
+        for (Node n : children) {
+            if (n instanceof TextNode t) {
+                sb.append(t.text());
+            } else if (n instanceof Element e) {
+                e.appendText(sb);
+            }
+        }
+    }
+
     /** Appends {@code child}, detaching it from its current parent first. */
     public void appendChild(Node child) {
         insertChild(child.parent == this ? children.size() - 1 : children.size(), child);

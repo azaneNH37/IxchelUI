@@ -1,0 +1,27 @@
+/* Bottom-left, above the hotbar's row; newest toast at the bottom. */
+.toasts {
+  position: absolute;
+  left: 4px;
+  bottom: 28px;
+}
+
+.toast {
+  flex-direction: row;
+  align-items: center;
+  margin-top: 2px;
+  padding: 2px 4px 2px 2px;
+  background-color: #000000A0;
+  color: #FFFFFF;
+  transition: background-color 600ms, color 600ms;
+}
+
+.toast.fading {
+  background-color: #00000000;
+  color: #FFFFFF00;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 3px;
+}
