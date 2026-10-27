@@ -14,6 +14,16 @@ public final class McElements {
             .nativeTag(McPainter.ITEM, McPainter.ITEM)
             .build();
 
+    /**
+     * {@link #TAGS} plus {@code <item-slot slot="N">} for {@link UiContainerScreen}: the projection of
+     * menu slot {@code N}. The slot's 16×16 item area is centered in the element's border box and
+     * written back to {@code Slot.x/y}; vanilla keeps drawing the item and handling clicks, drags
+     * and quick moves there. Use {@code bind:slot} for slots from an {@code each} row.
+     */
+    public static final TagRegistry CONTAINER_TAGS = TAGS.extend()
+            .tag(UiContainerScreen.ITEM_SLOT, UiContainerScreen.SLOT_ATTRIBUTE)
+            .build();
+
     private McElements() {
     }
 }

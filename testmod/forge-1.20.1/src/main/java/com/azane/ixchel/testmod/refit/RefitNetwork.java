@@ -56,6 +56,16 @@ public final class RefitNetwork {
         }
     }
 
+    /** Opens the backpack refit on the held crossbow. */
+    record OpenBackpack() {
+        void write(FriendlyByteBuf buf) {
+        }
+
+        static OpenBackpack read(FriendlyByteBuf buf) {
+            return new OpenBackpack();
+        }
+    }
+
     /** A request the server turned down; the message is for the player. */
     public static final class RefitRejected extends RuntimeException {
         RefitRejected(String message) {
@@ -78,6 +88,14 @@ public final class RefitNetwork {
                 .encoder(Request::write).decoder(Request::read).consumerMainThread(RefitNetwork::onServer).add();
         CHANNEL.messageBuilder(Reply.class, 1, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(Reply::write).decoder(Reply::read).consumerMainThread(RefitNetwork::onClient).add();
+        CHANNEL.messageBuilder(OpenBackpack.class, 2, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(OpenBackpack::write).decoder(OpenBackpack::read)
+                .consumerMainThread((OpenBackpack m, Supplier<NetworkEvent.Context> ctx) -> {
+                    ServerPlayer p = ctx.get().getSender();
+                    if (p != null) {
+                        RefitMenus.open(p);
+                    }
+                }).add();
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ServerTickEvent e) -> {
             if (e.phase != TickEvent.Phase.END) {
                 return;
@@ -99,6 +117,10 @@ public final class RefitNetwork {
 
     public static CompletableFuture<Void> laser(int slot, String color) {
         return request(slot, "laser", color);
+    }
+
+    public static void openBackpack() {
+        CHANNEL.sendToServer(new OpenBackpack());
     }
 
     private static CompletableFuture<Void> request(int slot, String type, String option) {

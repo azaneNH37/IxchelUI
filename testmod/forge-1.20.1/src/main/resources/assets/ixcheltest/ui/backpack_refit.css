@@ -1,0 +1,100 @@
+/* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. */
+.panel {
+  margin: auto;
+  width: 176px;
+  padding: 7px;
+  background-color: #C6C6C6;
+  color: #404040;
+}
+
+.title {
+  margin-bottom: 5px;
+}
+
+.body {
+  flex-direction: row;
+  margin-bottom: 4px;
+}
+
+.column {
+  width: 81px;
+  margin-right: 0px;
+}
+
+.label {
+  margin-bottom: 2px;
+  color: #404040;
+}
+
+.attachment {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 1px;
+}
+
+.name {
+  margin-left: 3px;
+}
+
+.grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 162px;
+}
+
+.hotbar {
+  margin-top: 4px;
+}
+
+.slot {
+  width: 16px;
+  height: 16px;
+  margin: 1px;
+  background-color: #8B8B8B;
+}
+
+.slot.empty {
+  background-color: #6F6F8B;
+}
+
+.row {
+  flex-direction: row;
+  align-items: center;
+  padding: 1px;
+  transition: background-color 120ms;
+}
+
+.row:hover,
+.button:hover {
+  background-color: #FFFFFF60;
+}
+
+.row.selected {
+  background-color: #4060FF60;
+}
+
+.row.installed {
+  color: #00A000;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 3px;
+}
+
+.button {
+  margin-top: 2px;
+  padding: 2px;
+  align-items: center;
+  background-color: #FFFFFF50;
+}
+
+.button.busy {
+  background-color: #FFFF5560;
+}
+
+.error {
+  margin-top: 2px;
+  color: #C00000;
+}

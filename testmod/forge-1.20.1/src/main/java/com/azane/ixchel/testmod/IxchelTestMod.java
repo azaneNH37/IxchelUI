@@ -6,6 +6,7 @@ import com.azane.ixchel.testmod.perf.HudBench;
 import com.azane.ixchel.testmod.probe.ProbeClient;
 import com.azane.ixchel.testmod.refit.RefitClient;
 import com.azane.ixchel.testmod.refit.RefitNetwork;
+import com.azane.ixchel.testmod.refit.RefitMenus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
@@ -18,6 +19,7 @@ public final class IxchelTestMod {
 
     public IxchelTestMod(FMLJavaModLoadingContext context) {
         RefitNetwork.register();
+        RefitMenus.register(context.getModEventBus());
         if (FMLEnvironment.dist.isClient()) {
             ProbeClient.init(context.getModEventBus());
             IxchelForge.registerHud(context.getModEventBus(), MOD_ID, "ammo_hud",

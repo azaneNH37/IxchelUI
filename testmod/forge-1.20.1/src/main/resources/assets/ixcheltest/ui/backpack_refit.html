@@ -1,0 +1,33 @@
+<div class="panel">
+  <span class="title" bind:text="gunName"></span>
+  <div class="body">
+    <div class="column">
+      <span class="label">Attachments</span>
+      <div class="attachment" each="attachments" as="a" key="a.slot">
+        <item-slot class="slot" bind:slot="a.slot" bind:class:empty="a.empty"></item-slot>
+        <span class="name" bind:text="a.name"></span>
+      </div>
+    </div>
+    <div class="column">
+      <span class="label">Laser</span>
+      <div class="row swatch" each="swatches" as="w" key="w.id" on:click="pickLaser(w)"
+           bind:class:selected="w.draft" bind:class:installed="w.current">
+        <item class="icon" bind:item="w.icon"></item>
+        <span bind:text="w.name"></span>
+      </div>
+      <div class="button" if="hasDraft" on:click="applyLaser" bind:class:busy="applyLaser.pending">
+        <span>Apply</span>
+      </div>
+      <div class="error" if="hasError">
+        <span bind:text="errorText"></span>
+      </div>
+    </div>
+  </div>
+  <span class="label">Inventory</span>
+  <div class="grid">
+    <item-slot class="slot" each="inventory" as="s" key="s" bind:slot="s"></item-slot>
+  </div>
+  <div class="grid hotbar">
+    <item-slot class="slot" each="hotbar" as="s" key="s" bind:slot="s"></item-slot>
+  </div>
+</div>

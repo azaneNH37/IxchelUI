@@ -1,10 +1,14 @@
 package com.azane.ixchel.testmod.refit;
 
+import com.azane.ixchel.mc.UiContainerScreen;
 import com.azane.ixchel.mc.UiScreen;
 import com.azane.ixchel.testmod.IxchelTestMod;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -13,11 +17,16 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
-/** Z opens the refit screen on the held crossbow, V the hand-written vanilla version of it. */
+/**
+ * Z opens the refit screen on the held crossbow, V the hand-written vanilla version of it, B the
+ * backpack refit (a container screen).
+ */
 public final class RefitClient {
     private static final KeyMapping OPEN = new KeyMapping("key.ixcheltest.refit", GLFW.GLFW_KEY_Z, "key.categories.misc");
     private static final KeyMapping OPEN_VANILLA =
             new KeyMapping("key.ixcheltest.refit_vanilla", GLFW.GLFW_KEY_V, "key.categories.misc");
+    private static final KeyMapping OPEN_BACKPACK =
+            new KeyMapping("key.ixcheltest.backpack_refit", GLFW.GLFW_KEY_B, "key.categories.misc");
 
     private RefitClient() {
     }
@@ -26,7 +35,12 @@ public final class RefitClient {
         modBus.addListener((RegisterKeyMappingsEvent e) -> {
             e.register(OPEN);
             e.register(OPEN_VANILLA);
+            e.register(OPEN_BACKPACK);
         });
+        modBus.addListener((FMLClientSetupEvent e) -> e.enqueueWork(() -> MenuScreens.register(RefitMenus.BACKPACK.get(),
+                (BackpackRefitMenu menu, Inventory inv, Component title) -> new UiContainerScreen<>(menu, inv, title,
+                        IxchelTestMod.MOD_ID, "ui/backpack_refit.html", List.of("ui/backpack_refit.css"),
+                        new BackpackRefitView(menu)))));
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e) -> {
             if (e.phase != TickEvent.Phase.END) {
                 return;
@@ -43,8 +57,14 @@ public final class RefitClient {
                     mc.setScreen(new VanillaRefitScreen(mc.player.getInventory().selected));
                 }
             }
+            while (OPEN_BACKPACK.consumeClick()) {
+                if (canOpen) {
+                    RefitNetwork.openBackpack();
+                }
+            }
         });
         RefitBench.init();
+        BackpackRefitCheck.init();
     }
 
     static UiScreen screen(RefitView view) {

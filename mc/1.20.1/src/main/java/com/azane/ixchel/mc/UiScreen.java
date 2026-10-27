@@ -1,17 +1,12 @@
 package com.azane.ixchel.mc;
 
 import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.runtime.UiDocument;
-import com.mojang.logging.LogUtils;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.slf4j.Logger;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -29,18 +24,7 @@ import java.util.List;
  * reload keeps the last good document and lists the errors in an overlay.
  */
 public class UiScreen extends Screen {
-    private static final Logger LOG = LogUtils.getLogger();
-
-    private final McResources resources;
-    private final DevResources dev;
-    private final String templatePath;
-    private final List<String> cssPaths;
-    private final ViewModel model;
-    private final McPainter painter = new McPainter(Minecraft.getInstance().font);
-    private UiDocument document;
-    private List<Diagnostic> loadErrors = List.of();
-    private AutoCloseable watcher;
-    private int logged;
+    private final ScreenDocument doc;
 
     /**
      * @param hostModId    namespace of the template and stylesheets
@@ -51,97 +35,63 @@ public class UiScreen extends Screen {
      */
     public UiScreen(String hostModId, String templatePath, List<String> cssPaths, ViewModel model) {
         super(Component.empty());
-        this.dev = DevResources.forHost(hostModId);
-        this.resources = new McResources(hostModId, dev);
-        this.templatePath = templatePath;
-        this.cssPaths = List.copyOf(cssPaths);
-        this.model = model;
-        load();
-    }
-
-    private void load() {
-        try {
-            document = resources.load(Minecraft.getInstance().getResourceManager(), templatePath, cssPaths,
-                    McElements.TAGS, model);
-            loadErrors = List.of();
-            logged = 0;
-        } catch (UiLoadException e) {
-            if (dev == null) {
-                throw e;
-            }
-            LOG.error("Ixchel UI: {} failed to load, keeping the previous version\n{}", templatePath, e.getMessage());
-            loadErrors = e.diagnostics().stream().filter(d -> d.severity() == Diagnostic.Severity.ERROR).toList();
-        }
+        this.doc = new ScreenDocument(hostModId, templatePath, cssPaths, McElements.TAGS, model, () -> { });
     }
 
     @Override
     protected void init() {
-        if (dev != null && watcher == null) {
-            List<String> watched = new ArrayList<>(cssPaths);
-            watched.add(templatePath);
-            watcher = dev.watch(watched, this::load);
-        }
+        doc.watch();
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         renderBackground(g);
-        if (document != null) {
-            painter.paint(g, document.frame(width, height));
-            List<Diagnostic> entries = document.diagnostics().entries();
-            for (; logged < entries.size(); logged++) {
-                LOG.warn("Ixchel UI: {}", entries.get(logged));
-            }
-        }
-        if (dev != null) {
-            DevOverlay.draw(g, loadErrors.isEmpty() ? runtimeErrors() : loadErrors);
-        }
-        if (document != null) {
-            ItemTooltips.render(g, font, document.events().hitTest(mouseX, mouseY), painter.topZ(), mouseX, mouseY);
-        }
-    }
-
-    private List<Diagnostic> runtimeErrors() {
-        if (document == null || document.diagnostics().errorCount() == 0) {
-            return List.of();
-        }
-        return document.diagnostics().entries().stream().filter(d -> d.severity() == Diagnostic.Severity.ERROR).toList();
+        doc.frame(width, height);
+        doc.paint(g);
+        doc.drawOverlay(g);
+        doc.drawTooltip(g, font, mouseX, mouseY);
     }
 
     @Override
     public void mouseMoved(double x, double y) {
-        if (document != null) {
-            document.events().mouseMoved((float) x, (float) y);
+        UiDocument d = doc.document();
+        if (d != null) {
+            d.events().mouseMoved((float) x, (float) y);
         }
     }
 
     @Override
     public boolean mouseClicked(double x, double y, int button) {
-        return document != null && document.events().mousePressed((float) x, (float) y, button)
+        UiDocument d = doc.document();
+        return d != null && d.events().mousePressed((float) x, (float) y, button)
                 || super.mouseClicked(x, y, button);
     }
 
     @Override
     public boolean mouseReleased(double x, double y, int button) {
-        return document != null && document.events().mouseReleased((float) x, (float) y, button)
+        UiDocument d = doc.document();
+        return d != null && d.events().mouseReleased((float) x, (float) y, button)
                 || super.mouseReleased(x, y, button);
     }
 
     @Override
     public boolean mouseScrolled(double x, double y, double delta) {
-        return document != null && document.events().mouseScrolled((float) x, (float) y, delta)
+        UiDocument d = doc.document();
+        return d != null && d.events().mouseScrolled((float) x, (float) y, delta)
                 || super.mouseScrolled(x, y, delta);
     }
 
     @Override
     public boolean keyPressed(int key, int scanCode, int modifiers) {
-        return document != null && document.events().keyPressed(key, modifiers)
+        UiDocument d = doc.document();
+        return d != null && d.events().keyPressed(key, modifiers)
                 || super.keyPressed(key, scanCode, modifiers);
     }
 
     @Override
     public boolean keyReleased(int key, int scanCode, int modifiers) {
-        return document != null && document.events().keyReleased(key, modifiers)
+        UiDocument d = doc.document();
+        return d != null && d.events().keyReleased(key, modifiers)
                 || super.keyReleased(key, scanCode, modifiers);
     }
 
@@ -152,16 +102,6 @@ public class UiScreen extends Screen {
 
     @Override
     public void removed() {
-        if (model != null) {
-            model.close();
-        }
-        if (watcher != null) {
-            try {
-                watcher.close();
-            } catch (Exception e) {
-                LOG.warn("Ixchel UI: stopping the dev watcher failed", e);
-            }
-            watcher = null;
-        }
+        doc.close();
     }
 }
