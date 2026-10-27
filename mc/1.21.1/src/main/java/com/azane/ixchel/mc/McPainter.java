@@ -19,6 +19,7 @@ import org.joml.Matrix4f;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Replays a {@link DisplayList} into a {@link GuiGraphics}. Rects and images are written as raw
@@ -119,16 +120,20 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     }
 
     /**
-     * @throws IllegalStateException for a kind other than {@link #ITEM} or an item payload that is
-     *         not an {@link ItemStack}
+     * Draws an {@code <item>}. The payload is either an {@link ItemStack} (a snapshot from a value
+     * cell) or a {@code Supplier<ItemStack>} handle read here, at replay, so a live stack is drawn
+     * every frame without any comparison or copy.
+     *
+     * @throws IllegalStateException for a kind other than {@link #ITEM} or any other payload type
      */
     @Override
     public Void visitCustom(DrawCommand.Custom c) {
         if (!c.kind().equals(ITEM)) {
             throw new IllegalStateException("no painter for native element <" + c.kind() + ">");
         }
-        if (!(c.payload() instanceof ItemStack stack)) {
-            throw new IllegalStateException("<item> needs an ItemStack, got " + c.payload().getClass().getName());
+        ItemStack stack = itemOf(c.payload());
+        if (stack.isEmpty()) {
+            return null;
         }
         flush();
         PoseStack ps = graphics.pose();
@@ -139,6 +144,17 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         ps.popPose();
         afterItem = true;
         return null;
+    }
+
+    private static ItemStack itemOf(Object payload) {
+        if (payload instanceof ItemStack stack) {
+            return stack;
+        }
+        if (payload instanceof Supplier<?> handle && handle.get() instanceof ItemStack stack) {
+            return stack;
+        }
+        throw new IllegalStateException("<item> needs an ItemStack or a Supplier<ItemStack>, got "
+                + (payload instanceof Supplier<?> h ? "a Supplier of " + h.get() : payload.getClass().getName()));
     }
 
     @Override
