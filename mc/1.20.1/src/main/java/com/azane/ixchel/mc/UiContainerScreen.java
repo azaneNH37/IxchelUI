@@ -105,6 +105,8 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
     /** Visible slot → its clip in GUI pixels (x0, y0, x1, y1), for {@link SlotItemRendering#IXCHEL}. */
     private final Map<Slot, int[]> clipOf = new IdentityHashMap<>();
     private final Set<String> reported = new HashSet<>();
+    /** {@code Slot.x/y} before this screen moved them, as {@link #position}. */
+    private final long[] originalPositions;
     private final Renderable hideVanillaSlots = (g, mx, my, pt) -> g.enableScissor(0, 0, 0, 0);
     private long placedVersion = -1;
     private int placedWidth = -1;
@@ -128,6 +130,11 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
                              List<String> cssPaths, ViewModel model, SlotItemRendering slotItems) {
         super(menu, inventory, title);
         this.slotItems = slotItems;
+        this.originalPositions = new long[menu.slots.size()];
+        for (int i = 0; i < originalPositions.length; i++) {
+            Slot slot = menu.slots.get(i);
+            originalPositions[i] = position(slot.x, slot.y);
+        }
         this.doc = new ScreenDocument(hostModId, templatePath, cssPaths, McElements.CONTAINER_TAGS, model,
                 () -> placedVersion = -1);
     }
@@ -480,8 +487,12 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
                 || super.keyReleased(key, scanCode, modifiers);
     }
 
+    /** Puts the slots back where the menu had them: a menu can outlive the screen ({@code player.inventoryMenu}). */
     @Override
     public void removed() {
+        for (int i = 0; i < originalPositions.length; i++) {
+            SlotPositions.set(menu.slots.get(i), (int) (originalPositions[i] >> 32), (int) originalPositions[i]);
+        }
         super.removed();
         doc.close();
     }

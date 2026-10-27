@@ -24,6 +24,7 @@ public final class ShadeTestA {
                     IxchelForge.class.getProtectionDomain().getCodeSource().getLocation());
             IxchelForge.registerHud(context.getModEventBus(), MOD_ID, "hud", "ui/hud.html", List.of("ui/hud.css"),
                     HudView::new);
+            ContainerCheck.init();
         }
     }
 

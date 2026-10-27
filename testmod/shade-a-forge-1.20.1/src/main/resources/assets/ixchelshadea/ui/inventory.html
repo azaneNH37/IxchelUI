@@ -1,0 +1,19 @@
+<div class="panel">
+  <span class="title">Shade A inventory</span>
+  <div class="row">
+    <div class="column">
+      <item-slot class="slot" each="armor" as="s" key="s" bind:slot="s"></item-slot>
+      <item-slot class="slot" slot="45"></item-slot>
+    </div>
+    <div class="grid crafting">
+      <item-slot class="slot" each="crafting" as="s" key="s" bind:slot="s"></item-slot>
+    </div>
+    <item-slot class="slot result" slot="0"></item-slot>
+  </div>
+  <div class="grid">
+    <item-slot class="slot" each="main" as="s" key="s" bind:slot="s"></item-slot>
+  </div>
+  <div class="grid hotbar">
+    <item-slot class="slot" each="hotbar" as="s" key="s" bind:slot="s"></item-slot>
+  </div>
+</div>
