@@ -13,6 +13,7 @@ import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.paint.DisplayList;
+import com.azane.ixchel.core.paint.ImageMeasurer;
 import com.azane.ixchel.core.paint.Painter;
 import com.azane.ixchel.core.style.StyleEngine;
 import com.azane.ixchel.core.style.StyleSheet;
@@ -55,12 +56,12 @@ public final class UiDocument {
     int pipelineRuns;
 
     private UiDocument(Element root, Diagnostics diagnostics, StyleEngine style, LayoutEngine layout, Bindings bindings,
-                       TagRegistry tags, Transitions transitions) {
+                       TagRegistry tags, ImageMeasurer images, Transitions transitions) {
         this.root = root;
         this.diagnostics = diagnostics;
         this.style = style;
         this.layout = layout;
-        this.painter = new Painter(layout, tags);
+        this.painter = new Painter(layout, tags, images, diagnostics);
         this.bindings = bindings;
         this.events = new EventDispatcher(root);
         this.transitions = transitions;
@@ -68,8 +69,8 @@ public final class UiDocument {
 
     /** Loads a document without a view model; any {@code bind:*} attribute is an error. */
     public static UiDocument load(String template, String templateFile, List<CssSource> sheets,
-                                  TagRegistry tags, TextMeasurer measurer) {
-        return load(template, templateFile, sheets, tags, measurer, null, Bindings.PLAIN_TEXT);
+                                  TagRegistry tags, TextMeasurer measurer, ImageMeasurer images) {
+        return load(template, templateFile, sheets, tags, measurer, images, null, Bindings.PLAIN_TEXT);
     }
 
     /**
@@ -77,11 +78,12 @@ public final class UiDocument {
      * blocks. Every error found is reported in one {@link UiLoadException}; warnings stay readable
      * through {@link #diagnostics()}. Bindings are resolved and their initial values written here.
      *
+     * @param images natural image sizes, for {@code background-size: auto}
      * @param model  the view model {@code bind:*} attributes refer to, or {@code null}
      * @param textOf converts bound values to text (the mc layer flattens components)
      */
     public static UiDocument load(String template, String templateFile, List<CssSource> sheets,
-                                  TagRegistry tags, TextMeasurer measurer, ViewModel model,
+                                  TagRegistry tags, TextMeasurer measurer, ImageMeasurer images, ViewModel model,
                                   Function<Object, String> textOf) {
         Diagnostics diag = new Diagnostics();
         Template t = TemplateParser.parse(template, templateFile, tags, diag);
@@ -102,7 +104,7 @@ public final class UiDocument {
         style.restyle(root);
         diag.throwIfErrors();
         LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY);
-        return new UiDocument(root, diag, style, layout, bindings, tags, transitions);
+        return new UiDocument(root, diag, style, layout, bindings, tags, images, transitions);
     }
 
     /** The implicit root; its children are the template's top-level elements. */
@@ -111,8 +113,9 @@ public final class UiDocument {
     }
 
     /**
-     * Load warnings, plus problems found after load: inline styles compiled on first use, and derived
-     * values that threw (the binding keeps its last value).
+     * Load warnings, plus problems found after load: inline styles compiled on first use, derived
+     * values that threw (the binding keeps its last value), and background images that could not be
+     * sized or tiled when painted.
      */
     public Diagnostics diagnostics() {
         return diagnostics;

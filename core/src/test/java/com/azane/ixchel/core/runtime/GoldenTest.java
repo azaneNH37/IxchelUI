@@ -2,6 +2,7 @@ package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.core.paint.ImageMeasurer;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.text.TextMeasurer;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,12 +35,15 @@ class GoldenTest {
         }
     };
 
+    /** For documents without {@code background-size: auto}: every image is unknown. */
+    static final ImageMeasurer NO_IMAGES = src -> null;
+
     @ParameterizedTest
     @ValueSource(strings = "ammo-hud")
     void displayListMatchesExpectation(String name) throws IOException {
         String dir = "golden/" + name + "/";
         UiDocument doc = UiDocument.load(resource(dir + "hud.html"), "hud.html",
-                List.of(new UiDocument.CssSource(resource(dir + "hud.css"), "hud.css")), TagRegistry.HTML, MONO);
+                List.of(new UiDocument.CssSource(resource(dir + "hud.css"), "hud.css")), TagRegistry.HTML, MONO, NO_IMAGES);
         DisplayList out = doc.frame(480, 270);
 
         String expected = resource(dir + "expected.txt").lines()
@@ -63,7 +67,8 @@ class GoldenTest {
 
             @Override
             public String visitImage(DrawCommand.Image c) {
-                return "image " + n(c.x()) + " " + n(c.y()) + " " + n(c.width()) + " " + n(c.height()) + " " + c.src() + " " + argb(c.tint());
+                return "image " + n(c.x()) + " " + n(c.y()) + " " + n(c.width()) + " " + n(c.height()) + " " + c.src()
+                        + " uv " + n(c.u0()) + " " + n(c.v0()) + " " + n(c.u1()) + " " + n(c.v1()) + " " + argb(c.tint());
             }
 
             @Override

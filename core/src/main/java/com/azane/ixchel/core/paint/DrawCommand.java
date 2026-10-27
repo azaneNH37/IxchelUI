@@ -51,8 +51,13 @@ public sealed interface DrawCommand
         }
     }
 
-    /** {@code src} is a resource location such as {@code modid:textures/gui/icon.png}; {@code tint} multiplies it. */
-    record Image(float x, float y, float width, float height, String src, int tint) implements DrawCommand {
+    /**
+     * Draws the texture region {@code (u0, v0)}-{@code (u1, v1)}, in fractions of the whole image, into
+     * the rectangle. {@code src} is a resource location such as {@code modid:textures/gui/icon.png};
+     * {@code tint} multiplies it.
+     */
+    record Image(float x, float y, float width, float height, String src, float u0, float v0, float u1, float v1,
+                 int tint) implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitImage(this);

@@ -64,6 +64,26 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
         };
     }
 
+    /** {@code background-position}: x then y; a single value is x, and y is centered ({@code 50%}) as in CSS. */
+    public static Expander position(Syntax<Length> syntax) {
+        return (value, pos, diag) -> {
+            List<ComponentValue> parts = Syntaxes.significant(value);
+            if (parts.isEmpty() || parts.size() > 2) {
+                diag.error(parts.size() > 2 ? parts.get(2).pos() : pos, "expected 1 or 2 values");
+                return null;
+            }
+            Length x = syntax.parse(List.of(parts.get(0)), parts.get(0).pos(), diag);
+            if (x == null) {
+                return null;
+            }
+            if (parts.size() == 1) {
+                return new Object[]{x, Length.percent(50)};
+            }
+            Length y = syntax.parse(List.of(parts.get(1)), parts.get(1).pos(), diag);
+            return y == null ? null : new Object[]{x, y};
+        };
+    }
+
     /**
      * {@code transition}: comma-separated items, each with at most one property name, duration,
      * easing and delay (the first time is the duration). Longhands: property, duration, timing

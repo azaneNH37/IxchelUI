@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class UiDocumentBindingTest {
     private static UiDocument load(String html, String css, ViewModel model) {
         return UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")), TagRegistry.HTML,
-                GoldenTest.MONO, model, Bindings.PLAIN_TEXT);
+                GoldenTest.MONO, GoldenTest.NO_IMAGES, model, Bindings.PLAIN_TEXT);
     }
 
     static final class Ammo extends ViewModel {
@@ -132,7 +132,8 @@ class UiDocumentBindingTest {
         assertTrue(m.contains("t.html:6:6:") && m.contains("unknown binding target 'bind:title'"), m);
 
         UiLoadException none = assertThrows(UiLoadException.class,
-                () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", List.of(), TagRegistry.HTML, GoldenTest.MONO));
+                () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", List.of(), TagRegistry.HTML, GoldenTest.MONO,
+                        GoldenTest.NO_IMAGES));
         assertTrue(none.getMessage().contains("needs a view model"), none.getMessage());
     }
 
@@ -147,7 +148,7 @@ class UiDocumentBindingTest {
         Held m = new Held();
         UiDocument doc = UiDocument.load("<item class=\"i\" bind:item=\"stack\"></item>", "t.html",
                 List.of(new UiDocument.CssSource(".i { width: 16px; height: 16px }", "t.css")), tags,
-                GoldenTest.MONO, m, Bindings.PLAIN_TEXT);
+                GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         assertEquals("item 0 0 16 16 sword", GoldenTest.print(doc.frame(100, 100)));
 
         m.live = "bow";
@@ -156,7 +157,7 @@ class UiDocumentBindingTest {
         assertEquals("", GoldenTest.print(doc.frame(100, 100)));
 
         UiLoadException e = assertThrows(UiLoadException.class, () -> UiDocument.load(
-                "<item item=\"sword\"></item>", "t.html", List.of(), tags, GoldenTest.MONO));
+                "<item item=\"sword\"></item>", "t.html", List.of(), tags, GoldenTest.MONO, GoldenTest.NO_IMAGES));
         assertTrue(e.getMessage().contains("unknown attribute 'item'"), e.getMessage());
     }
 

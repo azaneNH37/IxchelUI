@@ -51,7 +51,7 @@ class EventDispatcherTest {
 
     private static UiDocument load() {
         UiDocument doc = UiDocument.load(HTML, "t.html", List.of(new UiDocument.CssSource(CSS, "t.css")),
-                TagRegistry.HTML, MONO);
+                TagRegistry.HTML, MONO, src -> null);
         doc.frame(100, 100);
         return doc;
     }

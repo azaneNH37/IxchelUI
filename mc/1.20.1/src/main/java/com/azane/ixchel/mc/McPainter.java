@@ -103,10 +103,10 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         float y0 = c.y();
         float x1 = x0 + c.width();
         float y1 = y0 + c.height();
-        buffer.vertex(pose, x0, y0, z).color(r, g, b, a).uv(0, 0).endVertex();
-        buffer.vertex(pose, x0, y1, z).color(r, g, b, a).uv(0, 1).endVertex();
-        buffer.vertex(pose, x1, y1, z).color(r, g, b, a).uv(1, 1).endVertex();
-        buffer.vertex(pose, x1, y0, z).color(r, g, b, a).uv(1, 0).endVertex();
+        buffer.vertex(pose, x0, y0, z).color(r, g, b, a).uv(c.u0(), c.v0()).endVertex();
+        buffer.vertex(pose, x0, y1, z).color(r, g, b, a).uv(c.u0(), c.v1()).endVertex();
+        buffer.vertex(pose, x1, y1, z).color(r, g, b, a).uv(c.u1(), c.v1()).endVertex();
+        buffer.vertex(pose, x1, y0, z).color(r, g, b, a).uv(c.u1(), c.v0()).endVertex();
         return null;
     }
 

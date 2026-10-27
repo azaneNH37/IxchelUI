@@ -31,8 +31,9 @@ public final class McResources {
     }
 
     /**
-     * Loads a document from a template and its stylesheets, measured with the vanilla font. Error
-     * positions name files as {@code modid:path}. Bound {@link Component}s are flattened with
+     * Loads a document from a template and its stylesheets, measured with the vanilla font; images
+     * for {@code background-size: auto} are measured from {@code resources}. Error positions name
+     * files as {@code modid:path}. Bound {@link Component}s are flattened with
      * {@link Component#getString()}; their colors and styles are dropped, CSS styles the text.
      *
      * @param model the view model {@code bind:*} attributes refer to, or {@code null}
@@ -44,7 +45,7 @@ public final class McResources {
             sheets.add(new UiDocument.CssSource(read(resources, path), name(path)));
         }
         return UiDocument.load(read(resources, templatePath), name(templatePath), sheets, tags,
-                new McTextMeasurer(Minecraft.getInstance().font), model, McResources::text);
+                new McTextMeasurer(Minecraft.getInstance().font), new McImageMeasurer(resources), model, McResources::text);
     }
 
     public String read(ResourceManager resources, String path) {

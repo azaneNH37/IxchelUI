@@ -2,6 +2,7 @@ package com.azane.ixchel.core.css.property;
 
 import com.azane.ixchel.core.css.property.Keywords.AlignItems;
 import com.azane.ixchel.core.css.property.Keywords.AlignSelf;
+import com.azane.ixchel.core.css.property.Keywords.BackgroundRepeat;
 import com.azane.ixchel.core.css.property.Keywords.Display;
 import com.azane.ixchel.core.css.property.Keywords.FlexDirection;
 import com.azane.ixchel.core.css.property.Keywords.FlexWrap;
@@ -11,6 +12,8 @@ import com.azane.ixchel.core.css.property.Keywords.Position;
 
 import java.util.List;
 
+import static com.azane.ixchel.core.css.property.Syntaxes.backgroundImage;
+import static com.azane.ixchel.core.css.property.Syntaxes.backgroundSize;
 import static com.azane.ixchel.core.css.property.Syntaxes.color;
 import static com.azane.ixchel.core.css.property.Syntaxes.commaList;
 import static com.azane.ixchel.core.css.property.Syntaxes.easing;
@@ -39,6 +42,7 @@ public final class CssProperties {
     private static final Syntax<Length> MARGIN = length(true, true, true);
     private static final Syntax<Length> PADDING = length(true, false, false);
     private static final Syntax<Length> GAP = length(true, false, false);
+    private static final Syntax<Length> BACKGROUND_OFFSET = length(true, false, true);
 
     public static final PropertyDef<Display> DISPLAY = R.register("display", keyword(Display.class), Display.FLEX, false, true, false);
     public static final PropertyDef<Position> POSITION = R.register("position", keyword(Position.class), Position.RELATIVE, false, true, false);
@@ -76,6 +80,16 @@ public final class CssProperties {
 
     public static final PropertyDef<Overflow> OVERFLOW = R.register("overflow", keyword(Overflow.class), Overflow.VISIBLE, false, true, false);
     public static final PropertyDef<Integer> BACKGROUND_COLOR = R.register("background-color", color(), 0x00000000, false, false, true);
+    /** The image's resource location, or an empty string for {@code none}. */
+    public static final PropertyDef<String> BACKGROUND_IMAGE = R.register("background-image", backgroundImage(), "", false, false, false);
+    public static final PropertyDef<Length> BACKGROUND_POSITION_X =
+            R.register("background-position-x", BACKGROUND_OFFSET, Length.percent(0), false, false, false);
+    public static final PropertyDef<Length> BACKGROUND_POSITION_Y =
+            R.register("background-position-y", BACKGROUND_OFFSET, Length.percent(0), false, false, false);
+    public static final PropertyDef<BackgroundSize> BACKGROUND_SIZE =
+            R.register("background-size", backgroundSize(), BackgroundSize.AUTO, false, false, false);
+    public static final PropertyDef<BackgroundRepeat> BACKGROUND_REPEAT =
+            R.register("background-repeat", keyword(BackgroundRepeat.class), BackgroundRepeat.REPEAT, false, false, false);
     public static final PropertyDef<Integer> COLOR = R.register("color", color(), 0xFFFFFFFF, true, false, true);
     public static final PropertyDef<Length> FONT_SIZE = R.register("font-size", length(false, false, false), Length.px(9), true, true, true);
 
@@ -92,6 +106,8 @@ public final class CssProperties {
         R.registerShorthand("margin", Shorthand.box(MARGIN), MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT);
         R.registerShorthand("padding", Shorthand.box(PADDING), PADDING_TOP, PADDING_RIGHT, PADDING_BOTTOM, PADDING_LEFT);
         R.registerShorthand("gap", Shorthand.pair(GAP), ROW_GAP, COLUMN_GAP);
+        R.registerShorthand("background-position", Shorthand.position(BACKGROUND_OFFSET),
+                BACKGROUND_POSITION_X, BACKGROUND_POSITION_Y);
         R.registerShorthand("transition", Shorthand.transition(R),
                 TRANSITION_PROPERTY, TRANSITION_DURATION, TRANSITION_TIMING_FUNCTION, TRANSITION_DELAY);
         R.freeze();

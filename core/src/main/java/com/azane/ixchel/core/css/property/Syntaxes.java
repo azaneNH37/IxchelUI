@@ -159,6 +159,95 @@ public final class Syntaxes {
         };
     }
 
+    /**
+     * {@code background-image}: {@code none} (an empty string) or one {@code url()}, quoted or not,
+     * naming an image by resource location, e.g. {@code url("minecraft:textures/gui/icons.png")}.
+     */
+    public static Syntax<String> backgroundImage() {
+        return (value, pos, diag) -> {
+            for (ComponentValue v : value) {
+                if (v instanceof Token t && t.is(Token.Kind.COMMA)) {
+                    diag.error(t.pos(), "multiple background layers are not supported");
+                    return null;
+                }
+            }
+            ComponentValue v = single(value, pos, diag);
+            if (v == null) {
+                return null;
+            }
+            if (v instanceof Token t) {
+                if (t.isIdent("none")) {
+                    return "";
+                }
+                if (t.is(Token.Kind.URL)) {
+                    return resourceLocation(t.value(), t.pos(), diag);
+                }
+                if (t.is(Token.Kind.BAD_URL)) {
+                    return null; // the tokenizer reported it
+                }
+            } else if (v instanceof ComponentValue.Function f && f.name().equalsIgnoreCase("url")) {
+                List<ComponentValue> args = significant(f.args());
+                if (args.size() == 1 && args.get(0) instanceof Token s && s.is(Token.Kind.STRING)) {
+                    return resourceLocation(s.value(), s.pos(), diag);
+                }
+                diag.error(f.pos(), "url() takes one string");
+                return null;
+            }
+            diag.error(v.pos(), "expected none or url()");
+            return null;
+        };
+    }
+
+    /**
+     * {@code background-size}: one or two of a non-negative length, percentage or {@code auto}, width
+     * then height; a missing height is {@code auto}. {@code cover} and {@code contain} are not supported.
+     */
+    public static Syntax<BackgroundSize> backgroundSize() {
+        return (value, pos, diag) -> {
+            List<ComponentValue> parts = significant(value);
+            if (parts.size() > 2) {
+                diag.error(parts.get(2).pos(), "expected 1 or 2 values");
+                return null;
+            }
+            ComponentValue first = parts.get(0);
+            if (first instanceof Token t && (t.isIdent("cover") || t.isIdent("contain"))) {
+                diag.error(t.pos(), "'" + t.value() + "' is not supported; give the size in px or %");
+                return null;
+            }
+            Length width = lengthOf(first, true, true, false, diag);
+            if (width == null) {
+                return null;
+            }
+            if (parts.size() == 1) {
+                return new BackgroundSize(width, Length.AUTO);
+            }
+            Length height = lengthOf(parts.get(1), true, true, false, diag);
+            return height == null ? null : new BackgroundSize(width, height);
+        };
+    }
+
+    /** A {@code namespace:path} resource location, or a bare path; lower-case as Minecraft requires. */
+    private static String resourceLocation(String s, SourcePos pos, Diagnostics diag) {
+        int colon = s.indexOf(':');
+        String namespace = colon < 0 ? "minecraft" : s.substring(0, colon);
+        String path = s.substring(colon + 1);
+        if (namespace.isEmpty() || path.isEmpty() || !allowed(namespace, "_-.") || !allowed(path, "_-./")) {
+            diag.error(pos, "invalid resource location '" + s + "' (namespace:path, lower-case a-z, 0-9 and _ - . with / in the path)");
+            return null;
+        }
+        return s;
+    }
+
+    private static boolean allowed(String s, String extra) {
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (!(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || extra.indexOf(c) >= 0)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @FunctionalInterface
     private interface Mixer<T> {
         T mix(T from, T to, float p);

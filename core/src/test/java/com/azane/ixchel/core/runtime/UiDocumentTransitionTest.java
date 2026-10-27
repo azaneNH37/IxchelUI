@@ -17,7 +17,7 @@ class UiDocumentTransitionTest {
 
     private UiDocument load(String html, String css) {
         UiDocument doc = UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")),
-                TagRegistry.HTML, GoldenTest.MONO);
+                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
         doc.clock(() -> nowMs * 1_000_000);
         return doc;
     }

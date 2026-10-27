@@ -30,4 +30,7 @@ public final class Keywords {
      * overflows horizontally is clipped but cannot be scrolled.
      */
     public enum Overflow { VISIBLE, HIDDEN, SCROLL, AUTO }
+
+    /** {@code background-repeat}, one keyword for both axes; {@code space} and {@code round} are not supported. */
+    public enum BackgroundRepeat { REPEAT, REPEAT_X, REPEAT_Y, NO_REPEAT }
 }

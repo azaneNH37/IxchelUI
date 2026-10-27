@@ -33,7 +33,7 @@ class UiDocumentScrollTest {
 
     private static UiDocument load(String html, String css) {
         UiDocument doc = UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")),
-                TagRegistry.HTML, GoldenTest.MONO);
+                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
         doc.frame(100, 100);
         return doc;
     }
@@ -219,7 +219,7 @@ class UiDocumentScrollTest {
         UiDocument doc = UiDocument.load("""
                 <div id="list" on:wheel="swallow"><div each="rows" as="r" key="r" bind:text="r"></div></div><div id="free"></div>
                 """, "t.html", List.of(new UiDocument.CssSource(LIST_CSS + "#free { height: 10px }", "t.css")),
-                TagRegistry.HTML, GoldenTest.MONO, m, Bindings.PLAIN_TEXT);
+                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         doc.frame(100, 100);
         return doc;
     }

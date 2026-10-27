@@ -20,7 +20,8 @@ class UiDocumentTest {
     }
 
     private static UiDocument load(String html, String css, TextMeasurer measurer) {
-        return UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")), TagRegistry.HTML, measurer);
+        return UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")), TagRegistry.HTML, measurer,
+                GoldenTest.NO_IMAGES);
     }
 
     private static String frame(UiDocument doc, float w, float h) {
