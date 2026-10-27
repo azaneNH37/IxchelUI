@@ -9,14 +9,25 @@ import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -28,9 +39,9 @@ import java.util.TreeSet;
 /**
  * A container screen whose layout is a document. The host's menu defines the slots; the template
  * places them with {@code <item-slot slot="N">} elements ({@link McElements#CONTAINER_TAGS}), and the
- * resulting positions are written back to {@code Slot.x/y}. Everything about items stays vanilla:
- * drawing, highlight, tooltips, clicks, drags, quick moves and the client prediction, so other mods
- * that read slot positions or {@code hoveredSlot} keep working.
+ * resulting positions are written back to {@code Slot.x/y}. Highlight, tooltips, clicks, drags, quick
+ * moves and the client prediction stay vanilla, so other mods that read slot positions or
+ * {@code hoveredSlot} keep working. Who draws the slot items is chosen by {@link SlotItemRendering}.
  *
  * <pre>{@code
  * MenuScreens.register(MENU, (menu, inv, title) -> new UiContainerScreen<>(menu, inv, title,
@@ -42,8 +53,10 @@ import java.util.TreeSet;
  *   <li>The 16×16 item area of a slot is centered in its element's border box; the box must be at
  *       least 16×16.</li>
  *   <li>Every menu slot must be placed by exactly one element. A slot whose element is missing, not
- *       mounted ({@code if}), not displayed, or whose item area center is clipped away by an
- *       {@code overflow} ancestor is moved off screen and cannot be hovered or clicked.</li>
+ *       mounted ({@code if}) or not displayed is moved off screen and cannot be hovered or clicked;
+ *       so is a slot an {@code overflow} ancestor clips away (its item area center with
+ *       {@link SlotItemRendering#VANILLA}, all of its item area with {@link SlotItemRendering#IXCHEL}).
+ *       Slots follow scroll offsets.</li>
  *   <li>The screen's {@code leftPos/topPos/imageWidth/imageHeight}, which other mods read as the
  *       GUI area (JEI and EMI lay out beside it), are the bounding box of the template's top-level
  *       elements. Make the panels themselves top-level and center them with {@code margin: auto};
@@ -62,29 +75,59 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
     /** Attribute holding the menu slot index. */
     public static final String SLOT_ATTRIBUTE = "slot";
 
+    /** Who draws the items in the menu slots (#009). */
+    public enum SlotItemRendering {
+        /**
+         * Vanilla's slot loop, untouched. Items are not clipped by {@code overflow}, so a slot is hidden
+         * once the center of its item area leaves the clip.
+         */
+        VANILLA,
+        /**
+         * The screen draws slot items itself, each clipped by its {@code overflow} ancestors, so slots in
+         * a scroll list are cut at its edge. Vanilla's loop is hidden by a zero-area scissor, which also
+         * hides what other mods draw in that loop. Not drawn: the preview of a right-click split and of
+         * a drag across slots (vanilla keeps their state private); the stacks themselves are correct.
+         */
+        IXCHEL
+    }
+
     private static final int ITEM_SIZE = 16;
+    /** Vanilla's slot item depth in {@code renderSlot}. */
+    private static final float SLOT_ITEM_Z = 100;
 
     private final ScreenDocument doc;
+    private final SlotItemRendering slotItems;
     /** Slot index → element placing it, rebuilt whenever the display list changes. */
     private final Map<Integer, Element> placed = new HashMap<>();
     private final Map<Element, Integer> slotOf = new IdentityHashMap<>();
     /** Written item-area position (x in the high half) → slot index, for {@link #isHovering}. */
     private final Map<Long, Integer> slotAtPosition = new HashMap<>();
+    /** Visible slot → its clip in GUI pixels (x0, y0, x1, y1), for {@link SlotItemRendering#IXCHEL}. */
+    private final Map<Slot, int[]> clipOf = new IdentityHashMap<>();
     private final Set<String> reported = new HashSet<>();
+    private final Renderable hideVanillaSlots = (g, mx, my, pt) -> g.enableScissor(0, 0, 0, 0);
     private long placedVersion = -1;
     private int placedWidth = -1;
     private int placedHeight = -1;
+
+    /** Same as the full constructor with {@link SlotItemRendering#VANILLA}. */
+    public UiContainerScreen(M menu, Inventory inventory, Component title, String hostModId, String templatePath,
+                             List<String> cssPaths, ViewModel model) {
+        this(menu, inventory, title, hostModId, templatePath, cssPaths, model, SlotItemRendering.VANILLA);
+    }
 
     /**
      * @param hostModId    namespace of the template and stylesheets
      * @param templatePath template path under {@code assets/<hostModId>/}
      * @param cssPaths     stylesheet paths under {@code assets/<hostModId>/}, applied in order
      * @param model        the view model the template binds to, or {@code null}; closed with the screen
+     * @param slotItems    who draws slot items
      * @throws UiLoadException outside development when the document has errors
      */
     public UiContainerScreen(M menu, Inventory inventory, Component title, String hostModId, String templatePath,
-                             List<String> cssPaths, ViewModel model) {
+                             List<String> cssPaths, ViewModel model, SlotItemRendering slotItems) {
         super(menu, inventory, title);
+        this.slotItems = slotItems;
         this.doc = new ScreenDocument(hostModId, templatePath, cssPaths, McElements.CONTAINER_TAGS, model,
                 () -> placedVersion = -1);
     }
@@ -100,6 +143,12 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         layout();
+        if (slotItems == SlotItemRendering.IXCHEL) {
+            // Renderables run right before the slot loop; other mods may append theirs after init.
+            List<Renderable> renderables = Renderables.of(this);
+            renderables.remove(hideVanillaSlots);
+            renderables.add(hideVanillaSlots);
+        }
         renderBackground(g);
         // renderBg pushes a pose raised above the document; everything vanilla draws after it (slot
         // items, highlight, carried item, tooltips) lands on top of the document's rects and items.
@@ -124,9 +173,43 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         g.pose().translate(0, 0, doc.topZ());
     }
 
-    /** The document draws its own labels. */
+    /** The document draws its own labels; with {@link SlotItemRendering#IXCHEL} the slot items are drawn here. */
     @Override
     protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
+        if (slotItems != SlotItemRendering.IXCHEL) {
+            return;
+        }
+        g.disableScissor();
+        for (Slot slot : menu.slots) {
+            int[] clip = clipOf.get(slot);
+            if (clip == null || !slot.isActive()) {
+                continue;
+            }
+            g.enableScissor(clip[0], clip[1], clip[2], clip[3]);
+            drawSlotItem(g, slot);
+            if (slot == hoveredSlot && slot.isHighlightable()) {
+                renderSlotHighlight(g, slot.x, slot.y, 0);
+            }
+            g.disableScissor();
+        }
+    }
+
+    /** Vanilla's {@code renderSlot} without the private split and drag previews. */
+    private void drawSlotItem(GuiGraphics g, Slot slot) {
+        ItemStack stack = slot.getItem();
+        g.pose().pushPose();
+        g.pose().translate(0, 0, SLOT_ITEM_Z);
+        if (stack.isEmpty()) {
+            Pair<ResourceLocation, ResourceLocation> icon = slot.getNoItemIcon();
+            if (icon != null) {
+                TextureAtlasSprite sprite = minecraft.getTextureAtlas(icon.getFirst()).apply(icon.getSecond());
+                g.blit(slot.x, slot.y, 0, ITEM_SIZE, ITEM_SIZE, sprite);
+            }
+        } else {
+            g.renderItem(stack, slot.x, slot.y, slot.x + slot.y * imageWidth);
+            g.renderItemDecorations(font, stack, slot.x, slot.y);
+        }
+        g.pose().popPose();
     }
 
     private void layout() {
@@ -135,6 +218,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         if (list == null || d == null) {
             return;
         }
+        // A scroll repaints without a layout pass, so the display list version covers it too.
         if (list.version() == placedVersion && width == placedWidth && height == placedHeight) {
             return;
         }
@@ -176,6 +260,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         placed.clear();
         slotOf.clear();
         slotAtPosition.clear();
+        clipOf.clear();
         List<Element> elements = new ArrayList<>();
         collect(d.root(), elements);
         int count = menu.slots.size();
@@ -193,6 +278,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
             slotOf.put(e, index);
         }
         Set<Integer> missing = new TreeSet<>();
+        float[] clip = new float[4];
         for (int i = 0; i < count; i++) {
             Slot slot = menu.slots.get(i);
             Element e = placed.get(i);
@@ -206,21 +292,60 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
                 report(d, e, "<" + ITEM_SLOT + "> for slot " + i + " is " + b.width() + "x" + b.height()
                         + "; it must be at least 16x16");
             }
-            float x = b.x() + (b.width() - ITEM_SIZE) / 2;
-            float y = b.y() + (b.height() - ITEM_SIZE) / 2;
-            if (!displayed(e) || clipped(e, x + ITEM_SIZE / 2f, y + ITEM_SIZE / 2f)) {
+            int x = Math.round(b.x() + (b.width() - ITEM_SIZE) / 2);
+            int y = Math.round(b.y() - scrollAbove(e) + (b.height() - ITEM_SIZE) / 2);
+            if (!displayed(e) || !visible(e, x, y, clip)) {
                 SlotPositions.set(slot, SlotPositions.HIDDEN, SlotPositions.HIDDEN);
-            } else {
-                int sx = Math.round(x) - leftPos;
-                int sy = Math.round(y) - topPos;
-                SlotPositions.set(slot, sx, sy);
-                slotAtPosition.putIfAbsent(position(sx, sy), i);
+                continue;
             }
+            int sx = x - leftPos;
+            int sy = y - topPos;
+            SlotPositions.set(slot, sx, sy);
+            slotAtPosition.putIfAbsent(position(sx, sy), i);
+            // Clamped: an unclipped slot has infinite bounds, which the scissor would scale and overflow.
+            clipOf.put(slot, new int[] {Math.max(0, (int) Math.floor(clip[0])), Math.max(0, (int) Math.floor(clip[1])),
+                    Math.min(width, (int) Math.ceil(clip[2])), Math.min(height, (int) Math.ceil(clip[3]))});
         }
         if (!missing.isEmpty()) {
             report(d, d.root(), "menu slots " + missing + " have no <" + ITEM_SLOT + ">; every slot of "
                     + menu.getClass().getSimpleName() + " must be placed");
         }
+    }
+
+    /** How far the scroll containers above {@code e} move it up. */
+    private static float scrollAbove(Element e) {
+        float dy = 0;
+        for (Element a = e.parent(); a != null; a = a.parent()) {
+            dy += a.scrollTop();
+        }
+        return dy;
+    }
+
+    /**
+     * Intersects the clips of the {@code overflow} ancestors into {@code clip} (x0, y0, x1, y1) and
+     * decides whether the item area at {@code (x, y)} shows through it under the rendering mode.
+     */
+    private boolean visible(Element e, int x, int y, float[] clip) {
+        clip[0] = Float.NEGATIVE_INFINITY;
+        clip[1] = Float.NEGATIVE_INFINITY;
+        clip[2] = Float.POSITIVE_INFINITY;
+        clip[3] = Float.POSITIVE_INFINITY;
+        for (Element a = e.parent(); a != null; a = a.parent()) {
+            if (a.computed() != null && a.computed().get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE) {
+                LayoutBox b = a.box();
+                float top = b.y() - scrollAbove(a);
+                clip[0] = Math.max(clip[0], b.x());
+                clip[1] = Math.max(clip[1], top);
+                clip[2] = Math.min(clip[2], b.x() + b.width());
+                clip[3] = Math.min(clip[3], top + b.height());
+            }
+        }
+        if (slotItems == SlotItemRendering.IXCHEL) {
+            return x < clip[2] && y < clip[3] && x + ITEM_SIZE > clip[0] && y + ITEM_SIZE > clip[1];
+        }
+        float cx = x + ITEM_SIZE / 2f;
+        float cy = y + ITEM_SIZE / 2f;
+        return cx >= clip[0] && cy >= clip[1] && cx < clip[2] && cy < clip[3];
     }
 
     private static void collect(Element e, List<Element> out) {
@@ -261,18 +386,6 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
             }
         }
         return true;
-    }
-
-    private static boolean clipped(Element e, float x, float y) {
-        for (Element a = e.parent(); a != null; a = a.parent()) {
-            if (a.computed() != null && a.computed().get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE) {
-                LayoutBox b = a.box();
-                if (x < b.x() || y < b.y() || x >= b.x() + b.width() || y >= b.y() + b.height()) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private void report(UiDocument d, Element at, String message) {
@@ -371,5 +484,39 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
     public void removed() {
         super.removed();
         doc.close();
+    }
+
+    /**
+     * {@code Screen.renderables}: private in vanilla, public only through Forge's access transformer,
+     * so read by reflection like {@link SlotPositions} (development name, then SRG). Loaded on the first
+     * {@link SlotItemRendering#IXCHEL} frame.
+     */
+    private static final class Renderables {
+        private static final MethodHandle GET = getter("renderables", "f_169369_");
+
+        @SuppressWarnings("unchecked")
+        static List<Renderable> of(Screen screen) {
+            try {
+                return (List<Renderable>) GET.invokeExact(screen);
+            } catch (Throwable t) {
+                throw new IllegalStateException("reading Screen.renderables failed", t);
+            }
+        }
+
+        private static MethodHandle getter(String... names) {
+            for (String name : names) {
+                try {
+                    Field f = Screen.class.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return MethodHandles.lookup().unreflectGetter(f)
+                            .asType(MethodType.methodType(List.class, Screen.class));
+                } catch (NoSuchFieldException ignored) {
+                    // try the next candidate name
+                } catch (IllegalAccessException e) {
+                    throw new IllegalStateException("Screen." + name + " is not readable", e);
+                }
+            }
+            throw new IllegalStateException("Screen field not found under " + Arrays.toString(names));
+        }
     }
 }

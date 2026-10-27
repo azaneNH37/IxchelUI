@@ -40,7 +40,7 @@ public final class RefitClient {
         modBus.addListener((FMLClientSetupEvent e) -> e.enqueueWork(() -> MenuScreens.register(RefitMenus.BACKPACK.get(),
                 (BackpackRefitMenu menu, Inventory inv, Component title) -> new UiContainerScreen<>(menu, inv, title,
                         IxchelTestMod.MOD_ID, "ui/backpack_refit.html", List.of("ui/backpack_refit.css"),
-                        new BackpackRefitView(menu)))));
+                        new BackpackRefitView(menu), UiContainerScreen.SlotItemRendering.IXCHEL))));
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e) -> {
             if (e.phase != TickEvent.Phase.END) {
                 return;

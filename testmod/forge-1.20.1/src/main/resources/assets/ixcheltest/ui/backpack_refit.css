@@ -1,7 +1,7 @@
 /* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. */
 .panel {
   margin: auto;
-  width: 176px;
+  width: 180px;
   padding: 7px;
   background-color: #C6C6C6;
   color: #404040;
@@ -44,6 +44,15 @@
 
 .hotbar {
   margin-top: 4px;
+}
+
+/* Two and a half of the three rows; the backpack screen draws slot items itself, so the third row is
+   cut at the edge until the list scrolls. */
+.scroll {
+  width: 166px;
+  height: 45px;
+  padding-right: 4px;
+  overflow: auto;
 }
 
 .slot {

@@ -35,6 +35,10 @@ final class BackpackRefitCheck {
     private static final int STICKS = 2;
     /** Menu index of the muzzle attachment slot, see {@link Attachments#TYPES}. */
     private static final int MUZZLE = 1;
+    /** Menu index of the first slot in the inventory list's third row, cut by the list's edge. */
+    private static final int THIRD_ROW = BackpackRefitMenu.INVENTORY_START + 18;
+    /** Player inventory slot shown there (the main inventory starts at 9). */
+    private static final int THIRD_ROW_ITEM = 9 + 18;
 
     private record Step(int delayTicks, Runnable action) {
     }
@@ -43,6 +47,7 @@ final class BackpackRefitCheck {
     private static final AtomicInteger failures = new AtomicInteger();
     private static Step next;
     private static int wait;
+    private static int thirdRowY;
 
     private BackpackRefitCheck() {
     }
@@ -64,6 +69,17 @@ final class BackpackRefitCheck {
             shot("backpack-hover");
         });
         step(5, () -> hoverAt(0, 0));
+        // The inventory list shows two and a half rows; the wheel scrolls it to the end (9px), and the
+        // cut third row moves up with it.
+        step(5, () -> {
+            thirdRowY = slot(THIRD_ROW).y;
+            scrollInventory(-1);
+        });
+        step(5, () -> {
+            expectClient("wheel scrolls the inventory list", s -> slot(THIRD_ROW).y == thirdRowY - 9);
+            shot("backpack-scrolled");
+        });
+        step(5, () -> scrollInventory(1));
         // Place one iron bars from the hotbar into the muzzle slot, put the rest back.
         step(5, () -> click(hotbar(BARS), 0));
         step(5, () -> click(MUZZLE, 0));
@@ -125,6 +141,7 @@ final class BackpackRefitCheck {
             inv.setItem(GUN, gun);
             inv.setItem(BARS, new ItemStack(Items.IRON_BARS, 2));
             inv.setItem(STICKS, new ItemStack(Items.STICK, 3));
+            inv.setItem(THIRD_ROW_ITEM, new ItemStack(Items.COBBLESTONE, 5));
         });
         Minecraft.getInstance().player.getInventory().selected = GUN;
     }
@@ -184,6 +201,16 @@ final class BackpackRefitCheck {
         Minecraft mc = Minecraft.getInstance();
         mc.gameMode.handleInventoryMouseClick(screen().getMenu().containerId, slot.index, 0,
                 net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
+    }
+
+    private static Slot slot(int index) {
+        return screen().getMenu().slots.get(index);
+    }
+
+    /** Wheel over the second row of the inventory list, which stays inside it at either end. */
+    private static void scrollInventory(double delta) {
+        Slot row = slot(BackpackRefitMenu.INVENTORY_START + 9);
+        screen().mouseScrolled(left() + row.x + 8, top() + row.y + 8, delta);
     }
 
     private static void hover(int slotIndex) {
