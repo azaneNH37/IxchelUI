@@ -5,6 +5,7 @@ import com.azane.ixchel.sample.check.Script;
 import com.azane.ixchel.sample.refit.RefitClient;
 import com.azane.ixchel.sample.pickup.PickupHud;
 import com.azane.ixchel.sample.status.StatusHud;
+import com.azane.ixchel.sample.waypoints.WaypointsClient;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -28,7 +29,8 @@ public final class Samples {
                 RefitClient.refitSample(),
                 RefitClient.backpackSample(),
                 StatusHud.sample(),
-                PickupHud.sample());
+                PickupHud.sample(),
+                WaypointsClient.sample());
     }
 
     public static UiScreen indexScreen() {

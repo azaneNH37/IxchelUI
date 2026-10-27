@@ -26,7 +26,7 @@ import java.util.List;
  *
  * <p>An element is focusable when it has a {@code tabindex} attribute. Pressing a mouse button focuses
  * the nearest focusable element under the pointer, or clears focus; Tab and Shift+Tab move focus in
- * document order. Key events go to the focused element.
+ * document order. Key events go to the focused element, or to the root when nothing is focused.
  *
  * <p>Every input method returns whether the UI took the input: a mouse event over any element, or an
  * event a listener {@linkplain UiEvent#consume() consumed}. The host falls back to its own handling
@@ -119,13 +119,12 @@ public final class EventDispatcher {
         return target != root;
     }
 
+    /** Key events target the focused element, or the root when nothing is focused (as the DOM's document). */
     public boolean keyPressed(int key, int modifiers) {
-        if (focused != null) {
-            UiEvent e = UiEvent.key(UiEvent.Type.KEY_DOWN, focused, key, modifiers);
-            dispatch(e);
-            if (e.isConsumed()) {
-                return true;
-            }
+        UiEvent e = UiEvent.key(UiEvent.Type.KEY_DOWN, focused != null ? focused : root, key, modifiers);
+        dispatch(e);
+        if (e.isConsumed()) {
+            return true;
         }
         if (key == UiEvent.KEY_TAB) {
             return moveFocus((modifiers & UiEvent.MOD_SHIFT) != 0);
@@ -134,10 +133,7 @@ public final class EventDispatcher {
     }
 
     public boolean keyReleased(int key, int modifiers) {
-        if (focused == null) {
-            return false;
-        }
-        UiEvent e = UiEvent.key(UiEvent.Type.KEY_UP, focused, key, modifiers);
+        UiEvent e = UiEvent.key(UiEvent.Type.KEY_UP, focused != null ? focused : root, key, modifiers);
         dispatch(e);
         return e.isConsumed();
     }

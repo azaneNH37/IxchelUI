@@ -9,6 +9,7 @@ import com.azane.ixchel.sample.refit.RefitNetwork;
 import com.azane.ixchel.sample.refit.RefitMenus;
 import com.azane.ixchel.sample.pickup.PickupHud;
 import com.azane.ixchel.sample.status.StatusHud;
+import com.azane.ixchel.sample.waypoints.WaypointsClient;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
@@ -32,6 +33,7 @@ public final class IxchelSampleMod {
             Samples.initClient(context.getModEventBus());
             StatusHud.init(context.getModEventBus());
             PickupHud.init(context.getModEventBus());
+            WaypointsClient.init(context.getModEventBus());
         }
     }
 }
