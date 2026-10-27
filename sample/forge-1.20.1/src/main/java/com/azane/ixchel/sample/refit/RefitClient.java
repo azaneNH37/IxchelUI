@@ -2,12 +2,15 @@ package com.azane.ixchel.sample.refit;
 
 import com.azane.ixchel.mc.UiContainerScreen;
 import com.azane.ixchel.mc.UiScreen;
+import com.azane.ixchel.sample.Sample;
 import com.azane.ixchel.sample.IxchelSampleMod;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -78,5 +81,30 @@ public final class RefitClient {
             }
         });
         return new UiScreen(IxchelSampleMod.MOD_ID, "ui/refit.html", List.of("ui/refit.css"), view);
+    }
+
+    public static Sample refitSample() {
+        return Sample.screen("refit", "Crossbow refit (Z)",
+                "Attachments and laser color of the held crossbow, checked by the server. V opens the hand-written vanilla version.",
+                new ItemStack(Items.CROSSBOW), () -> withGun(() -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    mc.setScreen(screen(new RefitView(mc.player.getInventory().selected)));
+                }));
+    }
+
+    public static Sample backpackSample() {
+        return Sample.screen("backpack", "Backpack refit (B)",
+                "A container screen: attachment slots next to a scrolling inventory, every click a vanilla transaction.",
+                new ItemStack(Items.CHEST), () -> withGun(RefitNetwork::openBackpack));
+    }
+
+    private static void withGun(Runnable open) {
+        Minecraft mc = Minecraft.getInstance();
+        if (Attachments.isGun(mc.player.getMainHandItem())) {
+            open.run();
+        } else {
+            mc.setScreen(null);
+            mc.gui.setOverlayMessage(Component.literal("Hold a crossbow first"), false);
+        }
     }
 }

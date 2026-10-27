@@ -27,6 +27,7 @@ public final class IxchelSampleMod {
             BenchWorld.init();
             HudBench.init(context.getModEventBus());
             RefitClient.init(context.getModEventBus());
+            Samples.initClient(context.getModEventBus());
         }
     }
 }
