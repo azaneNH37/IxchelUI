@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample;
 
 import com.azane.ixchel.forge.IxchelForge;
+import com.azane.ixchel.sample.check.Checks;
 import com.azane.ixchel.sample.perf.BenchWorld;
 import com.azane.ixchel.sample.perf.HudBench;
 import com.azane.ixchel.sample.probe.ProbeClient;
@@ -28,6 +29,7 @@ public final class IxchelSampleMod {
             IxchelForge.registerHud(context.getModEventBus(), MOD_ID, "ammo_hud",
                     "ui/ammo_hud.html", List.of("ui/ammo_hud.css"), AmmoHudView::new);
             BenchWorld.init();
+            Checks.init();
             HudBench.init(context.getModEventBus());
             RefitClient.init(context.getModEventBus());
             Samples.initClient(context.getModEventBus());

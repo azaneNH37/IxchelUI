@@ -130,6 +130,8 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - `HudBench`、`RefitBench` 是计时基准，与功能检查共用 `-Pbench`。
 - CI 只跑 `./gradlew build`。
 
+2026-10-28 起，§4.2 的命名、驱动 API（`type`、`drag` 除外，分别随阶段 C、D 加入）、顺序运行与 `report.txt` 已落地；另加一条约定：两步之间必先画一帧（世界刚载入时 tick 会连续补跑而不出帧，文档尚未布局）。shade-a 的 `ContainerCheck` 仍独立。
+
 #### 4.2 目标流程
 
 - 命名：`-Pbench=<名>` 只留给计时基准，功能检查改用 `-Pcheck=<名>[,<名>…]|all`。

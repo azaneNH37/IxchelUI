@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample;
 
 import com.azane.ixchel.mc.UiScreen;
+import com.azane.ixchel.sample.check.Checks;
 import com.azane.ixchel.sample.check.Script;
 import com.azane.ixchel.sample.refit.RefitClient;
 import com.azane.ixchel.sample.pickup.PickupHud;
@@ -50,14 +51,10 @@ public final class Samples {
                 }
             }
         });
-        Script s = Script.forBench("index");
-        if (s != null) {
-            s.step(40, () -> Minecraft.getInstance().setScreen(indexScreen()));
-            s.step(20, () -> {
-                s.expect("index screen is open", () -> Minecraft.getInstance().screen instanceof UiScreen);
-                Script.shot("sample-index");
-            });
-            s.start();
-        }
+        Checks.register("index", s -> s
+                .run(() -> Minecraft.getInstance().setScreen(indexScreen()))
+                .waitUntil("index lists every sample", () -> Minecraft.getInstance().screen instanceof UiScreen
+                        && Script.query(".row").size() == all().size(), Script.WAIT)
+                .shot("sample-index"));
     }
 }

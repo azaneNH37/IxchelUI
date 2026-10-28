@@ -1,8 +1,10 @@
 package com.azane.ixchel.sample.refit;
 
+import com.azane.ixchel.sample.check.Checks;
 import com.azane.ixchel.sample.check.Script;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
@@ -10,12 +12,10 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-import java.util.function.Predicate;
-
 /**
- * M5 check, run unattended with {@code -Pbench=backpack}: opens the backpack refit and drives it
- * with real mouse events at the laid-out slot positions, then checks the server's inventory after
- * each vanilla transaction (place, quick move, locked gun slot, click on the panel vs outside).
+ * M5 check, {@code -Pcheck=backpack}: opens the backpack refit and drives it with real mouse events
+ * at the laid-out slot positions, then checks the server's inventory after each vanilla transaction
+ * (place, quick move, locked gun slot, click on the panel vs outside).
  */
 final class BackpackRefitCheck {
     private static final int GUN = 0;
@@ -34,73 +34,71 @@ final class BackpackRefitCheck {
     }
 
     static void init() {
-        Script s = Script.forBench("backpack");
-        if (s == null) {
-            return;
-        }
-        s.step(40, BackpackRefitCheck::stock);
-        s.step(20, RefitNetwork::openBackpack);
-        s.step(20, () -> {
-            checkLayout(s);
-            Script.shot("backpack-open");
-        });
-        // Hover through the real cursor, as vanilla, JEI and EMI read it during render: the sticks slot.
-        s.step(5, () -> hover(hotbar(STICKS)));
-        s.step(10, () -> {
-            s.expect("sticks slot is hovered", () -> screen().getSlotUnderMouse() == slot(hotbar(STICKS)));
-            Script.shot("backpack-hover");
-        });
-        s.step(5, () -> Script.hoverAt(0, 0));
-        // The inventory list shows two and a half rows; the wheel scrolls it to the end (9px), and the
-        // cut third row moves up with it.
-        s.step(5, () -> {
-            thirdRowY = slot(THIRD_ROW).y;
-            scrollInventory(-1);
-        });
-        s.step(5, () -> {
-            s.expect("wheel scrolls the inventory list", () -> slot(THIRD_ROW).y == thirdRowY - 9);
-            Script.shot("backpack-scrolled");
-        });
-        s.step(5, () -> scrollInventory(1));
-        // Place one iron bars from the hotbar into the muzzle slot, put the rest back.
-        s.step(5, () -> click(hotbar(BARS)));
-        s.step(5, () -> click(MUZZLE));
-        s.step(5, () -> click(hotbar(BARS)));
-        s.step(20, () -> expectServer(s, "bars placed in muzzle", inv -> "bars".equals(Attachments.installed(inv.getItem(GUN), "muzzle"))
-                && inv.getItem(BARS).is(Items.IRON_BARS) && inv.getItem(BARS).getCount() == 1));
-        // Quick move the installed spyglass out, and sticks into the grip slot.
-        s.step(5, () -> shiftClick(0));
-        s.step(5, () -> shiftClick(hotbar(STICKS)));
-        s.step(20, () -> expectServer(s, "scope out, stick in grip", inv -> Attachments.installed(inv.getItem(GUN), "scope").isEmpty()
-                && count(inv, Items.SPYGLASS) == 1 && "stick".equals(Attachments.installed(inv.getItem(GUN), "grip"))
-                && count(inv, Items.STICK) == 2));
-        // The gun's own slot is locked.
-        s.step(5, () -> click(hotbar(GUN)));
-        s.step(5, () -> s.expect("gun slot cannot be picked up", () -> screen().getMenu().getCarried().isEmpty()));
-        // Carrying the spyglass: a click on the panel keeps it, a click outside drops it.
-        s.step(5, () -> click(menuIndexOf(Items.SPYGLASS)));
-        s.step(5, () -> Script.clickAt(left() + 20, top() + 3, 0));
-        s.step(5, () -> s.expect("panel click keeps the carried stack", () -> screen().getMenu().getCarried().is(Items.SPYGLASS)));
-        s.step(5, () -> Script.clickAt(2, 2, 0));
-        s.step(20, () -> expectServer(s, "outside click drops it", inv -> count(inv, Items.SPYGLASS) == 0
-                && inv.player.containerMenu.getCarried().isEmpty()));
-        s.step(5, () -> Script.shot("backpack-after"));
-        s.step(5, () -> Minecraft.getInstance().player.closeContainer());
-        s.start();
+        Checks.register("backpack", s -> s
+                .server(BackpackRefitCheck::stock)
+                .waitUntil("stock reaches the client", () -> Minecraft.getInstance().player.getInventory()
+                        .getItem(THIRD_ROW_ITEM).is(Items.COBBLESTONE), Script.WAIT)
+                .run(RefitNetwork::openBackpack)
+                .waitUntil("backpack refit opens", BackpackRefitCheck::isOpen, Script.WAIT)
+                .run(() -> checkLayout(s))
+                .shot("backpack-open")
+                // Hover through the real cursor, as vanilla, JEI and EMI read it during render: the sticks slot.
+                .run(() -> hover(hotbar(STICKS)))
+                .waitUntil("sticks slot is hovered", () -> screen().getSlotUnderMouse() == slot(hotbar(STICKS)), Script.WAIT)
+                .shot("backpack-hover")
+                .run(() -> Script.hoverAt(0, 0))
+                // The inventory list shows two and a half rows; the wheel scrolls it to the end (9px), and
+                // the cut third row moves up with it.
+                .run(() -> thirdRowY = slot(THIRD_ROW).y)
+                .scroll(".grid.scroll", -1)
+                .waitUntil("wheel scrolls the inventory list", () -> slot(THIRD_ROW).y == thirdRowY - 9, Script.WAIT)
+                .shot("backpack-scrolled")
+                .scroll(".grid.scroll", 1)
+                // Place one iron bars from the hotbar into the muzzle slot, put the rest back.
+                .run(() -> click(hotbar(BARS)))
+                .run(() -> click(MUZZLE))
+                .run(() -> click(hotbar(BARS)))
+                .waitUntilServer("bars placed in muzzle", p -> "bars".equals(Attachments.installed(p.getInventory().getItem(GUN), "muzzle"))
+                        && p.getInventory().getItem(BARS).is(Items.IRON_BARS) && p.getInventory().getItem(BARS).getCount() == 1, Script.WAIT)
+                // Quick move the installed spyglass out, and sticks into the grip slot.
+                .run(() -> shiftClick(0))
+                .run(() -> shiftClick(hotbar(STICKS)))
+                .waitUntilServer("scope out, stick in grip", p -> Attachments.installed(p.getInventory().getItem(GUN), "scope").isEmpty()
+                        && count(p.getInventory(), Items.SPYGLASS) == 1
+                        && "stick".equals(Attachments.installed(p.getInventory().getItem(GUN), "grip"))
+                        && count(p.getInventory(), Items.STICK) == 2, Script.WAIT)
+                // The gun's own slot is locked.
+                .run(() -> click(hotbar(GUN)))
+                .expect("gun slot cannot be picked up", () -> screen().getMenu().getCarried().isEmpty())
+                // Carrying the spyglass: a click on the panel keeps it, a click outside drops it.
+                .waitUntil("spyglass back on the client", () -> hasSlotWith(Items.SPYGLASS), Script.WAIT)
+                .run(() -> click(menuIndexOf(Items.SPYGLASS)))
+                .click(".title")
+                .expect("panel click keeps the carried stack", () -> screen().getMenu().getCarried().is(Items.SPYGLASS))
+                .run(() -> Script.clickAt(2, 2, 0))
+                .waitUntilServer("outside click drops it", p -> count(p.getInventory(), Items.SPYGLASS) == 0
+                        && p.containerMenu.getCarried().isEmpty(), Script.WAIT)
+                .shot("backpack-after")
+                .run(() -> Minecraft.getInstance().player.closeContainer()));
     }
 
-    private static void stock() {
-        Script.onServer(p -> {
-            Inventory inv = p.getInventory();
-            inv.clearContent();
-            ItemStack gun = new ItemStack(Items.CROSSBOW);
-            Attachments.setInstalled(gun, "scope", "spyglass");
-            inv.setItem(GUN, gun);
-            inv.setItem(BARS, new ItemStack(Items.IRON_BARS, 2));
-            inv.setItem(STICKS, new ItemStack(Items.STICK, 3));
-            inv.setItem(THIRD_ROW_ITEM, new ItemStack(Items.COBBLESTONE, 5));
-        });
-        Minecraft.getInstance().player.getInventory().selected = GUN;
+    private static void stock(ServerPlayer p) {
+        Inventory inv = p.getInventory();
+        ItemStack gun = new ItemStack(Items.CROSSBOW);
+        Attachments.setInstalled(gun, "scope", "spyglass");
+        inv.setItem(GUN, gun);
+        inv.setItem(BARS, new ItemStack(Items.IRON_BARS, 2));
+        inv.setItem(STICKS, new ItemStack(Items.STICK, 3));
+        inv.setItem(THIRD_ROW_ITEM, new ItemStack(Items.COBBLESTONE, 5));
+    }
+
+    private static boolean isOpen() {
+        return Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> s
+                && s.getMenu() instanceof BackpackRefitMenu;
+    }
+
+    private static boolean hasSlotWith(Item item) {
+        return screen().getMenu().slots.stream().anyMatch(slot -> slot.getItem().is(item));
     }
 
     private static AbstractContainerScreen<?> screen() {
@@ -162,12 +160,6 @@ final class BackpackRefitCheck {
         mc.gameMode.handleInventoryMouseClick(screen().getMenu().containerId, slotIndex, 0, ClickType.QUICK_MOVE, mc.player);
     }
 
-    /** Wheel over the second row of the inventory list, which stays inside it at either end. */
-    private static void scrollInventory(double delta) {
-        Slot row = slot(BackpackRefitMenu.INVENTORY_START + 9);
-        screen().mouseScrolled(left() + row.x + 8, top() + row.y + 8, delta);
-    }
-
     private static void hover(int slotIndex) {
         Slot slot = slot(slotIndex);
         Script.hoverAt(left() + slot.x + 8, top() + slot.y + 8);
@@ -181,9 +173,5 @@ final class BackpackRefitCheck {
             }
         }
         return n;
-    }
-
-    private static void expectServer(Script s, String what, Predicate<Inventory> check) {
-        s.expectServer(what, p -> check.test(p.getInventory()));
     }
 }

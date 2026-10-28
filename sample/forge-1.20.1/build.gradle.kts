@@ -19,11 +19,17 @@ legacyForge {
             client()
             // Hot reload of UI templates and stylesheets straight from the source tree (L1).
             systemProperty("ixchel.devResources.ixchelsample", file("src/main/resources").absolutePath)
-            // `-Pbench` (or `-Pbench=hud`): BenchWorld opens the dev world (creating it if missing),
-            // HudBench cycles and screenshots unattended, then quits. `-Pbench=refit` runs RefitBench.
+            // `-Pbench` (or `-Pbench=hud`) and `-Pcheck` both start in the dev world (BenchWorld creates it
+            // if missing) and quit when done. `-Pbench` runs one timing bench: HudBench cycles and screenshots
+            // the HUD layers, `-Pbench=refit` runs RefitBench. `-Pcheck=<name>[,<name>…]|all` runs the
+            // functional checks (sample `check/Checks`) in order and writes `run/checks/report.txt`.
             val bench = providers.gradleProperty("bench")
             if (bench.isPresent) {
                 systemProperty("ixchelsample.bench", bench.get().ifEmpty { "hud" })
+            }
+            val check = providers.gradleProperty("check")
+            if (check.isPresent) {
+                systemProperty("ixchelsample.check", check.get().ifEmpty { "all" })
             }
         }
     }
@@ -59,7 +65,7 @@ if (providers.gradleProperty("compat").isPresent) {
 }
 
 // M5 slot compatibility (L2): `-Pslotcompat=jei` loads JEI and Mouse Tweaks, `-Pslotcompat=emi` loads EMI
-// and Mouse Tweaks, next to the backpack refit (`-Pbench=backpack`).
+// and Mouse Tweaks, next to the backpack refit (`-Pcheck=backpack`).
 val slotCompat = providers.gradleProperty("slotcompat")
 if (slotCompat.isPresent) {
     repositories {

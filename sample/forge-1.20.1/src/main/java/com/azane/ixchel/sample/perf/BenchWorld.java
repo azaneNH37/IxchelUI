@@ -14,8 +14,8 @@ import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 
 /**
- * With {@code -Pbench}, the first title screen opens the dev world, creating a creative superflat
- * one when the run directory has none, so the benches run on a fresh checkout.
+ * With {@code -Pbench} or {@code -Pcheck}, the first title screen opens the dev world, creating a
+ * creative superflat one when the run directory has none, so unattended runs work on a fresh checkout.
  */
 public final class BenchWorld {
     private static final String NAME = "New World";
@@ -25,7 +25,7 @@ public final class BenchWorld {
     }
 
     public static void init() {
-        if (System.getProperty("ixchelsample.bench") == null) {
+        if (System.getProperty("ixchelsample.bench") == null && System.getProperty("ixchelsample.check") == null) {
             return;
         }
         MinecraftForge.EVENT_BUS.addListener((ScreenEvent.Init.Post e) -> {

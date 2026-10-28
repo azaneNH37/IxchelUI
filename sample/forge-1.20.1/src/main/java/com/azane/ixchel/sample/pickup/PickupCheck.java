@@ -1,44 +1,41 @@
 package com.azane.ixchel.sample.pickup;
 
 import com.azane.ixchel.forge.IxchelForge;
+import com.azane.ixchel.sample.check.Checks;
 import com.azane.ixchel.sample.check.Script;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * Run with {@code -Pbench=pickup}: gives items on the server and checks that toasts appear, merge
- * for the same item, and expire.
+ * {@code -Pcheck=pickup}: gives items on the server and checks that toasts appear, merge for the same
+ * item, and expire.
  */
 final class PickupCheck {
     private PickupCheck() {
     }
 
     static void init(IxchelForge.Hud hud) {
-        Script s = Script.forBench(PickupHud.ID);
-        if (s == null) {
-            return;
-        }
-        s.step(40, () -> hud.show(true));
-        s.step(10, () -> Script.onServer(p -> {
-            p.getInventory().add(new ItemStack(Items.COBBLESTONE, 12));
-            p.getInventory().add(new ItemStack(Items.OAK_LOG, 3));
-        }));
-        s.step(10, () -> Script.onServer(p -> p.getInventory().add(new ItemStack(Items.COBBLESTONE, 5))));
-        s.step(10, () -> {
-            s.expect("two toasts, cobblestone merged to +17", () -> count(hud, ".toast") == 2
-                    && hud.document().querySelectorAll(".text").stream()
-                            .anyMatch(e -> "+17 Cobblestone".equals(e.textContent())));
-            Script.shot("pickup-toasts");
-        });
-        // Oak log shown at tick 50 fades from 2.4 s to 3 s; cobblestone restarted at tick 60.
-        s.step(32, () -> {
-            s.expect("the older toast fades in its last 600 ms", () -> count(hud, ".toast") == 2
-                    && count(hud, ".toast.fading") == 1);
-            Script.shot("pickup-fading");
-        });
-        s.step(38, () -> s.expect("toasts expire", () -> count(hud, ".toast") == 0));
-        s.step(5, () -> hud.show(false));
-        s.start();
+        Checks.register(PickupHud.ID, s -> s
+                .run(() -> hud.show(true))
+                .server(p -> {
+                    p.getInventory().add(new ItemStack(Items.COBBLESTONE, 12));
+                    p.getInventory().add(new ItemStack(Items.OAK_LOG, 3));
+                })
+                .waitUntil("two toasts", () -> count(hud, ".toast") == 2, Script.WAIT)
+                .pause(10)
+                .server(p -> p.getInventory().add(new ItemStack(Items.COBBLESTONE, 5)))
+                .waitUntil("cobblestone merged to +17", () -> count(hud, ".toast") == 2
+                        && hud.document().querySelectorAll(".text").stream()
+                                .anyMatch(e -> "+17 Cobblestone".equals(e.textContent())), Script.WAIT)
+                .shot("pickup-toasts")
+                // Toasts show for 3 s and fade in the last 600 ms. The oak log toast is now about 0.6 s
+                // old, the merged cobblestone one restarted: 1.9 s later only the oak log fades.
+                .pause(38)
+                .expect("the older toast fades in its last 600 ms", () -> count(hud, ".toast") == 2
+                        && count(hud, ".toast.fading") == 1)
+                .shot("pickup-fading")
+                .waitUntil("toasts expire", () -> count(hud, ".toast") == 0, 40)
+                .run(() -> hud.show(false)));
     }
 
     private static int count(IxchelForge.Hud hud, String selector) {
