@@ -1,0 +1,114 @@
+.screen {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel {
+  width: 260px;
+  padding: 6px;
+  background-color: #101418E0;
+}
+
+.header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.title {
+  color: #FFFF55;
+}
+
+.count {
+  color: #AAAAAA;
+}
+
+.filters {
+  flex-direction: row;
+  margin-bottom: 3px;
+}
+
+.filter {
+  padding: 2px 5px;
+  margin-right: 3px;
+  border: 1px solid #FFFFFF30;
+  color: #AAAAAA;
+}
+
+.filter:hover {
+  background-color: #FFFFFF20;
+}
+
+.filter.selected {
+  border-color: #FFFF55;
+  color: #FFFF55;
+}
+
+/* Eight rows tall; the wheel scrolls the rest. */
+.list {
+  height: 160px;
+  overflow: auto;
+  background-color: #00000060;
+}
+
+.empty {
+  margin: 4px;
+  color: #777777;
+}
+
+.row {
+  flex-direction: row;
+  align-items: center;
+  padding: 2px;
+}
+
+.row:hover {
+  background-color: #FFFFFF20;
+}
+
+.arrow {
+  width: 12px;
+  text-align: center;
+  color: #FFFF55;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  margin: 0 3px;
+}
+
+.name {
+  width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amount {
+  width: 30px;
+  color: #AAAAAA;
+}
+
+.distance {
+  flex-grow: 1;
+  color: #55FF55;
+}
+
+.pick {
+  padding: 2px 4px;
+  background-color: #FFFFFF30;
+  color: #FFFFFF;
+}
+
+.pick:hover {
+  background-color: #FFFFFF60;
+}
+
+.pick:disabled {
+  background-color: #FFFFFF10;
+  color: #777777;
+}

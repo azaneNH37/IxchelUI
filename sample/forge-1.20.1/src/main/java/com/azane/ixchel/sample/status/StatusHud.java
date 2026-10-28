@@ -10,7 +10,7 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.List;
 
-/** Status HUD sample: health, armor, food, experience and effects, top-left. */
+/** Effects HUD sample: active effects with time left, left side (the vitals are in the environment HUD). */
 public final class StatusHud {
     static final String ID = "status";
     private static IxchelForge.Hud hud;
@@ -29,8 +29,8 @@ public final class StatusHud {
     }
 
     public static Sample sample() {
-        return Sample.hud(ID, "Status HUD", "Hearts, armor and food from vanilla's icon sheet, the experience bar, "
-                + "and active effects with time left; effects in their last ten seconds turn red.",
-                new ItemStack(Items.GOLDEN_APPLE), hud);
+        return Sample.hud(ID, "Effects HUD", "Active effects with their icon and time left; effects in their "
+                + "last ten seconds turn red.",
+                new ItemStack(Items.POTION), hud);
     }
 }

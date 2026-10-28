@@ -19,11 +19,14 @@ final class WaypointsCheck {
     static void init() {
         Checks.register(WaypointsClient.ID, s -> {
             s.run(() -> {
-                WaypointsView.SAVED.clear();
+                Waypoints.clear();
                 Minecraft.getInstance().setScreen(WaypointsClient.screen());
             });
             s.waitUntil("empty list shows its message", () -> Script.query(".empty").size() == 1, Script.WAIT);
             s.shot("waypoints-empty");
+            // The button's title shows as a vanilla tooltip (screenshot only: nothing to query).
+            s.hover(".button");
+            s.shot("waypoints-title");
             for (int i = 0; i < 8; i++) {
                 s.click(".button");
             }

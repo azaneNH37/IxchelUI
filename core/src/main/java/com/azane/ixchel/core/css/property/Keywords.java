@@ -21,8 +21,8 @@ public final class Keywords {
     public enum JustifyContent { FLEX_START, FLEX_END, CENTER, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY }
 
     /**
-     * Every value but {@code visible} makes a scroll container: it clips its descendants to its border
-     * box (there are no borders, so that is the padding box), its automatic minimum size as a flex
+     * Every value but {@code visible} makes a scroll container: it clips its descendants to its padding
+     * box, its automatic minimum size as a flex
      * item is 0, and its content can be moved by a vertical scroll offset ({@link
      * com.azane.ixchel.core.dom.Element#scrollTop()}). The wheel scrolls only {@code auto} and
      * {@code scroll}; {@code hidden} scrolls programmatically. {@code scroll} always draws a scrollbar
@@ -33,4 +33,19 @@ public final class Keywords {
 
     /** {@code background-repeat}, one keyword for both axes; {@code space} and {@code round} are not supported. */
     public enum BackgroundRepeat { REPEAT, REPEAT_X, REPEAT_Y, NO_REPEAT }
+
+    /** {@code border-style}; {@code none} makes the used border width 0, as in CSS. Other styles are not supported. */
+    public enum BorderStyle { NONE, SOLID }
+
+    /** {@code text-align}; text runs left to right, so {@code start} is {@code left} and {@code end} is {@code right}. */
+    public enum TextAlign { START, END, LEFT, RIGHT, CENTER }
+
+    /** {@code white-space}; whitespace is always collapsed, so only wrapping differs. */
+    public enum WhiteSpace { NORMAL, NOWRAP }
+
+    /**
+     * {@code text-overflow} on the element whose text it is: with {@code overflow} other than
+     * {@code visible}, a line that runs past the element's padding box ends in an ellipsis.
+     */
+    public enum TextOverflow { CLIP, ELLIPSIS }
 }

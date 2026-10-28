@@ -36,6 +36,8 @@ public final class Element extends Node {
     public static final int HOVER = 1;
     public static final int ACTIVE = 1 << 1;
     public static final int FOCUS = 1 << 2;
+    /** Set while the element has a {@code disabled} attribute; {@code :disabled}. */
+    public static final int DISABLED = 1 << 3;
 
     private static final int STYLE_DIRTY = 1;
     private static final int DESCENDANT_STYLE_DIRTY = 1 << 1;
@@ -166,7 +168,8 @@ public final class Element extends Node {
     }
 
     /**
-     * Sets a plain attribute; changing {@code id} marks the element style-dirty.
+     * Sets a plain attribute; changing {@code id} marks the element style-dirty. {@code disabled} is a
+     * boolean attribute: present (any value) sets {@link #DISABLED}.
      *
      * @throws IllegalArgumentException for {@code class} (use {@link #addClass}/{@link #removeClass})
      *         and {@code style} (use {@link #setInlineStyle})
@@ -181,6 +184,19 @@ public final class Element extends Node {
         String old = attributes.put(name, value);
         if (name.equals("id") && !value.equals(old)) {
             markStyleDirty();
+        } else if (name.equals("disabled")) {
+            setState(DISABLED, true);
+        }
+    }
+
+    public void removeAttribute(String name) {
+        if (attributes.remove(name) == null) {
+            return;
+        }
+        if (name.equals("id")) {
+            markStyleDirty();
+        } else if (name.equals("disabled")) {
+            setState(DISABLED, false);
         }
     }
 

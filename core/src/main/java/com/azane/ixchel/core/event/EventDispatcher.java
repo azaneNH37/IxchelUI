@@ -28,6 +28,10 @@ import java.util.List;
  * the nearest focusable element under the pointer, or clears focus; Tab and Shift+Tab move focus in
  * document order. Key events go to the focused element, or to the root when nothing is focused.
  *
+ * <p>Inside an element with a {@code disabled} attribute, mouse buttons dispatch no events and change
+ * neither focus nor {@code :active} (the input still counts as taken), Tab skips focusable elements,
+ * and focus there is dropped after the next layout. Hover and the wheel work as usual.
+ *
  * <p>Every input method returns whether the UI took the input: a mouse event over any element, or an
  * event a listener {@linkplain UiEvent#consume() consumed}. The host falls back to its own handling
  * otherwise. Client thread only.
@@ -71,6 +75,12 @@ public final class EventDispatcher {
     public boolean mousePressed(float x, float y, int button) {
         mouseMoved(x, y);
         Element target = hitTest(x, y);
+        if (inDisabled(target)) {
+            // Taken, so the host does not act on it (vanilla would drop a carried stack), but no event.
+            pressed = null;
+            pressedButton = -1;
+            return true;
+        }
         focus(focusableAncestor(target));
         if (button == 0) {
             setStatePath(active, target, Element.ACTIVE);
@@ -88,12 +98,17 @@ public final class EventDispatcher {
         if (button == 0) {
             setStatePath(active, root, Element.ACTIVE);
         }
+        if (inDisabled(target)) {
+            pressed = null;
+            pressedButton = -1;
+            return true;
+        }
         UiEvent up = UiEvent.mouse(UiEvent.Type.MOUSE_UP, target, x, y, button);
         dispatch(up);
         boolean consumed = target != root || up.isConsumed();
         if (button == pressedButton && pressed != null) {
             Element clicked = commonAncestor(pressed, target);
-            if (clicked != root && isConnected(clicked)) {
+            if (clicked != root && isConnected(clicked) && !inDisabled(clicked)) {
                 UiEvent click = UiEvent.mouse(UiEvent.Type.CLICK, clicked, x, y, button);
                 dispatch(click);
                 consumed |= click.isConsumed();
@@ -144,7 +159,7 @@ public final class EventDispatcher {
      * press state.
      */
     public void afterLayout() {
-        if (focused != null && !isConnected(focused)) {
+        if (focused != null && (!isConnected(focused) || inDisabled(focused))) {
             focus(null);
         }
         if (!active.isEmpty() && !isConnected(active.get(0))) {
@@ -182,8 +197,13 @@ public final class EventDispatcher {
         }
         LayoutBox b = e.box();
         boolean inside = x >= b.x() && y >= b.y() && x < b.x() + b.width() && y < b.y() + b.height();
-        if (!inside && e.computed().get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE) {
-            return null;
+        if (e.computed().get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE) {
+            // Descendants are clipped to the padding box.
+            boolean inPadding = x >= b.x() + b.borderLeft() && y >= b.y() + b.borderTop()
+                    && x < b.x() + b.width() - b.borderRight() && y < b.y() + b.height() - b.borderBottom();
+            if (!inPadding) {
+                return inside ? e : null;
+            }
         }
         float childY = y + e.scrollTop();
         List<Node> children = e.children();
@@ -265,6 +285,9 @@ public final class EventDispatcher {
         if (e.computed() != null && e.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE) {
             return;
         }
+        if (e.hasState(Element.DISABLED)) {
+            return;
+        }
         if (e.attribute("tabindex") != null) {
             out.add(e);
         }
@@ -293,6 +316,16 @@ public final class EventDispatcher {
             }
         }
         return root;
+    }
+
+    /** Whether {@code e} or an ancestor has a {@code disabled} attribute. */
+    private static boolean inDisabled(Element e) {
+        for (Element a = e; a != null; a = a.parent()) {
+            if (a.hasState(Element.DISABLED)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isConnected(Element e) {

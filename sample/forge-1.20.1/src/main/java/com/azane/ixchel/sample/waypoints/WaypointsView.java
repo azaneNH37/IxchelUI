@@ -2,9 +2,11 @@ package com.azane.ixchel.sample.waypoints;
 
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
+import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.ClientSources;
+import com.azane.ixchel.sample.waypoints.Waypoints.Waypoint;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -13,21 +15,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A list of saved positions kept for the session: add the player's position, select a row (click,
- * or Up/Down from the screen), remove the selected one. Distances follow the player every frame.
+ * The session's {@link Waypoints}: add the player's position, select a row (click, or Up/Down from
+ * the screen), remove the selected one. Distances follow the player every frame.
  */
 final class WaypointsView extends ViewModel {
-    record Waypoint(int id, String name, BlockPos pos) {
-    }
-
     record Row(int id, String name, String coords, String distance, boolean selected) {
     }
 
-    /** Session state shared by every opening of the screen. */
-    static final List<Waypoint> SAVED = new ArrayList<>();
-    private static int nextId;
-
-    final Value<List<Waypoint>> waypoints = state(List.copyOf(SAVED));
+    final Value<List<Waypoint>> waypoints = source(Source.polled(Waypoints::all));
     final Value<Integer> selectedId = state(-1);
     final Value<BlockPos> playerPos = source(ClientSources.player(LocalPlayer::blockPosition, BlockPos.ZERO));
     final Derived<List<Row>> rows = derive(waypoints, selectedId, playerPos, WaypointsView::rows);
@@ -37,39 +32,36 @@ final class WaypointsView extends ViewModel {
 
     final Action<Void> add = action(() -> {
         LocalPlayer p = Minecraft.getInstance().player;
-        if (p == null) {
-            return;
+        if (p != null) {
+            selectedId.set(Waypoints.add(p.blockPosition()).id());
         }
-        Waypoint w = new Waypoint(nextId++, "Waypoint " + (SAVED.size() + 1), p.blockPosition());
-        SAVED.add(w);
-        waypoints.set(List.copyOf(SAVED));
-        selectedId.set(w.id());
     });
     final Action<Row> select = action(r -> selectedId.set(r.id()));
     final Action<Void> remove = action(() -> {
-        int id = selectedId.get();
-        int at = indexOf(id);
+        int at = indexOf(selectedId.get());
         if (at < 0) {
             return;
         }
-        SAVED.remove(at);
-        waypoints.set(List.copyOf(SAVED));
-        selectedId.set(SAVED.isEmpty() ? -1 : SAVED.get(Math.min(at, SAVED.size() - 1)).id());
+        Waypoints.remove(selectedId.get());
+        List<Waypoint> left = Waypoints.all();
+        selectedId.set(left.isEmpty() ? -1 : left.get(Math.min(at, left.size() - 1)).id());
     });
 
     /** Moves the selection by {@code delta} rows, clamped; selects the first row when none is. */
     void move(int delta) {
-        if (SAVED.isEmpty()) {
+        List<Waypoint> all = Waypoints.all();
+        if (all.isEmpty()) {
             return;
         }
         int at = indexOf(selectedId.get());
-        int next = at < 0 ? 0 : Math.max(0, Math.min(SAVED.size() - 1, at + delta));
-        selectedId.set(SAVED.get(next).id());
+        int next = at < 0 ? 0 : Math.max(0, Math.min(all.size() - 1, at + delta));
+        selectedId.set(all.get(next).id());
     }
 
     private static int indexOf(int id) {
-        for (int i = 0; i < SAVED.size(); i++) {
-            if (SAVED.get(i).id() == id) {
+        List<Waypoint> all = Waypoints.all();
+        for (int i = 0; i < all.size(); i++) {
+            if (all.get(i).id() == id) {
                 return i;
             }
         }

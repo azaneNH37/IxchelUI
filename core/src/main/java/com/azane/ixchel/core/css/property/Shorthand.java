@@ -85,6 +85,70 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
     }
 
     /**
+     * {@code border} ({@code sides} 4) and {@code border-top} etc. ({@code sides} 1): a width, a style
+     * and a color in any order, each at most once; omitted ones are reset to their initial values.
+     * Longhands: the {@code sides} widths, then the styles, then the colors. A number or dimension is
+     * the width, a style keyword the style, anything else the color.
+     */
+    public static Expander border(Syntax<Length> width, Syntax<Keywords.BorderStyle> style, Syntax<Integer> color,
+                                  Length initialWidth, Keywords.BorderStyle initialStyle, int initialColor, int sides) {
+        return (value, pos, diag) -> {
+            List<ComponentValue> parts = Syntaxes.significant(value);
+            if (parts.isEmpty() || parts.size() > 3) {
+                diag.error(parts.size() > 3 ? parts.get(3).pos() : pos, "expected a width, a style and a color, each at most once");
+                return null;
+            }
+            Object w = null;
+            Object s = null;
+            Object c = null;
+            for (ComponentValue v : parts) {
+                List<ComponentValue> one = List.of(v);
+                if (v instanceof Token t && (t.is(Token.Kind.DIMENSION) || t.is(Token.Kind.NUMBER))) {
+                    if (w != null) {
+                        diag.error(v.pos(), "more than one width");
+                        return null;
+                    }
+                    w = width.parse(one, v.pos(), diag);
+                    if (w == null) {
+                        return null;
+                    }
+                } else if (v instanceof Token t && t.is(Token.Kind.IDENT) && isBorderStyle(t.value())) {
+                    if (s != null) {
+                        diag.error(v.pos(), "more than one style");
+                        return null;
+                    }
+                    s = style.parse(one, v.pos(), diag);
+                } else {
+                    if (c != null) {
+                        diag.error(v.pos(), "more than one color");
+                        return null;
+                    }
+                    c = color.parse(one, v.pos(), diag);
+                    if (c == null) {
+                        return null;
+                    }
+                }
+            }
+            Object[] out = new Object[sides * 3];
+            for (int i = 0; i < sides; i++) {
+                out[i] = w == null ? initialWidth : w;
+                out[sides + i] = s == null ? initialStyle : s;
+                out[2 * sides + i] = c == null ? initialColor : c;
+            }
+            return out;
+        };
+    }
+
+    private static boolean isBorderStyle(String ident) {
+        for (Keywords.BorderStyle s : Keywords.BorderStyle.values()) {
+            if (s.name().equalsIgnoreCase(ident)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * {@code transition}: comma-separated items, each with at most one property name, duration,
      * easing and delay (the first time is the duration). Longhands: property, duration, timing
      * function, delay.

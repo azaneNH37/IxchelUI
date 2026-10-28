@@ -1,0 +1,10 @@
+<div class="radar">
+  <span class="label" each="labels" as="l" key="l.id" bind:style:left="l.left" bind:style:top="l.top" bind:style:color="l.color" bind:text="l.text"></span>
+  <span class="edge" each="edges" as="e" key="e.sector" bind:style:left="e.left" bind:style:top="e.top" bind:text="e.text"></span>
+  <div class="toasts">
+    <div class="toast" each="toasts" as="t" key="t.id" bind:class:fading="t.fading">
+      <item class="icon" bind:item="t.stack"></item>
+      <span class="text" bind:text="t.text"></span>
+    </div>
+  </div>
+</div>

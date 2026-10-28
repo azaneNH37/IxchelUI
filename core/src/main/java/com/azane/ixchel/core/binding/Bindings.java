@@ -317,7 +317,8 @@ public final class Bindings {
                 return null;
             }
             boolean isClass = target.startsWith("class:");
-            if ((negate || isClass) && !isBoolean(ref.type)) {
+            boolean isFlag = isClass || target.equals("disabled");
+            if ((negate || isFlag) && !isBoolean(ref.type)) {
                 diag.error(a.valuePos(), (negate ? "'!'" : "'" + a.name() + "'") + " needs a Boolean, but '"
                         + a.value().trim() + "' is " + ref.type.getTypeName());
                 return null;
@@ -341,6 +342,9 @@ public final class Bindings {
                     return null;
                 }
                 return new ClassBinding(ref.cell, negate, a, diag, e, cls);
+            }
+            if (target.equals("disabled")) {
+                return new DisabledBinding(ref.cell, negate, a, diag, e);
             }
             if (target.startsWith("style:")) {
                 return styleBinding(e, a, ref, negate);
@@ -966,6 +970,30 @@ public final class Bindings {
                 element.addClass(cls);
             } else {
                 element.removeClass(cls);
+            }
+            return true;
+        }
+    }
+
+    /** {@code bind:disabled}: the boolean attribute is present while the value is true. */
+    private static final class DisabledBinding extends Binding {
+        private final Element element;
+
+        DisabledBinding(Cell<?> cell, boolean negate, BindAttribute a, Diagnostics diag, Element element) {
+            super(cell, negate, a, diag);
+            this.element = element;
+        }
+
+        @Override
+        boolean write(Object value) {
+            boolean on = Boolean.TRUE.equals(value);
+            if (on == (element.attribute("disabled") != null)) {
+                return false;
+            }
+            if (on) {
+                element.setAttribute("disabled", "");
+            } else {
+                element.removeAttribute("disabled");
             }
             return true;
         }

@@ -10,6 +10,8 @@ import java.util.Map;
  * the limit gets a line of its own and overflows; words are never split.
  */
 public final class TextShaper {
+    public static final String ELLIPSIS = "\u2026";
+
     public record Line(String text, float width) {
     }
 
@@ -54,6 +56,24 @@ public final class TextShaper {
 
     public float lineHeight(float size) {
         return measurer.lineHeight(size);
+    }
+
+    /**
+     * {@code line} cut to the longest prefix that fits {@code maxWidth} together with an ellipsis
+     * (trailing spaces dropped); {@code line} itself when it fits. When not even the ellipsis fits it
+     * is returned alone, for the clip to cut.
+     */
+    public String ellipsize(String line, float size, float maxWidth) {
+        if (measurer.width(line, size) <= maxWidth) {
+            return line;
+        }
+        for (int end = line.length() - 1; end > 0; end--) {
+            String cut = line.substring(0, end).stripTrailing() + ELLIPSIS;
+            if (measurer.width(cut, size) <= maxWidth) {
+                return cut;
+            }
+        }
+        return ELLIPSIS;
     }
 
     /** Fonts reloaded: cached widths are stale. */

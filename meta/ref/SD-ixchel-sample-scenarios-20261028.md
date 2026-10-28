@@ -121,6 +121,13 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - `status` 并入 S5（效果列表另进 S1），`pickup` 并入 S4，`waypoints` 并入 S5。
 - `backpack` 在 S1、S2 覆盖 `UiContainerScreen` 之后删除；L2 兼容检查（`-Pslotcompat`）改挂到 S2。
 
+阶段 0、A 结果（2026-10-28）：
+- 阶段 0 全部落地：`title` 属性走原版 tooltip（mc 层 `ItemTooltips` 改名 `Tooltips`）；`disabled` 为全局布尔属性，可 `bind:disabled`。
+- S5 为 `env`，S4 为 `loot`（HUD + 列表界面，U 键）。`pickup` 已删除，拾取提示并入 S4 HUD。`status` 的生命、护甲、饥饿、经验已移入 S5，只剩效果列表，等 S1 接走后删除。路径点数据移到共享的 `waypoints/Waypoints`（不可变列表，变更即替换），列表界面与 S5 罗盘共用。
+- S4 方向箭头暂用 8 方向 Unicode 箭头字形（unifont 回退可显示），不画精灵图；阶段 D 有 rotate 后再换。
+- 帧耗时（开发机 AMD 核显，`FrameTimer` 计 Pre→Post 的 CPU 时间）：S5 HUD 静止中位数 / p95 约 1.1–1.4 / 2.0–3.1 ms，每 tick 移动转向约 1.2–2.1 / 3.2–3.4 ms；加罗盘前移动约 0.9 / 1.8 ms。S4 列表 27 行静止约 3.1–3.6 / 4.1–6.9 ms，每 tick 重排约 4.0–4.1 / 6.3–6.6 ms。检查预算取 p95 的约两倍（S5 6 ms，S4 14 ms）。
+- 由此的发现（未处理）：静止与变化帧耗时相当，开销在每帧回放显示列表，不在布局；`McPainter` 的裁剪只用 scissor，被裁掉的命令（罗盘条两侧刻度、列表滚出视口的行及其物品）照样提交。若要降，先在 Painter 剔除完全落在裁剪外的命令。
+
 ### 4. 自动化检查
 
 #### 4.1 现状

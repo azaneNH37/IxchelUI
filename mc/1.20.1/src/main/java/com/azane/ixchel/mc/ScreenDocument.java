@@ -111,10 +111,10 @@ final class ScreenDocument implements AutoCloseable {
         return painter.topZ();
     }
 
-    /** Draws the vanilla tooltip of an {@code <item>} under the pointer, above everything the document drew. */
+    /** Draws the vanilla tooltip of the {@code <item>} or {@code title} under the pointer, above everything the document drew. */
     void drawTooltip(GuiGraphics g, Font font, int mouseX, int mouseY) {
         if (document != null) {
-            ItemTooltips.render(g, font, document.events().hitTest(mouseX, mouseY), painter.topZ(), mouseX, mouseY);
+            Tooltips.render(g, font, document.events().hitTest(mouseX, mouseY), painter.topZ(), mouseX, mouseY);
         }
     }
 

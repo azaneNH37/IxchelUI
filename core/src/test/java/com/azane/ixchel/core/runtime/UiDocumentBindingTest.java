@@ -120,7 +120,7 @@ class UiDocumentBindingTest {
                 <div bind:text="text.length"></div>
                 <span bind:text="text">x</span>
                 <div bind:style="text"></div>
-                <div bind:title="text"></div>
+                <div bind:href="text"></div>
                 """, "", new Ammo()));
         String m = e.getMessage();
         assertTrue(m.startsWith("6 errors"), m);
@@ -129,7 +129,7 @@ class UiDocumentBindingTest {
         assertTrue(m.contains("t.html:3:17:") && m.contains("java.lang.String is not a record"), m);
         assertTrue(m.contains("t.html:4:7:") && m.contains("leave it empty"), m);
         assertTrue(m.contains("t.html:5:6:") && m.contains("bind:style takes a property name: bind:style:<property>"), m);
-        assertTrue(m.contains("t.html:6:6:") && m.contains("unknown binding target 'bind:title'"), m);
+        assertTrue(m.contains("t.html:6:6:") && m.contains("unknown binding target 'bind:href'"), m);
 
         UiLoadException none = assertThrows(UiLoadException.class,
                 () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", List.of(), TagRegistry.HTML, GoldenTest.MONO,

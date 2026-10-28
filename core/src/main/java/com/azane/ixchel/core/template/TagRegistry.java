@@ -17,8 +17,12 @@ import java.util.Set;
  * only a binding can set ({@code <item bind:item="gun"/>}).
  */
 public final class TagRegistry {
-    /** Attributes every element except {@code <style>} accepts; {@code tabindex} makes an element focusable. */
-    public static final Set<String> GLOBAL_ATTRIBUTES = Set.of("class", "id", "style", "tabindex");
+    /**
+     * Attributes every element except {@code <style>} accepts; {@code tabindex} makes an element
+     * focusable, {@code disabled} (a boolean attribute) blocks mouse buttons and focus inside it,
+     * {@code title} is tooltip text for the host to show.
+     */
+    public static final Set<String> GLOBAL_ATTRIBUTES = Set.of("class", "id", "style", "tabindex", "disabled", "title");
 
     /** The HTML subset core understands: {@code div}, {@code span}, {@code img src}, {@code style}. */
     public static final TagRegistry HTML = new Builder(Map.of(), Map.of())

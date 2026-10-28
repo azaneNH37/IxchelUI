@@ -3,8 +3,9 @@ package com.azane.ixchel.sample;
 import com.azane.ixchel.mc.UiScreen;
 import com.azane.ixchel.sample.check.Checks;
 import com.azane.ixchel.sample.check.Script;
+import com.azane.ixchel.sample.env.EnvHud;
+import com.azane.ixchel.sample.loot.LootClient;
 import com.azane.ixchel.sample.refit.RefitClient;
-import com.azane.ixchel.sample.pickup.PickupHud;
 import com.azane.ixchel.sample.status.StatusHud;
 import com.azane.ixchel.sample.waypoints.WaypointsClient;
 import net.minecraft.client.KeyMapping;
@@ -29,8 +30,10 @@ public final class Samples {
         return List.of(
                 RefitClient.refitSample(),
                 RefitClient.backpackSample(),
+                EnvHud.sample(),
                 StatusHud.sample(),
-                PickupHud.sample(),
+                LootClient.hudSample(),
+                LootClient.screenSample(),
                 WaypointsClient.sample());
     }
 

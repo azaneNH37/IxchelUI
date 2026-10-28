@@ -1,8 +1,5 @@
-package com.azane.ixchel.sample.pickup;
+package com.azane.ixchel.sample.loot;
 
-import com.azane.ixchel.core.binding.Value;
-import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.mc.ClientSources;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
@@ -14,12 +11,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Pickup toasts: one row per item type whose count in the inventory grew, merged while it keeps
- * growing, gone {@value #SHOW_MS} ms after the last change. The diff runs in the source read: the
- * list instance only changes when a toast is added, updated or expired, so bindings stay idle in
- * between.
+ * Pickup toasts, the radar HUD's log: one row per item type whose count in the inventory grew,
+ * merged while it keeps growing, gone {@value #SHOW_MS} ms after the last change. {@link #read} runs
+ * in a source: the list instance only changes when a toast is added, updated or expired, so
+ * bindings stay idle in between.
  */
-final class PickupView extends ViewModel {
+final class PickupToasts {
     static final long SHOW_MS = 3000;
     static final long FADE_MS = 600;
 
@@ -37,9 +34,7 @@ final class PickupView extends ViewModel {
     private int nextId;
     private boolean primed;
 
-    final Value<List<Toast>> toasts = source(ClientSources.player(this::read, List.of()));
-
-    private List<Toast> read(LocalPlayer p) {
+    List<Toast> read(LocalPlayer p) {
         long now = System.currentTimeMillis();
         boolean changed = diff(p.getInventory(), now);
         for (int i = live.size() - 1; i >= 0; i--) {

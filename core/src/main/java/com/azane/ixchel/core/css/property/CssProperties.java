@@ -3,12 +3,16 @@ package com.azane.ixchel.core.css.property;
 import com.azane.ixchel.core.css.property.Keywords.AlignItems;
 import com.azane.ixchel.core.css.property.Keywords.AlignSelf;
 import com.azane.ixchel.core.css.property.Keywords.BackgroundRepeat;
+import com.azane.ixchel.core.css.property.Keywords.BorderStyle;
 import com.azane.ixchel.core.css.property.Keywords.Display;
 import com.azane.ixchel.core.css.property.Keywords.FlexDirection;
 import com.azane.ixchel.core.css.property.Keywords.FlexWrap;
 import com.azane.ixchel.core.css.property.Keywords.JustifyContent;
 import com.azane.ixchel.core.css.property.Keywords.Overflow;
 import com.azane.ixchel.core.css.property.Keywords.Position;
+import com.azane.ixchel.core.css.property.Keywords.TextAlign;
+import com.azane.ixchel.core.css.property.Keywords.TextOverflow;
+import com.azane.ixchel.core.css.property.Keywords.WhiteSpace;
 
 import java.util.List;
 
@@ -25,7 +29,8 @@ import static com.azane.ixchel.core.css.property.Syntaxes.transitionProperty;
 
 /**
  * The supported property set. Departures from CSS initial values: {@code display} is {@code flex}
- * and {@code flex-direction} is {@code column} (no document flow), {@code color} is white.
+ * and {@code flex-direction} is {@code column} (no document flow), {@code color} is white, and sizes
+ * ({@code width}, {@code min-height}, ...) are border-box sizes, as with {@code box-sizing: border-box}.
  * Animatable properties are those whose values {@code anim} may interpolate; the
  * {@code transition-*} lists are cycled per property as in CSS.
  */
@@ -43,6 +48,8 @@ public final class CssProperties {
     private static final Syntax<Length> PADDING = length(true, false, false);
     private static final Syntax<Length> GAP = length(true, false, false);
     private static final Syntax<Length> BACKGROUND_OFFSET = length(true, false, true);
+    private static final Syntax<Length> BORDER_WIDTH = length(false, false, false);
+    private static final Length MEDIUM = Length.px(3);
 
     public static final PropertyDef<Display> DISPLAY = R.register("display", keyword(Display.class), Display.FLEX, false, true, false);
     public static final PropertyDef<Position> POSITION = R.register("position", keyword(Position.class), Position.RELATIVE, false, true, false);
@@ -79,6 +86,22 @@ public final class CssProperties {
     public static final PropertyDef<Length> COLUMN_GAP = R.register("column-gap", GAP, Length.ZERO, false, true, true);
 
     public static final PropertyDef<Overflow> OVERFLOW = R.register("overflow", keyword(Overflow.class), Overflow.VISIBLE, false, true, false);
+    /** A number; values above 1 act as 1. Percentages are not supported. */
+    public static final PropertyDef<Float> OPACITY = R.register("opacity", number(false), 1f, false, false, true);
+    /** Used width is 0 while the side's style is {@code none}; the initial width is CSS {@code medium}, 3px. */
+    public static final PropertyDef<Length> BORDER_TOP_WIDTH = R.register("border-top-width", BORDER_WIDTH, MEDIUM, false, true, true);
+    public static final PropertyDef<Length> BORDER_RIGHT_WIDTH = R.register("border-right-width", BORDER_WIDTH, MEDIUM, false, true, true);
+    public static final PropertyDef<Length> BORDER_BOTTOM_WIDTH = R.register("border-bottom-width", BORDER_WIDTH, MEDIUM, false, true, true);
+    public static final PropertyDef<Length> BORDER_LEFT_WIDTH = R.register("border-left-width", BORDER_WIDTH, MEDIUM, false, true, true);
+    public static final PropertyDef<BorderStyle> BORDER_TOP_STYLE = R.register("border-top-style", keyword(BorderStyle.class), BorderStyle.NONE, false, true, false);
+    public static final PropertyDef<BorderStyle> BORDER_RIGHT_STYLE = R.register("border-right-style", keyword(BorderStyle.class), BorderStyle.NONE, false, true, false);
+    public static final PropertyDef<BorderStyle> BORDER_BOTTOM_STYLE = R.register("border-bottom-style", keyword(BorderStyle.class), BorderStyle.NONE, false, true, false);
+    public static final PropertyDef<BorderStyle> BORDER_LEFT_STYLE = R.register("border-left-style", keyword(BorderStyle.class), BorderStyle.NONE, false, true, false);
+    /** No {@code currentcolor}: the initial value is white, which is {@code color}'s initial value. */
+    public static final PropertyDef<Integer> BORDER_TOP_COLOR = R.register("border-top-color", color(), 0xFFFFFFFF, false, false, true);
+    public static final PropertyDef<Integer> BORDER_RIGHT_COLOR = R.register("border-right-color", color(), 0xFFFFFFFF, false, false, true);
+    public static final PropertyDef<Integer> BORDER_BOTTOM_COLOR = R.register("border-bottom-color", color(), 0xFFFFFFFF, false, false, true);
+    public static final PropertyDef<Integer> BORDER_LEFT_COLOR = R.register("border-left-color", color(), 0xFFFFFFFF, false, false, true);
     public static final PropertyDef<Integer> BACKGROUND_COLOR = R.register("background-color", color(), 0x00000000, false, false, true);
     /** The image's resource location, or an empty string for {@code none}. */
     public static final PropertyDef<String> BACKGROUND_IMAGE = R.register("background-image", backgroundImage(), "", false, false, false);
@@ -91,6 +114,10 @@ public final class CssProperties {
     public static final PropertyDef<BackgroundRepeat> BACKGROUND_REPEAT =
             R.register("background-repeat", keyword(BackgroundRepeat.class), BackgroundRepeat.REPEAT, false, false, false);
     public static final PropertyDef<Integer> COLOR = R.register("color", color(), 0xFFFFFFFF, true, false, true);
+    /** Aligns each line of a text node inside the text's box, which spans its container's width unless the flex layout shrinks it. */
+    public static final PropertyDef<TextAlign> TEXT_ALIGN = R.register("text-align", keyword(TextAlign.class), TextAlign.START, true, false, false);
+    public static final PropertyDef<WhiteSpace> WHITE_SPACE = R.register("white-space", keyword(WhiteSpace.class), WhiteSpace.NORMAL, true, true, false);
+    public static final PropertyDef<TextOverflow> TEXT_OVERFLOW = R.register("text-overflow", keyword(TextOverflow.class), TextOverflow.CLIP, false, false, false);
     public static final PropertyDef<Length> FONT_SIZE = R.register("font-size", length(false, false, false), Length.px(9), true, true, true);
 
     public static final PropertyDef<List<String>> TRANSITION_PROPERTY =
@@ -105,11 +132,28 @@ public final class CssProperties {
     static {
         R.registerShorthand("margin", Shorthand.box(MARGIN), MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT);
         R.registerShorthand("padding", Shorthand.box(PADDING), PADDING_TOP, PADDING_RIGHT, PADDING_BOTTOM, PADDING_LEFT);
+        R.registerShorthand("border-width", Shorthand.box(BORDER_WIDTH),
+                BORDER_TOP_WIDTH, BORDER_RIGHT_WIDTH, BORDER_BOTTOM_WIDTH, BORDER_LEFT_WIDTH);
+        R.registerShorthand("border-style", Shorthand.box(keyword(BorderStyle.class)),
+                BORDER_TOP_STYLE, BORDER_RIGHT_STYLE, BORDER_BOTTOM_STYLE, BORDER_LEFT_STYLE);
+        R.registerShorthand("border-color", Shorthand.box(color()),
+                BORDER_TOP_COLOR, BORDER_RIGHT_COLOR, BORDER_BOTTOM_COLOR, BORDER_LEFT_COLOR);
+        R.registerShorthand("border", border(4), BORDER_TOP_WIDTH, BORDER_RIGHT_WIDTH, BORDER_BOTTOM_WIDTH, BORDER_LEFT_WIDTH,
+                BORDER_TOP_STYLE, BORDER_RIGHT_STYLE, BORDER_BOTTOM_STYLE, BORDER_LEFT_STYLE,
+                BORDER_TOP_COLOR, BORDER_RIGHT_COLOR, BORDER_BOTTOM_COLOR, BORDER_LEFT_COLOR);
+        R.registerShorthand("border-top", border(1), BORDER_TOP_WIDTH, BORDER_TOP_STYLE, BORDER_TOP_COLOR);
+        R.registerShorthand("border-right", border(1), BORDER_RIGHT_WIDTH, BORDER_RIGHT_STYLE, BORDER_RIGHT_COLOR);
+        R.registerShorthand("border-bottom", border(1), BORDER_BOTTOM_WIDTH, BORDER_BOTTOM_STYLE, BORDER_BOTTOM_COLOR);
+        R.registerShorthand("border-left", border(1), BORDER_LEFT_WIDTH, BORDER_LEFT_STYLE, BORDER_LEFT_COLOR);
         R.registerShorthand("gap", Shorthand.pair(GAP), ROW_GAP, COLUMN_GAP);
         R.registerShorthand("background-position", Shorthand.position(BACKGROUND_OFFSET),
                 BACKGROUND_POSITION_X, BACKGROUND_POSITION_Y);
         R.registerShorthand("transition", Shorthand.transition(R),
                 TRANSITION_PROPERTY, TRANSITION_DURATION, TRANSITION_TIMING_FUNCTION, TRANSITION_DELAY);
         R.freeze();
+    }
+
+    private static Shorthand.Expander border(int sides) {
+        return Shorthand.border(BORDER_WIDTH, keyword(BorderStyle.class), color(), MEDIUM, BorderStyle.NONE, 0xFFFFFFFF, sides);
     }
 }

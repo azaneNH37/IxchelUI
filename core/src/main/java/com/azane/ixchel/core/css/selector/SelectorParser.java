@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Supported: type, {@code *}, {@code .class}, {@code #id}, {@code :hover/:active/:focus}, descendant
+ * Supported: type, {@code *}, {@code .class}, {@code #id}, {@code :hover/:active/:focus/:disabled}, descendant
  * and child combinators, selector lists. Anything else is a dev-time error.
  */
 public final class SelectorParser {
@@ -149,6 +149,8 @@ public final class SelectorParser {
                 return Element.ACTIVE;
             case "focus":
                 return Element.FOCUS;
+            case "disabled":
+                return Element.DISABLED;
             default:
                 return 0;
         }

@@ -12,8 +12,8 @@ import java.util.List;
 /**
  * A full screen drawn and driven by one document. Mouse and keyboard go to the document first; input
  * it does not take falls back to {@link Screen} (Escape closes). Closing the screen closes the view
- * model, so late replies and subscriptions end with it. An {@code <item>} under the pointer shows its
- * vanilla tooltip ({@link ItemTooltips}). Does not pause a single-player game.
+ * model, so late replies and subscriptions end with it. An {@code <item>} or a {@code title} under the
+ * pointer shows a vanilla tooltip ({@link Tooltips}). Does not pause a single-player game.
  *
  * <pre>{@code
  * mc.setScreen(new UiScreen(MODID, "ui/refit.html", List.of("ui/refit.css"), new RefitView(slot)));

@@ -4,6 +4,7 @@ import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Length;
+import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
@@ -54,6 +55,7 @@ public final class LayoutEngine {
         List<NodeId> children = List.of();
         String text;
         float fontSize;
+        boolean nowrap;
         TextShaper.Shaped shaped;
         float contentWidth;
         /**
@@ -146,6 +148,11 @@ public final class LayoutEngine {
         return shaper.lineHeight(fontSize);
     }
 
+    /** See {@link TextShaper#ellipsize}. */
+    public String ellipsize(String line, float fontSize, float maxWidth) {
+        return shaper.ellipsize(line, fontSize, maxWidth);
+    }
+
     private NodeId sync(Node node, boolean isRoot) {
         if (node instanceof TextNode t) {
             return syncText(t);
@@ -181,7 +188,9 @@ public final class LayoutEngine {
     }
 
     private NodeId syncText(TextNode t) {
-        float size = t.parent().computed().get(CssProperties.FONT_SIZE).value();
+        ComputedStyle parent = t.parent().computed();
+        float size = parent.get(CssProperties.FONT_SIZE).value();
+        boolean nowrap = parent.get(CssProperties.WHITE_SPACE) == Keywords.WhiteSpace.NOWRAP;
         Slot slot = slots.get(t);
         if (slot == null) {
             slot = new Slot();
@@ -191,19 +200,25 @@ public final class LayoutEngine {
         }
         slot.seen = generation;
         String text = t.text();
-        if (size != slot.fontSize || !text.equals(slot.text)) {
-            if (size == slot.fontSize && measuresAlike(slot, text)) {
+        if (size != slot.fontSize || nowrap != slot.nowrap || !text.equals(slot.text)) {
+            if (size == slot.fontSize && nowrap == slot.nowrap && measuresAlike(slot, text)) {
                 slot.text = text;
-                slot.shaped = shaper.shape(text, size, slot.contentWidth);
+                slot.shaped = shaper.shape(text, size, wrapWidth(slot, slot.contentWidth));
             } else {
                 slot.text = text;
                 slot.fontSize = size;
+                slot.nowrap = nowrap;
                 slot.queryCount = 0;
                 tree.markDirty(slot.id);
                 changed = true;
             }
         }
         return slot.id;
+    }
+
+    /** The width lines break at: none for {@code white-space: nowrap}. */
+    private static float wrapWidth(Slot slot, float width) {
+        return slot.nowrap ? Float.POSITIVE_INFINITY : width;
     }
 
     /**
@@ -216,7 +231,7 @@ public final class LayoutEngine {
         }
         float[] q = slot.queries;
         for (int i = 0; i < slot.queryCount * QUERY; i += QUERY) {
-            FloatSize s = measure(text, slot.fontSize, q[i], q[i + 1], q[i + 2]);
+            FloatSize s = measure(slot, text, q[i], q[i + 1], q[i + 2]);
             if (!same(s.width, q[i + 3]) || !same(s.height, q[i + 4])) {
                 return false;
             }
@@ -228,23 +243,23 @@ public final class LayoutEngine {
         return (known, available) -> {
             AvailableSpace a = available.width;
             float availableWidth = a.isMinContent() ? Float.NaN : a.isDefinite() ? a.getValue() : Float.POSITIVE_INFINITY;
-            FloatSize s = measure(slot.text, slot.fontSize, known.width, known.height, availableWidth);
+            FloatSize s = measure(slot, slot.text, known.width, known.height, availableWidth);
             slot.record(known.width, known.height, availableWidth, s.width, s.height);
             return s;
         };
     }
 
-    /** {@code availableWidth}: NaN for min-content, infinite for max-content. */
-    private FloatSize measure(String text, float fontSize, float knownWidth, float knownHeight, float availableWidth) {
+    /** {@code availableWidth}: NaN for min-content, infinite for max-content. Font size and wrapping come from {@code slot}. */
+    private FloatSize measure(Slot slot, String text, float knownWidth, float knownHeight, float availableWidth) {
         float maxWidth;
         if (!Float.isNaN(knownWidth)) {
             maxWidth = knownWidth;
         } else if (Float.isNaN(availableWidth)) {
-            maxWidth = shaper.minContentWidth(text, fontSize);
+            maxWidth = shaper.minContentWidth(text, slot.fontSize);
         } else {
             maxWidth = availableWidth;
         }
-        TextShaper.Shaped s = shaper.shape(text, fontSize, maxWidth);
+        TextShaper.Shaped s = shaper.shape(text, slot.fontSize, wrapWidth(slot, maxWidth));
         return new FloatSize(Float.isNaN(knownWidth) ? s.width() : knownWidth,
                 Float.isNaN(knownHeight) ? s.height() : knownHeight);
     }
@@ -268,13 +283,14 @@ public final class LayoutEngine {
         float y = parentY + l.location().y;
         float bottom = y + l.size().height;
         node.box().set(x, y, l.size().width, l.size().height);
+        node.box().setBorder(l.border().top, l.border().right, l.border().bottom, l.border().left);
         if (node instanceof TextNode) {
             slot.contentWidth = tree.getUnroundedLayout(slot.id).contentBoxWidth();
-            slot.shaped = shaper.shape(slot.text, slot.fontSize, slot.contentWidth);
+            slot.shaped = shaper.shape(slot.text, slot.fontSize, wrapWidth(slot, slot.contentWidth));
             return bottom;
         }
         Element e = (Element) node;
-        float overflowEnd = bottom;
+        float childrenEnd = y;
         float inFlowEnd = y;
         List<Node> children = e.children();
         for (int i = 0; i < children.size(); i++) {
@@ -284,7 +300,7 @@ public final class LayoutEngine {
             if (ccs != null && ccs.get(CssProperties.DISPLAY) == Keywords.Display.NONE) {
                 continue;
             }
-            overflowEnd = Math.max(overflowEnd, end);
+            childrenEnd = Math.max(childrenEnd, end);
             if (ccs == null || ccs.get(CssProperties.POSITION) != Keywords.Position.ABSOLUTE) {
                 float marginBottom = tree.getLayout(slots.get(c).id).margin().bottom;
                 inFlowEnd = Math.max(inFlowEnd, c.box().y() + c.box().height() + marginBottom);
@@ -293,9 +309,11 @@ public final class LayoutEngine {
         ComputedStyle cs = e.computed();
         if (cs == null || cs.get(CssProperties.OVERFLOW) == Keywords.Overflow.VISIBLE) {
             e.setMaxScrollTop(0);
-            return overflowEnd;
+            return Math.max(bottom, childrenEnd);
         }
-        e.setMaxScrollTop(Math.max(overflowEnd, inFlowEnd + l.padding().bottom) - bottom);
+        // The scrollport is the padding box: content scrolls up to its bottom edge, not the border's.
+        float portBottom = bottom - l.border().bottom;
+        e.setMaxScrollTop(Math.max(childrenEnd, inFlowEnd + l.padding().bottom) - portBottom);
         return bottom;
     }
 
@@ -320,6 +338,10 @@ public final class LayoutEngine {
                 lpa(cs.get(CssProperties.MARGIN_TOP)), lpa(cs.get(CssProperties.MARGIN_BOTTOM)));
         s.padding = rect(lp(cs.get(CssProperties.PADDING_LEFT)), lp(cs.get(CssProperties.PADDING_RIGHT)),
                 lp(cs.get(CssProperties.PADDING_TOP)), lp(cs.get(CssProperties.PADDING_BOTTOM)));
+        s.border = rect(border(cs, CssProperties.BORDER_LEFT_WIDTH, CssProperties.BORDER_LEFT_STYLE),
+                border(cs, CssProperties.BORDER_RIGHT_WIDTH, CssProperties.BORDER_RIGHT_STYLE),
+                border(cs, CssProperties.BORDER_TOP_WIDTH, CssProperties.BORDER_TOP_STYLE),
+                border(cs, CssProperties.BORDER_BOTTOM_WIDTH, CssProperties.BORDER_BOTTOM_STYLE));
         s.flexDirection = FlexDirection.valueOf(cs.get(CssProperties.FLEX_DIRECTION).name());
         s.flexWrap = switch (cs.get(CssProperties.FLEX_WRAP)) {
             case NOWRAP -> FlexWrap.NO_WRAP;
@@ -350,6 +372,11 @@ public final class LayoutEngine {
         r.top = top;
         r.bottom = bottom;
         return r;
+    }
+
+    /** The used width: 0 for {@code border-style: none}. */
+    private static LengthPercentage border(ComputedStyle cs, PropertyDef<Length> width, PropertyDef<Keywords.BorderStyle> style) {
+        return cs.get(style) == Keywords.BorderStyle.NONE ? LengthPercentage.length(0) : lp(cs.get(width));
     }
 
     private static TaffyDimension dim(Length l) {

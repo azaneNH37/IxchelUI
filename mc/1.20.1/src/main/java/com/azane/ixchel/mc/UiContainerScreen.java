@@ -339,12 +339,13 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         clip[3] = Float.POSITIVE_INFINITY;
         for (Element a = e.parent(); a != null; a = a.parent()) {
             if (a.computed() != null && a.computed().get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE) {
+                // Overflow clips to the padding box.
                 LayoutBox b = a.box();
-                float top = b.y() - scrollAbove(a);
-                clip[0] = Math.max(clip[0], b.x());
+                float top = b.y() - scrollAbove(a) + b.borderTop();
+                clip[0] = Math.max(clip[0], b.x() + b.borderLeft());
                 clip[1] = Math.max(clip[1], top);
-                clip[2] = Math.min(clip[2], b.x() + b.width());
-                clip[3] = Math.min(clip[3], top + b.height());
+                clip[2] = Math.min(clip[2], b.x() + b.width() - b.borderRight());
+                clip[3] = Math.min(clip[3], top + b.height() - b.borderTop() - b.borderBottom());
             }
         }
         if (slotItems == SlotItemRendering.IXCHEL) {

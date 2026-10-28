@@ -118,6 +118,10 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
 
     @Override
     public Void visitText(DrawCommand.Text c) {
+        // Font draws alpha below 4 as opaque; that text is invisible, as fading text must end.
+        if ((c.color() & 0xFC000000) == 0) {
+            return null;
+        }
         raiseAboveItems();
         begin(Batch.TEXT, null);
         float scale = c.size() / VANILLA_SIZE;
