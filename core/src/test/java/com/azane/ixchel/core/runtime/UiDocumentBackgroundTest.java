@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentBackgroundTest {
     private static UiDocument load(String html, String css, ImageMeasurer images) {
-        return UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")), TagRegistry.HTML,
+        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
                 GoldenTest.MONO, images);
     }
 
@@ -141,7 +141,7 @@ class UiDocumentBackgroundTest {
         assertEquals("", GoldenTest.print(doc.frame(100, 90)));
         assertEquals(1, doc.diagnostics().errorCount());
         String d = doc.diagnostics().entries().get(0).toString();
-        assertTrue(d.startsWith("t.html:1:1:") && d.contains("cannot load background image 'x:missing.png'"), d);
+        assertTrue(d.startsWith("t.html:2:1:") && d.contains("cannot load background image 'x:missing.png'"), d);
     }
 
     @Test

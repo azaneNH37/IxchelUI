@@ -1,0 +1,56 @@
+<link rel="stylesheet" href="panel.css"/>
+<div class="panel">
+  <div class="tabs">
+    <div class="tab" each="tabs" as="t" key="t.id" bind:class:selected="t.selected" on:click="select(t)">
+      <span bind:text="t.label"></span>
+    </div>
+  </div>
+  <div class="page equipment" bind:class:shown="onEquipment">
+    <div class="column">
+      <item-slot class="slot" slot="5"></item-slot>
+      <item-slot class="slot" slot="6"></item-slot>
+      <item-slot class="slot" slot="7"></item-slot>
+      <item-slot class="slot" slot="8"></item-slot>
+    </div>
+    <entity class="doll" bind:entity="doll" title="You. The doll looks at the pointer."></entity>
+    <div class="column offhand">
+      <item-slot class="slot" slot="45"></item-slot>
+    </div>
+    <div class="crafting">
+      <div class="craft-grid">
+        <item-slot class="slot" slot="1"></item-slot>
+        <item-slot class="slot" slot="2"></item-slot>
+        <item-slot class="slot" slot="3"></item-slot>
+        <item-slot class="slot" slot="4"></item-slot>
+      </div>
+      <span class="arrow">↓</span>
+      <item-slot class="slot result" slot="0"></item-slot>
+    </div>
+  </div>
+  <div class="page list" bind:class:shown="onAttributes">
+    <div class="row attribute" each="attributes" as="a" key="a.name" bind:title="a.description">
+      <span class="name" bind:text="a.name"></span>
+      <span class="value" bind:text="a.value"></span>
+    </div>
+  </div>
+  <div class="page list" bind:class:shown="onEffects">
+    <span class="empty" if="noEffects">No active effects.</span>
+    <div class="row effect" each="effects" as="e" key="e.id" bind:class:ending="e.ending" bind:class:dim="e.dim">
+      <img class="effect-icon" bind:src="e.icon"/>
+      <span class="name" bind:text="e.name"></span>
+      <span class="value" bind:text="e.time"></span>
+    </div>
+  </div>
+  <div class="page list" bind:class:shown="onStats">
+    <div class="row stat" each="stats" as="s" key="s.name">
+      <span class="name" bind:text="s.name"></span>
+      <span class="value" bind:text="s.value"></span>
+    </div>
+  </div>
+  <div class="grid">
+    <item-slot class="slot" each="inventory" as="i" key="i" bind:slot="i"></item-slot>
+  </div>
+  <div class="grid hotbar">
+    <item-slot class="slot" each="hotbar" as="i" key="i" bind:slot="i"></item-slot>
+  </div>
+</div>

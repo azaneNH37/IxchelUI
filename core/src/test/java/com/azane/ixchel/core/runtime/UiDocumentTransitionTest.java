@@ -9,8 +9,6 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,7 +17,7 @@ class UiDocumentTransitionTest {
     private long nowMs;
 
     private UiDocument load(String html, String css) {
-        UiDocument doc = UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")),
+        UiDocument doc = UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css),
                 TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
         doc.clock(() -> nowMs * 1_000_000);
         return doc;
@@ -104,9 +102,8 @@ class UiDocumentTransitionTest {
     @Test
     void aBoundValueChangeRunsTheTransition() {
         Fill m = new Fill();
-        UiDocument doc = UiDocument.load("<div class=\"box\" bind:style:width=\"width\"></div>", "t.html",
-                List.of(new UiDocument.CssSource(
-                        ".box { height: 10px; background-color: #fff; transition: width 100ms linear }", "t.css")),
+        UiDocument doc = UiDocument.load(GoldenTest.linked("<div class=\"box\" bind:style:width=\"width\"></div>"), "t.html",
+                GoldenTest.sheet(".box { height: 10px; background-color: #fff; transition: width 100ms linear }"),
                 TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         doc.clock(() -> nowMs * 1_000_000);
         assertEquals("rect 0 0 10 10 #FFFFFFFF", frameAt(doc, 0));

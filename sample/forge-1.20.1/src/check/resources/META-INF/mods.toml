@@ -1,0 +1,16 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "ixchelsamplecheck"
+version = "0.0.0"
+displayName = "Ixchel UI Sample Checks"
+description = "Unattended functional checks of the Ixchel UI samples (-Pcheck). Not distributed."
+
+[[dependencies.ixchelsamplecheck]]
+modId = "ixchelsample"
+mandatory = true
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "CLIENT"

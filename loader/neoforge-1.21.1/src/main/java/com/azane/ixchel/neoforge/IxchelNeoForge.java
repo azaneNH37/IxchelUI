@@ -1,77 +1,64 @@
 package com.azane.ixchel.neoforge;
 
 import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.core.diag.Diagnostic;
-import com.azane.ixchel.core.diag.UiLoadException;
-import com.azane.ixchel.mc.DevOverlay;
-import com.azane.ixchel.mc.DevResources;
-import com.azane.ixchel.mc.McElements;
-import com.azane.ixchel.mc.McResources;
 import com.azane.ixchel.mc.UiHud;
-import com.azane.ixchel.mc.WorldProjection;
-import com.mojang.logging.LogUtils;
-import net.minecraft.client.DeltaTracker;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import com.azane.ixchel.mc.source.WorldProjection;
 import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
-import org.slf4j.Logger;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Supplier;
 
-/** NeoForge 1.21.1 glue for host mods. */
+/** NeoForge 1.21.1 glue for host mods: registers the mc layer's hosts with NeoForge. */
 public final class IxchelNeoForge {
-    private static final Logger LOG = LogUtils.getLogger();
+    private static boolean worldProjectionInstalled;
 
     private IxchelNeoForge() {
     }
 
     /**
-     * Registers a HUD layer above all vanilla layers. The document is loaded from the host's
-     * resources on every resource reload (startup and F3+T), each time with a fresh view model; a
-     * load error fails that reload.
+     * Registers a {@link UiHud} as a GUI layer above all vanilla layers and as a resource reload
+     * listener: the document loads at startup and again on F3+T, keeping its view model; a load
+     * error fails that reload. The first call also installs the listener that lets
+     * {@link WorldProjection} see the camera.
      *
-     * <p>In a development run with {@code -Dixchel.devResources.<hostModId>=<resource root>}, the
-     * template and stylesheets are read from that directory and reloaded when saved. A failed load
-     * then keeps the last good document and lists the errors in an overlay instead of failing.
+     * <pre>{@code
+     * UiHud hud = IxchelNeoForge.registerHud(modBus, ResourceLocation.fromNamespaceAndPath(MODID, "ui/ammo_hud.html"), AmmoHudView::new);
+     * }</pre>
      *
-     * @param modBus       the host mod's event bus
-     * @param hostModId    namespace of the template, stylesheets and layer id
-     * @param layerId      layer path, unique within the host mod
-     * @param templatePath template path under {@code assets/<hostModId>/}
-     * @param cssPaths     stylesheet paths under {@code assets/<hostModId>/}, applied in order
-     * @param model        creates the view model the template binds to; may return {@code null} for
-     *                     a template without bindings
+     * @param modBus   the host mod's event bus
+     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     *                 id, stylesheets come from its {@code <link>} elements. The layer id is
+     *                 {@code <namespace>:<path without .html>} ({@code mymod:ui/env/hud})
+     * @param model    creates the view model on the first load; may return {@code null} for a
+     *                 template without bindings
      */
-    public static void registerHud(IEventBus modBus, String hostModId, String layerId, String templatePath,
-                                   List<String> cssPaths, Supplier<? extends ViewModel> model) {
-        DevResources dev = FMLEnvironment.production ? null : DevResources.forHost(hostModId);
-        HudLayer layer = new HudLayer(new McResources(hostModId, dev), dev != null, templatePath, cssPaths, model);
-        if (dev != null) {
-            List<String> watched = new ArrayList<>(cssPaths);
-            watched.add(templatePath);
-            dev.watch(watched, () -> layer.load(Minecraft.getInstance().getResourceManager()));
-        }
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(hostModId, layerId);
-        modBus.addListener((RegisterClientReloadListenersEvent e) -> e.registerReloadListener(layer));
-        modBus.addListener((RegisterGuiLayersEvent e) -> e.registerAboveAll(id, layer));
+    public static UiHud registerHud(IEventBus modBus, ResourceLocation template, Supplier<? extends ViewModel> model) {
+        UiHud hud = new UiHud(template, model);
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(template.getNamespace(), layerId(template.getPath()));
+        modBus.addListener((RegisterClientReloadListenersEvent e) ->
+                e.registerReloadListener((ResourceManagerReloadListener) manager -> hud.reload()));
+        modBus.addListener((RegisterGuiLayersEvent e) ->
+                e.registerAboveAll(id, (LayeredDraw.Layer) (g, deltaTracker) -> hud.render(g)));
+        installWorldProjection();
+        return hud;
     }
 
-    /**
-     * Lets {@link WorldProjection} see the camera every frame the level is drawn. Call once, on the
-     * client only (for example from the client mod constructor); it adds a listener to the game event bus.
-     */
-    public static void registerWorldProjection() {
+    static String layerId(String templatePath) {
+        return templatePath.endsWith(".html") ? templatePath.substring(0, templatePath.length() - 5) : templatePath;
+    }
+
+    /** Lets {@link WorldProjection} see the camera every frame the level is drawn; once per library copy. */
+    private static void installWorldProjection() {
+        if (worldProjectionInstalled) {
+            return;
+        }
+        worldProjectionInstalled = true;
         NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent e) -> {
             // After the sky: fired once per level render, sky drawn or not, with the final matrices.
             if (e.getStage() == RenderLevelStageEvent.Stage.AFTER_SKY) {
@@ -79,52 +66,5 @@ public final class IxchelNeoForge {
                         e.getCamera().getPosition(), e.getCamera().getPartialTickTime());
             }
         });
-    }
-
-    private static final class HudLayer implements LayeredDraw.Layer, ResourceManagerReloadListener {
-        private final McResources resources;
-        private final boolean dev;
-        private final String templatePath;
-        private final List<String> cssPaths;
-        private final Supplier<? extends ViewModel> model;
-        private UiHud hud;
-        private List<Diagnostic> loadErrors = List.of();
-
-        HudLayer(McResources resources, boolean dev, String templatePath, List<String> cssPaths,
-                 Supplier<? extends ViewModel> model) {
-            this.resources = resources;
-            this.dev = dev;
-            this.templatePath = templatePath;
-            this.cssPaths = List.copyOf(cssPaths);
-            this.model = model;
-        }
-
-        @Override
-        public void onResourceManagerReload(ResourceManager manager) {
-            load(manager);
-        }
-
-        void load(ResourceManager manager) {
-            try {
-                hud = new UiHud(resources.load(manager, templatePath, cssPaths, McElements.TAGS, model.get()));
-                loadErrors = List.of();
-            } catch (UiLoadException e) {
-                if (!dev) {
-                    throw e;
-                }
-                LOG.error("Ixchel UI: {} failed to load, keeping the previous version\n{}", templatePath, e.getMessage());
-                loadErrors = e.diagnostics().stream().filter(d -> d.severity() == Diagnostic.Severity.ERROR).toList();
-            }
-        }
-
-        @Override
-        public void render(GuiGraphics g, DeltaTracker delta) {
-            if (hud != null) {
-                hud.render(g);
-            }
-            if (dev) {
-                DevOverlay.draw(g, loadErrors.isEmpty() && hud != null ? hud.runtimeErrors() : loadErrors);
-            }
-        }
     }
 }

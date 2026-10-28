@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,6 +36,7 @@ class EventDispatcherTest {
 
     /** a: 0..40 square; b overlaps its right half and paints later; c is clipped by a; d is hidden. */
     private static final String HTML = """
+            <link rel="stylesheet" href="t.css"/>
             <div id="a" tabindex="0"><div id="c"></div></div>
             <div id="b" tabindex="0"><div id="b1"></div><div id="b2"></div></div>
             <div id="d"></div>
@@ -50,7 +52,7 @@ class EventDispatcherTest {
             """;
 
     private static UiDocument load() {
-        UiDocument doc = UiDocument.load(HTML, "t.html", List.of(new UiDocument.CssSource(CSS, "t.css")),
+        UiDocument doc = UiDocument.load(HTML, "t.html", Map.of("t.css", new UiDocument.CssSource(CSS, "t.css"))::get,
                 TagRegistry.HTML, MONO, src -> null);
         doc.frame(100, 100);
         return doc;

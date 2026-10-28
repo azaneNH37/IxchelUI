@@ -8,6 +8,7 @@ import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.event.Keys;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -17,13 +18,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentBindingTest {
     private static UiDocument load(String html, String css, ViewModel model) {
-        return UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")), TagRegistry.HTML,
+        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
                 GoldenTest.MONO, GoldenTest.NO_IMAGES, model, Bindings.PLAIN_TEXT);
     }
 
@@ -124,16 +126,16 @@ class UiDocumentBindingTest {
                 """, "", new Ammo()));
         String m = e.getMessage();
         assertTrue(m.startsWith("6 errors"), m);
-        assertTrue(m.contains("t.html:1:17:") && m.contains("'missing' is not a field of Ammo"), m);
-        assertTrue(m.contains("t.html:2:20:") && m.contains("needs a Boolean"), m);
-        assertTrue(m.contains("t.html:3:17:") && m.contains("java.lang.String is not a record"), m);
-        assertTrue(m.contains("t.html:4:7:") && m.contains("leave it empty"), m);
-        assertTrue(m.contains("t.html:5:6:") && m.contains("bind:style takes a property name: bind:style:<property>"), m);
-        assertTrue(m.contains("t.html:6:6:") && m.contains("unknown binding target 'bind:href'"), m);
+        assertTrue(m.contains("t.html:2:17:") && m.contains("'missing' is not a field of Ammo"), m);
+        assertTrue(m.contains("t.html:3:20:") && m.contains("needs a Boolean"), m);
+        assertTrue(m.contains("t.html:4:17:") && m.contains("java.lang.String is not a record"), m);
+        assertTrue(m.contains("t.html:5:7:") && m.contains("leave it empty"), m);
+        assertTrue(m.contains("t.html:6:6:") && m.contains("bind:style takes a property name: bind:style:<property>"), m);
+        assertTrue(m.contains("t.html:7:6:") && m.contains("unknown binding target 'bind:href'"), m);
 
         UiLoadException none = assertThrows(UiLoadException.class,
-                () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", List.of(), TagRegistry.HTML, GoldenTest.MONO,
-                        GoldenTest.NO_IMAGES));
+                () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML,
+                        GoldenTest.MONO, GoldenTest.NO_IMAGES));
         assertTrue(none.getMessage().contains("needs a view model"), none.getMessage());
     }
 
@@ -146,8 +148,8 @@ class UiDocumentBindingTest {
     void aNativeElementPaintsItsBoundPayloadAndOnlyABindingCanSetIt() {
         TagRegistry tags = TagRegistry.HTML.extend().nativeTag("item", "item").build();
         Held m = new Held();
-        UiDocument doc = UiDocument.load("<item class=\"i\" bind:item=\"stack\"></item>", "t.html",
-                List.of(new UiDocument.CssSource(".i { width: 16px; height: 16px }", "t.css")), tags,
+        UiDocument doc = UiDocument.load(GoldenTest.linked("<item class=\"i\" bind:item=\"stack\"></item>"), "t.html",
+                GoldenTest.sheet(".i { width: 16px; height: 16px }"), tags,
                 GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         assertEquals("item 0 0 16 16 sword", GoldenTest.print(doc.frame(100, 100)));
 
@@ -157,7 +159,7 @@ class UiDocumentBindingTest {
         assertEquals("", GoldenTest.print(doc.frame(100, 100)));
 
         UiLoadException e = assertThrows(UiLoadException.class, () -> UiDocument.load(
-                "<item item=\"sword\"></item>", "t.html", List.of(), tags, GoldenTest.MONO, GoldenTest.NO_IMAGES));
+                "<item item=\"sword\"></item>", "t.html", GoldenTest.NO_SHEETS, tags, GoldenTest.MONO, GoldenTest.NO_IMAGES));
         assertTrue(e.getMessage().contains("unknown attribute 'item'"), e.getMessage());
     }
 
@@ -258,12 +260,68 @@ class UiDocumentBindingTest {
                 """, "", new Picker()));
         String m = e.getMessage();
         assertTrue(m.startsWith("6 errors"), m);
-        assertTrue(m.contains("t.html:1:6:") && m.contains("unknown event 'hover'"), m);
-        assertTrue(m.contains("t.html:2:16:") && m.contains("'row' is not an Action field"), m);
-        assertTrue(m.contains("t.html:3:16:") && m.contains("pass it as select(path)"), m);
-        assertTrue(m.contains("t.html:4:16:") && m.contains("'reload' takes no argument"), m);
-        assertTrue(m.contains("t.html:5:16:") && m.contains("but 'selected' is java.lang.String"), m);
-        assertTrue(m.contains("t.html:6:17:") && m.contains("an action is not a value"), m);
+        assertTrue(m.contains("t.html:2:6:") && m.contains("unknown event 'hover'"), m);
+        assertTrue(m.contains("t.html:3:16:") && m.contains("'row' is not an Action field"), m);
+        assertTrue(m.contains("t.html:4:16:") && m.contains("pass it as select(path)"), m);
+        assertTrue(m.contains("t.html:5:16:") && m.contains("'reload' takes no argument"), m);
+        assertTrue(m.contains("t.html:6:16:") && m.contains("but 'selected' is java.lang.String"), m);
+        assertTrue(m.contains("t.html:7:17:") && m.contains("an action is not a value"), m);
+    }
+
+    static final class Keyed extends ViewModel {
+        final List<String> log = new ArrayList<>();
+        final Action<Void> up = action(() -> log.add("up"));
+        final Action<Void> shiftUp = action(() -> log.add("shift-up"));
+        final Action<Void> released = action(() -> log.add("released"));
+    }
+
+    @Test
+    void aKeyFilterRunsTheHandlerForTheNamedKeyAndModifiersOnlyAndConsumesJustThose() {
+        Keyed m = new Keyed();
+        UiDocument doc = load("""
+                <div class="k"><div class="k" tabindex="0" on:keydown.up="up" on:keydown.up.shift="shiftUp" on:keyup="released"></div></div>
+                """, ".k { width: 10px; height: 10px }", m);
+        doc.frame(100, 100);
+        assertFalse(doc.events().keyPressed(Keys.code("up"), 0), "a nested element only sees keys while focused");
+        click(doc);
+
+        assertTrue(doc.events().keyPressed(Keys.code("up"), 0));
+        assertFalse(doc.events().keyPressed(Keys.code("down"), 0), "another key is not consumed");
+        assertTrue(doc.events().keyPressed(Keys.code("up"), Keys.MOD_SHIFT | Keys.MOD_CTRL), "extra modifiers do not matter");
+        assertTrue(doc.events().keyReleased(Keys.code("a"), 0), "an unfiltered handler fires for every key");
+        assertEquals(List.of("up", "up", "shift-up", "released"), m.log);
+    }
+
+    @Test
+    void keyHandlersOnATopLevelElementFireWithoutFocusAndWhenAChildIsFocused() {
+        Keyed m = new Keyed();
+        UiDocument doc = load("""
+                <div on:keydown.up="up"><div class="k" tabindex="0"></div></div><div class="k" tabindex="0"></div>
+                """, ".k { width: 10px; height: 10px }", m);
+        doc.frame(100, 100);
+        assertTrue(doc.events().keyPressed(265, 0), "nothing focused: the handler acts on the document");
+        click(doc);
+        assertTrue(doc.events().keyPressed(265, 0), "a focused child bubbles to it");
+        doc.events().mousePressed(5, 15, 0);
+        doc.events().mouseReleased(5, 15, 0);
+        assertTrue(doc.events().keyPressed(265, 0), "focus in a sibling still reaches a document-level handler");
+        assertEquals(List.of("up", "up", "up"), m.log);
+    }
+
+    @Test
+    void loadReportsBadKeyFilters() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
+                <div on:keydown.meta="up"></div>
+                <div on:keydown.up.super="up"></div>
+                <div on:click.up="up"></div>
+                <div on:keyup.f13="up"></div>
+                """, "", new Keyed()));
+        String m = e.getMessage();
+        assertTrue(m.startsWith("4 errors"), m);
+        assertTrue(m.contains("t.html:2:6:") && m.contains("unknown key 'meta' in 'on:keydown.meta'"), m);
+        assertTrue(m.contains("t.html:3:6:") && m.contains("unknown modifier 'super' in 'on:keydown.up.super'"), m);
+        assertTrue(m.contains("t.html:4:6:") && m.contains("'click' takes no key filter"), m);
+        assertTrue(m.contains("t.html:5:6:") && m.contains("unknown key 'f13' in 'on:keyup.f13'"), m);
     }
 
     @Test
@@ -329,14 +387,14 @@ class UiDocumentBindingTest {
                 """, "", new Picker()));
         String m = e.getMessage();
         assertTrue(m.startsWith("8 errors"), m);
-        assertTrue(m.contains("t.html:1:6:") && m.contains("needs 'as'"), m);
-        assertTrue(m.contains("t.html:2:12:") && m.contains("'each' needs a List"), m);
-        assertTrue(m.contains("t.html:3:10:") && m.contains("'if' needs a Boolean"), m);
-        assertTrue(m.contains("t.html:4:30:") && m.contains("'key' is a path from the row 'r'"), m);
-        assertTrue(m.contains("t.html:5:6:") && m.contains("'as' only goes with 'each'"), m);
-        assertTrue(m.contains("t.html:6:33:") && m.contains("cannot share an element"), m);
-        assertTrue(m.contains("t.html:7:33:") && m.contains("'nope' is not a field"), m);
-        assertTrue(m.contains("t.html:8:55:") && m.contains("Row has no component 'missing'"), m);
+        assertTrue(m.contains("t.html:2:6:") && m.contains("needs 'as'"), m);
+        assertTrue(m.contains("t.html:3:12:") && m.contains("'each' needs a List"), m);
+        assertTrue(m.contains("t.html:4:10:") && m.contains("'if' needs a Boolean"), m);
+        assertTrue(m.contains("t.html:5:30:") && m.contains("'key' is a path from the row 'r'"), m);
+        assertTrue(m.contains("t.html:6:6:") && m.contains("'as' only goes with 'each'"), m);
+        assertTrue(m.contains("t.html:7:33:") && m.contains("cannot share an element"), m);
+        assertTrue(m.contains("t.html:8:33:") && m.contains("'nope' is not a field"), m);
+        assertTrue(m.contains("t.html:9:55:") && m.contains("Row has no component 'missing'"), m);
     }
 
     static final class Bars extends ViewModel {
@@ -383,7 +441,7 @@ class UiDocumentBindingTest {
         m.width.set("30 px");
         doc.frame(100, 100);
         assertEquals(1, doc.diagnostics().errorCount());
-        assertEquals("t.html:1:44: error: 'width' gave 'wide' for 'width': expected a length in px, a percentage or auto",
+        assertEquals("t.html:2:44: error: 'width' gave 'wide' for 'width': expected a length in px, a percentage or auto",
                 doc.diagnostics().entries().get(0).toString());
 
         m.width.set("30px");
@@ -415,15 +473,15 @@ class UiDocumentBindingTest {
                 """, "", new Styled()));
         String m = e.getMessage();
         assertTrue(m.startsWith("4 errors"), m);
-        assertTrue(m.contains("t.html:1:6:") && m.contains("unsupported property 'wdth'"), m);
-        assertTrue(m.contains("t.html:2:6:") && m.contains("'margin' is a shorthand; bind its longhands instead: "
+        assertTrue(m.contains("t.html:2:6:") && m.contains("unsupported property 'wdth'"), m);
+        assertTrue(m.contains("t.html:3:6:") && m.contains("'margin' is a shorthand; bind its longhands instead: "
                 + "margin-top, margin-right, margin-bottom, margin-left"), m);
-        assertTrue(m.contains("t.html:3:24:") && m.contains("takes a String or a Number, but 'flag' is java.lang.Boolean"), m);
-        assertTrue(m.contains("t.html:4:24:") && m.contains("'color' takes no plain numbers"), m);
+        assertTrue(m.contains("t.html:4:24:") && m.contains("takes a String or a Number, but 'flag' is java.lang.Boolean"), m);
+        assertTrue(m.contains("t.html:5:24:") && m.contains("'color' takes no plain numbers"), m);
 
         UiLoadException initial = assertThrows(UiLoadException.class,
                 () -> load("<div bind:style:width=\"bad\"></div>", "", new Styled()));
-        assertTrue(initial.getMessage().contains("t.html:1:24:")
+        assertTrue(initial.getMessage().contains("t.html:2:24:")
                 && initial.getMessage().contains("'bad' gave 'x y' for 'width': expected a single value"), initial.getMessage());
     }
 }

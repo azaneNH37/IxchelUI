@@ -1,37 +1,30 @@
 package com.azane.ixchel.sample.env;
 
 import com.azane.ixchel.forge.IxchelForge;
+import com.azane.ixchel.mc.UiHud;
 import com.azane.ixchel.sample.IxchelSampleMod;
-import com.azane.ixchel.sample.Sample;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.loading.FMLEnvironment;
 
-import java.util.List;
-
-/** Environment HUD sample (S5): compass with waypoints, crosshair target, surroundings and vitals, read per frame. */
+/**
+ * Environment HUD sample (S5): compass with waypoints, crosshair target, surroundings and vitals,
+ * read per frame. Hidden until toggled from the sample index.
+ */
 public final class EnvHud {
-    static final String ID = "env";
-    private static IxchelForge.Hud hud;
+    /** The layer id Forge knows the HUD by: the template path without {@code .html}. */
+    public static final ResourceLocation LAYER = new ResourceLocation(IxchelSampleMod.MOD_ID, "ui/env/hud");
+    private static UiHud hud;
 
     private EnvHud() {
     }
 
-    public static void init(IEventBus modBus) {
-        if (!FMLEnvironment.dist.isClient()) {
-            return;
-        }
-        hud = IxchelForge.registerHud(modBus, IxchelSampleMod.MOD_ID, ID, "ui/env.html", List.of("ui/env.css"),
-                EnvView::new);
-        hud.show(false);
-        EnvCheck.init(hud);
+    /** Client only; from client setup. */
+    public static void register(IEventBus modBus) {
+        hud = IxchelForge.registerHud(modBus, new ResourceLocation(IxchelSampleMod.MOD_ID, "ui/env/hud.html"), EnvView::new)
+                .show(false);
     }
 
-    public static Sample sample() {
-        return Sample.hud(ID, "Environment HUD", "A compass bar with the waypoints (J), what the crosshair is on "
-                + "(block with tool and states, or an entity's health), biome, time, weather, light, position; "
-                + "hearts, armor, food, experience.",
-                new ItemStack(Items.SPYGLASS), hud);
+    public static UiHud hud() {
+        return hud;
     }
 }

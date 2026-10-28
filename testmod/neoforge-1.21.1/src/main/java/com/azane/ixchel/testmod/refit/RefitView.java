@@ -4,7 +4,7 @@ import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.mc.ClientSources;
+import com.azane.ixchel.mc.source.ClientSources;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;

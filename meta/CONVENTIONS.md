@@ -24,6 +24,11 @@
 - FBO、遮罩纹理等 GPU 资源惰性分配、用完释放
 - 反射访问 MC 成员须处理运行时名：Forge 1.20.1 为 SRG
 
+## 宿主接入
+- Java 侧只传模板 `ResourceLocation`，样式表由模板首行 `<link rel="stylesheet" href="…"/>` 声明（相对模板目录或 `ns:path`）；不再有"模板 + CSS 列表"的构造形态
+- 按键在模板里用 `on:keydown.<key>[.shift|.ctrl|.alt]` 过滤，顶层元素的键处理器是文档级；不在 Java 侧对 `root()` 挂原始监听
+- 轮询来源用 `ClientSources.polled/player`，其等值对 `ItemStack`、record、List 结构比较；不为排除 `ItemStack` 手写 record `equals`
+
 ## 渲染
 - 恢复 FBO 走 `GlStateManager` 或 `RenderTarget.bindWrite`，不直接调用原生 GL 绑定
 - 进出私有图层前先 `flush()`，恢复进入前绑定的 FBO 而非固定回 main

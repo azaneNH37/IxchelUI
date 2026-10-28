@@ -39,10 +39,10 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 
 - 对标：Mekanism、Thermal、GregTech 的机器界面。
 - 宿主：sample 注册一个“动力切石机”方块，带 BlockEntity 与 Menu，界面用 `UiContainerScreen`。
-- 数据：服务端 → 客户端走 `ContainerData` int（进度、最大进度、能量、容量、水量、所选配方、状态、红石模式、六面 IO 模式）；客户端 → 服务端走 `menu.clickMenuButton`（原版切石机就用它），不另写网络包。
+- 数据：物品只走 Menu 的原版 Slot 事务；机器状态（进度、能量、水量、燃烧、所选配方、状态、红石模式、六面 IO 模式）由 sample 的复制层下发为 `MachineState` 快照，设置由类型化意图包上行（见阶段 B 结果）。
 - 机制：燃料槽烧原版燃料产 FE，水桶倒入水槽（1000 mB/桶，每次加工消耗），输入槽、输出槽，配方取原版切石配方。
 - 交互与视觉：配方选择网格（按当前输入过滤）、进度箭头、竖向能量条与水槽（悬停显示 `x / y FE`、`x / y mB`）、状态文字（空闲 / 缺能量 / 缺水 / 输出已满 / 红石禁用）、红石模式按钮、侧面 IO 配置页签（六面各自循环切换模式，页签用 transition 滑出）。
-- 新能力：方块图集精灵作为背景（`minecraft:block/water_still` 加群系色 tint）、border、`ContainerData` 的绑定写法（库提供辅助还是留给宿主，实现时定，见 #004）。
+- 新能力：方块图集精灵作为背景（`minecraft:block/water_still` 加群系色 tint）、border。
 - 资源：`textures/gui/container/stonecutter.png`、`furnace.png`（箭头、火焰），能量条用纯色加 border，必要时自画 16×16。
 
 #### S3 存储终端
@@ -111,15 +111,15 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 |---|---|---|
 | 0 | — | border、opacity、text-align、`white-space: nowrap` + `text-overflow: ellipsis`、`:disabled`、自定义元素 tooltip |
 | A | S5 环境 HUD、S4 掉落物雷达 | 基本已有；status、pickup、waypoints 在这里迁移 |
-| B | S1 角色面板、S2 机器面板 | `<entity>`、方块图集精灵 + tint、`ContainerData` 绑定；完成后删除背包改装 |
+| B | S1 角色面板、S2 机器面板 | `<entity>`、方块图集精灵 + tint；完成后删除背包改装 |
 | C | S3 存储终端、S6 配置面板 | `charTyped` 与文本输入、虚拟网格、表单控件、弹出层 / z-index、Tab 焦点、无世界上下文 |
 | D | S7 任务树、S4 方向箭头 | transform 与逆变换命中、画线、`mouseDragged` |
 | E | S8 指南书、S9 增强 tooltip | 行内流式排版、tooltip 宿主 |
 
-现有 sample 的处理：
-- `refit` / `RefitBench` 不动，作为 M2–M4 的性能基线。
-- `status` 并入 S5（效果列表另进 S1），`pickup` 并入 S4，`waypoints` 并入 S5。
-- `backpack` 在 S1、S2 覆盖 `UiContainerScreen` 之后删除；L2 兼容检查（`-Pslotcompat`）改挂到 S2。
+现有 sample 的处理（2026-10-28 重构后）：
+- `refit` / `RefitBench`、`HudBench`、`probe`、弹药 HUD 已删除，不再保留手写原版对照基准；性能基线由 S4、S5 检查里的 `FrameTimer` 预算承担。
+- `status` 并入 S5（效果列表进 S1），`pickup` 并入 S4，`waypoints` 并入 S5；`backpack` 已删除，L2 兼容检查（`-Pslotcompat`）挂在 S2。
+- sample 改为普通 mod 布局（`registry/`、`network/`、`client/`、每场景一包一公开入口），检查是独立的第二个 mod `ixchelsamplecheck`（`src/check`），只经公开入口驱动；布局见 GROUND。这次重构暴露并处理的宿主 API 问题：模板 + CSS 列表三元组、HUD 注册六参数加单独的投影钩子、键盘只能 Java 侧挂监听、record 为排除 `ItemStack` 手写 `equals`；`bind:text`/`bind:style` 的自动转换库早已支持，是 sample 用法陈旧。
 
 阶段 0、A 结果（2026-10-28）：
 - 阶段 0 全部落地：`title` 属性走原版 tooltip（mc 层 `ItemTooltips` 改名 `Tooltips`）；`disabled` 为全局布尔属性，可 `bind:disabled`。
@@ -132,11 +132,11 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - S1 为 `character`（G 键），宿主是玩家自己的 `InventoryMenu`（容器 id 0，不需要打开包）。页签用 `display: none` 切换，隐藏页上的槽位仍算已放置；修了 `UiContainerScreen` 对未显示槽位报尺寸错误的问题。`status` 已删除。
 - `<entity>`：mc 层原生元素，载荷为 `LivingEntity` 或其 `Supplier`；Screen 把指针传给 `McPainter.paint`，实体朝指针看，HUD 中朝前。
 - 图集精灵：`url("sprite:<id>")` 指方块图集里的精灵（core 只认前缀，mc 层解析，逐次查找以跟随资源重载和动画）。tint 用标准写法 `background-blend-mode: multiply`：背景色乘到图上、自身不再画；与 CSS 的差异是图透明处露出父元素而非背景色。
-- `ContainerData` 绑定由宿主自接：view model 对每个 data 下标用 `Source.polled`，客户端到服务端走 `clickMenuButton`。库不提供辅助（2026-10-28 定）：能省的只有客户端约 15 行；`DataSlot` 本身是原版为小数值界面设计的通道（协议按 16 位 short 同步，内存连接不经编码所以单人测不出），科技 mod 普遍自发网络包，原版网络层的缺陷不由本库弥补。
+- S2 状态同步不用 `ContainerData`（2026-10-28 改）：`DataSlot` 是原版为小数值界面设计的通道（按 16 位 short 同步，内存连接不经编码所以单人测不出），且把同步绑在 Menu 会话上。sample 改按引擎范式（Kumiko 复制层 + 意图 RPC 思路的最小实现，只在 sample，库仍不含复制层）：`network/Replication` 以 kind + 方块坐标为身份，客户端 `watch` 声明兴趣，服务端每 tick 末对每个观察者取可见快照（record，`equals` 比较）有变化才发，不可见（拆除、超出 8 格、登出）即结束观察、客户端副本读 `null`；UI 只读副本，经意图包（`PickRecipePacket`、`SetRedstonePacket`、`SetSidePacket`，设值而非切换，服务端校验可达与取值）修改。无客户端预测：点击效果滞后一次往返，检查在连续点击之间等待复制结果。新增一种复制对象只写快照 record、编解码与可见规则。
 - S2 为 `machine`，侧面 IO 模式只存储与显示，不接管道。backpack 已删除，`-Pslotcompat` 改跑 `-Pcheck=machine`（JEI、EMI 均通过）。
 - 缺口：backpack 带走了"`IXCHEL` 绘制下滚动列表中的槽位跟随滚动"这一开发期检查，S1、S2 都没有可滚动的真实槽位；`IXCHEL` 绘制本身仍由 shade-a 生产检查覆盖，但不含滚动。计划在 S3 补：其真实槽位区域用 `IXCHEL` 并可滚动。
 
-阶段 B 剩余：meta 确认后开 PR、合入。
+阶段 B 剩余：无（已合入 #46）。
 
 阶段 C–E 待做（按 §3 顺序）：
 - C1（S3 存储终端）：`charTyped` 转发到文档；单行文本输入（光标、选区、剪贴板）；虚拟化网格（约 1300 种物品只布局可见行）；S3 扫描与同步包（手持物品打开，网格为虚拟物品）；S3 界面与检查，检查驱动加 `type(text)`；补 `IXCHEL` 滚动槽位检查。
@@ -149,20 +149,19 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 
 #### 4.1 现状
 
-- `sample/.../check/Script`：步骤按固定 tick 间隔排队，提供 `expect`、`expectServer`、`onServer`、`shot`、`hoverAt`、`clickAt`。用 `-Pbench=<名>` 一次启动只跑一个检查，结束后退出，结果只写在日志里。
+- `sample/.../src/check`（mod `ixchelsamplecheck`）：`Checks` 注册、`Script` 按选择器驱动（`click`、`hover`、`scroll`、`key`、`waitUntil`、`waitUntilServer`、`server`、`shot`，以及 `query`/`text`/槽位点击等共享 helper）、`FrameTimer` 帧耗时预算、`BenchWorld` 进存档。`-Pbench` 已删除。
 - `testmod/shade-a/.../ContainerCheck` 自己又写了一套步骤队列，与 `Script` 重复。
-- `HudBench`、`RefitBench` 是计时基准，与功能检查共用 `-Pbench`。
 - CI 只跑 `./gradlew build`。
 
 2026-10-28 起，§4.2 的命名、驱动 API（`type`、`drag` 除外，分别随阶段 C、D 加入）、顺序运行与 `report.txt` 已落地；另加一条约定：两步之间必先画一帧（世界刚载入时 tick 会连续补跑而不出帧，文档尚未布局）。shade-a 的 `ContainerCheck` 仍独立。
 
 #### 4.2 目标流程
 
-- 命名：`-Pbench=<名>` 只留给计时基准，功能检查改用 `-Pcheck=<名>[,<名>…]|all`。
+- 命名：功能检查用 `-Pcheck=<名>[,<名>…]|all`；没有独立的计时基准开关，帧耗时作为检查项（`FrameTimer` 预算）跑在对应检查里。
 - 驱动 API 改为按选择器操作：`click(sel)`、`hover(sel)`、`scroll(sel, dy)`、`drag(sel, dx, dy)`、`key(k)`、`type(text)`、`waitUntil(cond, maxTicks)`。坐标取自 `querySelectorAll` 得到的 box。固定 tick 等待只用在确实要等时间流逝的地方（例如效果倒计时）。
 - 一次启动按顺序跑多个检查。每个检查在开始时自行重置状态（清背包、清空 sample 数据），不依赖前一个检查留下的状态。
 - 结果：日志行格式不变，另外写 `run/checks/report.txt`（每项 PASS/FAIL 与汇总）。截图留在 `run/screenshots/`，只供人工核对，不做像素比对。
-- 代码位置：先在 sample 内整理 `check` 包。shade-a 的 `ContainerCheck` 在 relocate 后也要用，等第二个消费方真正需要时再抽成开发期共享源码，不发布（AGENTS §4）。
+- 代码位置：sample 的 `src/check` 第二个 mod，业务代码不得引用它，它只经业务的公开入口与网络包驱动。shade-a 的 `ContainerCheck` 在 relocate 后也要用，等第二个消费方真正需要时再抽成开发期共享源码，不发布（AGENTS §4）。
 - 约定：每个场景都有检查；每个检查项写明它要发现的失败（AGENTS §6）。§2 中各场景的交互描述就是它的检查清单起点。
 - CI：暂不跑游戏内检查，每次都要启动客户端并截图，成本太高（2026-10-28 决定）。core 的黄金测试继续放在 `build` 里。
 

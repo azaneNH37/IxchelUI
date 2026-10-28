@@ -3,13 +3,11 @@ package com.azane.ixchel.core.runtime;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class UiDocumentTextTest {
     private static String frame(String html, String css) {
-        UiDocument doc = UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")), TagRegistry.HTML,
+        UiDocument doc = UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
                 GoldenTest.MONO, GoldenTest.NO_IMAGES);
         return GoldenTest.print(doc.frame(100, 100));
     }

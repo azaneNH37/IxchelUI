@@ -9,8 +9,9 @@ import java.util.Set;
  * Tags a template may use and the plain attributes each accepts. Immutable; hosts add native
  * elements with {@link #extend()}.
  *
- * <p>Every tag except {@code <style>} accepts {@link #GLOBAL_ATTRIBUTES}. {@code bind:*} attributes
- * are accepted on any known element without being registered.
+ * <p>Every tag except {@code <style>} and {@code <link>} accepts {@link #GLOBAL_ATTRIBUTES};
+ * {@code <link>} takes only {@code rel} and {@code href}. {@code bind:*} attributes are accepted on
+ * any known element without being registered.
  *
  * <p>A native element is drawn by the host, not the core: it paints as a
  * {@link com.azane.ixchel.core.paint.DrawCommand.Custom} carrying its payload, a host object that
@@ -18,18 +19,25 @@ import java.util.Set;
  */
 public final class TagRegistry {
     /**
-     * Attributes every element except {@code <style>} accepts; {@code tabindex} makes an element
-     * focusable, {@code disabled} (a boolean attribute) blocks mouse buttons and focus inside it,
-     * {@code title} is tooltip text for the host to show.
+     * Attributes every element except {@code <style>} and {@code <link>} accepts; {@code tabindex} makes
+     * an element focusable, {@code disabled} (a boolean attribute) blocks mouse buttons and focus inside
+     * it, {@code title} is tooltip text for the host to show.
      */
     public static final Set<String> GLOBAL_ATTRIBUTES = Set.of("class", "id", "style", "tabindex", "disabled", "title");
 
-    /** The HTML subset core understands: {@code div}, {@code span}, {@code img src}, {@code style}. */
+    /** The only attributes of {@code <link rel="stylesheet" href="…"/>}. */
+    public static final Set<String> LINK_ATTRIBUTES = Set.of("rel", "href");
+
+    /**
+     * The HTML subset core understands: {@code div}, {@code span}, {@code img src}, {@code style},
+     * {@code link rel href}.
+     */
     public static final TagRegistry HTML = new Builder(Map.of(), Map.of())
             .tag("div")
             .tag("span")
             .tag("img", "src")
             .tag("style")
+            .tag("link")
             .build();
 
     private final Map<String, Set<String>> attributes;
@@ -53,6 +61,9 @@ public final class TagRegistry {
     public boolean isAllowedAttribute(String tag, String attribute) {
         if (tag.equals("style")) {
             return false;
+        }
+        if (tag.equals("link")) {
+            return LINK_ATTRIBUTES.contains(attribute);
         }
         return GLOBAL_ATTRIBUTES.contains(attribute) || attributes.get(tag).contains(attribute);
     }
@@ -82,14 +93,15 @@ public final class TagRegistry {
          * registered tag.
          *
          * @throws IllegalArgumentException if a name is malformed, an attribute is global, a
-         *         {@code bind:} attribute or reserved, or attributes are given for {@code style}
+         *         {@code bind:} attribute or reserved, or attributes are given for {@code style} or
+         *         {@code link}
          */
         public Builder tag(String tag, String... extraAttributes) {
             if (!isName(tag, false)) {
                 throw new IllegalArgumentException("malformed tag name '" + tag + "'");
             }
-            if (tag.equals("style") && extraAttributes.length > 0) {
-                throw new IllegalArgumentException("<style> takes no attributes");
+            if ((tag.equals("style") || tag.equals("link")) && extraAttributes.length > 0) {
+                throw new IllegalArgumentException("<" + tag + "> takes no extra attributes");
             }
             Set<String> set = attributes.computeIfAbsent(tag, k -> new LinkedHashSet<>());
             for (String a : extraAttributes) {

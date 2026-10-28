@@ -7,7 +7,7 @@ import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.text.TextMeasurer;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -20,7 +20,7 @@ class UiDocumentTest {
     }
 
     private static UiDocument load(String html, String css, TextMeasurer measurer) {
-        return UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")), TagRegistry.HTML, measurer,
+        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML, measurer,
                 GoldenTest.NO_IMAGES);
     }
 
@@ -70,9 +70,51 @@ class UiDocumentTest {
                 ".a { width: 10 }"));
         String m = e.getMessage();
         assertTrue(m.startsWith("3 errors"), m);
-        assertTrue(m.contains("t.html:1:34:") && m.contains("unknown tag"), m);
-        assertTrue(m.contains("t.html:1:23:") && m.contains("unsupported property 'colr'"), m);
+        assertTrue(m.contains("t.html:2:34:") && m.contains("unknown tag"), m);
+        assertTrue(m.contains("t.html:2:23:") && m.contains("unsupported property 'colr'"), m);
         assertTrue(m.contains("t.css:1:13:"), m);
+    }
+
+    @Test
+    void linkedAndInlineSheetsApplyInDocumentOrder() {
+        Map<String, UiDocument.CssSource> sheets = Map.of(
+                "a.css", new UiDocument.CssSource(".n { width: 10px; height: 8px; background-color: #f00 }", "a.css"),
+                "b.css", new UiDocument.CssSource(".n { background-color: #00f }", "b.css"));
+        UiDocument doc = UiDocument.load("""
+                <link rel="stylesheet" href="a.css"/>
+                <style>.n { height: 4px; background-color: #0f0 }</style>
+                <link rel="stylesheet" href="b.css"/>
+                <div class="n"></div>
+                """, "t.html", sheets::get, TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
+        assertEquals("rect 0 0 10 4 #FF0000FF", frame(doc, 100, 100));
+    }
+
+    @Test
+    void loadReportsBadLinksAtTheirPositions() {
+        UiLoadException thrown = assertThrows(UiLoadException.class, () -> UiDocument.load("""
+                <div></div>
+                <link rel="stylesheet" href="nope.css"/>
+                <div><link rel="stylesheet" href="t.css"/></div>
+                <link rel="icon" href="t.css"/>
+                <link rel="stylesheet"/>
+                <link rel="stylesheet" href="t.css" class="x" bind:href="t"></link>
+                """, "t.html", GoldenTest.sheet(""), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES));
+        String m = thrown.getMessage();
+        assertTrue(m.startsWith("8 errors"), m);
+        assertTrue(m.contains("t.html:2:1:") && m.contains("stylesheet 'nope.css' not found"), m);
+        assertTrue(m.contains("t.html:3:6:") && m.contains("<link> is only allowed at the top level"), m);
+        assertTrue(m.contains("t.html:4:1:") && m.contains("<link> requires rel=\"stylesheet\""), m);
+        assertTrue(m.contains("t.html:5:1:") && m.contains("<link> requires an 'href' attribute"), m);
+        assertTrue(m.contains("t.html:6:37:") && m.contains("unknown attribute 'class' on <link>"), m);
+        assertTrue(m.contains("t.html:6:47:") && m.contains("<link> takes no bindings"), m);
+        assertTrue(m.contains("t.html:6:1:") && m.contains("<link> must be self-closing"), m);
+        assertTrue(m.contains("t.html:6:61:") && m.contains("closing tag </link> has no matching opening tag"), m);
+
+        UiLoadException failed = assertThrows(UiLoadException.class, () -> UiDocument.load(
+                "<link rel=\"stylesheet\" href=\"nope.css\"/>", "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML,
+                GoldenTest.MONO, GoldenTest.NO_IMAGES));
+        assertTrue(failed.getMessage().contains("t.html:1:1:")
+                && failed.getMessage().contains("cannot load stylesheet 'nope.css': no stylesheet nope.css"), failed.getMessage());
     }
 
     @Test

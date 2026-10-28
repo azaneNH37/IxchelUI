@@ -5,7 +5,7 @@ import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.mc.ClientSources;
+import com.azane.ixchel.mc.source.ClientSources;
 import com.azane.ixchel.sample.waypoints.Waypoints.Waypoint;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * The session's {@link Waypoints}: add the player's position, select a row (click, or Up/Down from
- * the screen), remove the selected one. Distances follow the player every frame.
+ * the template's key filters), remove the selected one. Distances follow the player every frame.
  */
 final class WaypointsView extends ViewModel {
     record Row(int id, String name, String coords, String distance, boolean selected) {
@@ -46,9 +46,11 @@ final class WaypointsView extends ViewModel {
         List<Waypoint> left = Waypoints.all();
         selectedId.set(left.isEmpty() ? -1 : left.get(Math.min(at, left.size() - 1)).id());
     });
+    final Action<Void> selectPrevious = action(() -> move(-1));
+    final Action<Void> selectNext = action(() -> move(1));
 
     /** Moves the selection by {@code delta} rows, clamped; selects the first row when none is. */
-    void move(int delta) {
+    private void move(int delta) {
         List<Waypoint> all = Waypoints.all();
         if (all.isEmpty()) {
             return;

@@ -16,6 +16,10 @@ import java.util.Set;
 /**
  * Strict template parser: no HTML5 error recovery, never closes elements implicitly. Every problem is
  * reported to {@link Diagnostics}; parsing continues past errors so one load reports as many as it can.
+ *
+ * <p>Stylesheets come from top-level {@code <link rel="stylesheet" href="…"/>} (self-closing, no other
+ * attributes) and {@code <style>} elements; neither appears in the tree, both are collected in document
+ * order as {@link Template#styles()}.
  */
 public final class TemplateParser {
     private static final Set<String> RESERVED = Set.of("t");
@@ -95,7 +99,7 @@ public final class TemplateParser {
         }
     }
 
-    /** Returns null for elements that must not appear in the tree (unknown or {@code <style>}). */
+    /** Returns null for elements that must not appear in the tree (unknown, {@code <style>}, {@code <link>}). */
     private Element parseElement(boolean topLevel) {
         int open = i;
         SourcePos openPos = pos(open);
@@ -106,8 +110,9 @@ public final class TemplateParser {
             diag.error(openPos, "unknown tag <" + tag + ">");
         }
         boolean isStyle = tag.equals("style");
-        if (isStyle && !topLevel) {
-            diag.error(openPos, "<style> is only allowed at the top level");
+        boolean isLink = tag.equals("link");
+        if ((isStyle || isLink) && !topLevel) {
+            diag.error(openPos, "<" + tag + "> is only allowed at the top level");
         }
         Element element = new Element(tag, openPos);
         Set<String> seen = new HashSet<>();
@@ -143,6 +148,25 @@ public final class TemplateParser {
         if (isStyle) {
             if (!selfClosing) {
                 parseStyleContent(openPos);
+            }
+            return null;
+        }
+        if (isLink) {
+            if (!selfClosing) {
+                diag.error(openPos, "<link> must be self-closing: <link rel=\"stylesheet\" href=\"…\"/>");
+            }
+            boolean valid = topLevel;
+            if (!"stylesheet".equals(element.attribute("rel"))) {
+                diag.error(openPos, "<link> requires rel=\"stylesheet\"");
+                valid = false;
+            }
+            String href = element.attribute("href");
+            if (href == null || href.isEmpty()) {
+                diag.error(openPos, "<link> requires an 'href' attribute");
+                valid = false;
+            }
+            if (valid) {
+                styles.add(new Template.Link(href, openPos));
             }
             return null;
         }
@@ -206,8 +230,8 @@ public final class TemplateParser {
             return;
         }
         if (isBindingAttribute(name)) {
-            if (tag.equals("style")) {
-                diag.error(namePos, "<style> takes no attributes");
+            if (tag.equals("style") || tag.equals("link")) {
+                diag.error(namePos, "<" + tag + "> takes no " + (tag.equals("style") ? "attributes" : "bindings"));
             } else {
                 element.addBinding(new BindAttribute(name, decode(valueStart, end, false), namePos, pos(valueStart)));
             }
@@ -253,7 +277,7 @@ public final class TemplateParser {
             i = src.length();
             return;
         }
-        styles.add(new Template.StyleSource(src.substring(start, end), pos(start)));
+        styles.add(new Template.Inline(src.substring(start, end), pos(start)));
         i = end;
         SourcePos closePos = pos(i);
         String closing = readClosingTag();
@@ -275,15 +299,22 @@ public final class TemplateParser {
         return name;
     }
 
+    /**
+     * Tag or attribute name. Attribute names may continue with {@code :} before a letter ({@code bind:text})
+     * and {@code .} before a letter or digit ({@code on:keydown.f1}, the key filters of {@code on:*}).
+     */
     private String readName(boolean attribute) {
         int start = i;
         if (i < src.length() && isAsciiLetter(src.charAt(i))) {
             i++;
             while (i < src.length()) {
                 char c = src.charAt(i);
-                if (isAsciiLetter(c) || (c >= '0' && c <= '9') || c == '-') {
+                if (isAsciiLetter(c) || isDigit(c) || c == '-') {
                     i++;
                 } else if (attribute && c == ':' && i + 1 < src.length() && isAsciiLetter(src.charAt(i + 1))) {
+                    i++;
+                } else if (attribute && c == '.' && i + 1 < src.length()
+                        && (isAsciiLetter(src.charAt(i + 1)) || isDigit(src.charAt(i + 1)))) {
                     i++;
                 } else {
                     break;
@@ -378,6 +409,10 @@ public final class TemplateParser {
 
     private static boolean isAsciiLetter(char c) {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+    }
+
+    private static boolean isDigit(char c) {
+        return c >= '0' && c <= '9';
     }
 
     private SourcePos pos(int index) {

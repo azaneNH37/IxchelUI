@@ -1,50 +1,92 @@
 package com.azane.ixchel.mc;
 
-import com.azane.ixchel.core.diag.Diagnostic;
+import com.azane.ixchel.core.binding.ViewModel;
+import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.runtime.UiDocument;
-import com.mojang.logging.LogUtils;
-import net.minecraft.client.Minecraft;
+import com.azane.ixchel.mc.document.HostedDocument;
+import com.azane.ixchel.mc.element.McElements;
 import net.minecraft.client.gui.GuiGraphics;
-import org.slf4j.Logger;
+import net.minecraft.resources.ResourceLocation;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.function.Supplier;
 
 /**
- * Display-only UI over the whole GUI-scaled screen; the loader layer calls {@link #render} from its
- * HUD layer. Each diagnostic of the document (load warnings, errors found while running) is logged
- * once.
+ * Display-only UI over the whole GUI-scaled screen. The loader layer registers it as a HUD layer
+ * that calls {@link #render}, and as a resource reload listener that calls {@link #reload}; the
+ * document is loaded on the first reload (startup) and again on every later one (F3+T), keeping its
+ * view model. A development run also reloads on save. Client thread only.
+ *
+ * <pre>{@code
+ * UiHud hud = IxchelNeoForge.registerHud(modBus, ResourceLocation.fromNamespaceAndPath(MODID, "ui/ammo_hud.html"), AmmoHudView::new);
+ * hud.show(false);
+ * }</pre>
  */
 public final class UiHud {
-    private static final Logger LOG = LogUtils.getLogger();
+    private final ResourceLocation template;
+    private final Supplier<? extends ViewModel> model;
+    private HostedDocument doc;
+    private boolean shown = true;
 
-    private final UiDocument document;
-    private final McPainter painter = new McPainter(Minecraft.getInstance().font);
-    private int logged;
+    /**
+     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     *                 id, stylesheets come from its {@code <link>} elements
+     * @param model    creates the view model on the first load; may return {@code null} for a template
+     *                 without bindings
+     */
+    public UiHud(ResourceLocation template, Supplier<? extends ViewModel> model) {
+        this.template = template;
+        this.model = model;
+    }
 
-    public UiHud(UiDocument document) {
-        this.document = document;
+    /** The template; the loader layer derives the layer id from it. */
+    public ResourceLocation template() {
+        return template;
+    }
+
+    /**
+     * Loads the document from the current resources.
+     *
+     * @throws UiLoadException outside development when the document has errors, failing that reload
+     */
+    public void reload() {
+        if (doc == null) {
+            ViewModel m = model.get();
+            try {
+                doc = new HostedDocument(template, McElements.TAGS, m, () -> { });
+            } catch (UiLoadException e) {
+                if (m != null) {
+                    m.close();
+                }
+                throw e;
+            }
+            doc.watch();
+        } else {
+            doc.reload();
+        }
+    }
+
+    /** Whether the layer is drawn; a hidden layer does no work, not even polling its sources. */
+    public boolean shown() {
+        return shown;
+    }
+
+    /** Shows or hides the layer; returns this, so {@code registerHud(...).show(false)} starts hidden. */
+    public UiHud show(boolean shown) {
+        this.shown = shown;
+        return this;
+    }
+
+    /** The current document, for querying or driving it; {@code null} before the first load. */
+    public UiDocument document() {
+        return doc == null ? null : doc.document();
     }
 
     public void render(GuiGraphics g) {
-        painter.paint(g, document.frame(g.guiWidth(), g.guiHeight()));
-        List<Diagnostic> entries = document.diagnostics().entries();
-        for (; logged < entries.size(); logged++) {
-            LOG.warn("Ixchel UI: {}", entries.get(logged));
+        if (!shown || doc == null) {
+            return;
         }
-    }
-
-    /** Errors found after load, such as a derived value that threw; empty for a healthy document. */
-    public List<Diagnostic> runtimeErrors() {
-        if (document.diagnostics().errorCount() == 0) {
-            return List.of();
-        }
-        List<Diagnostic> out = new ArrayList<>();
-        for (Diagnostic d : document.diagnostics().entries()) {
-            if (d.severity() == Diagnostic.Severity.ERROR) {
-                out.add(d);
-            }
-        }
-        return out;
+        doc.frame(g.guiWidth(), g.guiHeight());
+        doc.paint(g, Float.NaN, Float.NaN);
+        doc.drawOverlay(g);
     }
 }

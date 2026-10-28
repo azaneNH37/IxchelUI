@@ -1,47 +1,36 @@
 package com.azane.ixchel.sample;
 
-import com.azane.ixchel.forge.IxchelForge;
-import com.azane.ixchel.sample.character.CharacterClient;
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.env.EnvHud;
-import com.azane.ixchel.sample.loot.LootClient;
-import com.azane.ixchel.sample.loot.LootNetwork;
-import com.azane.ixchel.sample.machine.Machine;
-import com.azane.ixchel.sample.machine.MachineClient;
-import com.azane.ixchel.sample.perf.BenchWorld;
-import com.azane.ixchel.sample.perf.HudBench;
-import com.azane.ixchel.sample.probe.ProbeClient;
-import com.azane.ixchel.sample.refit.RefitClient;
-import com.azane.ixchel.sample.refit.RefitNetwork;
-import com.azane.ixchel.sample.waypoints.WaypointsClient;
+import com.azane.ixchel.sample.client.ClientSetup;
+import com.azane.ixchel.sample.network.Network;
+import com.azane.ixchel.sample.registry.ModBlockEntities;
+import com.azane.ixchel.sample.registry.ModBlocks;
+import com.azane.ixchel.sample.registry.ModItems;
+import com.azane.ixchel.sample.registry.ModMenus;
+import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
-import java.util.List;
-
+/**
+ * Sample and development host mod for Ixchel UI on Forge 1.20.1. A normal mod layout: registries
+ * ({@code registry}), the network channel ({@code network}), client wiring ({@code client}: keys,
+ * screens, HUDs and the sample index on H) and one package per sample ({@code character},
+ * {@code env}, {@code loot}, {@code machine}, {@code waypoints}), each with a single public entry
+ * class. The unattended checks are a second mod in the {@code check} source set.
+ */
 @Mod(IxchelSampleMod.MOD_ID)
 public final class IxchelSampleMod {
     public static final String MOD_ID = "ixchelsample";
 
     public IxchelSampleMod(FMLJavaModLoadingContext context) {
-        RefitNetwork.register();
-        LootNetwork.register();
-        Machine.register(context.getModEventBus());
+        IEventBus modBus = context.getModEventBus();
+        ModBlocks.register(modBus);
+        ModItems.register(modBus);
+        ModBlockEntities.register(modBus);
+        ModMenus.register(modBus);
+        Network.register();
         if (FMLEnvironment.dist.isClient()) {
-            ProbeClient.init(context.getModEventBus());
-            IxchelForge.registerHud(context.getModEventBus(), MOD_ID, "ammo_hud",
-                    "ui/ammo_hud.html", List.of("ui/ammo_hud.css"), AmmoHudView::new);
-            BenchWorld.init();
-            Checks.init();
-            HudBench.init(context.getModEventBus());
-            RefitClient.init(context.getModEventBus());
-            Samples.initClient(context.getModEventBus());
-            EnvHud.init(context.getModEventBus());
-            CharacterClient.init(context.getModEventBus());
-            MachineClient.init(context.getModEventBus());
-            LootClient.init(context.getModEventBus());
-            WaypointsClient.init(context.getModEventBus());
+            ClientSetup.init(modBus);
         }
     }
 }

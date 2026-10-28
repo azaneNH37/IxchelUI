@@ -5,13 +5,12 @@ import com.azane.ixchel.testmod.IxchelTestMod;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import org.lwjgl.glfw.GLFW;
-
-import java.util.List;
 
 /** Z opens the refit screen on the held crossbow; same template as the Forge 1.20.1 testmod. */
 public final class RefitClient {
@@ -43,6 +42,6 @@ public final class RefitClient {
                         Component.literal("Inspecting ").append(Attachments.type(type).name()), false);
             }
         });
-        return new UiScreen(IxchelTestMod.MOD_ID, "ui/refit.html", List.of("ui/refit.css"), view);
+        return new UiScreen(ResourceLocation.fromNamespaceAndPath(IxchelTestMod.MOD_ID, "ui/refit.html"), view);
     }
 }

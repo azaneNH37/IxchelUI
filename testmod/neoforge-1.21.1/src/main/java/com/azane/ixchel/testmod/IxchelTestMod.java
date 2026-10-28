@@ -4,11 +4,10 @@ import com.azane.ixchel.neoforge.IxchelNeoForge;
 import com.azane.ixchel.testmod.probe.ProbeClient;
 import com.azane.ixchel.testmod.refit.RefitClient;
 import com.azane.ixchel.testmod.refit.RefitNetwork;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
-
-import java.util.List;
 
 @Mod(IxchelTestMod.MOD_ID)
 public final class IxchelTestMod {
@@ -18,8 +17,8 @@ public final class IxchelTestMod {
         RefitNetwork.register(modBus);
         if (dist.isClient()) {
             ProbeClient.init(modBus);
-            IxchelNeoForge.registerHud(modBus, MOD_ID, "ammo_hud",
-                    "ui/ammo_hud.html", List.of("ui/ammo_hud.css"), AmmoHudView::new);
+            IxchelNeoForge.registerHud(modBus, ResourceLocation.fromNamespaceAndPath(MOD_ID, "ui/ammo_hud.html"),
+                    AmmoHudView::new);
             RefitClient.init(modBus);
         }
     }

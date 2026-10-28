@@ -1,3 +1,8 @@
 {
-  "block.ixchelsample.powered_stonecutter": "Powered Stonecutter"
+  "block.ixchelsample.powered_stonecutter": "Powered Stonecutter",
+  "key.categories.ixchelsample": "Ixchel UI Samples",
+  "key.ixchelsample.index": "Sample index",
+  "key.ixchelsample.character": "Character panel",
+  "key.ixchelsample.loot": "Loot radar list",
+  "key.ixchelsample.waypoints": "Waypoints"
 }

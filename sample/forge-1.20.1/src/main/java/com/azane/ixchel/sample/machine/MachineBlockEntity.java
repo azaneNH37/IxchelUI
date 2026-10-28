@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.machine;
 
+import com.azane.ixchel.sample.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -9,7 +10,8 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -25,9 +27,9 @@ import java.util.List;
  * The powered stonecutter's state, ticked on the server. Burning vanilla fuel makes FE; a water bucket
  * fills the tank; each cut takes {@link #CUT_TICKS} ticks of {@link #FE_PER_TICK} FE and
  * {@link #WATER_PER_CUT} mB of water and runs the selected vanilla stonecutting recipe for the input.
- * The redstone mode can make it need a signal or its absence. Side modes are stored and shown only;
- * nothing pipes through them. Everything the screen shows travels as {@link MachineMenu} data ints
- * (synced as shorts, so every value stays below 32768).
+ * The redstone mode can make it need a signal or its absence. Players within reach see it as a
+ * replicated {@link MachineState} ({@link #view}) and change it through intent packets, which land
+ * in {@link #pickRecipe}, {@link #setRedstone} and {@link #setSide}.
  */
 public final class MachineBlockEntity extends BlockEntity implements MenuProvider {
     static final int ENERGY_CAPACITY = 10_000;
@@ -50,54 +52,46 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
     private int burnTotal;
     private int progress;
     private int recipe = -1;
-    private int status;
-    private int redstone;
-    private final int[] sides = new int[6];
+    private MachineState.Status status = MachineState.Status.NO_INPUT;
+    private MachineState.Redstone redstone = MachineState.Redstone.IGNORED;
+    private final MachineState.SideMode[] sides = {MachineState.SideMode.NONE, MachineState.SideMode.NONE,
+            MachineState.SideMode.NONE, MachineState.SideMode.NONE, MachineState.SideMode.NONE, MachineState.SideMode.NONE};
     /** The input item the recipe index was chosen for; another item clears the choice, as vanilla's stonecutter. */
     private ItemStack recipeInput = ItemStack.EMPTY;
 
-    /** The values {@link MachineMenu} syncs, in its index order; writes come from {@link MachineMenu#clickMenuButton}. */
-    final ContainerData data = new ContainerData() {
-        @Override
-        public int get(int i) {
-            return switch (i) {
-                case MachineMenu.PROGRESS -> progress;
-                case MachineMenu.MAX_PROGRESS -> CUT_TICKS;
-                case MachineMenu.ENERGY -> energy;
-                case MachineMenu.ENERGY_CAPACITY -> ENERGY_CAPACITY;
-                case MachineMenu.WATER -> water;
-                case MachineMenu.WATER_CAPACITY -> WATER_CAPACITY;
-                case MachineMenu.RECIPE -> recipe;
-                case MachineMenu.STATUS -> status;
-                case MachineMenu.REDSTONE -> redstone;
-                case MachineMenu.BURN -> burn;
-                case MachineMenu.BURN_TOTAL -> burnTotal;
-                default -> sides[i - MachineMenu.SIDES];
-            };
-        }
+    /** The machine at {@code pos} when {@code player} is within eight blocks of its center, as vanilla containers; else {@code null}. */
+    static MachineBlockEntity reachable(Player player, BlockPos pos) {
+        return pos.distToCenterSqr(player.getX(), player.getY(), player.getZ()) <= 64
+                && player.level().getBlockEntity(pos) instanceof MachineBlockEntity be ? be : null;
+    }
 
-        @Override
-        public void set(int i, int value) {
-            switch (i) {
-                case MachineMenu.RECIPE -> recipe = value;
-                case MachineMenu.REDSTONE -> redstone = value;
-                default -> {
-                    if (i >= MachineMenu.SIDES && i < MachineMenu.DATA_COUNT) {
-                        sides[i - MachineMenu.SIDES] = value;
-                    }
-                }
-            }
+    /** What {@code player} sees of the machine at {@code pos}: its state while within reach. */
+    public static MachineState view(ServerPlayer player, BlockPos pos) {
+        MachineBlockEntity be = reachable(player, pos);
+        return be == null ? null : new MachineState(be.progress, be.energy, be.water, be.burn, be.burnTotal, be.recipe,
+                be.status, be.redstone, List.of(be.sides));
+    }
+
+    /** Ignored unless {@code index} is a recipe for the current input, or {@code -1}. */
+    void pickRecipe(int index) {
+        if (index >= -1 && index < recipes(level, items.getItem(MachineMenu.INPUT)).size()) {
+            recipe = index;
             setChanged();
         }
+    }
 
-        @Override
-        public int getCount() {
-            return MachineMenu.DATA_COUNT;
-        }
-    };
+    void setRedstone(MachineState.Redstone mode) {
+        redstone = mode;
+        setChanged();
+    }
+
+    void setSide(Direction side, MachineState.SideMode mode) {
+        sides[side.get3DDataValue()] = mode;
+        setChanged();
+    }
 
     public MachineBlockEntity(BlockPos pos, BlockState state) {
-        super(Machine.BLOCK_ENTITY.get(), pos, state);
+        super(ModBlockEntities.POWERED_STONECUTTER.get(), pos, state);
     }
 
     static void serverTick(Level level, BlockPos pos, BlockState state, MachineBlockEntity be) {
@@ -110,7 +104,7 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
             ItemStack fuel = items.getItem(MachineMenu.FUEL);
             int time = fuel.isEmpty() ? 0 : ForgeHooks.getBurnTime(fuel, null);
             if (time > 0) {
-                burn = burnTotal = Math.min(time, Short.MAX_VALUE);
+                burn = burnTotal = time;
                 ItemStack remainder = fuel.getCraftingRemainingItem();
                 fuel.shrink(1);
                 if (fuel.isEmpty()) {
@@ -137,8 +131,8 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
             recipe = -1;
             progress = 0;
         }
-        int next = cut(level, pos, input);
-        if (next != MachineMenu.STATUS_WORKING && progress != 0) {
+        MachineState.Status next = cut(level, pos, input);
+        if (next != MachineState.Status.WORKING && progress != 0) {
             progress = 0;
             changed = true;
         }
@@ -149,29 +143,29 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
     }
 
     /** Advances the cut by a tick when it can run; returns the status. */
-    private int cut(Level level, BlockPos pos, ItemStack input) {
+    private MachineState.Status cut(Level level, BlockPos pos, ItemStack input) {
         if (input.isEmpty()) {
-            return MachineMenu.STATUS_NO_INPUT;
+            return MachineState.Status.NO_INPUT;
         }
         List<StonecutterRecipe> recipes = recipes(level, input);
         if (recipe < 0 || recipe >= recipes.size()) {
-            return MachineMenu.STATUS_PICK_RECIPE;
+            return MachineState.Status.PICK_RECIPE;
         }
         boolean signal = level.hasNeighborSignal(pos);
-        if (redstone == MachineMenu.REDSTONE_HIGH && !signal || redstone == MachineMenu.REDSTONE_LOW && signal) {
-            return MachineMenu.STATUS_REDSTONE_OFF;
+        if (redstone == MachineState.Redstone.HIGH && !signal || redstone == MachineState.Redstone.LOW && signal) {
+            return MachineState.Status.REDSTONE_OFF;
         }
         ItemStack result = recipes.get(recipe).assemble(new SimpleContainer(input), level.registryAccess());
         ItemStack out = items.getItem(MachineMenu.OUTPUT);
         if (!out.isEmpty() && (!ItemStack.isSameItemSameTags(out, result)
                 || out.getCount() + result.getCount() > out.getMaxStackSize())) {
-            return MachineMenu.STATUS_OUTPUT_FULL;
+            return MachineState.Status.OUTPUT_FULL;
         }
         if (water < WATER_PER_CUT) {
-            return MachineMenu.STATUS_NO_WATER;
+            return MachineState.Status.NO_WATER;
         }
         if (energy < FE_PER_TICK) {
-            return MachineMenu.STATUS_NO_ENERGY;
+            return MachineState.Status.NO_ENERGY;
         }
         energy -= FE_PER_TICK;
         if (++progress >= CUT_TICKS) {
@@ -185,7 +179,7 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
             }
             items.setChanged();
         }
-        return MachineMenu.STATUS_WORKING;
+        return MachineState.Status.WORKING;
     }
 
     /** Vanilla's stonecutting recipes for {@code input}, in the order its stonecutter lists them. */
@@ -213,8 +207,12 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
         tag.putInt("BurnTotal", burnTotal);
         tag.putInt("Progress", progress);
         tag.putInt("Recipe", recipe);
-        tag.putInt("Redstone", redstone);
-        tag.putIntArray("Sides", sides);
+        tag.putInt("Redstone", redstone.ordinal());
+        int[] s = new int[sides.length];
+        for (int i = 0; i < s.length; i++) {
+            s[i] = sides[i].ordinal();
+        }
+        tag.putIntArray("Sides", s);
     }
 
     @Override
@@ -227,9 +225,11 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
         burnTotal = tag.getInt("BurnTotal");
         progress = tag.getInt("Progress");
         recipe = tag.contains("Recipe") ? tag.getInt("Recipe") : -1;
-        redstone = tag.getInt("Redstone");
+        redstone = MachineState.Redstone.values()[Math.floorMod(tag.getInt("Redstone"), MachineState.Redstone.values().length)];
         int[] s = tag.getIntArray("Sides");
-        System.arraycopy(s, 0, sides, 0, Math.min(s.length, sides.length));
+        for (int i = 0; i < Math.min(s.length, sides.length); i++) {
+            sides[i] = MachineState.SideMode.values()[Math.floorMod(s[i], MachineState.SideMode.values().length)];
+        }
         recipeInput = items.getItem(MachineMenu.INPUT).copyWithCount(1);
     }
 }

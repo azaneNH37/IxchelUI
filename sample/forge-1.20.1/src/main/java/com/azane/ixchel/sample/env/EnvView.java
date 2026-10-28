@@ -3,7 +3,7 @@ package com.azane.ixchel.sample.env;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.mc.ClientSources;
+import com.azane.ixchel.mc.source.ClientSources;
 import com.azane.ixchel.sample.waypoints.Waypoints;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
@@ -59,15 +59,15 @@ final class EnvView extends ViewModel {
         static final World NONE = new World(Component.empty(), "", "", "", "", "");
     }
 
-    /** A strip tick every 15°; {@code left} places its box so the tick sits on the angle. */
-    record Mark(int id, String left, String label, boolean major) {
+    /** A strip tick every 15°; {@code left} (pixels) places its box so the tick sits on the angle. */
+    record Mark(int id, int left, String label, boolean major) {
     }
 
     /**
      * A waypoint on the compass: {@code near} within 10° of the heading (its label shows), {@code edge}
      * more than 90° off, held at the end of the bar.
      */
-    record Marker(int id, String label, String left, boolean near, boolean edge) {
+    record Marker(int id, String label, int left, boolean near, boolean edge) {
     }
 
     private static final String[] POINTS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
@@ -103,11 +103,10 @@ final class EnvView extends ViewModel {
     final Derived<List<Icon>> armorIcons = derive(armor, a -> icons(a, 20));
     final Derived<Boolean> hasArmor = derive(armor, a -> a > 0);
     final Derived<List<Icon>> foodIcons = derive(food, f -> icons(f, 20));
-    final Derived<String> levelText = derive(level, String::valueOf);
     final Derived<String> progressWidth = derive(progress, p -> p * 100 + "%");
 
     /** The strip starts at -90°: heading {@code h} is under the needle when the strip is moved left by h. */
-    final Derived<String> stripLeft = derive(heading, h -> -h + "px");
+    final Derived<Integer> stripLeft = derive(heading, h -> -h);
 
     /** {@code points} out of {@code max} as icons of two points each. */
     private static List<Icon> icons(int points, int max) {
@@ -130,7 +129,7 @@ final class EnvView extends ViewModel {
         for (int a = -HALF; a <= 360 + HALF; a += 15) {
             int deg = Math.floorMod(a, 360);
             String label = deg % 45 == 0 ? POINTS[deg / 45] : "";
-            out.add(new Mark(a, a + HALF - MARK_WIDTH / 2 + "px", label, deg % 90 == 0));
+            out.add(new Mark(a, a + HALF - MARK_WIDTH / 2, label, deg % 90 == 0));
         }
         return out;
     }
@@ -150,7 +149,7 @@ final class EnvView extends ViewModel {
             int delta = Math.floorMod((int) Math.round(bearing) - h + 180, 360) - 180;
             int at = Math.max(-HALF, Math.min(HALF, delta));
             String label = w.name() + " " + Math.round(Math.sqrt(w.pos().distSqr(p.blockPosition()))) + " m";
-            out.add(new Marker(w.id(), label, at + HALF - MARKER_WIDTH / 2 + "px", Math.abs(delta) <= 10,
+            out.add(new Marker(w.id(), label, at + HALF - MARKER_WIDTH / 2, Math.abs(delta) <= 10,
                     Math.abs(delta) > HALF));
         }
         return out;

@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -117,7 +118,7 @@ final class ContainerCheck {
         vanillaX = menu.slots.get(FROM).x;
         vanillaY = menu.slots.get(FROM).y;
         mc.setScreen(new UiContainerScreen<>(menu, mc.player.getInventory(), Component.literal("Inventory"),
-                ShadeTestA.MOD_ID, "ui/inventory.html", List.of("ui/inventory.css"), new Slots(),
+                new ResourceLocation(ShadeTestA.MOD_ID, "ui/inventory.html"), new Slots(),
                 UiContainerScreen.SlotItemRendering.IXCHEL));
     }
 

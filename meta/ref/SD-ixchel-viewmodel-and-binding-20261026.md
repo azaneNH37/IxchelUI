@@ -99,8 +99,8 @@ final class GunModView extends ViewModel {
 | 项 | 规则 | 状态 |
 |---|---|---|
 | 表达式 | 路径 + `!`；复杂逻辑写成 `Derived` | ✅ |
-| 绑定目标 | `text`、任意属性、`class:<名字>`（M2）；`if`、`each`（M3，`each` 必须带 `as` 与 `key`，`key` 是从行名出发的路径；`each` 与 `if` 不能在同一元素上）；不支持 `style:*`，样式变化走类名 | ✅ |
-| 动作参数 | `on:x="act"` 或 `on:x="act(路径)"`，最多一个参数，加载期按 `Action<A>` 的 `A` 检查类型；事件名为 `click`、`mousedown`、`mouseup`、`wheel`、`keydown`、`keyup` | ✅ |
+| 绑定目标 | `text`、任意属性、`class:<名字>`（M2）；`if`、`each`（M3，`each` 必须带 `as` 与 `key`，`key` 是从行名出发的路径；`each` 与 `if` 不能在同一元素上）；`style:<属性>` 接受 CSS 语法的 String，长度类属性也接受数值（按 `px`） | ✅ |
+| 动作参数 | `on:x="act"` 或 `on:x="act(路径)"`，最多一个参数，加载期按 `Action<A>` 的 `A` 检查类型；事件名为 `click`、`mousedown`、`mouseup`、`wheel`、`keydown`、`keyup`。键事件可过滤：`on:keydown.<键名>[.shift|.ctrl|.alt]`（键名见 `event.Keys`），只在匹配时运行并消费；顶层元素上的键处理器注册到文档根，不需焦点即触发（`each`/`if` 块内的顶层元素除外） | ✅ |
 | i18n | `t="语言键"`；字面文本开发期警告 | 🟡 |
 | 值转文本 | `String.valueOf`；格式化（如补零）写进 `Derived`。`Component` 在 mc 层以 `getString()` 拍平为纯文本，颜色、字重只由 CSS 给出；富文本（保留 Component 内联样式）以后作为不透明宿主文本对象加入，测量与换行交给 mc 层的 vanilla `StringSplitter`，core 不建模样式 | ✅ |
 | 交互状态 | `:hover` / `:active` / `:focus` 由 event 包写状态位，不经 ViewModel | ✅ |

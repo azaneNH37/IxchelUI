@@ -11,8 +11,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,12 +39,28 @@ class GoldenTest {
     /** For documents without {@code background-size: auto}: every image is unknown. */
     static final ImageMeasurer NO_IMAGES = src -> null;
 
+    /** The {@code <link>} line for {@link #sheet} as line 1, so template positions in {@code html} start at line 2. */
+    static String linked(String html) {
+        return "<link rel=\"stylesheet\" href=\"t.css\"/>\n" + html;
+    }
+
+    /** Serves {@code css} as {@code t.css}, the only linked sheet. */
+    static Function<String, UiDocument.CssSource> sheet(String css) {
+        return Map.of("t.css", new UiDocument.CssSource(css, "t.css"))::get;
+    }
+
+    /** For templates without {@code <link>}: resolving any href fails. */
+    static final Function<String, UiDocument.CssSource> NO_SHEETS = href -> {
+        throw new IllegalArgumentException("no stylesheet " + href);
+    };
+
     @ParameterizedTest
     @ValueSource(strings = "ammo-hud")
     void displayListMatchesExpectation(String name) throws IOException {
         String dir = "golden/" + name + "/";
         UiDocument doc = UiDocument.load(resource(dir + "hud.html"), "hud.html",
-                List.of(new UiDocument.CssSource(resource(dir + "hud.css"), "hud.css")), TagRegistry.HTML, MONO, NO_IMAGES);
+                Map.of("hud.css", new UiDocument.CssSource(resource(dir + "hud.css"), "hud.css"))::get,
+                TagRegistry.HTML, MONO, NO_IMAGES);
         DisplayList out = doc.frame(480, 270);
 
         String expected = resource(dir + "expected.txt").lines()

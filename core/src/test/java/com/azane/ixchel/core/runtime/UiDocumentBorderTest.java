@@ -5,8 +5,6 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -14,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentBorderTest {
     private static UiDocument load(String html, String css) {
-        return UiDocument.load(html, "t.html", List.of(new UiDocument.CssSource(css, "t.css")), TagRegistry.HTML,
+        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
                 GoldenTest.MONO, GoldenTest.NO_IMAGES);
     }
 

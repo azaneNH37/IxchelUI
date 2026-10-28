@@ -105,9 +105,33 @@ class TemplateParserTest {
         Template t = TemplateParser.parse("<style>\n  .a { color: red; }\n</style>\n<div/>", "t.html", TagRegistry.HTML, diag);
         assertFalse(diag.hasErrors(), diag.entries().toString());
         assertEquals(1, t.roots().size());
-        Template.StyleSource s = t.styles().get(0);
+        Template.Inline s = (Template.Inline) t.styles().get(0);
         assertEquals("\n  .a { color: red; }\n", s.css());
         assertEquals(new SourcePos("t.html", 1, 8), s.start());
+    }
+
+    @Test
+    void linksAndStylesAreCollectedInDocumentOrderAndLeaveTheTree() {
+        Diagnostics diag = new Diagnostics();
+        Template t = TemplateParser.parse("""
+                <link rel="stylesheet" href="a.css"/>
+                <style>.a {}</style>
+                <div/>
+                <link rel="stylesheet" href="../b.css"/>
+                """, "t.html", TagRegistry.HTML, diag);
+        assertFalse(diag.hasErrors(), diag.entries().toString());
+        assertEquals(1, t.roots().size());
+        assertEquals(List.of(new Template.Link("a.css", new SourcePos("t.html", 1, 1)),
+                new Template.Inline(".a {}", new SourcePos("t.html", 2, 8)),
+                new Template.Link("../b.css", new SourcePos("t.html", 4, 1))), t.styles());
+
+        Diagnostics nested = new Diagnostics();
+        Template n = TemplateParser.parse("<div><link rel=\"stylesheet\" href=\"a.css\"/></div>", "t.html", TagRegistry.HTML, nested);
+        assertEquals(1, nested.entries().size(), nested.entries().toString());
+        assertEquals(new SourcePos("t.html", 1, 6), nested.entries().get(0).pos());
+        assertTrue(nested.entries().get(0).message().contains("<link> is only allowed at the top level"));
+        assertTrue(n.styles().isEmpty());
+        assertTrue(el(n.roots().get(0)).children().isEmpty());
     }
 
     @Test

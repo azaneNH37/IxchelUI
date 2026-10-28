@@ -3,39 +3,38 @@ package com.azane.ixchel.mc;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.azane.ixchel.mc.document.HostedDocument;
+import com.azane.ixchel.mc.element.McElements;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-
-import java.util.List;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * A full screen drawn and driven by one document. Mouse and keyboard go to the document first; input
  * it does not take falls back to {@link Screen} (Escape closes). Closing the screen closes the view
  * model, so late replies and subscriptions end with it. An {@code <item>} or a {@code title} under the
- * pointer shows a vanilla tooltip ({@link Tooltips}). Does not pause a single-player game.
+ * pointer shows a vanilla tooltip. Does not pause a single-player game.
  *
  * <pre>{@code
- * mc.setScreen(new UiScreen(MODID, "ui/refit.html", List.of("ui/refit.css"), new RefitView(slot)));
+ * mc.setScreen(new UiScreen(new ResourceLocation(MODID, "ui/waypoints/list.html"), new WaypointsView()));
  * }</pre>
  *
- * <p>In a development run with {@code -Dixchel.devResources.<hostModId>=<resource root>} the files
- * are read from the source tree and reloaded on save, keeping the view model and its state; a failed
- * reload keeps the last good document and lists the errors in an overlay.
+ * <p>In a development run the files are read from the source tree and reloaded on save, keeping the
+ * view model and its state (see {@link HostedDocument}).
  */
 public class UiScreen extends Screen {
-    private final ScreenDocument doc;
+    private final HostedDocument doc;
 
     /**
-     * @param hostModId    namespace of the template and stylesheets
-     * @param templatePath template path under {@code assets/<hostModId>/}
-     * @param cssPaths     stylesheet paths under {@code assets/<hostModId>/}, applied in order
-     * @param model        the view model the template binds to, or {@code null}; closed with the screen
+     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     *                 id, stylesheets come from its {@code <link>} elements
+     * @param model    the view model the template binds to, or {@code null}; closed with the screen
      * @throws UiLoadException outside development when the document has errors
      */
-    public UiScreen(String hostModId, String templatePath, List<String> cssPaths, ViewModel model) {
+    public UiScreen(ResourceLocation template, ViewModel model) {
         super(Component.empty());
-        this.doc = new ScreenDocument(hostModId, templatePath, cssPaths, McElements.TAGS, model, () -> { });
+        this.doc = new HostedDocument(template, McElements.TAGS, model, () -> { });
     }
 
     /** The current document, for querying or driving it; {@code null} only when the first development load failed. */
@@ -54,7 +53,7 @@ public class UiScreen extends Screen {
         doc.frame(width, height);
         doc.paint(g, mouseX, mouseY);
         doc.drawOverlay(g);
-        doc.drawTooltip(g, font, mouseX, mouseY);
+        doc.drawTooltip(g, mouseX, mouseY);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.machine;
 
+import com.azane.ixchel.sample.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Containers;
@@ -21,10 +22,10 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.network.NetworkHooks;
 
 /** The powered stonecutter block: vanilla's stonecutter model and shape, a block entity that ticks on the server. */
-final class MachineBlock extends BaseEntityBlock {
+public final class MachineBlock extends BaseEntityBlock {
     private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 9, 16);
 
-    MachineBlock(Properties properties) {
+    public MachineBlock(Properties properties) {
         super(properties);
     }
 
@@ -35,7 +36,8 @@ final class MachineBlock extends BaseEntityBlock {
 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return level.isClientSide ? null : createTickerHelper(type, Machine.BLOCK_ENTITY.get(), MachineBlockEntity::serverTick);
+        return level.isClientSide ? null
+                : createTickerHelper(type, ModBlockEntities.POWERED_STONECUTTER.get(), MachineBlockEntity::serverTick);
     }
 
     @Override

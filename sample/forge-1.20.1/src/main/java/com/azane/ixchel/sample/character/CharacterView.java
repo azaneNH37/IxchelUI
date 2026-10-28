@@ -4,7 +4,7 @@ import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.mc.ClientSources;
+import com.azane.ixchel.mc.source.ClientSources;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;

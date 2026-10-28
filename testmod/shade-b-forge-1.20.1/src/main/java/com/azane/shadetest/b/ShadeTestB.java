@@ -4,14 +4,13 @@ import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.forge.IxchelForge;
-import com.azane.ixchel.mc.ClientSources;
+import com.azane.ixchel.mc.source.ClientSources;
 import com.mojang.logging.LogUtils;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
-
-import java.util.List;
 
 @Mod(ShadeTestB.MOD_ID)
 public final class ShadeTestB {
@@ -22,8 +21,7 @@ public final class ShadeTestB {
             // Shows which copy this mod runs: the relocated name and the jar it came from.
             LogUtils.getLogger().info("[ixchel-shade] {} uses {} from {}", MOD_ID, IxchelForge.class.getName(),
                     IxchelForge.class.getProtectionDomain().getCodeSource().getLocation());
-            IxchelForge.registerHud(context.getModEventBus(), MOD_ID, "hud", "ui/hud.html", List.of("ui/hud.css"),
-                    HudView::new);
+            IxchelForge.registerHud(context.getModEventBus(), new ResourceLocation(MOD_ID, "ui/hud.html"), HudView::new);
         }
     }
 

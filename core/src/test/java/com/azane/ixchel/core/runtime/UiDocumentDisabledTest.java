@@ -9,8 +9,6 @@ import com.azane.ixchel.core.dom.UiEvent;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -27,14 +25,15 @@ class UiDocumentDisabledTest {
     void aDisabledElementMatchesDisabledAndItsSubtreeTakesNoClickOrFocusUntilEnabled() {
         Form m = new Form();
         UiDocument doc = UiDocument.load("""
+                <link rel="stylesheet" href="t.css"/>
                 <div class="b" tabindex="0" bind:disabled="locked" on:click="save"><div class="in"></div></div>
                 <div class="other" tabindex="0"></div>
-                """, "t.html", List.of(new UiDocument.CssSource("""
+                """, "t.html", GoldenTest.sheet("""
                 .b { width: 10px; height: 10px; background-color: #fff }
                 .b:disabled { background-color: #888 }
                 .in { width: 4px; height: 4px }
                 .other { width: 10px; height: 10px }
-                """, "t.css")), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
+                """), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         assertEquals("rect 0 0 10 10 #FF888888", GoldenTest.print(doc.frame(100, 100)));
         Element other = (Element) doc.root().children().get(1);
 

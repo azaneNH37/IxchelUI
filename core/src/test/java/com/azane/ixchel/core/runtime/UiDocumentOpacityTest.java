@@ -4,8 +4,6 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -13,14 +11,15 @@ class UiDocumentOpacityTest {
     @Test
     void opacityMultipliesDownTheSubtreeAndZeroPaintsNothingButStillHits() {
         UiDocument doc = UiDocument.load("""
+                <link rel="stylesheet" href="t.css"/>
                 <div class="outer"><div class="inner">a</div><img class="pic" src="x:a.png"/></div>
                 <div class="gone"></div>
-                """, "t.html", List.of(new UiDocument.CssSource("""
+                """, "t.html", GoldenTest.sheet("""
                 .outer { opacity: 0.5; background-color: #ff000080 }
                 .inner { opacity: 0.5; height: 10px; background-color: #fff; color: #00ff00 }
                 .pic { width: 4px; height: 4px }
                 .gone { opacity: 0; width: 10px; height: 10px; background-color: #fff }
-                """, "t.css")), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
+                """), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
         assertEquals("""
                 rect 0 0 100 14 #40FF0000
                 rect 0 0 100 10 #40FFFFFF

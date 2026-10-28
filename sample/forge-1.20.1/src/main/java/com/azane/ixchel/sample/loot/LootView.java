@@ -2,8 +2,8 @@ package com.azane.ixchel.sample.loot;
 
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.mc.ClientSources;
-import com.azane.ixchel.mc.WorldProjection;
+import com.azane.ixchel.mc.source.ClientSources;
+import com.azane.ixchel.mc.source.WorldProjection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -25,12 +25,12 @@ final class LootView extends ViewModel {
     static final int LABEL_WIDTH = 120;
     static final int EDGE_WIDTH = 30;
 
-    /** A label centered over a drop in view. */
-    record Label(int id, String text, String left, String top, String color) {
+    /** A label centered over a drop in view; {@code left} and {@code top} in GUI pixels. */
+    record Label(int id, String text, int left, int top, String color) {
     }
 
     /** Drops out of view in one of eight directions, shown at that edge of the screen. */
-    record Edge(int sector, String text, String left, String top) {
+    record Edge(int sector, String text, int left, int top) {
     }
 
     private final PickupToasts log = new PickupToasts();
@@ -50,8 +50,8 @@ final class LootView extends ViewModel {
                 ItemStack s = d.entity().getItem();
                 String text = s.getHoverName().getString() + (s.getCount() > 1 ? " x" + s.getCount() : "")
                         + " " + Math.round(d.distance()) + " m";
-                out.add(new Label(d.entity().getId(), text, Math.round(at.get().x) - LABEL_WIDTH / 2 + "px",
-                        Math.round(at.get().y) - 10 + "px", Drops.color(s.getRarity())));
+                out.add(new Label(d.entity().getId(), text, Math.round(at.get().x) - LABEL_WIDTH / 2,
+                        Math.round(at.get().y) - 10, Drops.color(s.getRarity())));
             }
         }
         return out;
@@ -79,7 +79,7 @@ final class LootView extends ViewModel {
         List<Edge> out = new ArrayList<>();
         for (int i = 0; i < 8; i++) {
             if (counts[i] > 0) {
-                out.add(new Edge(i, Drops.arrow(i) + " " + counts[i], at[i][0] + "px", at[i][1] + "px"));
+                out.add(new Edge(i, Drops.arrow(i) + " " + counts[i], at[i][0], at[i][1]));
             }
         }
         return out;

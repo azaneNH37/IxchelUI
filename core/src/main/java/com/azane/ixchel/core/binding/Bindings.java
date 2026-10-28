@@ -14,6 +14,7 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.UiEvent;
+import com.azane.ixchel.core.event.Keys;
 import com.azane.ixchel.core.style.Declarations;
 import com.azane.ixchel.core.template.TagRegistry;
 
@@ -50,6 +51,10 @@ import java.util.function.Function;
  * <div bind:class:busy="reload.pending"></div>  <!-- an action's pending / error -->
  * <div on:click="reload"></div>             <!-- runs an action; the event counts as handled -->
  * <div on:click="select(row)"></div>        <!-- with the value of a path as its argument -->
+ * <div on:keydown.delete="remove"></div>    <!-- key events may name the key (see Keys) and modifiers:
+ *                                                on:keydown.up.shift fires only for Shift+Up -->
+ * <div on:keydown.escape="close"></div>     <!-- key handlers on a top-level element act as document-level
+ *                                                handlers: they see every key event, focused child or not -->
  * <div if="!hasSelection">…</div>           <!-- mounted while true; not read while unmounted -->
  * <div each="slots" as="s" key="s.type"     <!-- one copy per list element, matched by key -->
  *      on:click="select(s)" bind:class:on="s.selected"></div>
@@ -88,7 +93,7 @@ public final class Bindings {
      */
     public static Bindings compile(Element root, ViewModel model, Function<Object, String> textOf,
                                    TagRegistry tags, PropertyRegistry properties, Diagnostics diag) {
-        Compiler c = new Compiler(model, textOf, tags, properties, diag);
+        Compiler c = new Compiler(root, model, textOf, tags, properties, diag);
         Group group = new Group();
         c.collect(root, group);
         Bindings b = new Bindings(model, group);
@@ -139,6 +144,8 @@ public final class Bindings {
     private static final class Compiler {
         private static final Set<String> STRUCTURAL = Set.of("each", "as", "key", "if");
 
+        /** The implicit document root; unfocused key events target it. */
+        private final Element documentRoot;
         private final ViewModel model;
         private final Map<String, Field> fields;
         private final Function<Object, String> textOf;
@@ -148,8 +155,9 @@ public final class Bindings {
         /** {@code as} names visible to the subtree being compiled. */
         private Map<String, Ref> aliases = Map.of();
 
-        Compiler(ViewModel model, Function<Object, String> textOf, TagRegistry tags, PropertyRegistry properties,
-                 Diagnostics diag) {
+        Compiler(Element documentRoot, ViewModel model, Function<Object, String> textOf, TagRegistry tags,
+                 PropertyRegistry properties, Diagnostics diag) {
+            this.documentRoot = documentRoot;
             this.model = model;
             this.fields = model == null ? Map.of() : modelFields(model.getClass());
             this.textOf = textOf;
@@ -395,13 +403,40 @@ public final class Bindings {
             return new StyleBinding(ref.cell, a, diag, e, property);
         }
 
-        /** {@code on:<event>="action"} or {@code on:<event>="action(path)"}. */
+        /**
+         * {@code on:<event>="action"} or {@code on:<event>="action(path)"}; {@code keydown} and {@code keyup}
+         * take a filter {@code .<key>[.<modifier>…]} with the names of {@link Keys}: the listener runs,
+         * and consumes the event, only for that key with every named modifier held.
+         */
         private void handler(Element e, BindAttribute a) {
-            String eventName = a.name().substring("on:".length());
+            String[] parts = a.name().substring("on:".length()).split("\\.", -1);
+            String eventName = parts[0];
             UiEvent.Type type = UiEvent.Type.byTemplateName(eventName);
             if (type == null) {
                 diag.error(a.namePos(), "unknown event '" + eventName + "'; supported: " + eventNames());
                 return;
+            }
+            int filterKey = -1;
+            int filterMods = 0;
+            if (parts.length > 1) {
+                if (type != UiEvent.Type.KEY_DOWN && type != UiEvent.Type.KEY_UP) {
+                    diag.error(a.namePos(), "'" + eventName + "' takes no key filter; only keydown and keyup do");
+                    return;
+                }
+                filterKey = Keys.code(parts[1]);
+                if (filterKey < 0) {
+                    diag.error(a.namePos(), "unknown key '" + parts[1] + "' in '" + a.name() + "'");
+                    return;
+                }
+                for (int k = 2; k < parts.length; k++) {
+                    int bit = Keys.modifier(parts[k]);
+                    if (bit == 0) {
+                        diag.error(a.namePos(), "unknown modifier '" + parts[k] + "' in '" + a.name()
+                                + "'; supported: shift, ctrl, alt");
+                        return;
+                    }
+                    filterMods |= bit;
+                }
             }
             String expr = a.value().trim();
             int open = expr.indexOf('(');
@@ -456,7 +491,16 @@ public final class Bindings {
                 arg = ref.cell;
             }
             Cell<?> argCell = arg;
-            e.addEventListener(type, false, ev -> {
+            int wantKey = filterKey;
+            int wantMods = filterMods;
+            // Unfocused key events target the implicit root and run only its listeners, so a top-level
+            // element's key handlers live on the root: document-level, like a handler on <body>.
+            boolean keyEvent = type == UiEvent.Type.KEY_DOWN || type == UiEvent.Type.KEY_UP;
+            Element on = keyEvent && e.parent() == documentRoot ? documentRoot : e;
+            on.addEventListener(type, false, ev -> {
+                if (wantKey >= 0 && (ev.key() != wantKey || (ev.modifiers() & wantMods) != wantMods)) {
+                    return;
+                }
                 try {
                     action.run(argCell == null ? null : argCell.get());
                 } catch (RuntimeException ex) {

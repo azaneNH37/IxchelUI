@@ -7,6 +7,7 @@ import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.selector.Selector;
 import com.azane.ixchel.core.css.selector.SelectorParser;
 import com.azane.ixchel.core.css.syntax.CssParser;
+import com.azane.ixchel.core.css.syntax.Rule;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.diag.UiLoadException;
@@ -70,31 +71,49 @@ public final class UiDocument {
     }
 
     /** Loads a document without a view model; any {@code bind:*} attribute is an error. */
-    public static UiDocument load(String template, String templateFile, List<CssSource> sheets,
+    public static UiDocument load(String template, String templateFile, Function<String, CssSource> linked,
                                   TagRegistry tags, TextMeasurer measurer, ImageMeasurer images) {
-        return load(template, templateFile, sheets, tags, measurer, images, null, Bindings.PLAIN_TEXT);
+        return load(template, templateFile, linked, tags, measurer, images, null, Bindings.PLAIN_TEXT);
     }
 
     /**
-     * Parses and validates everything up front; external sheets apply before inline {@code <style>}
-     * blocks. Every error found is reported in one {@link UiLoadException}; warnings stay readable
-     * through {@link #diagnostics()}. Bindings are resolved and their initial values written here.
+     * Parses and validates everything up front; stylesheets apply in document order, {@code <link
+     * rel="stylesheet">} and {@code <style>} interleaved. Every error found is reported in one
+     * {@link UiLoadException}; warnings stay readable through {@link #diagnostics()}. Bindings are
+     * resolved and their initial values written here.
      *
+     * @param linked resolves the raw {@code href} of a {@code <link>} to its sheet; {@code null} or a
+     *               {@link RuntimeException} is reported as a load error at the link
      * @param images natural image sizes, for {@code background-size: auto}
      * @param model  the view model {@code bind:*} attributes refer to, or {@code null}
      * @param textOf converts bound values to text (the mc layer flattens components)
      */
-    public static UiDocument load(String template, String templateFile, List<CssSource> sheets,
+    public static UiDocument load(String template, String templateFile, Function<String, CssSource> linked,
                                   TagRegistry tags, TextMeasurer measurer, ImageMeasurer images, ViewModel model,
                                   Function<Object, String> textOf) {
         Diagnostics diag = new Diagnostics();
         Template t = TemplateParser.parse(template, templateFile, tags, diag);
         List<StyleSheet> compiled = new ArrayList<>();
-        for (CssSource s : sheets) {
-            compiled.add(StyleSheet.compile(CssParser.parseStylesheet(s.css(), s.file(), diag), CssProperties.REGISTRY, diag));
-        }
         for (Template.StyleSource s : t.styles()) {
-            compiled.add(StyleSheet.compile(CssParser.parseStylesheet(s.css(), s.start(), diag), CssProperties.REGISTRY, diag));
+            List<Rule> rules;
+            if (s instanceof Template.Inline inline) {
+                rules = CssParser.parseStylesheet(inline.css(), inline.start(), diag);
+            } else {
+                Template.Link link = (Template.Link) s;
+                CssSource sheet;
+                try {
+                    sheet = linked.apply(link.href());
+                } catch (RuntimeException ex) {
+                    diag.error(link.pos(), "cannot load stylesheet '" + link.href() + "': " + ex.getMessage());
+                    continue;
+                }
+                if (sheet == null) {
+                    diag.error(link.pos(), "stylesheet '" + link.href() + "' not found");
+                    continue;
+                }
+                rules = CssParser.parseStylesheet(sheet.css(), sheet.file(), diag);
+            }
+            compiled.add(StyleSheet.compile(rules, CssProperties.REGISTRY, diag));
         }
         Element root = new Element("#root", new SourcePos(templateFile, 1, 1));
         for (Node n : t.roots()) {

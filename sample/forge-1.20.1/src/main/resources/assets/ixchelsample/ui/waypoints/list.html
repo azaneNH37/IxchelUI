@@ -1,0 +1,22 @@
+<link rel="stylesheet" href="list.css"/>
+<div class="screen" on:keydown.up="selectPrevious" on:keydown.down="selectNext" on:keydown.delete="remove">
+  <div class="panel">
+    <div class="header">
+      <span class="title">Waypoints</span>
+      <span class="count" bind:text="count"></span>
+    </div>
+    <span class="hint">Click a row or use Up/Down; Delete removes. Distances update as you move.</span>
+    <div class="list">
+      <span class="empty" if="empty">No waypoints yet. Add one where you stand.</span>
+      <div class="row" each="rows" as="r" key="r.id" tabindex="0" on:click="select(r)" bind:class:selected="r.selected">
+        <span class="name" bind:text="r.name"></span>
+        <span class="coords" bind:text="r.coords"></span>
+        <span class="distance" bind:text="r.distance"></span>
+      </div>
+    </div>
+    <div class="buttons">
+      <div class="button" title="Saves the block you stand on, in this dimension" on:click="add"><span>Add here</span></div>
+      <div class="button" if="hasSelection" on:click="remove"><span>Remove</span></div>
+    </div>
+  </div>
+</div>
