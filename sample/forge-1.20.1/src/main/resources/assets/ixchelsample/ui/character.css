@@ -1,0 +1,158 @@
+/* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. The pages
+   share one box above the inventory; hidden pages keep their slots placed but not displayed. */
+.panel {
+  margin: auto;
+  width: 178px;
+  padding: 7px;
+  background-color: #C6C6C6;
+  border: 1px solid #555555;
+  color: #404040;
+}
+
+.tabs {
+  flex-direction: row;
+  margin-bottom: 4px;
+}
+
+.tab {
+  padding: 2px 4px;
+  margin-right: 2px;
+  background-color: #A0A0A0;
+  border-bottom: 1px solid #555555;
+  color: #404040;
+  transition: background-color 120ms;
+}
+
+.tab:hover {
+  background-color: #B8B8B8;
+}
+
+.tab.selected {
+  background-color: #E0E0E0;
+  border-bottom-color: #E0E0E0;
+  color: #202020;
+}
+
+.page {
+  display: none;
+  height: 76px;
+  margin-bottom: 4px;
+}
+
+.page.shown {
+  display: flex;
+}
+
+.equipment {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.column {
+  width: 18px;
+}
+
+.doll {
+  width: 50px;
+  height: 72px;
+  margin: 0px 2px;
+  background-color: #000000;
+  border: 1px solid #373737;
+}
+
+.offhand {
+  margin-top: 54px;
+}
+
+/* The grid above its result, so the row fits beside the doll without shrinking it. */
+.crafting {
+  align-items: center;
+  margin-left: 8px;
+}
+
+.craft-grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 36px;
+}
+
+.arrow {
+  color: #404040;
+}
+
+/* Vanilla's slot bevel: dark top and left, white bottom and right, around a 16x16 well. */
+.slot {
+  width: 18px;
+  height: 18px;
+  background-color: #8B8B8B;
+  border-width: 1px;
+  border-style: solid;
+  border-top-color: #373737;
+  border-left-color: #373737;
+  border-bottom-color: #FFFFFF;
+  border-right-color: #FFFFFF;
+}
+
+.result {
+  width: 22px;
+  height: 22px;
+}
+
+.list {
+  flex-direction: column;
+  overflow: auto;
+  background-color: #8B8B8B;
+  padding: 2px;
+}
+
+.row {
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 1px 2px;
+  transition: background-color 120ms, opacity 200ms;
+}
+
+.row:hover {
+  background-color: #FFFFFF40;
+}
+
+.name {
+  flex-grow: 1;
+  color: #FFFFFF;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.value {
+  color: #FFFF55;
+}
+
+.empty {
+  color: #DDDDDD;
+}
+
+.effect.ending {
+  background-color: #FF555560;
+}
+
+.effect.dim {
+  opacity: 0.35;
+}
+
+.effect-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 3px;
+}
+
+.grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 162px;
+}
+
+.hotbar {
+  margin-top: 4px;
+}

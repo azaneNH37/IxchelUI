@@ -64,8 +64,8 @@ if (providers.gradleProperty("compat").isPresent) {
     }
 }
 
-// M5 slot compatibility (L2): `-Pslotcompat=jei` loads JEI and Mouse Tweaks, `-Pslotcompat=emi` loads EMI
-// and Mouse Tweaks, next to the backpack refit (`-Pcheck=backpack`).
+// Slot compatibility (L2): `-Pslotcompat=jei` loads JEI and Mouse Tweaks, `-Pslotcompat=emi` loads EMI
+// and Mouse Tweaks, next to the machine panel (`-Pcheck=machine`).
 val slotCompat = providers.gradleProperty("slotcompat")
 if (slotCompat.isPresent) {
     repositories {

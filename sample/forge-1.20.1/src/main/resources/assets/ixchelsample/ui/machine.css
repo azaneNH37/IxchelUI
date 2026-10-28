@@ -1,0 +1,242 @@
+/* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. The side
+   configuration slides out of the panel's right edge (outside the GUI area). */
+.panel {
+  margin: auto;
+  width: 178px;
+  padding: 7px;
+  background-color: #C6C6C6;
+  border: 1px solid #555555;
+  color: #404040;
+}
+
+/* Title and status on their own lines: side by side they need more than the 162px inside the panel. */
+.header {
+  margin-bottom: 4px;
+}
+
+.status {
+  margin-top: 1px;
+  color: #3F7F3F;
+}
+
+.status.bad {
+  color: #AA2020;
+}
+
+.body {
+  flex-direction: row;
+  height: 58px;
+  margin-bottom: 4px;
+}
+
+/* Vertical gauges: the fill stands on the bottom and grows with the value. */
+.bar {
+  height: 56px;
+  margin-right: 3px;
+  justify-content: flex-end;
+  background-color: #373737;
+  border: 1px solid #1E1E1E;
+}
+
+.energy {
+  width: 12px;
+}
+
+.energy-fill {
+  background-color: #D03030;
+  transition: height 150ms;
+}
+
+.tank {
+  width: 18px;
+}
+
+/* The water sprite from the block atlas, tinted with the biome's water color. */
+.water-fill {
+  background-image: url("sprite:minecraft:block/water_still");
+  background-size: 16px 16px;
+  background-blend-mode: multiply;
+  transition: height 150ms;
+}
+
+.feed {
+  width: 18px;
+  margin-right: 4px;
+  align-items: center;
+}
+
+.flame {
+  width: 14px;
+  height: 14px;
+  margin: 2px 0px;
+  justify-content: flex-end;
+  background-image: url("minecraft:textures/gui/container/furnace.png");
+  background-size: 256px 256px;
+  background-position: -56px -36px;
+  background-repeat: no-repeat;
+}
+
+.flame-fill {
+  width: 14px;
+  background-image: url("minecraft:textures/gui/container/furnace.png");
+  background-size: 256px 256px;
+  background-position-x: -176px;
+  background-repeat: no-repeat;
+}
+
+.work {
+  flex-grow: 1;
+}
+
+.io {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.arrow {
+  width: 24px;
+  height: 17px;
+  margin: 0px 4px;
+  background-image: url("minecraft:textures/gui/container/furnace.png");
+  background-size: 256px 256px;
+  background-position: -79px -34px;
+  background-repeat: no-repeat;
+}
+
+.arrow-fill {
+  height: 17px;
+  background-image: url("minecraft:textures/gui/container/furnace.png");
+  background-size: 256px 256px;
+  background-position: -176px -14px;
+  background-repeat: no-repeat;
+}
+
+.recipes {
+  flex-direction: row;
+  flex-wrap: wrap;
+  height: 36px;
+  overflow: auto;
+}
+
+.hint {
+  color: #606060;
+}
+
+.recipe {
+  width: 18px;
+  height: 18px;
+  padding: 1px;
+  background-color: #8B8B8B;
+  transition: background-color 120ms;
+}
+
+.recipe:hover {
+  background-color: #B0B0B0;
+}
+
+.recipe.selected {
+  background-color: #E0E0E0;
+  border: 1px solid #3F7F3F;
+  padding: 0px;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Vanilla's slot bevel: dark top and left, white bottom and right, around a 16x16 well. */
+.slot {
+  width: 18px;
+  height: 18px;
+  background-color: #8B8B8B;
+  border-width: 1px;
+  border-style: solid;
+  border-top-color: #373737;
+  border-left-color: #373737;
+  border-bottom-color: #FFFFFF;
+  border-right-color: #FFFFFF;
+}
+
+.output {
+  width: 26px;
+  height: 26px;
+}
+
+.buttons {
+  flex-direction: row;
+  margin-bottom: 4px;
+}
+
+.button {
+  padding: 2px 4px;
+  margin-right: 3px;
+  background-color: #A0A0A0;
+  border: 1px solid #555555;
+  transition: background-color 120ms;
+}
+
+.button:hover {
+  background-color: #B8B8B8;
+}
+
+.button.selected {
+  background-color: #E0E0E0;
+}
+
+.grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 162px;
+}
+
+.hotbar {
+  margin-top: 4px;
+}
+
+/* Slides out to the right: the width animates from 0, the rows inside are clipped meanwhile. */
+.sides {
+  position: absolute;
+  left: 177px;
+  top: 20px;
+  width: 0px;
+  overflow: hidden;
+  background-color: #C6C6C6;
+  transition: width 200ms;
+}
+
+.sides.open {
+  width: 80px;
+  border: 1px solid #555555;
+}
+
+.side {
+  flex-direction: row;
+  justify-content: space-between;
+  flex-shrink: 0;
+  width: 78px;
+  padding: 2px 3px;
+  transition: background-color 120ms;
+}
+
+.side:hover {
+  background-color: #FFFFFF40;
+}
+
+.face {
+  white-space: nowrap;
+}
+
+.mode {
+  white-space: nowrap;
+  color: #606060;
+}
+
+.mode.input {
+  color: #2050C0;
+}
+
+.mode.output {
+  color: #C07020;
+}

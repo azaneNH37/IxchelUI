@@ -99,10 +99,10 @@ final class ScreenDocument implements AutoCloseable {
         return displayList;
     }
 
-    /** Paints the display list of the last {@link #frame}. */
-    void paint(GuiGraphics g) {
+    /** Paints the display list of the last {@link #frame}; {@code <entity>} elements look at the pointer. */
+    void paint(GuiGraphics g, int mouseX, int mouseY) {
         if (displayList != null) {
-            painter.paint(g, displayList);
+            painter.paint(g, displayList, mouseX, mouseY);
         }
     }
 

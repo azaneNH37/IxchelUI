@@ -128,6 +128,23 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 帧耗时（开发机 AMD 核显，`FrameTimer` 计 Pre→Post 的 CPU 时间）：S5 HUD 静止中位数 / p95 约 1.1–1.4 / 2.0–3.1 ms，每 tick 移动转向约 1.2–2.1 / 3.2–3.4 ms；加罗盘前移动约 0.9 / 1.8 ms。S4 列表 27 行静止约 3.1–3.6 / 4.1–6.9 ms，每 tick 重排约 4.0–4.1 / 6.3–6.6 ms。检查预算取 p95 的约两倍（S5 6 ms，S4 14 ms）。
 - 由此的发现（未处理）：静止与变化帧耗时相当，开销在每帧回放显示列表，不在布局；`McPainter` 的裁剪只用 scissor，被裁掉的命令（罗盘条两侧刻度、列表滚出视口的行及其物品）照样提交。若要降，先在 Painter 剔除完全落在裁剪外的命令。
 
+阶段 B 结果（2026-10-28）：
+- S1 为 `character`（G 键），宿主是玩家自己的 `InventoryMenu`（容器 id 0，不需要打开包）。页签用 `display: none` 切换，隐藏页上的槽位仍算已放置；修了 `UiContainerScreen` 对未显示槽位报尺寸错误的问题。`status` 已删除。
+- `<entity>`：mc 层原生元素，载荷为 `LivingEntity` 或其 `Supplier`；Screen 把指针传给 `McPainter.paint`，实体朝指针看，HUD 中朝前。
+- 图集精灵：`url("sprite:<id>")` 指方块图集里的精灵（core 只认前缀，mc 层解析，逐次查找以跟随资源重载和动画）。tint 用标准写法 `background-blend-mode: multiply`：背景色乘到图上、自身不再画；与 CSS 的差异是图透明处露出父元素而非背景色。
+- `ContainerData` 绑定由宿主自接：view model 对每个 data 下标用 `Source.polled`，客户端到服务端走 `clickMenuButton`。库不提供辅助（2026-10-28 定）：能省的只有客户端约 15 行；`DataSlot` 本身是原版为小数值界面设计的通道（协议按 16 位 short 同步，内存连接不经编码所以单人测不出），科技 mod 普遍自发网络包，原版网络层的缺陷不由本库弥补。
+- S2 为 `machine`，侧面 IO 模式只存储与显示，不接管道。backpack 已删除，`-Pslotcompat` 改跑 `-Pcheck=machine`（JEI、EMI 均通过）。
+- 缺口：backpack 带走了"`IXCHEL` 绘制下滚动列表中的槽位跟随滚动"这一开发期检查，S1、S2 都没有可滚动的真实槽位；`IXCHEL` 绘制本身仍由 shade-a 生产检查覆盖，但不含滚动。计划在 S3 补：其真实槽位区域用 `IXCHEL` 并可滚动。
+
+阶段 B 剩余：meta 确认后开 PR、合入。
+
+阶段 C–E 待做（按 §3 顺序）：
+- C1（S3 存储终端）：`charTyped` 转发到文档；单行文本输入（光标、选区、剪贴板）；虚拟化网格（约 1300 种物品只布局可见行）；S3 扫描与同步包（手持物品打开，网格为虚拟物品）；S3 界面与检查，检查驱动加 `type(text)`；补 `IXCHEL` 滚动槽位检查。
+- C2（S6 配置面板）：表单控件与 `:checked`（标准写法还是自定义元素，按 #003 定）；弹出层 / z-index；Tab 焦点顺序；无世界上下文的 `UiScreen`（从 mod 列表打开，`player == null`）；S6 界面与检查。
+- D（S7 任务树、S4 箭头）：transform（translate/scale/rotate）与逆变换命中测试；画线命令（`DrawCommand` 加类型，visitor 同步）；`mouseDragged` 转发与检查驱动 `drag(sel, dx, dy)`；S7 界面与检查（约 100 节点）；S4 方向箭头改用 rotate，去掉 8 方向字形。
+- E（S8 指南书、S9 增强 tooltip）：跨 `span` 的行内流式排版与行内链接命中；S8 界面与检查；tooltip 宿主（`RenderTooltipEvent.Pre`，接管原版须由宿主 API 开关开启，#009）；S9 界面与检查。
+- 每阶段末：meta 更新、开 PR、合入。
+
 ### 4. 自动化检查
 
 #### 4.1 现状

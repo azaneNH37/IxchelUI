@@ -1,12 +1,13 @@
 package com.azane.ixchel.sample;
 
 import com.azane.ixchel.mc.UiScreen;
+import com.azane.ixchel.sample.character.CharacterClient;
 import com.azane.ixchel.sample.check.Checks;
 import com.azane.ixchel.sample.check.Script;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootClient;
+import com.azane.ixchel.sample.machine.MachineClient;
 import com.azane.ixchel.sample.refit.RefitClient;
-import com.azane.ixchel.sample.status.StatusHud;
 import com.azane.ixchel.sample.waypoints.WaypointsClient;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -29,9 +30,9 @@ public final class Samples {
     public static List<Sample> all() {
         return List.of(
                 RefitClient.refitSample(),
-                RefitClient.backpackSample(),
                 EnvHud.sample(),
-                StatusHud.sample(),
+                CharacterClient.sample(),
+                MachineClient.sample(),
                 LootClient.hudSample(),
                 LootClient.screenSample(),
                 WaypointsClient.sample());

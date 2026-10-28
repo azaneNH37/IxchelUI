@@ -2,6 +2,7 @@ package com.azane.ixchel.core.css.property;
 
 import com.azane.ixchel.core.css.property.Keywords.AlignItems;
 import com.azane.ixchel.core.css.property.Keywords.AlignSelf;
+import com.azane.ixchel.core.css.property.Keywords.BackgroundBlendMode;
 import com.azane.ixchel.core.css.property.Keywords.BackgroundRepeat;
 import com.azane.ixchel.core.css.property.Keywords.BorderStyle;
 import com.azane.ixchel.core.css.property.Keywords.Display;
@@ -113,6 +114,8 @@ public final class CssProperties {
             R.register("background-size", backgroundSize(), BackgroundSize.AUTO, false, false, false);
     public static final PropertyDef<BackgroundRepeat> BACKGROUND_REPEAT =
             R.register("background-repeat", keyword(BackgroundRepeat.class), BackgroundRepeat.REPEAT, false, false, false);
+    public static final PropertyDef<BackgroundBlendMode> BACKGROUND_BLEND_MODE =
+            R.register("background-blend-mode", keyword(BackgroundBlendMode.class), BackgroundBlendMode.NORMAL, false, false, false);
     public static final PropertyDef<Integer> COLOR = R.register("color", color(), 0xFFFFFFFF, true, false, true);
     /** Aligns each line of a text node inside the text's box, which spans its container's width unless the flex layout shrinks it. */
     public static final PropertyDef<TextAlign> TEXT_ALIGN = R.register("text-align", keyword(TextAlign.class), TextAlign.START, true, false, false);

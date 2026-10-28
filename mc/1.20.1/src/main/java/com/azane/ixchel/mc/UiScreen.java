@@ -52,7 +52,7 @@ public class UiScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         renderBackground(g);
         doc.frame(width, height);
-        doc.paint(g);
+        doc.paint(g, mouseX, mouseY);
         doc.drawOverlay(g);
         doc.drawTooltip(g, font, mouseX, mouseY);
     }

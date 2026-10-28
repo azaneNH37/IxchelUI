@@ -20,9 +20,10 @@ import java.util.Set;
 
 /**
  * Turns the laid-out tree into draw commands in document order (later commands paint on top): per
- * element the background color, the background image, the border, the content. A background image
- * becomes one {@link DrawCommand.Image} per visible tile, already clipped to the border box, so the
- * host only draws texture regions. A border side is one {@link DrawCommand.Rect} ({@code solid}
+ * element the background color, the background image, the border, the content; with
+ * {@code background-blend-mode: multiply} the color tints the image instead of painting under it. A
+ * background image becomes one {@link DrawCommand.Image} per visible tile, already clipped to the
+ * border box, so the host only draws texture regions. A border side is one {@link DrawCommand.Rect} ({@code solid}
  * only); the top and bottom sides cover the corners.
  *
  * <p>{@code opacity} multiplies the alpha of every color and image tint in the element's subtree, so
@@ -97,8 +98,15 @@ public final class Painter {
     private void paintBox(Element e, ComputedStyle cs, float dy, DisplayList out) {
         LayoutBox b = e.box();
         float y = b.y() - dy;
-        rect(out, b.x(), y, b.width(), b.height(), cs.get(CssProperties.BACKGROUND_COLOR));
-        paintBackgroundImage(e, cs, b, y, out);
+        int bg = cs.get(CssProperties.BACKGROUND_COLOR);
+        boolean multiply = cs.get(CssProperties.BACKGROUND_BLEND_MODE) == Keywords.BackgroundBlendMode.MULTIPLY
+                && !cs.get(CssProperties.BACKGROUND_IMAGE).isEmpty();
+        if (multiply) {
+            paintBackgroundImage(e, cs, b, y, 0xFF000000 | bg, out);
+        } else {
+            rect(out, b.x(), y, b.width(), b.height(), bg);
+            paintBackgroundImage(e, cs, b, y, OPAQUE_WHITE, out);
+        }
         paintBorder(cs, b, y, out);
         if (e.tag().equals("img")) {
             out.add(new DrawCommand.Image(b.x(), y, b.width(), b.height(), e.attribute("src"), 0, 0, 1, 1, fade(OPAQUE_WHITE)));
@@ -180,9 +188,9 @@ public final class Painter {
     /**
      * CSS Backgrounds 3 with the initial {@code background-origin} and {@code background-clip}: the
      * image is sized and positioned in the padding box and tiles out to the border box edges.
-     * {@code top} is the border box top after scrolling.
+     * {@code top} is the border box top after scrolling; {@code tint} multiplies the image's texels.
      */
-    private void paintBackgroundImage(Element e, ComputedStyle cs, LayoutBox b, float top, DisplayList out) {
+    private void paintBackgroundImage(Element e, ComputedStyle cs, LayoutBox b, float top, int tint, DisplayList out) {
         String src = cs.get(CssProperties.BACKGROUND_IMAGE);
         float areaW = b.width() - b.borderLeft() - b.borderRight();
         float areaH = b.height() - b.borderTop() - b.borderBottom();
@@ -251,7 +259,7 @@ public final class Painter {
                     continue;
                 }
                 out.add(new DrawCommand.Image(cx0, cy0, cx1 - cx0, cy1 - cy0, src,
-                        (cx0 - tx) / w, (cy0 - ty) / h, (cx1 - tx) / w, (cy1 - ty) / h, fade(OPAQUE_WHITE)));
+                        (cx0 - tx) / w, (cy0 - ty) / h, (cx1 - tx) / w, (cy1 - ty) / h, fade(tint)));
             }
         }
     }

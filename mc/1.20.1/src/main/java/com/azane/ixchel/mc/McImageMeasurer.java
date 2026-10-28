@@ -1,6 +1,8 @@
 package com.azane.ixchel.mc;
 
 import com.azane.ixchel.core.paint.ImageMeasurer;
+import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
+import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -14,8 +16,8 @@ import java.util.Optional;
 
 /**
  * Natural image sizes from the PNG header of the resource, one texel per GUI pixel, as vanilla
- * textures are drawn. Sizes, misses included, are cached for the life of the document; a resource
- * reload loads a new document.
+ * textures are drawn; a {@link McPainter#SPRITE} source is one frame of the sprite. Sizes, misses
+ * included, are cached for the life of the document; a resource reload loads a new document.
  */
 public final class McImageMeasurer implements ImageMeasurer {
     private static final long PNG_SIGNATURE = 0x89504E470D0A1A0AL;
@@ -39,6 +41,14 @@ public final class McImageMeasurer implements ImageMeasurer {
     }
 
     private Size read(String src) {
+        if (src.startsWith(McPainter.SPRITE)) {
+            ResourceLocation id = ResourceLocation.tryParse(src.substring(McPainter.SPRITE.length()));
+            if (id == null) {
+                return null;
+            }
+            SpriteContents s = McPainter.sprite(id).contents();
+            return s.name().equals(MissingTextureAtlasSprite.getLocation()) ? null : new Size(s.width(), s.height());
+        }
         ResourceLocation id = ResourceLocation.tryParse(src);
         Optional<Resource> resource = id == null ? Optional.empty() : resources.getResource(id);
         if (resource.isEmpty()) {

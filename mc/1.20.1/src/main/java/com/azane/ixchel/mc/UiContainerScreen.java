@@ -175,7 +175,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
      */
     @Override
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
-        doc.paint(g);
+        doc.paint(g, mouseX, mouseY);
         g.pose().pushPose();
         g.pose().translate(0, 0, doc.topZ());
     }
@@ -294,6 +294,10 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
                 SlotPositions.set(slot, SlotPositions.HIDDEN, SlotPositions.HIDDEN);
                 continue;
             }
+            if (!displayed(e)) {
+                SlotPositions.set(slot, SlotPositions.HIDDEN, SlotPositions.HIDDEN);
+                continue;
+            }
             LayoutBox b = e.box();
             if (b.width() < ITEM_SIZE || b.height() < ITEM_SIZE) {
                 report(d, e, "<" + ITEM_SLOT + "> for slot " + i + " is " + b.width() + "x" + b.height()
@@ -301,7 +305,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
             }
             int x = Math.round(b.x() + (b.width() - ITEM_SIZE) / 2);
             int y = Math.round(b.y() - scrollAbove(e) + (b.height() - ITEM_SIZE) / 2);
-            if (!displayed(e) || !visible(e, x, y, clip)) {
+            if (!visible(e, x, y, clip)) {
                 SlotPositions.set(slot, SlotPositions.HIDDEN, SlotPositions.HIDDEN);
                 continue;
             }

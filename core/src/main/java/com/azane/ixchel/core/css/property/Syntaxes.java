@@ -162,7 +162,9 @@ public final class Syntaxes {
 
     /**
      * {@code background-image}: {@code none} (an empty string) or one {@code url()}, quoted or not,
-     * naming an image by resource location, e.g. {@code url("minecraft:textures/gui/icons.png")}.
+     * naming an image by resource location, e.g. {@code url("minecraft:textures/gui/icons.png")}, or
+     * a sprite of the host's texture atlas by {@link #SPRITE} and the sprite's resource location,
+     * e.g. {@code url("sprite:minecraft:block/water_still")}.
      */
     public static Syntax<String> backgroundImage() {
         return (value, pos, diag) -> {
@@ -227,16 +229,20 @@ public final class Syntaxes {
         };
     }
 
-    /** A {@code namespace:path} resource location, or a bare path; lower-case as Minecraft requires. */
-    private static String resourceLocation(String s, SourcePos pos, Diagnostics diag) {
+    /** Prefix of an image source that names an atlas sprite; the host resolves it. */
+    public static final String SPRITE = "sprite:";
+
+    /** A {@code namespace:path} resource location, or a bare path, optionally after {@link #SPRITE}; lower-case as Minecraft requires. */
+    private static String resourceLocation(String src, SourcePos pos, Diagnostics diag) {
+        String s = src.startsWith(SPRITE) ? src.substring(SPRITE.length()) : src;
         int colon = s.indexOf(':');
         String namespace = colon < 0 ? "minecraft" : s.substring(0, colon);
         String path = s.substring(colon + 1);
         if (namespace.isEmpty() || path.isEmpty() || !allowed(namespace, "_-.") || !allowed(path, "_-./")) {
-            diag.error(pos, "invalid resource location '" + s + "' (namespace:path, lower-case a-z, 0-9 and _ - . with / in the path)");
+            diag.error(pos, "invalid resource location '" + src + "' (namespace:path, lower-case a-z, 0-9 and _ - . with / in the path)");
             return null;
         }
-        return s;
+        return src;
     }
 
     private static boolean allowed(String s, String extra) {

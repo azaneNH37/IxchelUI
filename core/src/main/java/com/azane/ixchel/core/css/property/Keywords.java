@@ -34,6 +34,14 @@ public final class Keywords {
     /** {@code background-repeat}, one keyword for both axes; {@code space} and {@code round} are not supported. */
     public enum BackgroundRepeat { REPEAT, REPEAT_X, REPEAT_Y, NO_REPEAT }
 
+    /**
+     * {@code background-blend-mode}, one keyword for the single background image. {@code multiply}
+     * tints the image with the background color (the image's own alpha is kept) and the color is not
+     * painted under it, so where the image is transparent the parent shows through; CSS would show
+     * the color there. Other modes are not supported.
+     */
+    public enum BackgroundBlendMode { NORMAL, MULTIPLY }
+
     /** {@code border-style}; {@code none} makes the used border width 0, as in CSS. Other styles are not supported. */
     public enum BorderStyle { NONE, SOLID }
 

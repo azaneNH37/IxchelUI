@@ -41,6 +41,19 @@ class UiDocumentBackgroundTest {
     }
 
     @Test
+    void multiplyTintsTheImageWithTheBackgroundColorAndPaintsNoColorUnderIt() {
+        UiDocument doc = load("<div class=\"w\"></div><div class=\"e\"></div>", """
+                div { width: 10px; height: 10px; background-color: #3F76E480; background-blend-mode: multiply;
+                      background-size: 10px 10px }
+                .w { background-image: url(x:water.png) }
+                """, GoldenTest.NO_IMAGES);
+        // The tint is opaque (the color's alpha is dropped); without an image the color paints as usual.
+        assertEquals("""
+                image 0 0 10 10 x:water.png uv 0 0 1 1 #FF3F76E4
+                rect 0 10 10 10 #803F76E4""", frame(doc));
+    }
+
+    @Test
     void percentagePositionAlignsThatPointOfTheImageWithThatPointOfTheBox() {
         UiDocument doc = load("""
                 <div class="a"></div>
