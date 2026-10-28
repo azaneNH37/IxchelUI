@@ -58,6 +58,11 @@ public final class TextShaper {
         return measurer.lineHeight(size);
     }
 
+    /** The advance of {@code text} on one line, unwrapped. */
+    public float width(String text, float size) {
+        return measurer.width(text, size);
+    }
+
     /**
      * {@code line} cut to the longest prefix that fits {@code maxWidth} together with an ellipsis
      * (trailing spaces dropped); {@code line} itself when it fits. When not even the ellipsis fits it

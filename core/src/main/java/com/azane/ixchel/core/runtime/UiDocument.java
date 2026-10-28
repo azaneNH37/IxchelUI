@@ -35,9 +35,13 @@ import java.util.function.LongSupplier;
  * One loaded UI: template tree under an implicit viewport-sized root, its styles, bindings, and the
  * per-frame pipeline bindings → transitions → style → layout → paint. A frame in which nothing
  * changed and no transition runs does no work and keeps the previous {@link DisplayList}; one in
- * which only {@linkplain Element#setScrollTop scroll offsets} changed repaints without style or layout.
+ * which only {@linkplain Element#setScrollTop scroll offsets}, {@linkplain Element#textField() text
+ * fields} or the caret's blink changed repaints without style or layout. The caret of a focused
+ * {@code <input>} blinks every {@value #BLINK_MS} ms, restarting visible on each edit or move.
  */
 public final class UiDocument {
+    static final long BLINK_MS = 500;
+
     /** A stylesheet file; {@code file} is used in error positions. */
     public record CssSource(String css, String file) {
     }
@@ -55,6 +59,11 @@ public final class UiDocument {
     private float viewportWidth = Float.NaN;
     private float viewportHeight = Float.NaN;
     private boolean textInvalidated;
+    private Element blinkInput;
+    private String blinkValue;
+    private int blinkCaret;
+    private int blinkAnchor;
+    private long blinkStart;
     /** Frames that ran style and layout; observed by tests. */
     int pipelineRuns;
 
@@ -66,7 +75,7 @@ public final class UiDocument {
         this.layout = layout;
         this.painter = new Painter(layout, tags, images, diagnostics);
         this.bindings = bindings;
-        this.events = new EventDispatcher(root);
+        this.events = new EventDispatcher(root, layout);
         this.transitions = transitions;
     }
 
@@ -195,12 +204,16 @@ public final class UiDocument {
      * something was repainted.
      */
     public DisplayList frame(float viewportWidth, float viewportHeight) {
-        boolean animating = transitions.advance(clock.getAsLong());
+        long now = clock.getAsLong();
+        boolean animating = transitions.advance(now);
         boolean dirty = bindings.update() || animating || textInvalidated
                 || root.isStyleDirty() || root.hasStyleDirtyDescendant() || root.hasTreeChange()
                 || viewportWidth != this.viewportWidth || viewportHeight != this.viewportHeight;
+        boolean caret = caretVisible(now);
+        boolean blinked = caret != painter.caretVisible();
+        painter.setCaretVisible(caret);
         if (!dirty) {
-            if (root.needsRepaint()) {
+            if (root.needsRepaint() || blinked) {
                 painter.paint(root, displayList);
                 events.afterLayout();
             }
@@ -215,6 +228,25 @@ public final class UiDocument {
         painter.paint(root, displayList);
         events.afterLayout();
         return displayList;
+    }
+
+    /** Whether the focused input's caret is in the visible half of its blink; restarts on any change of the field. */
+    private boolean caretVisible(long now) {
+        Element f = events.focused();
+        if (f == null || f.textField() == null) {
+            blinkInput = null;
+            return false;
+        }
+        var field = f.textField();
+        if (f != blinkInput || !field.value().equals(blinkValue) || field.caret() != blinkCaret
+                || field.anchor() != blinkAnchor) {
+            blinkInput = f;
+            blinkValue = field.value();
+            blinkCaret = field.caret();
+            blinkAnchor = field.anchor();
+            blinkStart = now;
+        }
+        return (now - blinkStart) / (BLINK_MS * 1_000_000) % 2 == 0;
     }
 
     /** Replaces the transition clock ({@link System#nanoTime} by default); for tests. */

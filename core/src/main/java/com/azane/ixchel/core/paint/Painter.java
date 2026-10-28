@@ -9,6 +9,7 @@ import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
+import com.azane.ixchel.core.dom.TextField;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -36,6 +37,11 @@ import java.util.Set;
  * a 4px scrollbar track along the padding box's right edge with a thumb on it; {@code auto}
  * draws only the thumb, and only while the content overflows. The scrollbar is drawn over the
  * content (no space is reserved for it) in fixed colors and cannot be dragged.
+ *
+ * <p>An {@code <input>} paints its value on one line, clipped to its content box and centered in it
+ * vertically, scrolled sideways so the caret stays in view; empty, its {@code placeholder} at half
+ * the alpha of {@code color}. Focused, the selection is a fixed translucent blue under the text and
+ * the caret a 1px line of {@code color}, drawn while {@linkplain #setCaretVisible the blink} shows it.
  */
 public final class Painter {
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
@@ -45,6 +51,7 @@ public final class Painter {
     private static final float MIN_THUMB = 8;
     private static final int TRACK_COLOR = 0x80000000;
     private static final int THUMB_COLOR = 0xFFA0A0A0;
+    private static final int SELECTION_COLOR = 0x803399FF;
 
     private final LayoutEngine layout;
     private final TagRegistry tags;
@@ -53,6 +60,7 @@ public final class Painter {
     private final Set<String> reported = new HashSet<>();
     /** Product of the opacities of the element being painted and its ancestors. */
     private float alpha = 1;
+    private boolean caretVisible;
 
     /** @param diag receives paint-time errors (an image that cannot be measured), each reported once */
     public Painter(LayoutEngine layout, TagRegistry tags, ImageMeasurer images, Diagnostics diag) {
@@ -60,6 +68,15 @@ public final class Painter {
         this.tags = tags;
         this.images = images;
         this.diag = diag;
+    }
+
+    /** Whether the focused input's caret is drawn: the visible half of its blink. */
+    public boolean caretVisible() {
+        return caretVisible;
+    }
+
+    public void setCaretVisible(boolean visible) {
+        caretVisible = visible;
     }
 
     /** Clears {@code out} and paints the children of the implicit root into it. */
@@ -108,6 +125,9 @@ public final class Painter {
             paintBackgroundImage(e, cs, b, y, OPAQUE_WHITE, out);
         }
         paintBorder(cs, b, y, out);
+        if (e.textField() != null) {
+            paintInput(e, cs, b, y, out);
+        }
         if (e.tag().equals("img")) {
             out.add(new DrawCommand.Image(b.x(), y, b.width(), b.height(), e.attribute("src"), 0, 0, 1, 1, fade(OPAQUE_WHITE)));
         } else if (e.payload() != null && tags.payloadAttribute(e.tag()) != null) {
@@ -126,6 +146,55 @@ public final class Painter {
         paintChildren(e, dy + e.scrollTop(), out);
         paintScrollbar(e, overflow, clipY, out);
         out.add(DrawCommand.PopClip.INSTANCE);
+    }
+
+    private void paintInput(Element e, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
+        float cx = b.x() + b.borderLeft() + b.paddingLeft();
+        float cy = y + b.borderTop() + b.paddingTop();
+        float cw = b.width() - b.borderLeft() - b.paddingLeft() - b.paddingRight() - b.borderRight();
+        float ch = b.height() - b.borderTop() - b.paddingTop() - b.paddingBottom() - b.borderBottom();
+        if (cw <= 0 || ch <= 0) {
+            return;
+        }
+        TextField f = e.textField();
+        String v = f.value();
+        float size = cs.get(CssProperties.FONT_SIZE).value();
+        float lh = layout.lineHeight(size);
+        int color = cs.get(CssProperties.COLOR);
+        boolean focused = e.hasState(Element.FOCUS);
+        float caretX = layout.textWidth(v.substring(0, f.caret()), size);
+        // Room for the 1px caret after the last character; no empty space past the end while scrolled.
+        float scroll = Math.min(f.scrollX(), Math.max(0, layout.textWidth(v, size) + 1 - cw));
+        if (caretX + 1 - scroll > cw) {
+            scroll = caretX + 1 - cw;
+        }
+        scroll = Math.round(Math.max(0, Math.min(scroll, caretX)));
+        f.setScrollX(scroll);
+        float tx = cx - scroll;
+        float ty = cy + Math.round((ch - lh) / 2);
+        out.add(new DrawCommand.PushClip(cx, cy, cw, ch));
+        String placeholder = e.attribute("placeholder");
+        if (!v.isEmpty()) {
+            if (focused && f.hasSelection()) {
+                float x0 = Math.round(tx + layout.textWidth(v.substring(0, f.selectionStart()), size));
+                float x1 = Math.round(tx + layout.textWidth(v.substring(0, f.selectionEnd()), size));
+                rect(out, x0, ty, x1 - x0, lh, SELECTION_COLOR);
+            }
+            text(out, tx, ty, size, color, v);
+        } else if (placeholder != null && !placeholder.isEmpty()) {
+            text(out, tx, ty, size, Math.round((color >>> 24) * 0.5f) << 24 | color & 0xFFFFFF, placeholder);
+        }
+        if (focused && caretVisible) {
+            rect(out, Math.round(tx + caretX), ty, 1, lh, color);
+        }
+        out.add(DrawCommand.PopClip.INSTANCE);
+    }
+
+    private void text(DisplayList out, float x, float y, float size, int color, String text) {
+        int c = fade(color);
+        if (c >>> 24 != 0) {
+            out.add(new DrawCommand.Text(x, y, size, c, text));
+        }
     }
 
     /** Each side a rectangle inside the border box; top and bottom span the corners. */

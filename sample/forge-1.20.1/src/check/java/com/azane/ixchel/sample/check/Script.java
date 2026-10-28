@@ -244,9 +244,37 @@ public final class Script {
 
     /** A press and release of a GLFW key on the open screen. */
     public Script key(int key) {
+        return key(key, 0);
+    }
+
+    /** A press and release of a GLFW key with GLFW modifier bits ({@code Keys.MOD_*}) on the open screen. */
+    public Script key(int key, int modifiers) {
         return run(() -> {
-            screen().keyPressed(key, 0, 0);
-            screen().keyReleased(key, 0, 0);
+            screen().keyPressed(key, 0, modifiers);
+            screen().keyReleased(key, 0, modifiers);
+        });
+    }
+
+    /** Types {@code text} into the open screen, one {@code charTyped} per character, as the keyboard does. */
+    public Script type(String text) {
+        return run(() -> {
+            for (char c : text.toCharArray()) {
+                screen().charTyped(c, 0);
+            }
+        });
+    }
+
+    /**
+     * A click with held modifiers on the element, given straight to the document: vanilla reads the
+     * modifiers from the window, which an unattended run cannot hold, so vanilla does not see it.
+     */
+    public Script click(String selector, int button, int modifiers) {
+        return run(() -> {
+            float[] p = center(selector);
+            UiDocument d = document();
+            screen().mouseMoved(p[0], p[1]);
+            d.events().mousePressed(p[0], p[1], button, modifiers);
+            d.events().mouseReleased(p[0], p[1], button, modifiers);
         });
     }
 

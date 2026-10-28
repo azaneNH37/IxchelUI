@@ -44,6 +44,9 @@ import java.util.Map;
  * touched; when nothing changed and the viewport is the same, taffy is not run at all. A text change
  * that answers every measurement taffy has asked of that node the same way (a counter going from 5 to
  * 6 in a font with equal digit widths) cannot move anything, so it is re-shaped without running taffy.
+ *
+ * <p>An {@code <input>} has no intrinsic width (CSS or flex sizes it) and one line of its font size as
+ * its intrinsic content height; its value does not take part in layout.
  */
 public final class LayoutEngine {
     /** Floats per recorded measurement: known width, known height, available width, then the answer. */
@@ -153,6 +156,11 @@ public final class LayoutEngine {
         return shaper.ellipsize(line, fontSize, maxWidth);
     }
 
+    /** The advance of {@code text} on one line. */
+    public float textWidth(String text, float fontSize) {
+        return shaper.width(text, fontSize);
+    }
+
     private NodeId sync(Node node, boolean isRoot) {
         if (node instanceof TextNode t) {
             return syncText(t);
@@ -161,7 +169,8 @@ public final class LayoutEngine {
         Slot slot = slots.get(e);
         if (slot == null) {
             slot = new Slot();
-            slot.id = tree.newLeaf(new TaffyStyle());
+            slot.id = e.textField() != null ? tree.newLeafWithMeasure(new TaffyStyle(), inputMeasure(slot))
+                    : tree.newLeaf(new TaffyStyle());
             slots.put(e, slot);
             changed = true;
         }
@@ -172,6 +181,14 @@ public final class LayoutEngine {
                 changed = true;
             }
             slot.style = e.computed();
+            if (e.textField() != null) {
+                float size = e.computed().get(CssProperties.FONT_SIZE).value();
+                if (size != slot.fontSize) {
+                    slot.fontSize = size;
+                    tree.markDirty(slot.id);
+                    changed = true;
+                }
+            }
         }
         List<Node> children = e.children();
         List<NodeId> ids = new ArrayList<>(children.size());
@@ -239,6 +256,12 @@ public final class LayoutEngine {
         return true;
     }
 
+    /** An {@code <input>}: no width of its own, one line high. */
+    private MeasureFunc inputMeasure(Slot slot) {
+        return (known, available) -> new FloatSize(Float.isNaN(known.width) ? 0 : known.width,
+                Float.isNaN(known.height) ? shaper.lineHeight(slot.fontSize) : known.height);
+    }
+
     private MeasureFunc measure(Slot slot) {
         return (known, available) -> {
             AvailableSpace a = available.width;
@@ -284,6 +307,7 @@ public final class LayoutEngine {
         float bottom = y + l.size().height;
         node.box().set(x, y, l.size().width, l.size().height);
         node.box().setBorder(l.border().top, l.border().right, l.border().bottom, l.border().left);
+        node.box().setPadding(l.padding().top, l.padding().right, l.padding().bottom, l.padding().left);
         if (node instanceof TextNode) {
             slot.contentWidth = tree.getUnroundedLayout(slot.id).contentBoxWidth();
             slot.shaped = shaper.shape(slot.text, slot.fontSize, wrapWidth(slot, slot.contentWidth));

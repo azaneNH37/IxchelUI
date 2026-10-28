@@ -1,0 +1,29 @@
+<link rel="stylesheet" href="terminal.css"/>
+<div class="panel">
+  <div class="header">
+    <span class="title">Storage Terminal</span>
+    <span class="summary" bind:text="summary"></span>
+  </div>
+  <div class="tools">
+    <input class="search" bind:value="query" placeholder="Search, @mod" maxlength="50"/>
+    <div class="button sort" title="Sort by" on:click="cycleSort"><span bind:text="sortLabel"></span></div>
+    <div class="button direction" on:click="flipDirection"><span bind:text="directionLabel"></span></div>
+  </div>
+  <!-- Clicks on the grid store the carried stack (right: one of it); on a cell they take when nothing is carried. -->
+  <div class="view" bind:scrolltop="scroll" on:click="store" on:click.right="storeOne">
+    <div class="content" bind:style:height="contentHeight" bind:style:padding-top="padTop">
+      <div class="rows">
+        <div class="cell" each="visibleCells" as="c" key="c.id"
+             on:click.left="take(c)" on:click.right="takeHalf(c)" on:click.left.shift="toInventory(c)">
+          <item class="icon" bind:item="c.stack"><span class="count" bind:text="c.count"></span></item>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Three of the four inventory rows in view; the wheel scrolls to the hotbar. Ixchel draws the items, clipped. -->
+  <div class="inventory">
+    <div class="grid">
+      <item-slot class="slot" each="inventory" as="i" key="i" bind:slot="i"></item-slot>
+    </div>
+  </div>
+</div>

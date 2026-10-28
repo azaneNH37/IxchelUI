@@ -2,6 +2,7 @@ package com.azane.ixchel.sample.registry;
 
 import com.azane.ixchel.sample.IxchelSampleMod;
 import com.azane.ixchel.sample.machine.MachineMenu;
+import com.azane.ixchel.sample.storage.TerminalMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraftforge.common.extensions.IForgeMenuType;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -16,6 +17,9 @@ public final class ModMenus {
     /** The client reads the machine's block position from the open packet. */
     public static final RegistryObject<MenuType<MachineMenu>> POWERED_STONECUTTER = MENUS.register("powered_stonecutter",
             () -> IForgeMenuType.create((id, inv, buf) -> new MachineMenu(id, inv, buf.readBlockPos())));
+    /** The storage is synced by the menu itself; the open packet carries nothing. */
+    public static final RegistryObject<MenuType<TerminalMenu>> STORAGE_TERMINAL = MENUS.register("storage_terminal",
+            () -> IForgeMenuType.create((id, inv, buf) -> new TerminalMenu(id, inv)));
 
     private ModMenus() {
     }

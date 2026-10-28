@@ -113,10 +113,10 @@ public final class Replication {
                 Object now = KINDS.get(w.getKey().kind()).view().apply(player, w.getKey().pos());
                 if (now == null) {
                     watches.remove();
-                    Network.send(player, new Update(w.getKey().kind(), w.getKey().pos(), null));
+                    Network.sendTo(player, new Update(w.getKey().kind(), w.getKey().pos(), null));
                 } else if (!now.equals(w.getValue())) {
                     w.setValue(now);
-                    Network.send(player, new Update(w.getKey().kind(), w.getKey().pos(), now));
+                    Network.sendTo(player, new Update(w.getKey().kind(), w.getKey().pos(), now));
                 }
             }
         }

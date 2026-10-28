@@ -7,6 +7,7 @@ import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.mc.container.ClippedSlotItems;
 import com.azane.ixchel.mc.container.ContainerLayout;
 import com.azane.ixchel.mc.document.HostedDocument;
+import net.minecraft.SharedConstants;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -177,14 +178,14 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
     @Override
     public boolean mouseClicked(double x, double y, int button) {
         UiDocument d = doc.document();
-        boolean ui = d != null && d.events().mousePressed((float) x, (float) y, button);
+        boolean ui = d != null && d.events().mousePressed((float) x, (float) y, button, Modifiers.held());
         return super.mouseClicked(x, y, button) || ui;
     }
 
     @Override
     public boolean mouseReleased(double x, double y, int button) {
         UiDocument d = doc.document();
-        boolean ui = d != null && d.events().mouseReleased((float) x, (float) y, button);
+        boolean ui = d != null && d.events().mouseReleased((float) x, (float) y, button, Modifiers.held());
         return super.mouseReleased(x, y, button) || ui;
     }
 
@@ -207,6 +208,13 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         UiDocument d = doc.document();
         return d != null && d.events().keyReleased(key, modifiers)
                 || super.keyReleased(key, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char c, int modifiers) {
+        UiDocument d = doc.document();
+        return d != null && SharedConstants.isAllowedChatCharacter(c) && d.events().charTyped(c, modifiers)
+                || super.charTyped(c, modifiers);
     }
 
     /** The current document, for querying or driving it; {@code null} only when the first development load failed. */

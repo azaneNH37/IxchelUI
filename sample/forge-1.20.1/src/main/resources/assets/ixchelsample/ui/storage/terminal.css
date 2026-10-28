@@ -1,0 +1,125 @@
+/* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. */
+.panel {
+  margin: auto;
+  width: 186px;
+  padding: 7px;
+  background-color: #C6C6C6;
+  border: 1px solid #555555;
+  color: #404040;
+}
+
+.header {
+  flex-direction: row;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.summary {
+  color: #707070;
+}
+
+.tools {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.search {
+  flex-grow: 1;
+  height: 14px;
+  padding: 0px 3px;
+  margin-right: 3px;
+  background-color: #000000;
+  border: 1px solid #A0A0A0;
+  color: #FFFFFF;
+}
+
+.search:focus {
+  border-color: #FFFFFF;
+}
+
+.button {
+  padding: 2px 4px;
+  margin-left: 2px;
+  background-color: #A0A0A0;
+  border: 1px solid #555555;
+  transition: background-color 120ms;
+}
+
+.button:hover {
+  background-color: #B8B8B8;
+}
+
+/* Six rows of the grid in view; the 4px scrollbar sits in the gap right of the cells. */
+.view {
+  width: 170px;
+  height: 108px;
+  overflow: auto;
+  background-color: #8B8B8B;
+  margin-bottom: 4px;
+}
+
+/* As tall as all rows (no shrinking to the view); the top padding moves the built rows down to
+   where the view shows them. The rows wrap in their own box: wrapped lines in a taller box would
+   spread out. */
+.content {
+  width: 162px;
+  flex-shrink: 0;
+}
+
+.rows {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.cell {
+  width: 18px;
+  height: 18px;
+  padding: 1px;
+  transition: background-color 80ms;
+}
+
+.cell:hover {
+  background-color: #C5C5C5;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Vanilla draws stack counts in white at the bottom right; smaller here to fit 3.4M. */
+.count {
+  position: absolute;
+  right: 0px;
+  bottom: 0px;
+  font-size: 6px;
+  white-space: nowrap;
+  color: #FFFFFF;
+}
+
+/* Three rows of 18px; the wheel scrolls to the hotbar. */
+.inventory {
+  width: 170px;
+  height: 54px;
+  overflow: auto;
+}
+
+.grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 162px;
+}
+
+/* Vanilla's slot bevel: dark top and left, white bottom and right, around a 16x16 well. */
+.slot {
+  width: 18px;
+  height: 18px;
+  background-color: #8B8B8B;
+  border-width: 1px;
+  border-style: solid;
+  border-top-color: #373737;
+  border-left-color: #373737;
+  border-bottom-color: #FFFFFF;
+  border-right-color: #FFFFFF;
+}

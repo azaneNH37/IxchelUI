@@ -52,7 +52,15 @@ import java.util.function.Function;
  * <div on:click="reload"></div>             <!-- runs an action; the event counts as handled -->
  * <div on:click="select(row)"></div>        <!-- with the value of a path as its argument -->
  * <div on:keydown.delete="remove"></div>    <!-- key events may name the key (see Keys) and modifiers:
- *                                                on:keydown.up.shift fires only for Shift+Up -->
+ *                                                on:keydown.up.shift fires only for Shift+Up, and plain
+ *                                                on:keydown.up only with none of Shift, Ctrl, Alt -->
+ * <div on:click.right="half(c)"></div>      <!-- mouse events may name the button and modifiers the same
+ *                                                way; on:click.shift is a Shift+left click, and plain
+ *                                                on:click any left click -->
+ * <input bind:value="query"/>               <!-- two-way: typing sets the state Value<String> field -->
+ * <div bind:scrolltop="scroll"></div>       <!-- two-way: scrolling sets the state Value<Integer> field;
+ *                                                a value past the scroll range is clamped after layout
+ *                                                and the clamped offset written back -->
  * <div on:keydown.escape="close"></div>     <!-- key handlers on a top-level element act as document-level
  *                                                handlers: they see every key event, focused child or not -->
  * <div if="!hasSelection">…</div>           <!-- mounted while true; not read while unmounted -->
@@ -324,6 +332,9 @@ public final class Bindings {
             if (ref == null) {
                 return null;
             }
+            if (target.equals("scrolltop") || target.equals("value") && e.textField() != null) {
+                return twoWay(e, a, expr, ref, negate, target.equals("value"));
+            }
             boolean isClass = target.startsWith("class:");
             boolean isFlag = isClass || target.equals("disabled");
             if ((negate || isFlag) && !isBoolean(ref.type)) {
@@ -404,9 +415,38 @@ public final class Bindings {
         }
 
         /**
-         * {@code on:<event>="action"} or {@code on:<event>="action(path)"}; {@code keydown} and {@code keyup}
-         * take a filter {@code .<key>[.<modifier>…]} with the names of {@link Keys}: the listener runs,
-         * and consumes the event, only for that key with every named modifier held.
+         * {@code bind:value} on an {@code <input>} (a String) and {@code bind:scrolltop} (an Integer):
+         * the view follows the field and writes its own changes back to it, so the path must be a state
+         * {@link Value} field of the model itself.
+         */
+        @SuppressWarnings("unchecked")
+        private Binding twoWay(Element e, BindAttribute a, String expr, Ref ref, boolean negate, boolean text) {
+            Class<?> want = text ? String.class : Integer.class;
+            boolean state = !negate && !aliases.containsKey(expr) && fields.containsKey(expr)
+                    && ref.cell instanceof Value<?> v && v.isState();
+            if (!state || box(rawClass(ref.type)) != want) {
+                diag.error(a.valuePos(), "'" + a.name() + "' writes back to the view model: it needs a state Value<"
+                        + want.getSimpleName() + "> field, but '" + a.value().trim() + "' is "
+                        + (state ? ref.type.getTypeName() : negate ? "negated" : "not one"));
+                return null;
+            }
+            if (text) {
+                Value<String> value = (Value<String>) ref.cell;
+                e.addEventListener(UiEvent.Type.INPUT, false, ev -> value.set(e.textField().value()));
+                return new ValueBinding(value, a, diag, e);
+            }
+            Value<Integer> value = (Value<Integer>) ref.cell;
+            e.addEventListener(UiEvent.Type.SCROLL, false, ev -> value.set(Math.round(e.scrollTop())));
+            return new ScrollBinding(value, a, diag, e);
+        }
+
+        /**
+         * {@code on:<event>="action"} or {@code on:<event>="action(path)"}. {@code keydown} and
+         * {@code keyup} take a filter {@code .<key>[.<modifier>…]}, {@code mousedown}, {@code mouseup} and
+         * {@code click} a filter {@code [.<button>][.<modifier>…]}, with the names of {@link Keys}: the
+         * listener runs, and consumes the event, only for that key or button (left when a mouse filter
+         * names none) with exactly the named modifiers among Shift, Ctrl and Alt. Without a filter it
+         * runs for every event of the type, except that {@code click} is a left click, as in the DOM.
          */
         private void handler(Element e, BindAttribute a) {
             String[] parts = a.name().substring("on:".length()).split("\\.", -1);
@@ -416,23 +456,40 @@ public final class Bindings {
                 diag.error(a.namePos(), "unknown event '" + eventName + "'; supported: " + eventNames());
                 return;
             }
+            boolean keyEvent = type == UiEvent.Type.KEY_DOWN || type == UiEvent.Type.KEY_UP;
+            boolean mouseEvent = type == UiEvent.Type.MOUSE_DOWN || type == UiEvent.Type.MOUSE_UP
+                    || type == UiEvent.Type.CLICK;
             int filterKey = -1;
-            int filterMods = 0;
+            int filterButton = type == UiEvent.Type.CLICK ? 0 : -1;
+            int filterMods = -1;
             if (parts.length > 1) {
-                if (type != UiEvent.Type.KEY_DOWN && type != UiEvent.Type.KEY_UP) {
-                    diag.error(a.namePos(), "'" + eventName + "' takes no key filter; only keydown and keyup do");
+                if (!keyEvent && !mouseEvent) {
+                    diag.error(a.namePos(), "'" + eventName + "' takes no filter; only keydown, keyup, mousedown, "
+                            + "mouseup and click do");
                     return;
                 }
-                filterKey = Keys.code(parts[1]);
-                if (filterKey < 0) {
-                    diag.error(a.namePos(), "unknown key '" + parts[1] + "' in '" + a.name() + "'");
-                    return;
+                int k = 1;
+                if (keyEvent) {
+                    filterKey = Keys.code(parts[1]);
+                    if (filterKey < 0) {
+                        diag.error(a.namePos(), "unknown key '" + parts[1] + "' in '" + a.name() + "'");
+                        return;
+                    }
+                    k = 2;
+                } else {
+                    filterButton = 0;
+                    if (Keys.button(parts[1]) >= 0) {
+                        filterButton = Keys.button(parts[1]);
+                        k = 2;
+                    }
                 }
-                for (int k = 2; k < parts.length; k++) {
+                filterMods = 0;
+                for (; k < parts.length; k++) {
                     int bit = Keys.modifier(parts[k]);
                     if (bit == 0) {
-                        diag.error(a.namePos(), "unknown modifier '" + parts[k] + "' in '" + a.name()
-                                + "'; supported: shift, ctrl, alt");
+                        diag.error(a.namePos(), "unknown " + (keyEvent || k > 1 ? "modifier" : "button or modifier")
+                                + " '" + parts[k] + "' in '" + a.name() + "'; supported: "
+                                + (keyEvent || k > 1 ? "" : "left, right, middle, ") + "shift, ctrl, alt");
                         return;
                     }
                     filterMods |= bit;
@@ -492,13 +549,14 @@ public final class Bindings {
             }
             Cell<?> argCell = arg;
             int wantKey = filterKey;
+            int wantButton = filterButton;
             int wantMods = filterMods;
             // Unfocused key events target the implicit root and run only its listeners, so a top-level
             // element's key handlers live on the root: document-level, like a handler on <body>.
-            boolean keyEvent = type == UiEvent.Type.KEY_DOWN || type == UiEvent.Type.KEY_UP;
             Element on = keyEvent && e.parent() == documentRoot ? documentRoot : e;
             on.addEventListener(type, false, ev -> {
-                if (wantKey >= 0 && (ev.key() != wantKey || (ev.modifiers() & wantMods) != wantMods)) {
+                if (wantKey >= 0 && ev.key() != wantKey || wantButton >= 0 && ev.button() != wantButton
+                        || wantMods >= 0 && (ev.modifiers() & Keys.FILTER_MODIFIERS) != wantMods) {
                     return;
                 }
                 try {
@@ -1040,6 +1098,50 @@ public final class Bindings {
                 element.removeAttribute("disabled");
             }
             return true;
+        }
+    }
+
+    /** {@code bind:value}: the input shows the field; typing writes it back through an input listener. */
+    private static final class ValueBinding extends Binding {
+        private final Element element;
+
+        ValueBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element) {
+            super(cell, false, a, diag);
+            this.element = element;
+        }
+
+        /** Repaint-only: the field requests its own repaint. */
+        @Override
+        boolean write(Object value) {
+            element.textField().setValue(value == null ? "" : (String) value);
+            return false;
+        }
+    }
+
+    /**
+     * {@code bind:scrolltop}: the element scrolls to the field; scrolling, and clamping to the
+     * scroll range after layout, write the offset back through a scroll listener.
+     */
+    private static final class ScrollBinding extends Binding {
+        private final Element element;
+
+        ScrollBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element) {
+            super(cell, false, a, diag);
+            this.element = element;
+        }
+
+        /**
+         * Requests the offset against the next layout's range, so content bound in the same frame
+         * counts; reports a write only past the current range, to make that layout run.
+         */
+        @Override
+        boolean write(Object value) {
+            int top = value == null ? 0 : (Integer) value;
+            if (top == Math.round(element.scrollTop())) {
+                return false;
+            }
+            element.requestScrollTop(top);
+            return top > element.maxScrollTop();
         }
     }
 

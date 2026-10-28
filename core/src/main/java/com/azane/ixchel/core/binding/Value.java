@@ -49,6 +49,11 @@ public final class Value<T> extends Cell<T> {
         }
     }
 
+    /** Local state the view can write back: not polled from a source. */
+    boolean isState() {
+        return source == null;
+    }
+
     /** Reads the source; returns whether the value changed. */
     boolean poll() {
         T live = source.live.get();

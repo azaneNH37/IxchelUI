@@ -38,8 +38,8 @@ class UiDocumentDisabledTest {
         Element other = (Element) doc.root().children().get(1);
 
         // A press inside is taken, so the host does not act on it, but runs nothing and focuses nothing.
-        assertTrue(doc.events().mousePressed(2, 2, 0));
-        assertTrue(doc.events().mouseReleased(2, 2, 0));
+        assertTrue(doc.events().mousePressed(2, 2, 0, 0));
+        assertTrue(doc.events().mouseReleased(2, 2, 0, 0));
         assertEquals(0, m.clicks);
         assertNull(doc.events().focused());
         doc.events().keyPressed(UiEvent.KEY_TAB, 0);
@@ -47,8 +47,8 @@ class UiDocumentDisabledTest {
 
         m.locked.set(false);
         assertEquals("rect 0 0 10 10 #FFFFFFFF", GoldenTest.print(doc.frame(100, 100)));
-        doc.events().mousePressed(2, 2, 0);
-        doc.events().mouseReleased(2, 2, 0);
+        doc.events().mousePressed(2, 2, 0, 0);
+        doc.events().mouseReleased(2, 2, 0, 0);
         assertEquals(1, m.clicks);
         Element b = (Element) doc.root().children().get(0);
         assertSame(b, doc.events().focused());

@@ -5,6 +5,7 @@ import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.mc.document.HostedDocument;
 import com.azane.ixchel.mc.element.McElements;
+import net.minecraft.SharedConstants;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -67,14 +68,14 @@ public class UiScreen extends Screen {
     @Override
     public boolean mouseClicked(double x, double y, int button) {
         UiDocument d = doc.document();
-        return d != null && d.events().mousePressed((float) x, (float) y, button)
+        return d != null && d.events().mousePressed((float) x, (float) y, button, Modifiers.held())
                 || super.mouseClicked(x, y, button);
     }
 
     @Override
     public boolean mouseReleased(double x, double y, int button) {
         UiDocument d = doc.document();
-        return d != null && d.events().mouseReleased((float) x, (float) y, button)
+        return d != null && d.events().mouseReleased((float) x, (float) y, button, Modifiers.held())
                 || super.mouseReleased(x, y, button);
     }
 
@@ -97,6 +98,13 @@ public class UiScreen extends Screen {
         UiDocument d = doc.document();
         return d != null && d.events().keyReleased(key, modifiers)
                 || super.keyReleased(key, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char c, int modifiers) {
+        UiDocument d = doc.document();
+        return d != null && SharedConstants.isAllowedChatCharacter(c) && d.events().charTyped(c, modifiers)
+                || super.charTyped(c, modifiers);
     }
 
     @Override

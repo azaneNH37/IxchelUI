@@ -183,8 +183,8 @@ public final class TemplateParser {
                             + "> opened at " + openPos);
                 }
             }
-            if (known && tag.equals("img") && !children.isEmpty()) {
-                diag.error(children.get(0).pos(), "<img> must not have children");
+            if (known && (tag.equals("img") || tag.equals("input")) && !children.isEmpty()) {
+                diag.error(children.get(0).pos(), "<" + tag + "> must not have children");
             } else {
                 for (Node child : children) {
                     element.appendChild(child);

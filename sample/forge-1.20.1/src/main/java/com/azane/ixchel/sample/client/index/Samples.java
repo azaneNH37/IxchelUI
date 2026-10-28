@@ -5,6 +5,7 @@ import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
 import com.azane.ixchel.sample.registry.ModItems;
+import com.azane.ixchel.sample.storage.TerminalScreen;
 import com.azane.ixchel.sample.waypoints.WaypointsScreen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -29,6 +30,11 @@ public final class Samples {
                         + "FE, a water bucket fills the tank, pick a recipe; redstone mode and side configuration. "
                         + "Opening it here places one next to you.", new ItemStack(ModItems.POWERED_STONECUTTER.get()),
                         MachineScreen::openNearby),
+                Sample.screen("storage", "Storage terminal", "Every chest and item handler within 8 blocks as "
+                        + "one virtual grid: search (@mod filters by mod), sort by name, count or mod; click takes a "
+                        + "stack, right-click half, shift-click into the inventory; click with a stack to store it. "
+                        + "The terminal item (Tools tab) opens it too.", new ItemStack(ModItems.STORAGE_TERMINAL.get()),
+                        TerminalScreen::openNearby),
                 Sample.hud("loot", "Loot radar HUD", "Labels over the drops in view, an arrow with a count at the "
                         + "screen edge for the rest, and toasts for what you pick up.", new ItemStack(Items.HOPPER),
                         LootScreens.hud()),

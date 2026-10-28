@@ -205,8 +205,8 @@ class UiDocumentBindingTest {
                 <div class="b" on:click="select(row)"></div><span bind:text="selected"></span>
                 """, ".b { width: 10px; height: 10px }", m);
         doc.frame(100, 100);
-        assertTrue(doc.events().mousePressed(5, 5, 0));
-        assertTrue(doc.events().mouseReleased(5, 5, 0));
+        assertTrue(doc.events().mousePressed(5, 5, 0, 0));
+        assertTrue(doc.events().mouseReleased(5, 5, 0, 0));
         assertEquals("text 0 10 9 #FFFFFFFF \"ammo\"", GoldenTest.print(doc.frame(100, 100)));
     }
 
@@ -244,8 +244,8 @@ class UiDocumentBindingTest {
     }
 
     private static void click(UiDocument doc) {
-        doc.events().mousePressed(5, 5, 0);
-        doc.events().mouseReleased(5, 5, 0);
+        doc.events().mousePressed(5, 5, 0, 0);
+        doc.events().mouseReleased(5, 5, 0, 0);
     }
 
     @Test
@@ -276,7 +276,7 @@ class UiDocumentBindingTest {
     }
 
     @Test
-    void aKeyFilterRunsTheHandlerForTheNamedKeyAndModifiersOnlyAndConsumesJustThose() {
+    void aKeyFilterRunsTheHandlerForTheNamedKeyAndExactModifiersOnlyAndConsumesJustThose() {
         Keyed m = new Keyed();
         UiDocument doc = load("""
                 <div class="k"><div class="k" tabindex="0" on:keydown.up="up" on:keydown.up.shift="shiftUp" on:keyup="released"></div></div>
@@ -287,9 +287,12 @@ class UiDocumentBindingTest {
 
         assertTrue(doc.events().keyPressed(Keys.code("up"), 0));
         assertFalse(doc.events().keyPressed(Keys.code("down"), 0), "another key is not consumed");
-        assertTrue(doc.events().keyPressed(Keys.code("up"), Keys.MOD_SHIFT | Keys.MOD_CTRL), "extra modifiers do not matter");
-        assertTrue(doc.events().keyReleased(Keys.code("a"), 0), "an unfiltered handler fires for every key");
-        assertEquals(List.of("up", "up", "shift-up", "released"), m.log);
+        assertTrue(doc.events().keyPressed(Keys.code("up"), Keys.MOD_SHIFT), "Shift+Up runs only the Shift handler");
+        assertFalse(doc.events().keyPressed(Keys.code("up"), Keys.MOD_SHIFT | Keys.MOD_CTRL),
+                "an extra modifier matches neither handler");
+        assertTrue(doc.events().keyPressed(Keys.code("up"), Keys.MOD_SUPER), "Super is not a filter modifier");
+        assertTrue(doc.events().keyReleased(Keys.code("a"), Keys.MOD_ALT), "an unfiltered handler fires for every key");
+        assertEquals(List.of("up", "shift-up", "up", "released"), m.log);
     }
 
     @Test
@@ -302,26 +305,54 @@ class UiDocumentBindingTest {
         assertTrue(doc.events().keyPressed(265, 0), "nothing focused: the handler acts on the document");
         click(doc);
         assertTrue(doc.events().keyPressed(265, 0), "a focused child bubbles to it");
-        doc.events().mousePressed(5, 15, 0);
-        doc.events().mouseReleased(5, 15, 0);
+        doc.events().mousePressed(5, 15, 0, 0);
+        doc.events().mouseReleased(5, 15, 0, 0);
         assertTrue(doc.events().keyPressed(265, 0), "focus in a sibling still reaches a document-level handler");
         assertEquals(List.of("up", "up", "up"), m.log);
     }
 
     @Test
-    void loadReportsBadKeyFilters() {
+    void loadReportsBadEventFilters() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
                 <div on:keydown.meta="up"></div>
                 <div on:keydown.up.super="up"></div>
                 <div on:click.up="up"></div>
                 <div on:keyup.f13="up"></div>
+                <div on:click.right.left="up"></div>
+                <div on:wheel.shift="up"></div>
                 """, "", new Keyed()));
         String m = e.getMessage();
-        assertTrue(m.startsWith("4 errors"), m);
+        assertTrue(m.startsWith("6 errors"), m);
         assertTrue(m.contains("t.html:2:6:") && m.contains("unknown key 'meta' in 'on:keydown.meta'"), m);
         assertTrue(m.contains("t.html:3:6:") && m.contains("unknown modifier 'super' in 'on:keydown.up.super'"), m);
-        assertTrue(m.contains("t.html:4:6:") && m.contains("'click' takes no key filter"), m);
+        assertTrue(m.contains("t.html:4:6:") && m.contains("unknown button or modifier 'up' in 'on:click.up'"), m);
         assertTrue(m.contains("t.html:5:6:") && m.contains("unknown key 'f13' in 'on:keyup.f13'"), m);
+        assertTrue(m.contains("t.html:6:6:") && m.contains("unknown modifier 'left' in 'on:click.right.left'"), m);
+        assertTrue(m.contains("t.html:7:6:") && m.contains("'wheel' takes no filter"), m);
+    }
+
+    static final class Clicks extends ViewModel {
+        final List<String> log = new ArrayList<>();
+        final Action<Void> any = action(() -> log.add("any"));
+        final Action<Void> right = action(() -> log.add("right"));
+        final Action<Void> shift = action(() -> log.add("shift"));
+        final Action<Void> down = action(() -> log.add("down"));
+    }
+
+    @Test
+    void mouseFiltersPickTheButtonAndExactModifiersAndPlainClickIsAnyLeftClick() {
+        Clicks m = new Clicks();
+        UiDocument doc = load("""
+                <div class="k" on:click="any" on:click.right="right" on:click.shift="shift" on:mousedown="down"></div>
+                """, ".k { width: 10px; height: 10px }", m);
+        doc.frame(100, 100);
+        int[][] presses = {{0, 0}, {1, 0}, {0, Keys.MOD_SHIFT}, {1, Keys.MOD_SHIFT}, {2, 0}};
+        for (int[] p : presses) {
+            doc.events().mousePressed(5, 5, p[0], p[1]);
+            doc.events().mouseReleased(5, 5, p[0], p[1]);
+        }
+        assertEquals(List.of("down", "any", "down", "right", "down", "any", "shift", "down", "down"), m.log,
+                "Shift+right matches no filter; a middle click only the unfiltered mousedown");
     }
 
     @Test
@@ -346,8 +377,8 @@ class UiDocumentBindingTest {
                 text 0 39 9 #FFFFFFFF "]\"""", GoldenTest.print(doc.frame(100, 100)));
         assertSame(a, doc.root().children().get(3), "row 'a' kept its node and only took the new value");
 
-        doc.events().mousePressed(5, 32, 0);
-        doc.events().mouseReleased(5, 32, 0);
+        doc.events().mousePressed(5, 32, 0, 0);
+        doc.events().mouseReleased(5, 32, 0, 0);
         m.rows.set(List.of());
         assertEquals("text 0 0 9 #FFFFFFFF \"[\"\ntext 0 9 9 #FFFFFFFF \"]\"", GoldenTest.print(doc.frame(100, 100)));
         assertEquals("a", m.selected.get(), "the handler passed its own row");

@@ -280,4 +280,31 @@ class UiDocumentScrollTest {
         assertEquals(scrolled, doc.frame(100, 100).version(), "an unchanged offset requests nothing");
         assertEquals(runs, doc.pipelineRuns);
     }
+
+    static final class Scrolled extends ViewModel {
+        final Value<List<String>> rows = state(List.of("a", "b", "c", "d", "e"));
+        final Value<Integer> scroll = state(30);
+    }
+
+    @Test
+    void bindScrolltopFollowsBothWaysAndWritesBackTheClampedOffset() {
+        Scrolled m = new Scrolled();
+        UiDocument doc = UiDocument.load(GoldenTest.linked("""
+                <div id="list" bind:scrolltop="scroll"><div each="rows" as="r" key="r" bind:text="r"></div></div>
+                """), "t.html", GoldenTest.sheet(LIST_CSS), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES,
+                m, Bindings.PLAIN_TEXT);
+        doc.frame(100, 100);
+        Element list = byId(doc.root(), "list");
+        assertEquals(20, list.scrollTop(), "30 is past the 20px range of the first layout");
+        assertEquals(20, m.scroll.get(), "the clamped offset is written back");
+
+        doc.events().mouseScrolled(5, 5, 1);
+        assertEquals(2, m.scroll.get(), "a wheel scroll writes back at once");
+
+        m.rows.set(List.of("a", "b", "c", "d", "e", "f", "g", "h"));
+        m.scroll.set(45);
+        doc.frame(100, 100);
+        assertEquals(45, list.scrollTop(), "the offset is clamped against content bound in the same frame");
+        assertEquals(45, m.scroll.get());
+    }
 }

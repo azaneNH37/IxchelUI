@@ -3,6 +3,7 @@ package com.azane.ixchel.mc.document;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.UiLoadException;
+import com.azane.ixchel.core.event.Clipboard;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -20,8 +21,8 @@ import java.util.List;
 /**
  * A document as every host (screen, container screen, HUD) runs it: loaded from the host mod's
  * resources, reloaded on demand, framed and painted with the native elements, with the vanilla
- * tooltip of what is under the pointer. The view model lives as long as this object and is kept
- * across reloads.
+ * tooltip of what is under the pointer and the system clipboard for its inputs. The view model lives
+ * as long as this object and is kept across reloads.
  *
  * <p>In a development run with {@code -Dixchel.devResources.<hostModId>=<resource root>} the files
  * are read from the source tree and, once {@link #watch watched}, reloaded on save; a failed load
@@ -29,6 +30,17 @@ import java.util.List;
  */
 public final class HostedDocument implements AutoCloseable {
     private static final Logger LOG = LogUtils.getLogger();
+    private static final Clipboard CLIPBOARD = new Clipboard() {
+        @Override
+        public String get() {
+            return Minecraft.getInstance().keyboardHandler.getClipboard();
+        }
+
+        @Override
+        public void set(String text) {
+            Minecraft.getInstance().keyboardHandler.setClipboard(text);
+        }
+    };
 
     private final McResources resources;
     private final DevResources dev;
@@ -78,6 +90,7 @@ public final class HostedDocument implements AutoCloseable {
         try {
             McResources.Loaded loaded = resources.load(Minecraft.getInstance().getResourceManager(), templatePath, tags, model);
             document = loaded.document();
+            document.events().setClipboard(CLIPBOARD);
             files = loaded.files();
             displayList = null;
             loadErrors = List.of();

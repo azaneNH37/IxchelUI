@@ -41,8 +41,8 @@ flowchart LR
 | `text` | 文本测量接口与结果缓存、换行 | — |
 | `layout` | `Element` ↔ taffy 节点同步、布局结果查询（mc 层据此写回 `Slot.x/y`） | dom, css.property, text |
 | `paint` | DisplayList 生成、裁剪栈 | dom, css.property, layout, text |
-| `event` | 命中测试、三阶段派发、焦点（`tabindex`、Tab 切换）、hover/active/focus 状态位、`Keys` 键名表；`UiEvent` 与监听器存放在 `dom`（`Element` 持有监听器） | dom, layout, css.property |
-| `binding` | Value / Derived / Action / Scope，模板绑定；`on:keydown.<key>` 过滤查 `event.Keys` | dom, template, event |
+| `event` | 命中测试、三阶段派发、焦点（`tabindex`、Tab 切换）、hover/active/focus 状态位、`Keys` 键名表、`<input>` 的默认编辑行为（`TextEditing`，编辑状态 `dom.TextField`）与剪贴板端口 `Clipboard`（宿主提供，mc 层接原版 `keyboardHandler`）；`UiEvent` 与监听器存放在 `dom`（`Element` 持有监听器） | dom, layout, css.property |
+| `binding` | Value / Derived / Action / Scope，模板绑定（含双向 `bind:value`、`bind:scrolltop`）；`on:keydown.<key>` 过滤查 `event.Keys`，鼠标与修饰键过滤（`.left`/`.right`/`.shift`…）精确匹配（#012） | dom, template, event |
 | `runtime` | `UiDocument`：组装上述阶段、帧驱动、热重载入口 | 全部 |
 
 `css.property` 是**唯一的支持清单**：解析、校验、开发期报错、特性文档与 VS Code `css.customData` 都由它生成，不另维护列表。
@@ -84,10 +84,10 @@ M1 已知限制（均为开发期可见行为，后续按场景放开）：
 | `mc.document` | 文档生命周期，所有宿主共用：从宿主资源加载（`<link>` 解析）、开发期热重载与保留上一版、错误叠加层、逐帧绘制与 tooltip；view model 跨重载保留 | `HostedDocument`；`McResources`、`DevResources`、`DevOverlay` 包内私有 |
 | `mc.element` | 原版内容进入文档：每个原生元素一个单元，自带标签、绘制（`NativePainter`）与 tooltip 解析 | `McElements`（`TAGS`、`PAINTERS`）、`Tooltips`；`ItemElement`、`EntityElement` 包内私有 |
 | `mc.container` | 容器槽位接入：GUI 区域、`Slot.x/y` 写回与还原、隐藏规则、hover 判定、`IXCHEL` 逐槽裁剪绘制 | `ContainerLayout`（含 `<item-slot>` 的 `TAGS`）、`ClippedSlotItems`；`SlotPositions` 包内私有 |
-| `mc.paint` | core 端口实现：DisplayList 回放（自写顶点合批、scissor、深度抬升）、文本与图片测量、`sprite:` 图集精灵 | `McPainter`、`NativePainter`、`McTextMeasurer`、`McImageMeasurer`；`Sprites` 包内私有 |
+| `mc.paint` | core 端口实现：DisplayList 回放（自写顶点合批、scissor、按重叠分层）、文本与图片测量、`sprite:` 图集精灵 | `McPainter`、`NativePainter`、`McTextMeasurer`、`McImageMeasurer`；`Sprites`、`Layers` 包内私有 |
 | `mc.source` | 游戏状态作为数据源 | `ClientSources`、`WorldProjection` |
 
-依赖单向：根 → document/container → element → paint；source 独立。`McPainter` 不认识任何原生元素，按 `DrawCommand.Custom.kind` 查 `NativePainter`，绘制返回写入的深度，其后命令整体抬高。1.21.1 为最小集：无 `container`、`<entity>`、`sprite:`，其余包与 1.20.1 同构。
+依赖单向：根 → document/container → element → paint；source 独立。`McPainter` 不认识任何原生元素，按 `DrawCommand.Custom.kind` 查 `NativePainter`，绘制返回写入的深度。每条命令画在之前与它矩形相交的命令所达到的最高深度上（`Layers`，原生元素只按边框盒算），深度只随同一处叠了几层增长；原先"原生绘制后其后命令整体抬高"在约 70 格物品网格时越过 GUI 远平面（Forge 1.20.1 为 z 10000）。1.21.1 为最小集：无 `container`、`<entity>`、`sprite:`，其余包与 1.20.1 同构。
 
 `ixchel-<加载器>-<版本>`：只做注册——`registerHud` 构造 `UiHud`，把它挂到 HUD 层与资源重载监听，安装 `WorldProjection` 的相机捕获；不碰文档加载与开发期设施。
 

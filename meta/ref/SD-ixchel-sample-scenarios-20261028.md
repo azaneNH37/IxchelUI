@@ -134,12 +134,19 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 图集精灵：`url("sprite:<id>")` 指方块图集里的精灵（core 只认前缀，mc 层解析，逐次查找以跟随资源重载和动画）。tint 用标准写法 `background-blend-mode: multiply`：背景色乘到图上、自身不再画；与 CSS 的差异是图透明处露出父元素而非背景色。
 - S2 状态同步不用 `ContainerData`（2026-10-28 改）：`DataSlot` 是原版为小数值界面设计的通道（按 16 位 short 同步，内存连接不经编码所以单人测不出），且把同步绑在 Menu 会话上。sample 改按引擎范式（Kumiko 复制层 + 意图 RPC 思路的最小实现，只在 sample，库仍不含复制层）：`network/Replication` 以 kind + 方块坐标为身份，客户端 `watch` 声明兴趣，服务端每 tick 末对每个观察者取可见快照（record，`equals` 比较）有变化才发，不可见（拆除、超出 8 格、登出）即结束观察、客户端副本读 `null`；UI 只读副本，经意图包（`PickRecipePacket`、`SetRedstonePacket`、`SetSidePacket`，设值而非切换，服务端校验可达与取值）修改。无客户端预测：点击效果滞后一次往返，检查在连续点击之间等待复制结果。新增一种复制对象只写快照 record、编解码与可见规则。
 - S2 为 `machine`，侧面 IO 模式只存储与显示，不接管道。backpack 已删除，`-Pslotcompat` 改跑 `-Pcheck=machine`（JEI、EMI 均通过）。
-- 缺口：backpack 带走了"`IXCHEL` 绘制下滚动列表中的槽位跟随滚动"这一开发期检查，S1、S2 都没有可滚动的真实槽位；`IXCHEL` 绘制本身仍由 shade-a 生产检查覆盖，但不含滚动。计划在 S3 补：其真实槽位区域用 `IXCHEL` 并可滚动。
+- 缺口：backpack 带走了"`IXCHEL` 绘制下滚动列表中的槽位跟随滚动"这一开发期检查，S1、S2 都没有可滚动的真实槽位；`IXCHEL` 绘制本身仍由 shade-a 生产检查覆盖，但不含滚动。已由 S3 补上（见阶段 C1 结果）。
 
 阶段 B 剩余：无（已合入 #46）。
 
+阶段 C1 结果（2026-10-29）：
+- core：标准 `<input>`（光标、选区、剪贴板，剪贴板经端口 `Clipboard` 由宿主提供）、双向 `bind:value`、`bind:scrolltop`（写入是滚动请求，布局截取到有效范围后回写）、鼠标修饰键精确过滤、`click` 只认左键（#012）；mc：`UiContainerScreen`/`UiScreen` 转发 `charTyped` 与鼠标修饰键。
+- S3 为 `storage`（终端物品右键；索引入口不持物品，改按打开位置 8 格内判定有效）。同步不走 `Replication`，用本场景的客户端包 `StorageSyncPacket`：按 Menu 会话发快照加增量（新 id 带原型，数量 0 即移除），因为它是会话增量而不是按方块坐标观察的快照；`Network.sendTo` 因此公开为通道契约。箱子经 `InvWrapper` 读，避免大箱子重复计数。检查 `storage` 用 98 个箱子装入全部 1256 种物品。
+- 虚拟网格写法：`.content` 按总行数定高并 `flex-shrink: 0`（否则被视口压缩，滚动范围只剩已建出的行），`padding-top` 把建出的行下移到视口处；行放在高度自适应的 `.rows` 里换行（定高盒里换行会把行拉开，`align-content` 不支持）；多建 2 行，因为行在滚动后一帧才更新。
+- `IXCHEL` 滚动槽位检查由 S3 的背包区域补上：背包放在可滚动区域内，用 `IXCHEL` 绘制。
+- 发现并修复：原先每次原生绘制后其后命令整体抬高 160，"物品 → 数量文字"交替时每格抬一次，约 70 格越过 Forge 1.20.1 GUI 远平面（z 10000），网格之后的背包区域整片不显示。`McPainter` 改为按重叠分层（`paint/Layers`，见模块拆解 §4）。未采用：压缩物品深度（仍线性增长）；每次原生绘制后清深度缓冲（打乱 ImmediatelyFast 等延迟批处理的顺序）；`<item>` 自画数量文字（只解决数量一种覆盖，可作为 `<item>` 功能另加）。
+- 帧耗时：S3 每 tick 滚动一行，中位数 / p95 约 1.6–2.8 / 2.7–8.4 ms，预算 14 ms。
+
 阶段 C–E 待做（按 §3 顺序）：
-- C1（S3 存储终端）：`charTyped` 转发到文档；单行文本输入（光标、选区、剪贴板）；虚拟化网格（约 1300 种物品只布局可见行）；S3 扫描与同步包（手持物品打开，网格为虚拟物品）；S3 界面与检查，检查驱动加 `type(text)`；补 `IXCHEL` 滚动槽位检查。
 - C2（S6 配置面板）：表单控件与 `:checked`（标准写法还是自定义元素，按 #003 定）；弹出层 / z-index；Tab 焦点顺序；无世界上下文的 `UiScreen`（从 mod 列表打开，`player == null`）；S6 界面与检查。
 - D（S7 任务树、S4 箭头）：transform（translate/scale/rotate）与逆变换命中测试；画线命令（`DrawCommand` 加类型，visitor 同步）；`mouseDragged` 转发与检查驱动 `drag(sel, dx, dy)`；S7 界面与检查（约 100 节点）；S4 方向箭头改用 rotate，去掉 8 方向字形。
 - E（S8 指南书、S9 增强 tooltip）：跨 `span` 的行内流式排版与行内链接命中；S8 界面与检查；tooltip 宿主（`RenderTooltipEvent.Pre`，接管原版须由宿主 API 开关开启，#009）；S9 界面与检查。

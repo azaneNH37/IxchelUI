@@ -4,19 +4,25 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Key and modifier names a template may use in {@code on:keydown.<key>[.<modifier>…]} and
- * {@code on:keyup.…} filters, mapped to GLFW codes. Keys: {@code enter escape space tab backspace
- * delete insert up down left right home end pageup pagedown f1…f12 a…z 0…9}; modifiers: {@code shift
- * ctrl alt}.
+ * Key, button and modifier names a template may use in {@code on:keydown.<key>[.<modifier>…]},
+ * {@code on:keyup.…} and {@code on:click[.<button>][.<modifier>…]} (also {@code mousedown},
+ * {@code mouseup}) filters, mapped to GLFW codes. Keys: {@code enter escape space tab backspace
+ * delete insert up down left right home end pageup pagedown f1…f12 a…z 0…9}; buttons: {@code left
+ * right middle}; modifiers: {@code shift ctrl alt}.
  */
 public final class Keys {
     /** GLFW modifier bits. */
     public static final int MOD_SHIFT = 1;
     public static final int MOD_CTRL = 2;
     public static final int MOD_ALT = 4;
+    /** Command on macOS, the Windows key elsewhere; text editing treats it as Ctrl, filters ignore it. */
+    public static final int MOD_SUPER = 8;
+    /** The modifiers a filter compares: Shift, Ctrl and Alt. */
+    public static final int FILTER_MODIFIERS = MOD_SHIFT | MOD_CTRL | MOD_ALT;
 
     private static final Map<String, Integer> CODES = new HashMap<>();
     private static final Map<String, Integer> MODIFIERS = Map.of("shift", MOD_SHIFT, "ctrl", MOD_CTRL, "alt", MOD_ALT);
+    private static final Map<String, Integer> BUTTONS = Map.of("left", 0, "right", 1, "middle", 2);
 
     static {
         CODES.put("space", 32);
@@ -58,5 +64,11 @@ public final class Keys {
     public static int modifier(String name) {
         Integer bit = MODIFIERS.get(name);
         return bit == null ? 0 : bit;
+    }
+
+    /** The mouse button of {@code name} ({@code left} 0, {@code right} 1, {@code middle} 2), or -1 for an unknown name. */
+    public static int button(String name) {
+        Integer button = BUTTONS.get(name);
+        return button == null ? -1 : button;
     }
 }

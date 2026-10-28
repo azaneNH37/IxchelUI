@@ -5,6 +5,7 @@ import com.azane.ixchel.sample.client.index.SampleIndex;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
+import com.azane.ixchel.sample.storage.TerminalScreen;
 import com.azane.ixchel.sample.waypoints.WaypointsScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -29,7 +30,10 @@ public final class ClientSetup {
     /** Client only; from the mod constructor. */
     public static void init(IEventBus modBus) {
         modBus.addListener(KeyBindings::register);
-        modBus.addListener((FMLClientSetupEvent e) -> e.enqueueWork(MachineScreen::registerScreen));
+        modBus.addListener((FMLClientSetupEvent e) -> e.enqueueWork(() -> {
+            MachineScreen.registerScreen();
+            TerminalScreen.registerScreen();
+        }));
         EnvHud.register(modBus);
         LootScreens.register(modBus);
         KEYS.put(KeyBindings.INDEX, SampleIndex::open);

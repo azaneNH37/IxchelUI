@@ -8,6 +8,10 @@ import com.azane.ixchel.sample.machine.OpenMachinePacket;
 import com.azane.ixchel.sample.machine.PickRecipePacket;
 import com.azane.ixchel.sample.machine.SetRedstonePacket;
 import com.azane.ixchel.sample.machine.SetSidePacket;
+import com.azane.ixchel.sample.storage.OpenTerminalPacket;
+import com.azane.ixchel.sample.storage.StorageSyncPacket;
+import com.azane.ixchel.sample.storage.StorePacket;
+import com.azane.ixchel.sample.storage.TakePacket;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,14 +21,16 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
  * The sample's one channel, {@code ixchelsample:main}, and the replicated kinds; like {@code registry},
- * it lists what the features declare. State reaches clients through {@link Replication}; clients act
- * through intent packets, records in their feature's package with {@code encode}, {@code decode} and
- * {@code handle}, handled on the server thread with the sender's player and dropped when there is no
- * sender.
+ * it lists what the features declare. State reaches clients through {@link Replication}, or, where a
+ * feature syncs per-screen deltas itself (the storage terminal), through its own client-bound packets
+ * with {@code handleOnClient} sent by {@link #sendTo}. Clients act through intent packets, records in
+ * their feature's package with {@code encode}, {@code decode} and {@code handle}, handled on the
+ * server thread with the sender's player and dropped when there is no sender.
  */
 public final class Network {
     private static final String VERSION = "1";
@@ -42,10 +48,8 @@ public final class Network {
     /** Registers every packet; call once, from the mod constructor, on both sides. */
     public static void register() {
         toServer(Replication.Watch.class, Replication.Watch::encode, Replication.Watch::decode, Replication.Watch::handle);
-        CHANNEL.messageBuilder(Replication.Update.class, nextId++, NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(Replication.Update::encode).decoder(Replication.Update::decode)
-                .consumerMainThread((packet, ctx) -> packet.handleOnClient())
-                .add();
+        toClient(Replication.Update.class, Replication.Update::encode, Replication.Update::decode,
+                Replication.Update::handleOnClient);
         Replication.init();
 
         toServer(PickUpDropPacket.class, PickUpDropPacket::encode, PickUpDropPacket::decode, PickUpDropPacket::handle);
@@ -53,14 +57,28 @@ public final class Network {
         toServer(PickRecipePacket.class, PickRecipePacket::encode, PickRecipePacket::decode, PickRecipePacket::handle);
         toServer(SetRedstonePacket.class, SetRedstonePacket::encode, SetRedstonePacket::decode, SetRedstonePacket::handle);
         toServer(SetSidePacket.class, SetSidePacket::encode, SetSidePacket::decode, SetSidePacket::handle);
+        toServer(OpenTerminalPacket.class, OpenTerminalPacket::encode, OpenTerminalPacket::decode, OpenTerminalPacket::handle);
+        toServer(TakePacket.class, TakePacket::encode, TakePacket::decode, TakePacket::handle);
+        toServer(StorePacket.class, StorePacket::encode, StorePacket::decode, StorePacket::handle);
+        toClient(StorageSyncPacket.class, StorageSyncPacket::encode, StorageSyncPacket::decode,
+                StorageSyncPacket::handleOnClient);
     }
 
     public static void sendToServer(Object packet) {
         CHANNEL.sendToServer(packet);
     }
 
-    static void send(ServerPlayer player, Object packet) {
+    public static void sendTo(ServerPlayer player, Object packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+    }
+
+    /** Handled on the client's main thread; the handler may use client classes, which only load there. */
+    private static <T> void toClient(Class<T> type, BiConsumer<T, FriendlyByteBuf> encode,
+                                     Function<FriendlyByteBuf, T> decode, Consumer<T> handle) {
+        CHANNEL.messageBuilder(type, nextId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(encode).decoder(decode)
+                .consumerMainThread((packet, ctx) -> handle.accept(packet))
+                .add();
     }
 
     private static <T> void toServer(Class<T> type, BiConsumer<T, FriendlyByteBuf> encode,

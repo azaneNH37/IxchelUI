@@ -85,7 +85,7 @@ class EventDispatcherTest {
         assertEquals("b", ev.hitTest(45, 20).attribute("id"));
         assertSame(root, ev.hitTest(5, 55), "display: none is not hit");
         assertSame(root, ev.hitTest(90, 90));
-        assertFalse(ev.mousePressed(90, 90, 0), "a press on nothing is left to the host");
+        assertFalse(ev.mousePressed(90, 90, 0, 0), "a press on nothing is left to the host");
     }
 
     @Test
@@ -103,8 +103,8 @@ class EventDispatcherTest {
         });
         b.addEventListener(UiEvent.Type.MOUSE_UP, false, e -> log.add("b up"));
 
-        assertTrue(doc.events().mousePressed(25, 5, 0));
-        doc.events().mouseReleased(25, 5, 0);
+        assertTrue(doc.events().mousePressed(25, 5, 0, 0));
+        doc.events().mouseReleased(25, 5, 0, 0);
         assertEquals(List.of("b capture CAPTURE", "b1 TARGET", "b bubble BUBBLE", "b1 up"), log);
     }
 
@@ -117,17 +117,17 @@ class EventDispatcherTest {
                     e -> clicks.add(id + "<-" + e.target().attribute("id")));
         }
         EventDispatcher ev = doc.events();
-        ev.mousePressed(25, 5, 0);
-        ev.mouseReleased(35, 5, 0);
+        ev.mousePressed(25, 5, 0, 0);
+        ev.mouseReleased(35, 5, 0, 0);
         assertEquals(List.of("b<-b"), clicks, "press on b1, release on b2 clicks their parent");
 
         clicks.clear();
-        ev.mousePressed(25, 5, 1);
-        ev.mouseReleased(25, 5, 0);
+        ev.mousePressed(25, 5, 1, 0);
+        ev.mouseReleased(25, 5, 0, 0);
         assertEquals(List.of(), clicks, "release of a different button is no click");
 
-        ev.mousePressed(5, 5, 0);
-        ev.mouseReleased(25, 5, 0);
+        ev.mousePressed(5, 5, 0, 0);
+        ev.mouseReleased(25, 5, 0, 0);
         assertEquals(List.of(), clicks, "a and b1 only share the root");
     }
 
@@ -137,10 +137,10 @@ class EventDispatcherTest {
         Element b = byId(doc.root(), "b");
         Element b1 = byId(doc.root(), "b1");
         EventDispatcher ev = doc.events();
-        ev.mousePressed(25, 5, 0);
+        ev.mousePressed(25, 5, 0, 0);
         assertTrue(b1.hasState(Element.HOVER) && b.hasState(Element.HOVER));
         assertTrue(b1.hasState(Element.ACTIVE) && b.hasState(Element.ACTIVE));
-        ev.mouseReleased(25, 5, 0);
+        ev.mouseReleased(25, 5, 0, 0);
         assertFalse(b1.hasState(Element.ACTIVE) || b.hasState(Element.ACTIVE));
 
         b.setInlineStyle(CssParser.parseDeclarations("left: 60px", new SourcePos("t.html", 1, 1), new Diagnostics()));
@@ -155,7 +155,7 @@ class EventDispatcherTest {
         Element a = byId(doc.root(), "a");
         Element b = byId(doc.root(), "b");
         EventDispatcher ev = doc.events();
-        ev.mousePressed(25, 5, 0);
+        ev.mousePressed(25, 5, 0, 0);
         assertSame(b, ev.focused(), "pressing b1 focuses its focusable ancestor");
         assertTrue(b.hasState(Element.FOCUS));
 
@@ -172,7 +172,7 @@ class EventDispatcherTest {
         assertEquals(List.of(65, UiEvent.KEY_TAB), keys, "b consumed Tab, so focus stays");
         assertSame(b, ev.focused());
 
-        ev.mousePressed(90, 90, 0);
+        ev.mousePressed(90, 90, 0, 0);
         assertNull(ev.focused(), "pressing nothing clears focus");
         assertTrue(ev.keyPressed(UiEvent.KEY_TAB, 0));
         assertSame(a, ev.focused());

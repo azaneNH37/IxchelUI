@@ -30,7 +30,9 @@ import java.util.Set;
  * ancestors as {@linkplain #hasTreeChange() changed} until the layout pass clears them.
  *
  * <p>A {@linkplain #setScrollTop scroll offset} change only moves painted content: it marks the tree's
- * top element as {@linkplain #needsRepaint() needing a repaint}, without style or layout work.
+ * top element as {@linkplain #needsRepaint() needing a repaint}, without style or layout work, as does
+ * a change of a {@link #textField()}. Each scroll offset change, the layout pass clamping one included,
+ * also marks the element {@linkplain #takeScrolled() scrolled} for the {@code scroll} event.
  */
 public final class Element extends Node {
     public static final int HOVER = 1;
@@ -44,6 +46,9 @@ public final class Element extends Node {
     private static final int TREE_CHANGED = 1 << 2;
     /** Only meaningful on the top element of a tree. */
     private static final int REPAINT = 1 << 3;
+    private static final int SCROLLED = 1 << 4;
+    /** Only meaningful on the top element of a tree: some element below is {@link #SCROLLED}. */
+    private static final int SCROLL_PENDING = 1 << 5;
 
     private final String tag;
     private final List<Node> children = new ArrayList<>();
@@ -58,9 +63,12 @@ public final class Element extends Node {
     private Object payload;
     private float scrollTop;
     private float maxScrollTop;
+    /** A {@link #requestScrollTop} the next layout applies, or -1. */
+    private float scrollRequest = -1;
     private Map<PropertyDef<?>, Object> boundStyle;
     private Map<PropertyDef<?>, Object> boundStyleView = Map.of();
     private List<Registration> listeners;
+    private final TextField textField;
 
     private record Registration(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
     }
@@ -68,10 +76,16 @@ public final class Element extends Node {
     public Element(String tag, SourcePos pos) {
         super(pos);
         this.tag = tag;
+        this.textField = tag.equals("input") ? new TextField(this) : null;
     }
 
     public String tag() {
         return tag;
+    }
+
+    /** The editing state of an {@code <input>}; {@code null} for every other tag. */
+    public TextField textField() {
+        return textField;
     }
 
     /** Unmodifiable live view. */
@@ -325,23 +339,72 @@ public final class Element extends Node {
      */
     public void setScrollTop(float top) {
         float next = Math.max(0, Math.min(Math.round(top), maxScrollTop));
+        scrollRequest = -1;
         if (next != scrollTop) {
             scrollTop = next;
-            Element t = this;
-            while (t.parent != null) {
-                t = t.parent;
-            }
-            t.dirty |= REPAINT;
+            markScrolled();
         }
     }
 
-    /** Called by the layout pass with the new scrollable range; the offset is clamped into it. */
-    public void setMaxScrollTop(float max) {
-        maxScrollTop = Math.max(0, max);
-        scrollTop = Math.min(scrollTop, maxScrollTop);
+    /**
+     * Asks for scroll offset {@code top} against the range of the next layout, for content that
+     * changes in the same frame: the offset moves now as far as the current range allows, and the
+     * next {@link #setMaxScrollTop} clamps the request into its new range. A later
+     * {@link #setScrollTop} cancels it.
+     */
+    public void requestScrollTop(float top) {
+        setScrollTop(top);
+        scrollRequest = Math.max(0, Math.round(top));
     }
 
-    /** On the top element of a tree: whether a scroll offset below changed since the last paint. */
+    /**
+     * Called by the layout pass with the new scrollable range; the offset (or a pending request) is
+     * clamped into it. A request that could not be met counts as a scroll even when the offset stays,
+     * so whoever asked learns the offset it got.
+     */
+    public void setMaxScrollTop(float max) {
+        maxScrollTop = Math.max(0, max);
+        float request = scrollRequest;
+        scrollRequest = -1;
+        float next = Math.min(request >= 0 ? request : scrollTop, maxScrollTop);
+        if (next != scrollTop || request >= 0 && request != next) {
+            scrollTop = next;
+            markScrolled();
+        }
+    }
+
+    private void markScrolled() {
+        dirty |= SCROLLED;
+        top().dirty |= REPAINT | SCROLL_PENDING;
+    }
+
+    /** Whether the scroll offset changed since the last call; clears the mark. */
+    public boolean takeScrolled() {
+        boolean was = (dirty & SCROLLED) != 0;
+        dirty &= ~SCROLLED;
+        return was;
+    }
+
+    /** On the top element of a tree: whether an element below may be {@linkplain #takeScrolled() scrolled}; clears the mark. */
+    public boolean takeScrollPending() {
+        boolean was = (dirty & SCROLL_PENDING) != 0;
+        dirty &= ~SCROLL_PENDING;
+        return was;
+    }
+
+    void requestRepaint() {
+        top().dirty |= REPAINT;
+    }
+
+    private Element top() {
+        Element t = this;
+        while (t.parent != null) {
+            t = t.parent;
+        }
+        return t;
+    }
+
+    /** On the top element of a tree: whether a scroll offset or a text field below changed since the last paint. */
     public boolean needsRepaint() {
         return (dirty & REPAINT) != 0;
     }

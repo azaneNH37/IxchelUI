@@ -29,13 +29,15 @@ public final class TagRegistry {
     public static final Set<String> LINK_ATTRIBUTES = Set.of("rel", "href");
 
     /**
-     * The HTML subset core understands: {@code div}, {@code span}, {@code img src}, {@code style},
+     * The HTML subset core understands: {@code div}, {@code span}, {@code img src}, {@code input
+     * placeholder maxlength} (single-line text; its value is {@code bind:value}), {@code style},
      * {@code link rel href}.
      */
     public static final TagRegistry HTML = new Builder(Map.of(), Map.of())
             .tag("div")
             .tag("span")
             .tag("img", "src")
+            .tag("input", "placeholder", "maxlength")
             .tag("style")
             .tag("link")
             .build();
