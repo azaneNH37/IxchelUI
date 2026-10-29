@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample.client.index;
 
 import com.azane.ixchel.sample.character.CharacterScreen;
+import com.azane.ixchel.sample.config.ConfigScreen;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
@@ -43,6 +44,10 @@ public final class Samples {
                         new ItemStack(Items.RECOVERY_COMPASS), LootScreens::openList),
                 Sample.screen("waypoints", "Waypoints (J)", "Session list with keyboard selection, a scrolling list "
                         + "and distances that follow the player; Up, Down and Delete are template key filters.",
-                        new ItemStack(Items.COMPASS), WaypointsScreen::open));
+                        new ItemStack(Items.COMPASS), WaypointsScreen::open),
+                Sample.screen("config", "Config panel", "The sample's client config: categories, search, toggles, "
+                        + "sliders, number and text fields, enum selects, colors and a list editor dialog; changes "
+                        + "are checked against the spec and saved or discarded. Also behind Mods > Ixchel sample > "
+                        + "Config.", new ItemStack(Items.COMPARATOR), ConfigScreen::open));
     }
 }

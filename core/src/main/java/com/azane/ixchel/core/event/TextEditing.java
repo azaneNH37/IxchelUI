@@ -22,8 +22,8 @@ final class TextEditing {
     private TextEditing() {
     }
 
-    /** Applies the action of {@code key}, if it has one; whether the value changed. */
-    static boolean key(TextField f, int key, int modifiers, Clipboard clipboard, int maxLength) {
+    /** Applies the action of {@code key}, if it has one; whether the value changed. {@code numeric}: see {@link #insert}. */
+    static boolean key(TextField f, int key, int modifiers, Clipboard clipboard, int maxLength, boolean numeric) {
         boolean shift = (modifiers & Keys.MOD_SHIFT) != 0;
         boolean shortcut = (modifiers & (Keys.MOD_CTRL | Keys.MOD_SUPER)) != 0;
         String v = f.value();
@@ -60,7 +60,7 @@ final class TextEditing {
             }
             case KEY_V -> {
                 if (shortcut) {
-                    return insert(f, clipboard.get(), maxLength);
+                    return insert(f, clipboard.get(), maxLength, numeric);
                 }
             }
             default -> {
@@ -70,14 +70,15 @@ final class TextEditing {
     }
 
     /**
-     * Replaces the selection with {@code text} without its control characters, cut to what
-     * {@code maxLength} (UTF-16 units, negative for none) leaves room for; whether the value changed.
+     * Replaces the selection with {@code text} without its control characters (and, {@code numeric},
+     * without anything but {@code 0-9 . - + e E}), cut to what {@code maxLength} (UTF-16 units,
+     * negative for none) leaves room for; whether the value changed.
      */
-    static boolean insert(TextField f, String text, int maxLength) {
+    static boolean insert(TextField f, String text, int maxLength, boolean numeric) {
         StringBuilder clean = new StringBuilder(text.length());
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
-            if (c >= 0x20 && c != 0x7F) {
+            if (c >= 0x20 && c != 0x7F && (!numeric || isNumberChar(c))) {
                 clean.append(c);
             }
         }
@@ -96,6 +97,11 @@ final class TextEditing {
         }
         f.replaceSelection(clean.toString());
         return true;
+    }
+
+    /** What a number field accepts. */
+    static boolean isNumberChar(int c) {
+        return c >= '0' && c <= '9' || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E';
     }
 
     /** The selection if there is one, else from the caret to {@code to}. */

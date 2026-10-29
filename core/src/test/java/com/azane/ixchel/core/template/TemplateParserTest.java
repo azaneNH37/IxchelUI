@@ -77,11 +77,11 @@ class TemplateParserTest {
     @Test
     void unknownTagAndUnknownAttributeAreBothReported() {
         Diagnostics diag = new Diagnostics();
-        Template t = TemplateParser.parse("<div onclick=\"x\"><button>go</button></div>", "t.html", TagRegistry.HTML, diag);
+        Template t = TemplateParser.parse("<div onclick=\"x\"><marquee>go</marquee></div>", "t.html", TagRegistry.HTML, diag);
         List<Diagnostic> errors = diag.entries();
         assertEquals(2, errors.size(), errors.toString());
         assertTrue(errors.get(0).message().contains("unknown attribute 'onclick' on <div>"));
-        assertTrue(errors.get(1).message().contains("unknown tag <button>"));
+        assertTrue(errors.get(1).message().contains("unknown tag <marquee>"));
         assertTrue(el(t.roots().get(0)).children().isEmpty());
     }
 

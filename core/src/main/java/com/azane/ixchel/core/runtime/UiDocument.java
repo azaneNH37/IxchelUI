@@ -14,6 +14,7 @@ import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.dom.Node;
+import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.ImageMeasurer;
@@ -26,6 +27,10 @@ import com.azane.ixchel.core.template.TemplateParser;
 import com.azane.ixchel.core.text.TextMeasurer;
 import com.azane.ixchel.core.text.TextShaper;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -35,9 +40,14 @@ import java.util.function.LongSupplier;
  * One loaded UI: template tree under an implicit viewport-sized root, its styles, bindings, and the
  * per-frame pipeline bindings → transitions → style → layout → paint. A frame in which nothing
  * changed and no transition runs does no work and keeps the previous {@link DisplayList}; one in
- * which only {@linkplain Element#setScrollTop scroll offsets}, {@linkplain Element#textField() text
- * fields} or the caret's blink changed repaints without style or layout. The caret of a focused
- * {@code <input>} blinks every {@value #BLINK_MS} ms, restarting visible on each edit or move.
+ * which only {@linkplain Element#setScrollTop scroll offsets}, {@linkplain Element#control() form
+ * control} values that do not restyle (text, a range) or the caret's blink changed repaints without
+ * style or layout. The caret of a focused {@code <input>} blinks every {@value #BLINK_MS} ms,
+ * restarting visible on each edit or move.
+ *
+ * <p>Below the template's stylesheets sits a user-agent stylesheet with the defaults of the form
+ * controls and {@code <dialog>} ({@code user-agent.css} next to this class). Open selects and dialogs
+ * live in the document's {@link TopLayer}, which layout, paint and input share.
  */
 public final class UiDocument {
     static final long BLINK_MS = 500;
@@ -52,6 +62,7 @@ public final class UiDocument {
     private final LayoutEngine layout;
     private final Painter painter;
     private final Bindings bindings;
+    private final TopLayer topLayer;
     private final DisplayList displayList = new DisplayList();
     private final EventDispatcher events;
     private final Transitions transitions;
@@ -68,14 +79,15 @@ public final class UiDocument {
     int pipelineRuns;
 
     private UiDocument(Element root, Diagnostics diagnostics, StyleEngine style, LayoutEngine layout, Bindings bindings,
-                       TagRegistry tags, ImageMeasurer images, Transitions transitions) {
+                       TagRegistry tags, ImageMeasurer images, Transitions transitions, TopLayer topLayer) {
         this.root = root;
         this.diagnostics = diagnostics;
         this.style = style;
         this.layout = layout;
         this.painter = new Painter(layout, tags, images, diagnostics);
         this.bindings = bindings;
-        this.events = new EventDispatcher(root, layout);
+        this.topLayer = topLayer;
+        this.events = new EventDispatcher(root, layout, topLayer);
         this.transitions = transitions;
     }
 
@@ -128,13 +140,42 @@ public final class UiDocument {
         for (Node n : t.roots()) {
             root.appendChild(n);
         }
-        Bindings bindings = Bindings.compile(root, model, textOf, tags, CssProperties.REGISTRY, diag);
+        TopLayer topLayer = new TopLayer();
+        Bindings bindings = Bindings.compile(root, model, textOf, tags, CssProperties.REGISTRY, topLayer, diag);
         Transitions transitions = new Transitions(CssProperties.REGISTRY, root);
-        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, compiled, diag, transitions);
+        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(UserAgent.SHEET), compiled, diag, transitions);
         style.restyle(root);
         diag.throwIfErrors();
         LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY);
-        return new UiDocument(root, diag, style, layout, bindings, tags, images, transitions);
+        return new UiDocument(root, diag, style, layout, bindings, tags, images, transitions, topLayer);
+    }
+
+    /** The user-agent stylesheet, compiled once; a problem in it is a bug in the library. */
+    private static final class UserAgent {
+        static final StyleSheet SHEET = load();
+
+        private static StyleSheet load() {
+            String file = "user-agent.css";
+            try (InputStream in = UiDocument.class.getResourceAsStream(file)) {
+                if (in == null) {
+                    throw new IllegalStateException("missing " + file);
+                }
+                Diagnostics diag = new Diagnostics();
+                String css = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(css, file, diag), CssProperties.REGISTRY, diag);
+                if (diag.hasErrors()) {
+                    throw new IllegalStateException("invalid " + file + ": " + diag.entries());
+                }
+                return sheet;
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
+            }
+        }
+    }
+
+    /** Open selects and dialogs, bottom first. */
+    public TopLayer topLayer() {
+        return topLayer;
     }
 
     /** The implicit root; its children are the template's top-level elements. */
@@ -214,7 +255,7 @@ public final class UiDocument {
         painter.setCaretVisible(caret);
         if (!dirty) {
             if (root.needsRepaint() || blinked) {
-                painter.paint(root, displayList);
+                painter.paint(root, topLayer, displayList);
                 events.afterLayout();
             }
             return displayList;
@@ -224,8 +265,8 @@ public final class UiDocument {
         textInvalidated = false;
         pipelineRuns++;
         style.restyle(root);
-        layout.layout(root, viewportWidth, viewportHeight);
-        painter.paint(root, displayList);
+        layout.layout(root, viewportWidth, viewportHeight, topLayer);
+        painter.paint(root, topLayer, displayList);
         events.afterLayout();
         return displayList;
     }

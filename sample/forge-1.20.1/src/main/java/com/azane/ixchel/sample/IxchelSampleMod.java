@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample;
 
 import com.azane.ixchel.sample.client.ClientSetup;
+import com.azane.ixchel.sample.config.SampleConfig;
 import com.azane.ixchel.sample.network.Network;
 import com.azane.ixchel.sample.registry.ModBlockEntities;
 import com.azane.ixchel.sample.registry.ModBlocks;
@@ -15,7 +16,7 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
  * Sample and development host mod for Ixchel UI on Forge 1.20.1. A normal mod layout: registries
  * ({@code registry}), the network channel ({@code network}), client wiring ({@code client}: keys,
  * screens, HUDs and the sample index on H) and one package per sample ({@code character},
- * {@code env}, {@code loot}, {@code machine}, {@code storage}, {@code waypoints}), each with a single public entry
+ * {@code config}, {@code env}, {@code loot}, {@code machine}, {@code storage}, {@code waypoints}), each with a single public entry
  * class. The unattended checks are a second mod in the {@code check} source set.
  */
 @Mod(IxchelSampleMod.MOD_ID)
@@ -29,8 +30,9 @@ public final class IxchelSampleMod {
         ModBlockEntities.register(modBus);
         ModMenus.register(modBus);
         Network.register();
+        SampleConfig.register(context);
         if (FMLEnvironment.dist.isClient()) {
-            ClientSetup.init(modBus);
+            ClientSetup.init(context);
         }
     }
 }

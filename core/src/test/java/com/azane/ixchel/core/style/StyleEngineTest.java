@@ -60,6 +60,31 @@ class StyleEngineTest {
     }
 
     @Test
+    void attributeSelectorsCountAsClassesAndAnAttributeChangeRestyles() {
+        Diagnostics diag = new Diagnostics();
+        StyleEngine engine = engine("""
+                input[type=checkbox] { width: 1px }
+                .a { width: 2px }
+                [type="checkbox"] { height: 3px }
+                .a { height: 4px }
+                [disabled] { min-width: 5px }
+                """, diag);
+        Element root = new Element("#root", POS);
+        Element e = el(root, "input", "a");
+        e.setAttribute("type", "checkbox");
+        engine.restyle(root);
+        assertEquals(List.of(), diag.entries());
+        assertEquals(Length.px(1), e.computed().get(CssProperties.WIDTH), "tag + attribute beats a class");
+        assertEquals(Length.px(4), e.computed().get(CssProperties.HEIGHT), "an attribute ties a class; the later rule wins");
+
+        e.setAttribute("type", "text");
+        e.setAttribute("disabled", "");
+        engine.restyle(root);
+        assertEquals(Length.px(2), e.computed().get(CssProperties.WIDTH), "a changed attribute value stops matching");
+        assertEquals(Length.px(5), e.computed().get(CssProperties.MIN_WIDTH), "[name] matches any value, the empty one too");
+    }
+
+    @Test
     void parentClassChangeRestylesInheritedValuesButLeavesCleanSiblingsAlone() {
         Diagnostics diag = new Diagnostics();
         StyleEngine engine = engine("""

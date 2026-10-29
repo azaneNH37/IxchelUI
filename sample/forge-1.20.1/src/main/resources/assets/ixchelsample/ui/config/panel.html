@@ -1,0 +1,86 @@
+<link rel="stylesheet" href="panel.css"/>
+<div class="screen" on:keydown.escape="cancel">
+  <div class="panel">
+    <div class="header">
+      <span class="title">Ixchel sample settings</span>
+      <input class="search" placeholder="Search all settings" bind:value="query"/>
+    </div>
+    <div class="body">
+      <div class="categories">
+        <div class="category" each="categories" as="c" key="c.id" tabindex="0"
+             bind:class:active="c.active" on:click="select(c)" on:keydown.enter="select(c)">
+          <span bind:text="c.label"></span>
+        </div>
+      </div>
+      <div class="entries">
+        <span class="none" if="empty">No setting matches the search</span>
+        <div class="entry" each="rows" as="r" key="r.id" bind:title="r.comment"
+             bind:class:modified="r.modified" bind:class:invalid="r.invalid">
+          <div class="line">
+            <div class="marker"></div>
+            <span class="name" bind:text="r.label"></span>
+            <span class="restart" if="r.restart">restart</span>
+            <div class="control">
+              <input if="r.bool" type="checkbox" class="check" bind:checked="r.on"/>
+              <div if="r.number" class="number">
+                <input type="range" class="slider" bind:min="r.min" bind:max="r.max" bind:step="r.step" bind:value="r.value"/>
+                <input type="number" class="num" bind:min="r.min" bind:max="r.max" bind:step="r.step" bind:value="r.value"/>
+              </div>
+              <select if="r.choice" class="choice" bind:value="r.value">
+                <option each="r.choices" as="o" key="o" bind:value="o" bind:text="o"></option>
+              </select>
+              <input if="r.text" class="text" bind:value="r.value"/>
+              <div if="r.color" class="color">
+                <div class="swatch" bind:style:background-color="r.swatch"></div>
+                <input class="hex" maxlength="7" bind:value="r.value"/>
+              </div>
+              <div if="r.list" class="list">
+                <span class="summary" bind:text="r.value"></span>
+                <button class="edit" on:click="editList(r)">Edit</button>
+              </div>
+              <button class="reset" bind:disabled="r.atDefault" on:click="reset(r)">Reset</button>
+            </div>
+          </div>
+          <span class="error" if="r.invalid" bind:text="r.error"></span>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="status" bind:text="status"></span>
+      <span class="note" if="restartPending">Some changes apply after rejoining a world</span>
+      <button class="undo" bind:disabled="!canUndo" on:click="undo">Undo</button>
+      <button class="cancel" on:click="cancel">Cancel</button>
+      <button class="save" bind:disabled="!canSave" on:click="save">Save</button>
+    </div>
+  </div>
+  <dialog class="list-dialog" bind:open="listOpen">
+    <span class="dialog-title" bind:text="listTitle"></span>
+    <div class="items">
+      <div class="item" each="items" as="i" key="i.id">
+        <input class="item-text" bind:value="i.text"/>
+        <button class="remove" on:click="removeItem(i)">Remove</button>
+      </div>
+    </div>
+    <div class="dialog-row">
+      <button class="add" on:click="addItem">Add</button>
+      <select class="preset" bind:value="preset" on:change="addPreset">
+        <option value="">Add a preset...</option>
+        <option value="minecraft:rotten_flesh">Rotten flesh</option>
+        <option value="minecraft:poisonous_potato">Poisonous potato</option>
+        <option value="minecraft:spider_eye">Spider eye</option>
+        <option value="minecraft:dead_bush">Dead bush</option>
+      </select>
+    </div>
+    <div class="dialog-row">
+      <button class="list-cancel" on:click="closeList">Cancel</button>
+      <button class="list-done" on:click="applyList">Done</button>
+    </div>
+  </dialog>
+  <dialog class="confirm" bind:open="confirming">
+    <span>Discard the unsaved changes?</span>
+    <div class="dialog-row">
+      <button class="keep" on:click="keepEditing">Keep editing</button>
+      <button class="discard" on:click="discard">Discard</button>
+    </div>
+  </dialog>
+</div>

@@ -13,8 +13,16 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, i
 
     public enum Combinator { DESCENDANT, CHILD }
 
+    /** {@code [name]} when {@code value} is {@code null}, else {@code [name="value"]}; values compare case-sensitively. */
+    public record AttributeMatch(String name, String value) {
+        boolean matches(Element e) {
+            String actual = e.attribute(name);
+            return actual != null && (value == null || value.equals(actual));
+        }
+    }
+
     /** {@code tag} and {@code id} are {@code null} when absent; {@code stateMask} uses {@link Element} state bits. */
-    public record Compound(String tag, String id, List<String> classes, int stateMask) {
+    public record Compound(String tag, String id, List<String> classes, List<AttributeMatch> attributes, int stateMask) {
         public boolean matches(Element e) {
             if (e.tag().startsWith("#")) {
                 return false;
@@ -27,6 +35,11 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, i
             }
             for (int i = 0; i < classes.size(); i++) {
                 if (!e.hasClass(classes.get(i))) {
+                    return false;
+                }
+            }
+            for (int i = 0; i < attributes.size(); i++) {
+                if (!attributes.get(i).matches(e)) {
                     return false;
                 }
             }
@@ -66,14 +79,14 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, i
         return false;
     }
 
-    /** Packed (ids, classes + pseudo-classes, tags), each saturating at 1023. */
+    /** Packed (ids, classes + attributes + pseudo-classes, tags), each saturating at 1023. */
     static int specificity(List<Compound> compounds) {
         int ids = 0, classes = 0, tags = 0;
         for (Compound c : compounds) {
             if (c.id != null) {
                 ids++;
             }
-            classes += c.classes.size() + Integer.bitCount(c.stateMask);
+            classes += c.classes.size() + c.attributes.size() + Integer.bitCount(c.stateMask);
             if (c.tag != null) {
                 tags++;
             }

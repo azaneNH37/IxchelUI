@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample.check;
 
 import com.azane.ixchel.sample.check.scenario.CharacterCheck;
+import com.azane.ixchel.sample.check.scenario.ConfigCheck;
 import com.azane.ixchel.sample.check.scenario.EnvCheck;
 import com.azane.ixchel.sample.check.scenario.IndexCheck;
 import com.azane.ixchel.sample.check.scenario.LootCheck;
@@ -36,5 +37,6 @@ public final class IxchelSampleCheckMod {
         LootCheck.register();
         WaypointsCheck.register();
         StorageCheck.register();
+        ConfigCheck.register();
     }
 }

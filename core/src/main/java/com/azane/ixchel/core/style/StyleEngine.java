@@ -17,21 +17,23 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Selector matching, cascade and inheritance. Precedence, lowest first: rule declarations by
- * (specificity, sheet order, rule order), inline style, then the same two groups for
- * {@code !important}. An element's {@linkplain Element#boundStyle() bound values} are inline
- * declarations that replace the {@code style} attribute's declarations of the same properties.
+ * Selector matching, cascade and inheritance. Precedence, lowest first: user-agent rule declarations
+ * by (specificity, rule order), author rule declarations by (specificity, sheet order, rule order),
+ * inline style, then the author and inline groups again for {@code !important} (user-agent
+ * declarations are never important). An element's {@linkplain Element#boundStyle() bound values} are
+ * inline declarations that replace the {@code style} attribute's declarations of the same properties.
  */
 public final class StyleEngine {
-    private record Entry(Selector selector, List<Declarations.Compiled> declarations, int specificity, int order) {
+    /** {@code origin}: 0 user agent, 1 author. */
+    private record Entry(Selector selector, List<Declarations.Compiled> declarations, int origin, int specificity, int order) {
     }
 
     /** An element's compiled {@code style} attribute and the list it was compiled from. */
     private record Inline(List<Rule.Declaration> source, List<Declarations.Compiled> compiled) {
     }
 
-    private static final Comparator<Entry> CASCADE_ORDER =
-            Comparator.comparingInt(Entry::specificity).thenComparingInt(Entry::order);
+    private static final Comparator<Entry> CASCADE_ORDER = Comparator.comparingInt(Entry::origin)
+            .thenComparingInt(Entry::specificity).thenComparingInt(Entry::order);
 
     /**
      * Sees each freshly cascaded style before it is stored, and may change it; children inherit
@@ -61,14 +63,25 @@ public final class StyleEngine {
     }
 
     public StyleEngine(PropertyRegistry registry, List<StyleSheet> sheets, Diagnostics diag, Hook hook) {
+        this(registry, List.of(), sheets, diag, hook);
+    }
+
+    /** {@code userAgent}: sheets below every author rule, such as the form controls' defaults. */
+    public StyleEngine(PropertyRegistry registry, List<StyleSheet> userAgent, List<StyleSheet> sheets, Diagnostics diag,
+                       Hook hook) {
         this.registry = registry;
         this.hook = hook;
         this.diag = diag;
+        index(userAgent, 0);
+        index(sheets, 1);
+    }
+
+    private void index(List<StyleSheet> sheets, int origin) {
         int order = 0;
         for (StyleSheet sheet : sheets) {
             int base = order;
             for (StyleSheet.StyleRule r : sheet.rules()) {
-                Entry e = new Entry(r.selector(), r.declarations(), r.selector().specificity(), base + r.order());
+                Entry e = new Entry(r.selector(), r.declarations(), origin, r.selector().specificity(), base + r.order());
                 order = Math.max(order, e.order + 1);
                 Selector.Compound key = r.selector().rightmost();
                 if (key.id() != null) {

@@ -5,6 +5,7 @@ import com.azane.ixchel.core.dom.BindAttribute;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
 
@@ -144,6 +145,10 @@ public final class TemplateParser {
                 && element.bindings().stream().noneMatch(b -> b.name().equals("bind:src"))) {
             diag.error(openPos, "<img> requires a 'src' attribute or a 'bind:src' binding");
         }
+        if (known && tag.equals("input") && FormControl.Kind.ofInputType(element.attribute("type")) == null) {
+            diag.error(openPos, "unsupported <input type=\"" + element.attribute("type")
+                    + "\">; supported: text, number, checkbox, range");
+        }
 
         if (isStyle) {
             if (!selfClosing) {
@@ -185,6 +190,11 @@ public final class TemplateParser {
             }
             if (known && (tag.equals("img") || tag.equals("input")) && !children.isEmpty()) {
                 diag.error(children.get(0).pos(), "<" + tag + "> must not have children");
+            } else if (known && tag.equals("select") && children.stream().anyMatch(
+                    n -> !(n instanceof Element c && c.tag().equals("option")))) {
+                diag.error(openPos, "<select> may only contain <option> elements");
+            } else if (known && tag.equals("option") && children.stream().anyMatch(n -> !(n instanceof TextNode))) {
+                diag.error(openPos, "<option> may only contain text");
             } else {
                 for (Node child : children) {
                     element.appendChild(child);

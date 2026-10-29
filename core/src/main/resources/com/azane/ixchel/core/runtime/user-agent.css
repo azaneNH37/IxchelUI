@@ -1,0 +1,97 @@
+/*
+ * User-agent defaults of the form controls and <dialog>, below every author rule (see StyleEngine).
+ * Vanilla-like: black fields with a gray border that turns white on focus, gray buttons.
+ */
+input, select {
+    flex-shrink: 0;
+    padding: 2px 3px;
+    border: 1px solid #a0a0a0;
+    background-color: #000000;
+    color: #e0e0e0;
+    white-space: nowrap;
+}
+
+input {
+    width: 100px;
+}
+
+input:focus, select:focus {
+    border-color: #ffffff;
+}
+
+input:disabled, select:disabled {
+    color: #707070;
+    border-color: #505050;
+}
+
+input[type=checkbox] {
+    width: 10px;
+    height: 10px;
+    padding: 1px;
+}
+
+input[type=range] {
+    height: 10px;
+    padding: 0;
+    border-style: none;
+    background-color: transparent;
+}
+
+input[type=range]:focus {
+    background-color: #303030;
+}
+
+option {
+    display: none;
+}
+
+select:open > option {
+    display: flex;
+    padding: 2px 3px;
+    background-color: #101010;
+    color: #e0e0e0;
+    white-space: nowrap;
+}
+
+select:open > option:hover {
+    background-color: #3c78d8;
+    color: #ffffff;
+}
+
+select:open > option:checked {
+    color: #ffff80;
+}
+
+button {
+    flex-shrink: 0;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 3px 6px;
+    border: 1px solid #000000;
+    background-color: #6f6f6f;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+button:hover, button:focus {
+    border-color: #ffffff;
+    background-color: #7e7e9e;
+}
+
+button:disabled {
+    border-color: #000000;
+    background-color: #2c2c2c;
+    color: #a0a0a0;
+}
+
+dialog {
+    display: none;
+}
+
+dialog:open {
+    display: flex;
+    padding: 6px;
+    border: 1px solid #a0a0a0;
+    background-color: #202020;
+}

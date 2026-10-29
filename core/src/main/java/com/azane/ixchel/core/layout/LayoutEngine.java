@@ -7,8 +7,11 @@ import com.azane.ixchel.core.css.property.Length;
 import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.FormControl;
+import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
+import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.text.TextShaper;
 import dev.vfyjxf.taffy.geometry.FloatSize;
 import dev.vfyjxf.taffy.geometry.TaffyPoint;
@@ -46,11 +49,21 @@ import java.util.Map;
  * 6 in a font with equal digit widths) cannot move anything, so it is re-shaped without running taffy.
  *
  * <p>An {@code <input>} has no intrinsic width (CSS or flex sizes it) and one line of its font size as
- * its intrinsic content height; its value does not take part in layout.
+ * its intrinsic content height; its value does not take part in layout. A {@code <select>} is as wide
+ * as its widest option's label plus {@value #SELECT_ARROW_SPACE} pixels for the arrow and one line
+ * high; its options are not laid out inside it.
+ *
+ * <p>{@link TopLayer} entries are laid out after the document, each against the viewport: an open
+ * {@code <dialog>} centered in it (percentages resolve against the viewport), the options of an open
+ * {@code <select>} as a column of their max-content width but at least the select's, placed under
+ * the select where it shows (its {@link Element#scrollOffset()} taken off), or above it when the
+ * viewport has no room below, and moved left to stay inside. A closed dialog is not laid out.
  */
 public final class LayoutEngine {
     /** Floats per recorded measurement: known width, known height, available width, then the answer. */
     private static final int QUERY = 5;
+    /** Pixels a select reserves after its label for the arrow. */
+    public static final float SELECT_ARROW_SPACE = 10;
 
     private static final class Slot {
         NodeId id;
@@ -59,6 +72,8 @@ public final class LayoutEngine {
         String text;
         float fontSize;
         boolean nowrap;
+        /** A select's option labels, joined by newlines, as last measured. */
+        String labels = "";
         TextShaper.Shaped shaped;
         float contentWidth;
         /**
@@ -97,6 +112,9 @@ public final class LayoutEngine {
     int computeCount;
     private float viewportWidth = Float.NaN;
     private float viewportHeight = Float.NaN;
+    /** A top-layer entry's own taffy node: the viewport-sized box a dialog is centered in, or a select's option column. */
+    private final Map<Element, NodeId> layers = new IdentityHashMap<>();
+    private final Map<Element, List<NodeId>> layerChildren = new IdentityHashMap<>();
 
     public LayoutEngine(TextShaper shaper, PropertyRegistry registry) {
         this.shaper = shaper;
@@ -104,11 +122,31 @@ public final class LayoutEngine {
         tree.enableRounding();
     }
 
-    /** {@code root} is the implicit document root; it is sized to the viewport. */
-    public void layout(Element root, float viewportWidth, float viewportHeight) {
+    /**
+     * {@code root} is the implicit document root; it is sized to the viewport. {@code top}'s entries
+     * are laid out after it, in order (a select inside a dialog is placed after the dialog).
+     */
+    public void layout(Element root, float viewportWidth, float viewportHeight, TopLayer top) {
         generation++;
         changed = false;
+        boolean resized = viewportWidth != this.viewportWidth || viewportHeight != this.viewportHeight;
+        this.viewportWidth = viewportWidth;
+        this.viewportHeight = viewportHeight;
         NodeId rootId = sync(root, true);
+        List<Element> entries = top.entries();
+        List<NodeId> layerIds = new ArrayList<>(entries.size());
+        for (Element entry : entries) {
+            layerIds.add(syncLayer(entry, resized));
+        }
+        for (Iterator<Map.Entry<Element, NodeId>> it = layers.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<Element, NodeId> en = it.next();
+            if (!entries.contains(en.getKey())) {
+                tree.remove(en.getValue());
+                layerChildren.remove(en.getKey());
+                it.remove();
+                changed = true;
+            }
+        }
         for (Iterator<Slot> it = slots.values().iterator(); it.hasNext(); ) {
             Slot s = it.next();
             if (s.seen != generation) {
@@ -117,9 +155,7 @@ public final class LayoutEngine {
                 changed = true;
             }
         }
-        if (viewportWidth != this.viewportWidth || viewportHeight != this.viewportHeight) {
-            this.viewportWidth = viewportWidth;
-            this.viewportHeight = viewportHeight;
+        if (resized) {
             tree.setStyle(rootId, rootStyle(viewportWidth, viewportHeight));
             changed = true;
         }
@@ -129,6 +165,72 @@ public final class LayoutEngine {
         computeCount++;
         tree.computeLayout(rootId, TaffySize.of(AvailableSpace.definite(viewportWidth), AvailableSpace.definite(viewportHeight)));
         writeBoxes(root, 0, 0);
+        for (int i = 0; i < entries.size(); i++) {
+            placeLayer(entries.get(i), layerIds.get(i));
+        }
+    }
+
+    /** Syncs an entry's content under its own node; a dialog's node is the viewport box it is centered in. */
+    private NodeId syncLayer(Element entry, boolean resized) {
+        boolean dialog = entry.tag().equals("dialog");
+        NodeId id = layers.get(entry);
+        if (id == null) {
+            id = tree.newLeaf(new TaffyStyle());
+            layers.put(entry, id);
+            changed = true;
+            resized = true;
+        }
+        if (dialog && resized) {
+            TaffyStyle s = rootStyle(viewportWidth, viewportHeight);
+            s.alignItems = AlignItems.CENTER;
+            s.justifyContent = AlignContent.CENTER;
+            tree.setStyle(id, s);
+        }
+        List<NodeId> ids = new ArrayList<>();
+        if (dialog) {
+            ids.add(sync(entry, false));
+        } else {
+            List<Node> children = entry.children();
+            for (int i = 0; i < children.size(); i++) {
+                if (children.get(i) instanceof Element o) {
+                    ids.add(sync(o, false));
+                }
+            }
+        }
+        if (!ids.equals(layerChildren.get(entry))) {
+            layerChildren.put(entry, ids);
+            tree.setChildren(id, ids.toArray(new NodeId[0]));
+            changed = true;
+        }
+        return id;
+    }
+
+    private void placeLayer(Element entry, NodeId id) {
+        if (entry.tag().equals("dialog")) {
+            tree.computeLayout(id, TaffySize.of(AvailableSpace.definite(viewportWidth), AvailableSpace.definite(viewportHeight)));
+            writeBoxes(entry, 0, 0);
+            return;
+        }
+        LayoutBox b = entry.box();
+        TaffyStyle s = new TaffyStyle();
+        s.display = TaffyDisplay.FLEX;
+        s.flexDirection = FlexDirection.COLUMN;
+        s.minSize = TaffySize.of(TaffyDimension.length(b.width()), TaffyDimension.AUTO);
+        tree.setStyle(id, s);
+        tree.computeLayout(id, TaffySize.of(AvailableSpace.maxContent(), AvailableSpace.maxContent()));
+        Layout l = tree.getLayout(id);
+        float top = b.y() - entry.scrollOffset();
+        float y = top + b.height();
+        if (y + l.size().height > viewportHeight && top - l.size().height >= 0) {
+            y = top - l.size().height;
+        }
+        float x = Math.max(0, Math.min(b.x(), viewportWidth - l.size().width));
+        List<Node> children = entry.children();
+        for (int i = 0; i < children.size(); i++) {
+            if (children.get(i) instanceof Element o) {
+                writeBoxes(o, x, y);
+            }
+        }
     }
 
     /** Fonts or glyph widths changed: drop cached measurements and re-measure every text node. */
@@ -169,8 +271,10 @@ public final class LayoutEngine {
         Slot slot = slots.get(e);
         if (slot == null) {
             slot = new Slot();
-            slot.id = e.textField() != null ? tree.newLeafWithMeasure(new TaffyStyle(), inputMeasure(slot))
-                    : tree.newLeaf(new TaffyStyle());
+            FormControl control = e.control();
+            slot.id = control == null ? tree.newLeaf(new TaffyStyle())
+                    : tree.newLeafWithMeasure(new TaffyStyle(), control.kind() == FormControl.Kind.SELECT
+                    ? selectMeasure(slot) : inputMeasure(slot));
             slots.put(e, slot);
             changed = true;
         }
@@ -181,7 +285,7 @@ public final class LayoutEngine {
                 changed = true;
             }
             slot.style = e.computed();
-            if (e.textField() != null) {
+            if (e.control() != null) {
                 float size = e.computed().get(CssProperties.FONT_SIZE).value();
                 if (size != slot.fontSize) {
                     slot.fontSize = size;
@@ -190,9 +294,29 @@ public final class LayoutEngine {
                 }
             }
         }
+        if (e.control() != null && e.control().kind() == FormControl.Kind.SELECT) {
+            // The options are laid out only in the top layer; their labels size the select.
+            StringBuilder labels = new StringBuilder();
+            for (Element o : e.control().options()) {
+                labels.append(o.textContent().strip()).append('\n');
+                clearTreeChanges(o);
+            }
+            if (!labels.toString().equals(slot.labels)) {
+                slot.labels = labels.toString();
+                tree.markDirty(slot.id);
+                changed = true;
+            }
+            e.clearTreeChange();
+            return slot.id;
+        }
         List<Node> children = e.children();
         List<NodeId> ids = new ArrayList<>(children.size());
         for (Node c : children) {
+            if (c instanceof Element d && d.tag().equals("dialog")) {
+                // Laid out in the top layer while open, not at all while closed.
+                clearTreeChanges(d);
+                continue;
+            }
             ids.add(sync(c, false));
         }
         if (!ids.equals(slot.children)) {
@@ -202,6 +326,16 @@ public final class LayoutEngine {
         }
         e.clearTreeChange();
         return slot.id;
+    }
+
+    /** Clears the tree-change marks of a subtree layout skips, so later changes inside it are seen again. */
+    private static void clearTreeChanges(Element e) {
+        e.clearTreeChange();
+        for (Node c : e.children()) {
+            if (c instanceof Element ce) {
+                clearTreeChanges(ce);
+            }
+        }
     }
 
     private NodeId syncText(TextNode t) {
@@ -262,6 +396,21 @@ public final class LayoutEngine {
                 Float.isNaN(known.height) ? shaper.lineHeight(slot.fontSize) : known.height);
     }
 
+    /** A {@code <select>}: its widest option label and the arrow, one line high. */
+    private MeasureFunc selectMeasure(Slot slot) {
+        return (known, available) -> {
+            float width = known.width;
+            if (Float.isNaN(width)) {
+                width = 0;
+                for (String label : slot.labels.split("\n", -1)) {
+                    width = Math.max(width, shaper.width(label, slot.fontSize));
+                }
+                width += SELECT_ARROW_SPACE;
+            }
+            return new FloatSize(width, Float.isNaN(known.height) ? shaper.lineHeight(slot.fontSize) : known.height);
+        };
+    }
+
     private MeasureFunc measure(Slot slot) {
         return (known, available) -> {
             AvailableSpace a = available.width;
@@ -319,6 +468,9 @@ public final class LayoutEngine {
         List<Node> children = e.children();
         for (int i = 0; i < children.size(); i++) {
             Node c = children.get(i);
+            if (c instanceof Element skipped && (skipped.tag().equals("dialog") || e.tag().equals("select"))) {
+                continue; // top-layer content: placed by placeLayer, and no part of this scroll range
+            }
             float end = writeBoxes(c, x, y);
             ComputedStyle ccs = c instanceof Element ce ? ce.computed() : null;
             if (ccs != null && ccs.get(CssProperties.DISPLAY) == Keywords.Display.NONE) {

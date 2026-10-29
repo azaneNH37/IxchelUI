@@ -182,7 +182,7 @@ public final class ContainerLayout {
                         + "; it must be at least 16x16");
             }
             int x = Math.round(b.x() + (b.width() - ITEM_SIZE) / 2);
-            int y = Math.round(b.y() - scrollAbove(e) + (b.height() - ITEM_SIZE) / 2);
+            int y = Math.round(b.y() - e.scrollOffset() + (b.height() - ITEM_SIZE) / 2);
             if (!visible(e, x, y, clip)) {
                 SlotPositions.set(slot, SlotPositions.HIDDEN, SlotPositions.HIDDEN);
                 continue;
@@ -201,15 +201,6 @@ public final class ContainerLayout {
         }
     }
 
-    /** How far the scroll containers above {@code e} move it up. */
-    private static float scrollAbove(Element e) {
-        float dy = 0;
-        for (Element a = e.parent(); a != null; a = a.parent()) {
-            dy += a.scrollTop();
-        }
-        return dy;
-    }
-
     /**
      * Intersects the clips of the {@code overflow} ancestors into {@code clip} (x0, y0, x1, y1) and
      * decides whether the item area at {@code (x, y)} shows through it.
@@ -223,7 +214,7 @@ public final class ContainerLayout {
             if (a.computed() != null && a.computed().get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE) {
                 // Overflow clips to the padding box.
                 LayoutBox b = a.box();
-                float top = b.y() - scrollAbove(a) + b.borderTop();
+                float top = b.y() - a.scrollOffset() + b.borderTop();
                 clip[0] = Math.max(clip[0], b.x() + b.borderLeft());
                 clip[1] = Math.max(clip[1], top);
                 clip[2] = Math.min(clip[2], b.x() + b.width() - b.borderRight());

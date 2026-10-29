@@ -11,8 +11,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Supported: type, {@code *}, {@code .class}, {@code #id}, {@code :hover/:active/:focus/:disabled}, descendant
- * and child combinators, selector lists. Anything else is a dev-time error.
+ * Supported: type, {@code *}, {@code .class}, {@code #id}, {@code [attr]}, {@code [attr=value]},
+ * {@code :hover/:active/:focus/:disabled/:checked/:open}, descendant and child combinators, selector
+ * lists. Anything else is a dev-time error.
  */
 public final class SelectorParser {
     private final List<ComponentValue> in;
@@ -86,6 +87,7 @@ public final class SelectorParser {
     private Selector.Compound compound() {
         String tag = null, id = null;
         List<String> classes = new ArrayList<>();
+        List<Selector.AttributeMatch> attributes = new ArrayList<>();
         int state = 0;
         int start = i;
         if (i < in.size() && in.get(i) instanceof Token t) {
@@ -98,9 +100,17 @@ public final class SelectorParser {
         }
         while (i < in.size()) {
             ComponentValue v = in.get(i);
+            if (v instanceof ComponentValue.Block b && b.open() == Token.Kind.LBRACKET) {
+                Selector.AttributeMatch m = attribute(b);
+                if (m == null) {
+                    return null;
+                }
+                attributes.add(m);
+                i++;
+                continue;
+            }
             if (!(v instanceof Token t)) {
-                diag.error(v.pos(), v instanceof ComponentValue.Block
-                        ? "attribute selectors are not supported" : "unexpected function in selector");
+                diag.error(v.pos(), "unexpected " + (v instanceof ComponentValue.Block ? "block" : "function") + " in selector");
                 return null;
             }
             if (t.is(Token.Kind.HASH_ID)) {
@@ -138,7 +148,34 @@ public final class SelectorParser {
             diag.error(i < in.size() ? in.get(i).pos() : endPos(), "expected a selector");
             return null;
         }
-        return new Selector.Compound(tag, id, List.copyOf(classes), state);
+        return new Selector.Compound(tag, id, List.copyOf(classes), List.copyOf(attributes), state);
+    }
+
+    /** {@code [name]} or {@code [name=value]} with an identifier or string value; other operators are errors. */
+    private Selector.AttributeMatch attribute(ComponentValue.Block b) {
+        List<ComponentValue> c = new ArrayList<>();
+        for (ComponentValue v : b.contents()) {
+            if (!(v instanceof Token t && t.is(Token.Kind.WHITESPACE))) {
+                c.add(v);
+            }
+        }
+        if (c.isEmpty() || !(c.get(0) instanceof Token name && name.is(Token.Kind.IDENT))) {
+            diag.error(b.pos(), "expected an attribute name in [...]");
+            return null;
+        }
+        String attr = name.value().toLowerCase(Locale.ROOT);
+        if (c.size() == 1) {
+            return new Selector.AttributeMatch(attr, null);
+        }
+        if (!(c.get(1) instanceof Token op && op.isDelim('='))) {
+            diag.error(c.get(1).pos(), "unsupported attribute selector operator; only [name] and [name=value]");
+            return null;
+        }
+        if (c.size() != 3 || !(c.get(2) instanceof Token value && (value.is(Token.Kind.IDENT) || value.is(Token.Kind.STRING)))) {
+            diag.error(b.pos(), "expected [" + attr + "=value] with an identifier or a quoted string");
+            return null;
+        }
+        return new Selector.AttributeMatch(attr, value.value());
     }
 
     private static int stateBit(String name) {
@@ -151,6 +188,10 @@ public final class SelectorParser {
                 return Element.FOCUS;
             case "disabled":
                 return Element.DISABLED;
+            case "checked":
+                return Element.CHECKED;
+            case "open":
+                return Element.OPEN;
             default:
                 return 0;
         }

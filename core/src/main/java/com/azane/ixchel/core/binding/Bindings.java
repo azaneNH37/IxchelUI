@@ -11,8 +11,10 @@ import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.BindAttribute;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
+import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.dom.UiEvent;
 import com.azane.ixchel.core.event.Keys;
 import com.azane.ixchel.core.style.Declarations;
@@ -34,6 +36,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -57,7 +60,13 @@ import java.util.function.Function;
  * <div on:click.right="half(c)"></div>      <!-- mouse events may name the button and modifiers the same
  *                                                way; on:click.shift is a Shift+left click, and plain
  *                                                on:click any left click -->
- * <input bind:value="query"/>               <!-- two-way: typing sets the state Value<String> field -->
+ * <input bind:value="query"/>               <!-- two-way: typing sets the state Value<String> field; also on
+ *                                                number and range inputs and on <select> -->
+ * <input type="checkbox" bind:checked="on"/> <!-- two-way: a state Value<Boolean> -->
+ * <dialog bind:open="confirming">…</dialog> <!-- two-way: open while true; Escape closes it and writes false -->
+ * <input bind:value="r.text"/>              <!-- inside each: a row component of type Value<T> made with
+ *                                                state(...) is two-way too; any row component that is a
+ *                                                Value or Derived is read through and followed -->
  * <div bind:scrolltop="scroll"></div>       <!-- two-way: scrolling sets the state Value<Integer> field;
  *                                                a value past the scroll range is clamped after layout
  *                                                and the clamped offset written back -->
@@ -98,10 +107,11 @@ public final class Bindings {
      * @param model      the view model, or {@code null} for a template without bindings
      * @param textOf     converts bound values for {@code bind:text} and attribute bindings
      * @param properties the properties {@code bind:style:*} may set
+     * @param topLayer   where {@code bind:open} opens and closes dialogs
      */
     public static Bindings compile(Element root, ViewModel model, Function<Object, String> textOf,
-                                   TagRegistry tags, PropertyRegistry properties, Diagnostics diag) {
-        Compiler c = new Compiler(root, model, textOf, tags, properties, diag);
+                                   TagRegistry tags, PropertyRegistry properties, TopLayer topLayer, Diagnostics diag) {
+        Compiler c = new Compiler(root, model, textOf, tags, properties, topLayer, diag);
         Group group = new Group();
         c.collect(root, group);
         Bindings b = new Bindings(model, group);
@@ -145,8 +155,14 @@ public final class Bindings {
         }
     }
 
-    /** A resolved expression: the cell to read and its declared value type. */
-    private record Ref(Cell<?> cell, Type type) {
+    /**
+     * A resolved expression: the cell to read and its declared value type; {@code rowValue} when the
+     * cell reads through a row component of type {@code Value<T>}, which two-way bindings may write.
+     */
+    private record Ref(Cell<?> cell, Type type, boolean rowValue) {
+        Ref(Cell<?> cell, Type type) {
+            this(cell, type, false);
+        }
     }
 
     private static final class Compiler {
@@ -160,11 +176,13 @@ public final class Bindings {
         private final TagRegistry tags;
         private final PropertyRegistry properties;
         private final Diagnostics diag;
+        private final TopLayer topLayer;
         /** {@code as} names visible to the subtree being compiled. */
         private Map<String, Ref> aliases = Map.of();
 
         Compiler(Element documentRoot, ViewModel model, Function<Object, String> textOf, TagRegistry tags,
-                 PropertyRegistry properties, Diagnostics diag) {
+                 PropertyRegistry properties, TopLayer topLayer, Diagnostics diag) {
+            this.topLayer = topLayer;
             this.documentRoot = documentRoot;
             this.model = model;
             this.fields = model == null ? Map.of() : modelFields(model.getClass());
@@ -332,8 +350,16 @@ public final class Bindings {
             if (ref == null) {
                 return null;
             }
-            if (target.equals("scrolltop") || target.equals("value") && e.textField() != null) {
-                return twoWay(e, a, expr, ref, negate, target.equals("value"));
+            FormControl control = e.control();
+            boolean twoWay = switch (target) {
+                case "scrolltop" -> true;
+                case "value" -> control != null && control.kind() != FormControl.Kind.CHECKBOX;
+                case "checked" -> control != null && control.kind() == FormControl.Kind.CHECKBOX;
+                case "open" -> e.tag().equals("dialog");
+                default -> false;
+            };
+            if (twoWay) {
+                return twoWay(e, a, expr, ref, negate, target);
             }
             boolean isClass = target.startsWith("class:");
             boolean isFlag = isClass || target.equals("disabled");
@@ -371,6 +397,7 @@ public final class Bindings {
             switch (target) {
                 case "class" -> diag.error(a.namePos(), "bind:class takes a class name: bind:class:<name>");
                 case "style" -> diag.error(a.namePos(), "bind:style takes a property name: bind:style:<property>");
+                case "type" -> diag.error(a.namePos(), "an <input>'s type is fixed by the template; write type=\"…\"");
                 default -> {
                     if (target.indexOf(':') >= 0 || !tags.isAllowedAttribute(e.tag(), target)) {
                         diag.error(a.namePos(), "unknown binding target '" + a.name() + "' on <" + e.tag() + ">");
@@ -415,29 +442,55 @@ public final class Bindings {
         }
 
         /**
-         * {@code bind:value} on an {@code <input>} (a String) and {@code bind:scrolltop} (an Integer):
-         * the view follows the field and writes its own changes back to it, so the path must be a state
-         * {@link Value} field of the model itself.
+         * {@code bind:value} on a form control (a String), {@code bind:checked} on a checkbox and
+         * {@code bind:open} on a dialog (a Boolean), {@code bind:scrolltop} (an Integer): the view follows
+         * the cell and writes its own changes back to it, so the path must be a state {@link Value}
+         * field of the model itself, or a row component of type {@code Value<T>} made by
+         * {@code state(...)}.
          */
         @SuppressWarnings("unchecked")
-        private Binding twoWay(Element e, BindAttribute a, String expr, Ref ref, boolean negate, boolean text) {
-            Class<?> want = text ? String.class : Integer.class;
-            boolean state = !negate && !aliases.containsKey(expr) && fields.containsKey(expr)
+        private Binding twoWay(Element e, BindAttribute a, String expr, Ref ref, boolean negate, String target) {
+            Class<?> want = switch (target) {
+                case "value" -> String.class;
+                case "scrolltop" -> Integer.class;
+                default -> Boolean.class;
+            };
+            boolean field = !aliases.containsKey(expr) && fields.containsKey(expr)
                     && ref.cell instanceof Value<?> v && v.isState();
+            boolean state = !negate && (field || ref.rowValue);
             if (!state || box(rawClass(ref.type)) != want) {
                 diag.error(a.valuePos(), "'" + a.name() + "' writes back to the view model: it needs a state Value<"
-                        + want.getSimpleName() + "> field, but '" + a.value().trim() + "' is "
+                        + want.getSimpleName() + "> field or row component, but '" + a.value().trim() + "' is "
                         + (state ? ref.type.getTypeName() : negate ? "negated" : "not one"));
                 return null;
             }
-            if (text) {
-                Value<String> value = (Value<String>) ref.cell;
-                e.addEventListener(UiEvent.Type.INPUT, false, ev -> value.set(e.textField().value()));
-                return new ValueBinding(value, a, diag, e);
+            Consumer<Object> writeBack = field ? v -> ((Value<Object>) ref.cell).set(v) : v -> {
+                Cell<?> inner = ((Flat<?>) ref.cell).current();
+                if (inner instanceof Value<?> value && value.isState()) {
+                    ((Value<Object>) value).set(v);
+                } else {
+                    diag.error(a.valuePos(), "'" + a.value().trim() + "' is not a state Value (made by state(...)); "
+                            + "'" + a.name() + "' cannot write to it");
+                }
+            };
+            switch (target) {
+                case "value" -> {
+                    e.addEventListener(UiEvent.Type.INPUT, false, ev -> writeBack.accept(e.control().value()));
+                    return new ValueBinding(ref.cell, a, diag, e);
+                }
+                case "checked" -> {
+                    e.addEventListener(UiEvent.Type.INPUT, false, ev -> writeBack.accept(e.control().checked()));
+                    return new CheckedBinding(ref.cell, a, diag, e);
+                }
+                case "open" -> {
+                    e.addEventListener(UiEvent.Type.CLOSE, false, ev -> writeBack.accept(false));
+                    return new OpenBinding(ref.cell, a, diag, e, topLayer);
+                }
+                default -> {
+                    e.addEventListener(UiEvent.Type.SCROLL, false, ev -> writeBack.accept(Math.round(e.scrollTop())));
+                    return new ScrollBinding(ref.cell, a, diag, e);
+                }
             }
-            Value<Integer> value = (Value<Integer>) ref.cell;
-            e.addEventListener(UiEvent.Type.SCROLL, false, ev -> value.set(Math.round(e.scrollTop())));
-            return new ScrollBinding(value, a, diag, e);
         }
 
         /**
@@ -638,7 +691,14 @@ public final class Bindings {
                             throw new IllegalStateException(ex);
                         }
                     });
-                    return new Ref(cell, rc.getGenericType());
+                    Type type = rc.getGenericType();
+                    if (Cell.class.isAssignableFrom(rawClass(type))) {
+                        Type inner = typeArgument(type);
+                        @SuppressWarnings({"unchecked", "rawtypes"})
+                        Cell<?> flat = new Flat<>((Cell) cell);
+                        return new Ref(flat, inner == null ? Object.class : inner, rawClass(type) == Value.class);
+                    }
+                    return new Ref(cell, type);
                 }
             }
             diag.error(a.valuePos(), raw.getSimpleName() + " has no component '" + name + "'");
@@ -1101,7 +1161,7 @@ public final class Bindings {
         }
     }
 
-    /** {@code bind:value}: the input shows the field; typing writes it back through an input listener. */
+    /** {@code bind:value}: the control shows the cell; user edits write it back through an input listener. */
     private static final class ValueBinding extends Binding {
         private final Element element;
 
@@ -1110,10 +1170,48 @@ public final class Bindings {
             this.element = element;
         }
 
-        /** Repaint-only: the field requests its own repaint. */
+        /** Repaint-only, or a restyle of a select's options: the control marks what it needs itself. */
         @Override
         boolean write(Object value) {
-            element.textField().setValue(value == null ? "" : (String) value);
+            element.control().setValue(value == null ? "" : (String) value);
+            return false;
+        }
+    }
+
+    /** {@code bind:checked}: the checkbox follows the cell; toggles write it back through an input listener. */
+    private static final class CheckedBinding extends Binding {
+        private final Element element;
+
+        CheckedBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element) {
+            super(cell, false, a, diag);
+            this.element = element;
+        }
+
+        @Override
+        boolean write(Object value) {
+            element.control().setChecked(Boolean.TRUE.equals(value));
+            return false;
+        }
+    }
+
+    /** {@code bind:open}: the dialog is in the top layer while the cell is true; Escape writes false back. */
+    private static final class OpenBinding extends Binding {
+        private final Element element;
+        private final TopLayer topLayer;
+
+        OpenBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element, TopLayer topLayer) {
+            super(cell, false, a, diag);
+            this.element = element;
+            this.topLayer = topLayer;
+        }
+
+        @Override
+        boolean write(Object value) {
+            if (Boolean.TRUE.equals(value)) {
+                topLayer.open(element);
+            } else {
+                topLayer.close(element);
+            }
             return false;
         }
     }

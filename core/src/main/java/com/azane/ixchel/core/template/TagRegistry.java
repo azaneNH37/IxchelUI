@@ -29,15 +29,21 @@ public final class TagRegistry {
     public static final Set<String> LINK_ATTRIBUTES = Set.of("rel", "href");
 
     /**
-     * The HTML subset core understands: {@code div}, {@code span}, {@code img src}, {@code input
-     * placeholder maxlength} (single-line text; its value is {@code bind:value}), {@code style},
-     * {@code link rel href}.
+     * The HTML subset core understands: {@code div}, {@code span}, {@code img src}, {@code input type
+     * placeholder maxlength min max step} (type {@code text}, {@code number}, {@code checkbox} or
+     * {@code range}; its value is {@code bind:value}, a checkbox's state {@code bind:checked}),
+     * {@code select} of {@code option value} (its value is {@code bind:value}), {@code button},
+     * {@code dialog} (open while {@code bind:open}), {@code style}, {@code link rel href}.
      */
     public static final TagRegistry HTML = new Builder(Map.of(), Map.of())
             .tag("div")
             .tag("span")
             .tag("img", "src")
-            .tag("input", "placeholder", "maxlength")
+            .tag("input", "type", "placeholder", "maxlength", "min", "max", "step")
+            .tag("select")
+            .tag("option", "value")
+            .tag("button")
+            .tag("dialog")
             .tag("style")
             .tag("link")
             .build();

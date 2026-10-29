@@ -2,6 +2,7 @@ package com.azane.ixchel.sample.client;
 
 import com.azane.ixchel.sample.character.CharacterScreen;
 import com.azane.ixchel.sample.client.index.SampleIndex;
+import com.azane.ixchel.sample.config.ConfigScreen;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
@@ -13,6 +14,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -28,7 +30,8 @@ public final class ClientSetup {
     }
 
     /** Client only; from the mod constructor. */
-    public static void init(IEventBus modBus) {
+    public static void init(FMLJavaModLoadingContext context) {
+        IEventBus modBus = context.getModEventBus();
         modBus.addListener(KeyBindings::register);
         modBus.addListener((FMLClientSetupEvent e) -> e.enqueueWork(() -> {
             MachineScreen.registerScreen();
@@ -36,6 +39,7 @@ public final class ClientSetup {
         }));
         EnvHud.register(modBus);
         LootScreens.register(modBus);
+        ConfigScreen.registerFactory(context);
         KEYS.put(KeyBindings.INDEX, SampleIndex::open);
         KEYS.put(KeyBindings.CHARACTER, CharacterScreen::open);
         KEYS.put(KeyBindings.LOOT_LIST, LootScreens::openList);

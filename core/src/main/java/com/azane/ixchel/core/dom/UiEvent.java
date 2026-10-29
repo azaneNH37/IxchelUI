@@ -8,12 +8,15 @@ import java.util.Locale;
  */
 public final class UiEvent {
     /**
-     * {@code INPUT}: the value of an {@code <input>} changed by the user (typing, deleting, pasting),
-     * dispatched like the others. {@code SCROLL}: an element's {@link Element#scrollTop()} changed;
-     * as in the DOM it runs the target's listeners only and does not bubble.
+     * {@code INPUT}: the value of a form control changed by the user (typing, deleting, pasting, a
+     * toggle, a pick, each step of a range), dispatched like the others. {@code CHANGE}: the user
+     * committed a value: a checkbox toggled, an option picked, a range released or stepped by a key,
+     * a text field left or Enter pressed in it after its value changed. {@code CLOSE}: a
+     * {@code <dialog>} closed by Escape. {@code SCROLL}: an element's {@link Element#scrollTop()}
+     * changed; as in the DOM it runs the target's listeners only and does not bubble.
      */
     public enum Type {
-        MOUSE_DOWN, MOUSE_UP, CLICK, WHEEL, KEY_DOWN, KEY_UP, INPUT, SCROLL;
+        MOUSE_DOWN, MOUSE_UP, CLICK, WHEEL, KEY_DOWN, KEY_UP, INPUT, CHANGE, CLOSE, SCROLL;
 
         /** The name used in templates: {@code on:<name>}. */
         public String templateName() {
@@ -72,7 +75,7 @@ public final class UiEvent {
         return new UiEvent(type, target, x, y, button, 0, -1, modifiers);
     }
 
-    /** An event that carries nothing but its type and target: {@link Type#INPUT}, {@link Type#SCROLL}. */
+    /** An event that carries nothing but its type and target: {@link Type#INPUT}, {@link Type#CHANGE}, {@link Type#CLOSE}, {@link Type#SCROLL}. */
     public static UiEvent of(Type type, Element target) {
         return new UiEvent(type, target, Float.NaN, Float.NaN, -1, 0, -1, 0);
     }

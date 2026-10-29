@@ -92,7 +92,7 @@ class UiDocumentInputTest {
     void paintShowsPlaceholderSelectionAndABlinkingCaretKeptInView() {
         Search m = new Search();
         UiDocument doc = load("<input class=\"i\" bind:value=\"query\" placeholder=\"find\"/>",
-                ".i { width: 20px; height: 11px; padding: 1px 2px; color: #ff0 }", m);
+                ".i { width: 20px; height: 11px; padding: 1px 2px; color: #ff0; border-style: none; background-color: transparent }", m);
         long[] now = {0};
         doc.clock(() -> now[0]);
         assertEquals("""
@@ -128,7 +128,7 @@ class UiDocumentInputTest {
     @Test
     void aPressPlacesTheCaretAtTheNearestCharacterBoundary() {
         Search m = new Search();
-        UiDocument doc = load("<input class=\"i\" bind:value=\"query\"/>", ".i { width: 60px; height: 9px }", m);
+        UiDocument doc = load("<input class=\"i\" bind:value=\"query\"/>", ".i { width: 60px; height: 9px; padding: 0; border-style: none }", m);
         m.query.set("abcd");
         doc.frame(100, 100);
         doc.events().mousePressed(14, 4, 0, 0);
@@ -154,9 +154,8 @@ class UiDocumentInputTest {
         String msg = e.getMessage();
         assertTrue(msg.startsWith("4 errors"), msg);
         assertTrue(msg.contains("t.html:2:8:") && msg.contains("<input> must not have children"), msg);
-        assertTrue(msg.contains("t.html:3:") && msg.contains("needs a state Value<String> field, but 'frozen' is not one"), msg);
+        assertTrue(msg.contains("t.html:3:") && msg.contains("but 'frozen' is not one"), msg);
         assertTrue(msg.contains("t.html:4:") && msg.contains("but 'count' is java.lang.Integer"), msg);
-        assertTrue(msg.contains("t.html:5:") && msg.contains("'bind:scrolltop' writes back to the view model: it needs a "
-                + "state Value<Integer> field, but 'query' is java.lang.String"), msg);
+        assertTrue(msg.contains("t.html:5:") && msg.contains("'bind:scrolltop'") && msg.contains("but 'query' is java.lang.String"), msg);
     }
 }

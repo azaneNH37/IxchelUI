@@ -146,8 +146,15 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 发现并修复：原先每次原生绘制后其后命令整体抬高 160，"物品 → 数量文字"交替时每格抬一次，约 70 格越过 Forge 1.20.1 GUI 远平面（z 10000），网格之后的背包区域整片不显示。`McPainter` 改为按重叠分层（`paint/Layers`，见模块拆解 §4）。未采用：压缩物品深度（仍线性增长）；每次原生绘制后清深度缓冲（打乱 ImmediatelyFast 等延迟批处理的顺序）；`<item>` 自画数量文字（只解决数量一种覆盖，可作为 `<item>` 功能另加）。
 - 帧耗时：S3 每 tick 滚动一行，中位数 / p95 约 1.6–2.8 / 2.7–8.4 ms，预算 14 ms。该预算按单台开发机测得：2026-10-29 在另一次运行中（同为 AMD 核显，并行负载未控制）master 本身即为 13.6 / 28.4 ms，复制层改版后两次为 8.1 / 16.8 与 19.2 / 27.7 ms，均超预算，波动来自机器与负载而非改动。新检出的工作区没有 `run/options.txt` 时会停在首次启动的讲述人引导页，`BenchWorld` 不处理它，须先拷入该文件。
 
-阶段 C–E 待做（按 §3 顺序）：
-- C2（S6 配置面板）：表单控件与 `:checked`（标准写法还是自定义元素，按 #003 定）；弹出层 / z-index；Tab 焦点顺序；无世界上下文的 `UiScreen`（从 mod 列表打开，`player == null`）；S6 界面与检查。
+阶段 C2 结果（2026-10-29）：
+- 控件用标准写法（#003、#014）：`<input type="text|number|checkbox|range">`、`<select>`/`<option>`、`<button>`、`<dialog>`；`bind:checked`、`bind:open`，`change` 在用户提交一次修改时触发（勾选、选中选项、滑条拖动在松开时只发一次），`close` 在 Escape 关闭对话框时触发；`:checked`、`:open`、`:disabled`、属性选择器、`accent-color`。默认外观在 core 的 `runtime/user-agent.css`，作者样式总能覆盖。
+- 弹出层：展开的 `<select>` 列表与打开的 `<dialog>` 进入文档顶层 `TopLayer`，按打开顺序画在整棵树之上、不受祖先 `overflow` 裁剪，命中测试按同一顺序；模态对话框下方 inert（点击被吞、Tab 留在对话框内），对话框里的下拉叠在对话框之上。检查拿顶层内容的绘制位置时不减祖先滚动（`Element.scrollOffset()`，`Script` 与 `ContainerLayout` 共用）。
+- `each` 行内的 `Value` 字段可双向绑定（`binding.Flat` 跟随外层 cell 换行），S6 每个配置项的草稿就是行里的 `Value`。
+- mc：`UiScreen` 可带父界面，关闭时回到父界面；S6 经 `ConfigScreenHandler.ConfigScreenFactory` 从 mod 列表打开。
+- S6 为 `config`：编辑 `ixchelsample-client.toml` 的真实规格（`SampleConfig`，4 个分类），分类、搜索、开关、滑条 + 数字框、枚举下拉、颜色、列表对话框（预设下拉）、恢复默认、已修改 / 越界标记、需重启提示、撤销、保存、有未保存修改时 Escape 先确认。检查 `config` 28 项，前后都把配置复位为默认值。
+- 未验证：检查在已进入世界时经 mod 列表工厂以标题界面为父打开，真正无世界（`player == null`）的路径没有退出世界实测。
+
+阶段 D–E 待做（按 §3 顺序）：
 - D（S7 任务树、S4 箭头）：transform（translate/scale/rotate）与逆变换命中测试；画线命令（`DrawCommand` 加类型，visitor 同步）；`mouseDragged` 转发与检查驱动 `drag(sel, dx, dy)`；S7 界面与检查（约 100 节点）；S4 方向箭头改用 rotate，去掉 8 方向字形。
 - E（S8 指南书、S9 增强 tooltip）：跨 `span` 的行内流式排版与行内链接命中；S8 界面与检查；tooltip 宿主（`RenderTooltipEvent.Pre`，接管原版须由宿主 API 开关开启，#009）；S9 界面与检查。
 - 每阶段末：meta 更新、开 PR、合入。
@@ -177,6 +184,6 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 世界空间 UI（Neat、ToroHealth 一类的头顶血条、伤害数字）：新宿主类型，要把文档渲染到世界空间的公告板上，并处理深度与光影兼容。
 - 小地图 / 全屏地图（Xaero、JourneyMap）：需要动态纹理元素（每帧或按区块更新的 `NativeImage`）。
 - 径向轮盘（Iron's Spells、Create 工具箱）：按角度命中，按住键时能否不阻塞移动受 #002 限制。
-- 主菜单替换（FancyMenu 类整合包）：无世界上下文，S6 会先验证。
+- 主菜单替换（FancyMenu 类整合包）：无世界上下文，S6 已验证父界面与 mod 列表入口，未在无世界时实测。
 - NPC 对话 / 交易（Easy NPC、MCA）：打字机文本、服务端状态机。
 - 图表（Mekanism 能量曲线一类）：需要折线或面积绘制命令。

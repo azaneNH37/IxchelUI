@@ -7,6 +7,7 @@ import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
+import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.style.StyleEngine;
 import com.azane.ixchel.core.style.StyleSheet;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -44,18 +45,18 @@ class LayoutEngineTest {
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
         LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY);
         style.restyle(root);
-        layout.layout(root, 100, 100);
+        layout.layout(root, 100, 100, new TopLayer());
         assertEquals(1, layout.computeCount);
 
         Element a = (Element) root.children().get(0);
         a.addClass("hot");
         style.restyle(root);
-        layout.layout(root, 100, 100);
+        layout.layout(root, 100, 100, new TopLayer());
         assertEquals(1, layout.computeCount);
 
         a.addClass("wide");
         style.restyle(root);
-        layout.layout(root, 100, 100);
+        layout.layout(root, 100, 100, new TopLayer());
         assertEquals(2, layout.computeCount);
         assertEquals(20, a.box().width());
     }
@@ -74,7 +75,7 @@ class LayoutEngineTest {
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
         LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY);
         style.restyle(root);
-        layout.layout(root, 100, 100);
+        layout.layout(root, 100, 100, new TopLayer());
         Element row = (Element) root.children().get(0);
         TextNode text = (TextNode) ((Element) row.children().get(0)).children().get(0);
         Element mark = (Element) row.children().get(1);
@@ -83,13 +84,13 @@ class LayoutEngineTest {
 
         text.setText("x6");
         style.restyle(root);
-        layout.layout(root, 100, 100);
+        layout.layout(root, 100, 100, new TopLayer());
         assertEquals(1, layout.computeCount);
         assertEquals("x6", layout.lines(text).get(0).text());
 
         text.setText("x10");
         style.restyle(root);
-        layout.layout(root, 100, 100);
+        layout.layout(root, 100, 100, new TopLayer());
         assertEquals(2, layout.computeCount);
         assertEquals(18, mark.box().x());
         assertEquals("x10", layout.lines(text).get(0).text());

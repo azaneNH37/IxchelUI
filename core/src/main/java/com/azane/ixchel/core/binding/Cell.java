@@ -4,7 +4,7 @@ package com.azane.ixchel.core.binding;
  * A readable node of a view model's data graph. {@link #version()} grows only when the value really
  * changed, so a consumer that remembers the version it last read can skip unchanged inputs.
  */
-public abstract sealed class Cell<T> permits Value, Derived {
+public abstract sealed class Cell<T> permits Value, Derived, Flat {
     Cell() {
     }
 

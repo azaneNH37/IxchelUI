@@ -20,11 +20,11 @@ import java.util.Set;
  * from the template, bindings and events; {@link #computed()} and {@link #box()} are written by the
  * style and layout passes.
  *
- * <p>Style invalidation: a class, state, {@code id}, inline style or bound style change marks the
- * element style-dirty, which means the element and its whole subtree are restyled; its ancestors get
- * a descendant-dirty mark so the style pass can skip clean subtrees. An already styled element
- * appended under a parent is marked style-dirty too, since inherited values and combinator matches
- * depend on its ancestors.
+ * <p>Style invalidation: a class, state, attribute (attributes take part in {@code [attr]}
+ * selectors), inline style or bound style change marks the element style-dirty, which means the
+ * element and its whole subtree are restyled; its ancestors get a descendant-dirty mark so the style
+ * pass can skip clean subtrees. An already styled element appended under a parent is marked
+ * style-dirty too, since inherited values and combinator matches depend on its ancestors.
  *
  * <p>Tree changes (child-list changes here or text changes in a child) mark the element and its
  * ancestors as {@linkplain #hasTreeChange() changed} until the layout pass clears them.
@@ -40,6 +40,13 @@ public final class Element extends Node {
     public static final int FOCUS = 1 << 2;
     /** Set while the element has a {@code disabled} attribute; {@code :disabled}. */
     public static final int DISABLED = 1 << 3;
+    /**
+     * A checked checkbox ({@link FormControl#setChecked}); {@code :checked}. An {@code <option>}
+     * matches it while it is its select's {@linkplain FormControl#selectedOption() selected option}.
+     */
+    public static final int CHECKED = 1 << 4;
+    /** A {@code <select>} or {@code <dialog>} in the {@link TopLayer}; {@code :open}. */
+    public static final int OPEN = 1 << 5;
 
     private static final int STYLE_DIRTY = 1;
     private static final int DESCENDANT_STYLE_DIRTY = 1 << 1;
@@ -68,7 +75,9 @@ public final class Element extends Node {
     private Map<PropertyDef<?>, Object> boundStyle;
     private Map<PropertyDef<?>, Object> boundStyleView = Map.of();
     private List<Registration> listeners;
-    private final TextField textField;
+    /** Created on first use, once the template has set {@code type}. */
+    private FormControl control;
+    private boolean controlResolved;
 
     private record Registration(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
     }
@@ -76,16 +85,49 @@ public final class Element extends Node {
     public Element(String tag, SourcePos pos) {
         super(pos);
         this.tag = tag;
-        this.textField = tag.equals("input") ? new TextField(this) : null;
     }
 
     public String tag() {
         return tag;
     }
 
-    /** The editing state of an {@code <input>}; {@code null} for every other tag. */
+    /**
+     * The form state of an {@code <input>} of a supported type or a {@code <select>}; {@code null} for
+     * every other element. The kind follows the {@code type} attribute when first asked.
+     */
+    public FormControl control() {
+        if (!controlResolved) {
+            controlResolved = true;
+            FormControl.Kind kind = tag.equals("select") ? FormControl.Kind.SELECT
+                    : tag.equals("input") ? FormControl.Kind.ofInputType(attributes.get("type")) : null;
+            control = kind == null ? null : new FormControl(this, kind);
+        }
+        return control;
+    }
+
+    /** The editing state of a text or number {@code <input>}; {@code null} for every other element. */
     public TextField textField() {
-        return textField;
+        FormControl c = control();
+        return c == null ? null : c.text();
+    }
+
+    /**
+     * How far the scroll containers above this element move it up where it is painted and hit: the
+     * sum of their {@link #scrollTop()}s, up to a {@link TopLayer} entry's placed content (an open
+     * dialog, the options of an open select), whose boxes layout already wrote where they show.
+     */
+    public float scrollOffset() {
+        float sum = 0;
+        for (Element a = this; a.parent != null && !a.isPlaced(); a = a.parent) {
+            sum += a.parent.scrollTop;
+        }
+        return sum;
+    }
+
+    /** An open dialog or an option of an open select: laid out against the viewport. */
+    public boolean isPlaced() {
+        return tag.equals("dialog") ? hasState(OPEN)
+                : tag.equals("option") && parent != null && parent.tag.equals("select") && parent.hasState(OPEN);
     }
 
     /** Unmodifiable live view. */
@@ -182,8 +224,8 @@ public final class Element extends Node {
     }
 
     /**
-     * Sets a plain attribute; changing {@code id} marks the element style-dirty. {@code disabled} is a
-     * boolean attribute: present (any value) sets {@link #DISABLED}.
+     * Sets a plain attribute; a change marks the element style-dirty. {@code disabled} is a boolean
+     * attribute: present (any value) sets {@link #DISABLED}.
      *
      * @throws IllegalArgumentException for {@code class} (use {@link #addClass}/{@link #removeClass})
      *         and {@code style} (use {@link #setInlineStyle})
@@ -196,9 +238,10 @@ public final class Element extends Node {
             }
         }
         String old = attributes.put(name, value);
-        if (name.equals("id") && !value.equals(old)) {
+        if (!value.equals(old)) {
             markStyleDirty();
-        } else if (name.equals("disabled")) {
+        }
+        if (name.equals("disabled")) {
             setState(DISABLED, true);
         }
     }
@@ -207,9 +250,8 @@ public final class Element extends Node {
         if (attributes.remove(name) == null) {
             return;
         }
-        if (name.equals("id")) {
-            markStyleDirty();
-        } else if (name.equals("disabled")) {
+        markStyleDirty();
+        if (name.equals("disabled")) {
             setState(DISABLED, false);
         }
     }
@@ -259,7 +301,14 @@ public final class Element extends Node {
     }
 
     public boolean hasState(int bit) {
-        return (stateBits & bit) != 0;
+        if ((stateBits & bit) != 0) {
+            return true;
+        }
+        if (bit == CHECKED && tag.equals("option") && parent != null) {
+            FormControl c = parent.control();
+            return c != null && c.kind() == FormControl.Kind.SELECT && c.selectedOption() == this;
+        }
+        return false;
     }
 
     public void setState(int bit, boolean on) {

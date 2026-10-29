@@ -21,21 +21,49 @@ import net.minecraft.util.StringUtil;
  * mc.setScreen(new UiScreen(ResourceLocation.fromNamespaceAndPath(MODID, "ui/refit.html"), new RefitView(slot)));
  * }</pre>
  *
+ * <p>It needs no world: opened from the title screen or the mod list ({@code Minecraft.level} and
+ * {@code player} are {@code null}) it draws vanilla's menu background (panorama and blur) instead of
+ * the in-game one, and item tooltips are those without a player. Given a parent screen, closing
+ * returns to it, as a config screen factory's screen must:
+ *
+ * <pre>{@code
+ * container.registerExtensionPoint(IConfigScreenFactory.class,
+ *         (mod, modList) -> new UiScreen(template, new ConfigView(), modList));
+ * }</pre>
+ *
  * <p>In a development run the files are read from the source tree and reloaded on save, keeping the
  * view model and its state (see {@link HostedDocument}).
  */
 public class UiScreen extends Screen {
     private final HostedDocument doc;
+    private final Screen parent;
 
     /**
+     * A screen that closes to the game (or to the title screen without a world).
+     *
      * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements
      * @param model    the view model the template binds to, or {@code null}; closed with the screen
      * @throws UiLoadException outside development when the document has errors
      */
     public UiScreen(ResourceLocation template, ViewModel model) {
+        this(template, model, null);
+    }
+
+    /**
+     * A screen that closes to {@code parent}.
+     *
+     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     *                 id, stylesheets come from its {@code <link>} elements
+     * @param model    the view model the template binds to, or {@code null}; closed with the screen
+     * @param parent   the screen {@link #onClose} returns to, such as the mod list; {@code null} closes
+     *                 as the two-argument constructor does
+     * @throws UiLoadException outside development when the document has errors
+     */
+    public UiScreen(ResourceLocation template, ViewModel model, Screen parent) {
         super(Component.empty());
         this.doc = new HostedDocument(template, McElements.TAGS, model, () -> { });
+        this.parent = parent;
     }
 
     /** The current document, for querying or driving it; {@code null} only when the first development load failed. */
@@ -110,6 +138,16 @@ public class UiScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    /** Returns to the parent screen when there is one; otherwise closes as any screen does. */
+    @Override
+    public void onClose() {
+        if (parent != null) {
+            minecraft.setScreen(parent);
+        } else {
+            super.onClose();
+        }
     }
 
     @Override

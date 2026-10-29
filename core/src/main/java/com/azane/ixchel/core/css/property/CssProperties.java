@@ -117,6 +117,8 @@ public final class CssProperties {
     public static final PropertyDef<BackgroundBlendMode> BACKGROUND_BLEND_MODE =
             R.register("background-blend-mode", keyword(BackgroundBlendMode.class), BackgroundBlendMode.NORMAL, false, false, false);
     public static final PropertyDef<Integer> COLOR = R.register("color", color(), 0xFFFFFFFF, true, false, true);
+    /** The check mark of a checked checkbox and the filled track and thumb of a range input; no {@code auto}. */
+    public static final PropertyDef<Integer> ACCENT_COLOR = R.register("accent-color", color(), 0xFF3C78D8, true, false, true);
     /** Aligns each line of a text node inside the text's box, which spans its container's width unless the flex layout shrinks it. */
     public static final PropertyDef<TextAlign> TEXT_ALIGN = R.register("text-align", keyword(TextAlign.class), TextAlign.START, true, false, false);
     public static final PropertyDef<WhiteSpace> WHITE_SPACE = R.register("white-space", keyword(WhiteSpace.class), WhiteSpace.NORMAL, true, true, false);

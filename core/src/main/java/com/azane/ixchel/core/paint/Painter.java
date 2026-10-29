@@ -7,10 +7,12 @@ import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Length;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextField;
 import com.azane.ixchel.core.dom.TextNode;
+import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.text.TextShaper;
@@ -42,6 +44,15 @@ import java.util.Set;
  * vertically, scrolled sideways so the caret stays in view; empty, its {@code placeholder} at half
  * the alpha of {@code color}. Focused, the selection is a fixed translucent blue under the text and
  * the caret a 1px line of {@code color}, drawn while {@linkplain #setCaretVisible the blink} shows it.
+ * A checked checkbox fills its content box with {@code accent-color}. A range draws a 2px track
+ * across its content box, filled with {@code accent-color} up to the value, and a
+ * {@value FormControl#THUMB_WIDTH}px thumb of the content box's height in {@code accent-color}. A
+ * {@code <select>} draws its selected option's label like an input's value and a small down arrow of
+ * {@code color} at the right of its content box; its options are not painted in place.
+ *
+ * <p>After the tree, each {@link TopLayer} entry in order, with no clip and full opacity: an open
+ * dialog over a translucent black backdrop covering the viewport, the options of an open select.
+ * Neither is painted where it sits in the tree.
  */
 public final class Painter {
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
@@ -52,6 +63,8 @@ public final class Painter {
     private static final int TRACK_COLOR = 0x80000000;
     private static final int THUMB_COLOR = 0xFFA0A0A0;
     private static final int SELECTION_COLOR = 0x803399FF;
+    private static final int TRACK_COLOR_RANGE = 0xFF505050;
+    private static final int BACKDROP_COLOR = 0x80000000;
 
     private final LayoutEngine layout;
     private final TagRegistry tags;
@@ -79,10 +92,26 @@ public final class Painter {
         caretVisible = visible;
     }
 
-    /** Clears {@code out} and paints the children of the implicit root into it. */
-    public void paint(Element root, DisplayList out) {
+    /** Clears {@code out} and paints the children of the implicit root into it, then the top layer. */
+    public void paint(Element root, TopLayer top, DisplayList out) {
         out.clear();
         paintChildren(root, 0, out);
+        List<Element> entries = top.entries();
+        for (int i = 0; i < entries.size(); i++) {
+            Element entry = entries.get(i);
+            alpha = 1;
+            if (entry.tag().equals("dialog")) {
+                rect(out, 0, 0, root.box().width(), root.box().height(), BACKDROP_COLOR);
+                paintElement(entry, 0, out);
+            } else {
+                List<Node> options = entry.children();
+                for (int j = 0; j < options.size(); j++) {
+                    if (options.get(j) instanceof Element o) {
+                        paintElement(o, 0, out);
+                    }
+                }
+            }
+        }
         root.clearRepaint();
     }
 
@@ -93,7 +122,9 @@ public final class Painter {
         for (int i = 0; i < children.size(); i++) {
             Node c = children.get(i);
             if (c instanceof Element child) {
-                paintElement(child, dy, out);
+                if (!child.tag().equals("dialog")) {
+                    paintElement(child, dy, out);
+                }
             } else {
                 paintText((TextNode) c, e.computed(), dy, out);
             }
@@ -125,8 +156,17 @@ public final class Painter {
             paintBackgroundImage(e, cs, b, y, OPAQUE_WHITE, out);
         }
         paintBorder(cs, b, y, out);
-        if (e.textField() != null) {
-            paintInput(e, cs, b, y, out);
+        FormControl control = e.control();
+        if (control != null) {
+            switch (control.kind()) {
+                case TEXT, NUMBER -> paintInput(e, cs, b, y, out);
+                case CHECKBOX -> paintCheckbox(e, cs, b, y, out);
+                case RANGE -> paintRange(control, cs, b, y, out);
+                case SELECT -> {
+                    paintSelect(control, cs, b, y, out);
+                    return;
+                }
+            }
         }
         if (e.tag().equals("img")) {
             out.add(new DrawCommand.Image(b.x(), y, b.width(), b.height(), e.attribute("src"), 0, 0, 1, 1, fade(OPAQUE_WHITE)));
@@ -188,6 +228,61 @@ public final class Painter {
             rect(out, Math.round(tx + caretX), ty, 1, lh, color);
         }
         out.add(DrawCommand.PopClip.INSTANCE);
+    }
+
+    private void paintCheckbox(Element e, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
+        if (e.control().checked()) {
+            rect(out, b.x() + b.borderLeft() + b.paddingLeft(), y + b.borderTop() + b.paddingTop(),
+                    contentWidth(b), contentHeight(b), cs.get(CssProperties.ACCENT_COLOR));
+        }
+    }
+
+    private void paintRange(FormControl c, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
+        float cx = b.x() + b.borderLeft() + b.paddingLeft();
+        float cy = y + b.borderTop() + b.paddingTop();
+        float cw = contentWidth(b);
+        float ch = contentHeight(b);
+        if (cw <= FormControl.THUMB_WIDTH || ch <= 0) {
+            return;
+        }
+        int accent = cs.get(CssProperties.ACCENT_COLOR);
+        float trackY = cy + Math.round((ch - 2) / 2);
+        float thumbX = cx + Math.round(c.fraction() * (cw - FormControl.THUMB_WIDTH));
+        rect(out, cx, trackY, cw, 2, TRACK_COLOR_RANGE);
+        rect(out, cx, trackY, thumbX - cx, 2, accent);
+        rect(out, thumbX, cy, FormControl.THUMB_WIDTH, ch, accent);
+    }
+
+    private void paintSelect(FormControl c, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
+        float cx = b.x() + b.borderLeft() + b.paddingLeft();
+        float cy = y + b.borderTop() + b.paddingTop();
+        float cw = contentWidth(b);
+        float ch = contentHeight(b);
+        if (cw <= 0 || ch <= 0) {
+            return;
+        }
+        float size = cs.get(CssProperties.FONT_SIZE).value();
+        float lh = layout.lineHeight(size);
+        int color = cs.get(CssProperties.COLOR);
+        float ty = cy + Math.round((ch - lh) / 2);
+        float labelWidth = Math.max(0, cw - LayoutEngine.SELECT_ARROW_SPACE);
+        out.add(new DrawCommand.PushClip(cx, cy, labelWidth, ch));
+        text(out, cx, ty, size, color, c.label());
+        out.add(DrawCommand.PopClip.INSTANCE);
+        // A 5px-wide down arrow: rows 5, 3, 1 wide, centered in the reserved space.
+        float ax = cx + cw - LayoutEngine.SELECT_ARROW_SPACE + 3;
+        float ay = cy + Math.round((ch - 3) / 2);
+        for (int row = 0; row < 3; row++) {
+            rect(out, ax + row, ay + row, 5 - 2 * row, 1, color);
+        }
+    }
+
+    private static float contentWidth(LayoutBox b) {
+        return b.width() - b.borderLeft() - b.paddingLeft() - b.paddingRight() - b.borderRight();
+    }
+
+    private static float contentHeight(LayoutBox b) {
+        return b.height() - b.borderTop() - b.paddingTop() - b.paddingBottom() - b.borderBottom();
     }
 
     private void text(DisplayList out, float x, float y, float size, int color, String text) {

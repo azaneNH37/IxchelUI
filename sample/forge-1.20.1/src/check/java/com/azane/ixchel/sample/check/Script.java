@@ -221,7 +221,7 @@ public final class Script {
         return run(() -> {
             Element e = query(selector).stream().filter(x -> x.textContent().equals(text)).findFirst()
                     .orElseThrow(() -> new IllegalStateException("no " + selector + " reads " + text));
-            clickAt(e.box().x() + e.box().width() / 2, e.box().y() + e.box().height() / 2, 0);
+            clickAt(e.box().x() + e.box().width() / 2, e.box().y() + e.box().height() / 2 - e.scrollOffset(), 0);
         });
     }
 
@@ -388,18 +388,17 @@ public final class Script {
         hoverAt(containerScreen().getGuiLeft() + slot.x + 8, containerScreen().getGuiTop() + slot.y + 8);
     }
 
-    /** Where {@code selector}'s first match is drawn: the center of its box, moved by the scroll offsets above it. */
+    /**
+     * Where {@code selector}'s first match is drawn: the center of its box, moved by the scroll offsets
+     * above it ({@link Element#scrollOffset()}; none for top-layer content).
+     */
     private static float[] center(String selector) {
         List<Element> found = query(selector);
         if (found.isEmpty()) {
             throw new IllegalStateException("no element matches " + selector);
         }
         Element e = found.get(0);
-        float y = e.box().y() + e.box().height() / 2;
-        for (Element a = e.parent(); a != null; a = a.parent()) {
-            y -= a.scrollTop();
-        }
-        return new float[]{e.box().x() + e.box().width() / 2, y};
+        return new float[]{e.box().x() + e.box().width() / 2, e.box().y() + e.box().height() / 2 - e.scrollOffset()};
     }
 
     private static Screen screen() {
