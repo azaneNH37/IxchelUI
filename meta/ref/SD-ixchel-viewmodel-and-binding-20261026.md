@@ -2,7 +2,7 @@
 tags: [survey, design]
 date: 2026-10-26
 origin: 讨论 ViewModel 原语如何与 UI 交互、如何实现、性能是否可接受，并把 Kumiko 调研中与数据层相关的结论（TACZ 场景、原语保证、必须保留的差异、验证矩阵）迁入本仓库，使数据层设计不再需要查阅 Kumiko。
-related: [DECISIONS.md#003, DECISIONS.md#004, ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md, ref/D-ixchel-module-breakdown-20261026.md, ref/SDG-ixchel-container-slot-integration-20261026.md]
+related: [DECISIONS.md#003, DECISIONS.md#004, ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md, ref/D-ixchel-module-breakdown-20261026.md, ref/SDG-ixchel-container-slot-integration-20261026.md, ref/SD-ixchel-context-model-and-components-20261030.md]
 ---
 
 # Ixchel UI: ViewModel and Data Binding
@@ -99,7 +99,7 @@ final class GunModView extends ViewModel {
 | 项 | 规则 | 状态 |
 |---|---|---|
 | 表达式 | L1 起为语言文档 §3.6 的表达式（字面量、路径、`List.size`、算术、比较、`&& \|\|`、`?:`），整条编译为一个 `Derived`；需要函数或 Java 常量的逻辑仍写 `Derived` | ✅ |
-| 绑定目标 | `text`、任意属性、`class:<名字>`（M2）；`if`、`each`（M3，`each` 必须带 `as` 与 `key`，`key` 是从行名出发的路径；`each` 与 `if` 不能在同一元素上）；`style:<属性>` 接受 CSS 语法的 String，长度类属性也接受数值（按 `px`）；双向：`value`（输入框、`<select>`）、`checked`、`open`（`<dialog>`）、`scrolltop`，目标须是 state `Value` 字段或 `each` 行里类型为 `Value<T>` 的组件 | ✅ |
+| 绑定目标 | `text`、任意属性、`class:<名字>`（M2）；`if`、`each`（M3，`each` 必须带 `as` 与 `key`，`key` 是从行名出发的路径；`each` 与 `if` 不能在同一元素上；L2 改为 `<for>`/`<if>` 控制块，见语言文档 §3.5）；`style:<属性>` 接受 CSS 语法的 String，长度类属性也接受数值（按 `px`）；双向：`value`（输入框、`<select>`）、`checked`、`open`（`<dialog>`）、`scrolltop`，目标须是 state `Value` 字段或 `each` 行里类型为 `Value<T>` 的组件 | ✅ |
 | 动作与语句 | `on:x` 的值是语句：`act`、`act(表达式)`、赋值 `目标 = 表达式`，以 `;` 分隔，从左到右执行；加载期按 `Action<A>` 的 `A` 与赋值目标类型检查。事件名为 `click`、`mousedown`、`mouseup`、`mousemove`、`wheel`、`keydown`、`keyup`；语句可读 `event.x`/`y`/`movementX`/`movementY`/`delta`。键事件可过滤：`on:keydown.<键名>[.shift\|.ctrl\|.alt]`（键名见 `event.Keys`），只在匹配时运行并消费；顶层元素上的键处理器注册到文档根，不需焦点即触发（`each`/`if` 块内的顶层元素除外）。局部状态 `state:名="初值"` 见语言文档 §3.6 | ✅ |
 | i18n | `t="语言键"`；字面文本开发期警告 | 🟡 |
 | 值转文本 | `String.valueOf`；格式化（如补零）写进 `Derived`。`Component` 在 mc 层以 `getString()` 拍平为纯文本，颜色、字重只由 CSS 给出；富文本（保留 Component 内联样式）以后作为不透明宿主文本对象加入，测量与换行交给 mc 层的 vanilla `StringSplitter`，core 不建模样式 | ✅ |
@@ -110,7 +110,7 @@ final class GunModView extends ViewModel {
 
 | 环节 | 规则 | 原因 |
 |---|---|---|
-| 名字解析 | 加载期反射读取 `Value` / `Derived` / `Action` 字段，字段名即绑定名；路径按字段泛型解析到 record 组件并缓存为 `MethodHandle` | 开发期报错；宿主代码不经 MC reobf，名字稳定；同一信息导出为编辑器用的 ViewModel 结构描述 |
+| 名字解析 | 加载期反射读取 `Value` / `Derived` / `Action` 字段，字段名即绑定名；路径按字段泛型解析到 record 组件并缓存为 `MethodHandle`。模板可见哪些名字、哪些可写，见 `ref/SD-ixchel-context-model-and-components-20261030.md` §1 | 开发期报错；宿主代码不经 MC reobf，名字稳定；同一信息导出为编辑器用的 ViewModel 结构描述 |
 | 失效与取值 | 变化只向下游传"可能脏"，帧开始时对脏绑定取值 | 一帧多次变化只算一次；`if` 隐藏的子树不取值 |
 | 写 DOM | 与上次值相同则跳过 | 避免无效的样式/布局失效 |
 | `each` | 按 `key` 比对：新增挂载、删除卸载、保留者复用节点并只更新行值 | hover、焦点、过渡状态不丢 |

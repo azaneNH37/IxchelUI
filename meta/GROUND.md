@@ -37,7 +37,7 @@ testmod-neoforge-1.21.1 → ixchel-neoforge-1.21.1 → ixchel-mc-1.21.1 ↗
 - 生产环境实例（portablemc，Forge 1.20.1-47.3.19）已验证两件事：两个不同版本的 shade 副本共存；与 ImmediatelyFast 1.5.5 共存。方法见模块拆解 §9 "M4 shade"。
 - 2026-10-28 宿主 API 重做（单路径模板引用、`<link>`、键过滤、`registerHud` 收口、ItemStack 等值）与 sample 普通 mod 布局重构已合入（#47）。refit/手写原版对照基准已删除，性能基线由 S4/S5 检查的 `FrameTimer` 预算承担。
 - 样例场景阶段 0、A、B、C 完成（C1：S3 存储终端、文本输入、虚拟网格、按重叠分层；C2：S6 配置面板、表单控件、顶层与对话框、Tab 焦点），结果见 `ref/SD-ixchel-sample-scenarios-20261028.md` §3。
-- 后续顺序与状态只在 `ref/D-ixchel-roadmap-20261029.md`：D0、L1、D 完成 → L2 组件 → L3 主题 / E（S8、S9）。模板与样式语言的目标形态见 `ref/SD-ixchel-template-and-style-language-20261029.md`；表达式、`on:` 语句与 `state:` 已实现（§3.6），组件、样式分层与主题未实现。
+- 后续顺序与状态只在 `ref/D-ixchel-roadmap-20261029.md`：D0、L1、D 完成 → L2 组件 → L3 主题 / E（S8、S9）/ I（i18n）/ Doc（用户文档）。模板与样式语言的目标形态见 `ref/SD-ixchel-template-and-style-language-20261029.md`，上下文模型与组件设计见 `ref/SD-ixchel-context-model-and-components-20261030.md`（#016）；表达式、`on:` 语句与 `state:` 已实现（§3.6），组件、控制块、样式分层与主题未实现。
 - sample 调试参数：`-Pslotcompat=jei|emi` 加载 JEI 或 EMI 加 Mouse Tweaks（槽位 L2，配合 `-Pcheck=machine`）。`-Pcheck=<名>[,…]|all`（无值即 `all`）加载 `ixchelsamplecheck` 并一次启动按顺序跑功能检查（`Checks` 注册，`Script` 按选择器驱动，两步之间必先画一帧；每项检查前统一重置玩家状态），日志输出 `[ixchel-bench] <名> check <项>: PASS|FAIL`，汇总写 `run/checks/report.txt`，截图到 `run/screenshots/`，结束后退出。由 `BenchWorld` 进入 `New World`（不存在则新建创造超平坦）。`--quickPlaySingleplayer` 在存档目录为空时直接失败，不用它。
 - CI：`check`（`.github/workflows/check.yml`，PR 与 `master` 上全量 `./gradlew build`）已上线，`master` ruleset 要求它通过，admin 可在 PR 上用 `--admin` 越过；`release` 与 `docs` 流程未实现。见 #010 与 `ref/D-ixchel-ci-workflows-20261026.md`。
 - 1.20.1 库模块发布 SRG 产物（#011），消费方配方见 `testmod/shade-b-forge-1.20.1/build.gradle.kts`。

@@ -2,14 +2,14 @@
 tags: [design]
 date: 2026-10-29
 origin: 模板与样式语言定出目标形态后，需要把它与剩余 sample 场景排成一条顺序；原先顺序分散在场景文档 §3 与语言文档 §7
-related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and-style-language-20261029.md, DECISIONS.md#015]
+related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and-style-language-20261029.md, ref/SD-ixchel-context-model-and-components-20261030.md, DECISIONS.md#015]
 ---
 
 # Ixchel UI: Roadmap
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D；接下来依次是 L2（组件）、L3（主题），E（S8、S9）在 L2 之后。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D；接下来是 L2（组件），之后 L3（主题）、E（S8、S9）、I（i18n）、Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
 
 ## Detail
 
@@ -33,10 +33,12 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | L1 | 完成 | — | 表达式、`on:` 语句、`state:` |
 | D | 完成 | S7、S4 箭头 | transform、拖拽 |
 | L2 | 待做 | — | 组件、组件层、CSS 嵌套 |
-| L3 | 待做 | — | 主题层与主题 |
+| L3 | 待做 | — | 主题层与主题、`var()` |
 | E | 待做 | S8、S9 | 行内流式排版、tooltip 宿主、`Component` 富文本 |
+| I | 待做 | — | i18n：`t` 语言键与参数 |
+| Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
 
-依赖：D0 → L1 → D → L2 → E；L3 依赖 L2，与 E 互不依赖，可并行或互换。0–C 的结果见场景文档 §3。
+依赖：D0 → L1 → D → L2 → E；L3、I、Doc 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐。0–C 的结果见场景文档 §3。
 
 #### D0 改名与清理
 
@@ -63,15 +65,15 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 #### L2 组件
 
-- 先定：语言文档 §6-3 插槽后备内容；§6-5 子 Scope——`each`、`if`、`binding.Flat` 与组件实例的 Scope 关系，在语言文档中单独写一节后再动手（本阶段风险最大）。
-- 引擎：`<link rel="component">`、`<template name params events>`、外壳元素、参数（含双向）、事件、具名插槽、实例 Scope；组件名须带连字符且不以 `ix-`/`mc-` 开头（加载期校验，自 D0 移来）；样式分层先做 UA、组件、作者三层；CSS 嵌套（解析期展开）；组件文件进热重载监听与诊断定位。
-- sample：抽出 `ui/common/` 公共组件，只抽至少两处真实重复的结构；迁移 7 个场景与 S7；check 中随树结构变化的选择器与迁移同一提交。
+- 设计依据：`ref/SD-ixchel-context-model-and-components-20261030.md`（上下文模型、四条不变式、组件端口；原 §6-3 插槽后备内容、§6-5 子 Scope 已在其中定下）。
+- 引擎：`<link rel="component">`、`<template name params events>`、外壳元素、参数（含默认值与双向）、事件（含载荷 `$event`）、具名插槽与后备内容；组件名须带连字符且不以 `ix-`/`mc-` 开头（加载期校验，自 D0 移来）；上下文模型的两处修正：ViewModel `private` 字段对模板不可见、`event` 改名 `$event`；`<for>`/`<if>` 控制块取代元素上的 `each`/`if`（语言文档 §3.5，块实例由单根改为多根）；样式分层先做 UA、组件、作者三层；CSS 嵌套（解析期展开）；组件文件进热重载监听与诊断定位。
+- sample：所有模板改用 `<for>`/`<if>`（与组件迁移同批，不留属性形式）；抽出 `ui/common/` 公共组件，只抽至少两处真实重复的结构；迁移 7 个场景与 S7；check 中随树结构变化的选择器与迁移同一提交。
 - 验收：`-Pcheck=all`；S4、S5 的 `FrameTimer` 预算不超（外壳元素增加节点）；重复结构与 CSS 的减少量。
 
 #### L3 主题
 
 - 先定：语言文档 §6-1 库内样式表 href 写法。
-- 引擎：主题层；core 提供按名字读取库内样式表的入口（classpath，相对 core 类，同 `UiDocument.UserAgent`），两个 mc 层的 href 解析各加一个分支；`vanilla`、`dark` 两份主题。
+- 引擎：主题层；core 提供按名字读取库内样式表的入口（classpath，相对 core 类，同 `UiDocument.UserAgent`），两个 mc 层的 href 解析各加一个分支；`var()` 自定义属性（两份主题是同一结构的两套配色，满足语言文档 §4.4 的条件；也是页面状态影响组件外观的通道，上下文模型文档 §3.6）；`vanilla`、`dark` 两份主题。
 - sample：7 个场景按两族外观引入主题，删去重复配色。
 - 验收：作者 CSS 只剩布局与场景特有外观；`-Pcheck=all` 截图人工核对。
 
@@ -81,12 +83,26 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - sample：S8 页面类型用组件写；S9。
 - 验收：场景文档 §2 S8、S9 的交互即检查清单。
 
+#### I i18n
+
+- 先定：参数写法（按 MC 语言文件的位置参数 `%s`/`%1$s`，模板中如何给出参数表达式）；参数是否经 `$` 命名空间暴露（#016）；字面文本警告的范围。
+- 引擎：`t="语言键"`（语言文档 §3.5 保留项）与参数；core 只定义翻译端口，mc 层以 vanilla 语言表实现，两个 mc 版本；语言切换后重新取值；组件体内的 `t` 同样可用；字面文本开发期警告（绑定文档 §3 i18n 行）。
+- sample：所有界面文本改为语言键，附 `en_us` 语言文件。
+- 验收：切换游戏语言后界面文本随之变化；缺键与参数个数不符在加载期或首次取值时报告；`-Pcheck=all`。
+
+#### Doc 用户文档
+
+- 先定：站点结构按 Diátaxis 四类（教程、操作指南、参考、原理）；哪些参考页由代码生成（CI 文档 §2：属性注册表、元素注册表）。
+- 内容：面向宿主开发者（接入、ViewModel）与资源包作者（模板、CSS、组件覆盖，不写 Java）；语言参考写成规范：数值按 JLS 提升与整除、`==` 按值比较，另列与 Web/JS 的偏离清单（初值、`null` 规则、无 `null` 字面量等）；原理页取自上下文模型文档。
+- 工程：VuePress 源码放 `docs/`；生成参考页的 Gradle 任务；`vuepress build` 进 `check`（CI 文档 §7 的触发条件即 `docs/` 建立）。部署 Pages 仍按 CI 文档等仓库转公开与 `release` 落地。
+- 验收：`check` 通过；按教程从零写出一个带组件的界面。
+
 ### 3. 风险
 
 | 风险 | 阶段 | 对策 |
 |---|---|---|
 | 表达式类型检查与路径解析（record 组件、泛型）耦合 | L1 | 只在现有路径解析上加运算符，不另写解析 |
-| 实例 Scope 改动绑定核心 | L2 | 开工前单独出设计（§6-5） |
+| 组件编译改动绑定核心 | L2 | 模板组件不引入子 Scope，组件体复用 `Compiler` 以端口为环境编译（上下文模型文档 §3.3、§3.5） |
 | 外壳元素改变树结构，check 选择器失效 | L2 | 迁移与选择器同提交，断言不改 |
 | 1.21.1 落后 | D0、L3 | 两版同改，testmod 冒烟 |
 
@@ -95,7 +111,8 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 有真实消费方时再排：
 
 - `ix-` 组件库内容；带 Java 逻辑的组件（语言文档 §3.4）；宿主原生元素登记入口（§6-6）。
-- `var()`、`@import`（语言文档 §4.4）。
-- 游戏 UI 相对 Web 的缺口：`on:keydown` 指向按键绑定（`KeyMapping`，随玩家改键）；动画用游戏时间（现为 `System::nanoTime`，暂停不冻结）；交互音效（控件点击音）；`border-image` 九宫格与 `image-rendering: pixelated`；声明式世界锚定（现需 Java 侧 `WorldProjection.toGui` 计算后绑定）。
+- `@import`（语言文档 §4.4）。
+- 性能，触发条件为 `FrameTimer` 预算超标或大列表（S3、S8）卡顿，按序做：Painter 按视口裁剪 > `contain` 与局部重排 > `Derived` 相等截断的代价 > tick 与帧两个时间域（动画用游戏时间，现为 `System::nanoTime`，暂停不冻结）。现状为首轮评审时的判断，开工前复核。
+- 游戏 UI 相对 Web 的缺口：`on:keydown` 指向按键绑定（`KeyMapping`，随玩家改键）；交互音效（控件点击音）；`border-image` 九宫格与 `image-rendering: pixelated`；声明式世界锚定（现需 Java 侧 `WorldProjection.toGui` 计算后绑定）。
 - 整合包可用的发行形态（另一个宿主 mod，未分析）。
 - 场景扩展：场景文档 §5。

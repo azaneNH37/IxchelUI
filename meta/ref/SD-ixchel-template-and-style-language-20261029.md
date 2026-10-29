@@ -2,7 +2,7 @@
 tags: [survey, design]
 date: 2026-10-29
 origin: 讨论 user-agent.css 时引出主题、控件与组件化，经与前端框架、游戏引擎对照，收敛为模板与样式语言的目标形态
-related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#004, DECISIONS.md#007, DECISIONS.md#014, ref/SD-ixchel-viewmodel-and-binding-20261026.md, ref/SD-ixchel-sample-scenarios-20261028.md]
+related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#004, DECISIONS.md#007, DECISIONS.md#014, ref/SD-ixchel-viewmodel-and-binding-20261026.md, ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-context-model-and-components-20261030.md]
 ---
 
 # 模板与样式语言的目标形态
@@ -35,7 +35,7 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#004, DECISIONS.md#007
 | 插槽（slot） | 组件模板中由使用方填入内容的位置，`<slot>` | 不与 `mc-slot`（容器槽位）混淆 |
 | 指令（directive） | 带前缀的 HTML 属性：`<指令>:<参数>[.<修饰符>]*="<值>"`，如 `on:keydown.up.shift` | 代码中为 `dom.Directive` |
 | 指令参数 / 修饰符 | `on:keydown.up` 中的 `keydown` / `up` | 与组件参数区分 |
-| 结构指令 | 改变元素树的无前缀指令：`if`、`each`、`as`、`key` | — |
+| 控制块 | 不渲染节点、按数据挂载内容的标签：`<for>`、`<if>`（§3.5） | 不称"元素"：它们不在元素树中 |
 | 绑定（binding） | `bind:` 指令建立的数据到元素的关联 | — |
 | 动作（action） | ViewModel 上的 `Action` 字段 | — |
 | 局部状态 | 模板中以 `state:` 声明、不进 ViewModel 的状态 | — |
@@ -116,11 +116,16 @@ assets/ixchelsample/ui/
     <span slot="info" class="count" bind:text="count + (count == 1 ? ' waypoint' : ' waypoints')"></span>
     <button slot="info" class="help" on:click="help = !help">?</button>
 
-    <span class="hint" if="help">Click a row or use Up/Down; Delete removes. Distances update as you move.</span>
+    <if test="help">
+      <span class="hint">Click a row or use Up/Down; Delete removes. Distances update as you move.</span>
+    </if>
     <div class="list">
-      <span class="empty" if="count == 0">No waypoints yet. Add one where you stand.</span>
-      <waypoint-row each="rows" as="r" key="r.id" bind:row="r"
-                    tabindex="0" bind:class:selected="r.id == selectedId" on:click="select(r)"></waypoint-row>
+      <if test="count == 0">
+        <span class="empty">No waypoints yet. Add one where you stand.</span>
+      </if>
+      <for each="rows" as="r" key="r.id">
+        <waypoint-row bind:row="r" tabindex="0" bind:class:selected="r.id == selectedId" on:click="select(r)"></waypoint-row>
+      </for>
     </div>
     <div class="buttons">
       <button title="Saves the block you stand on, in this dimension" on:click="add">Add here</button>
@@ -223,7 +228,7 @@ final class WaypointsView extends ViewModel {
 
 ```html
 <mc-slot class="slot" index="5"></mc-slot>
-<mc-slot class="slot" each="inventory" as="i" key="i" bind:index="i"></mc-slot>
+<for each="inventory" as="i" key="i"><mc-slot class="slot" bind:index="i"></mc-slot></for>
 <mc-entity class="doll" bind:entity="doll"></mc-entity>
 <mc-item class="icon" bind:item="r.icon"></mc-item>
 ```
@@ -250,6 +255,7 @@ final class WaypointsView extends ViewModel {
 - 前缀按领域划分，不按实现划分：组件改为原生元素或反之，标签名不变。`mc-fluid` 即使由加载器层实现也用 `mc-`。
 - 新增元素前先查 HTML 是否有标准元素（进度条用 `progress`，折叠用 `details`/`summary`），依次再考虑 `ix-`、`mc-`。
 - 组件 `name` 与宿主登记的原生元素不得以 `ix-`、`mc-` 开头，加载期报错。
+- 不含连字符的模板保留标签：`template`、`slot`（HTML 标准元素，按 §3.4 的组件语义）与控制块 `for`、`if`（非 HTML，§3.5）。
 - 撞名只可能发生在一个宿主内部：库按宿主 shade（#001），文档可用的标签只来自 HTML、库与该宿主。同一文档中两个组件同名，加载期报错。
 
 #### 3.3 顶层声明
@@ -259,18 +265,9 @@ final class WaypointsView extends ViewModel {
 
 #### 3.4 组件
 
-- 定义：`<template name="<组件名>" params="<参数…>" events="<事件…>">`，空格分隔。`<template>` 沿用标准含义（不渲染、按实例克隆的内容）。
+- 定义：`<template name="<组件名>" params="<参数…>" events="<事件…>">`，空格分隔；参数可带默认值 `p=<表达式>`。`<template>` 沿用标准含义（不渲染、按实例克隆的内容）。
 - 外壳元素：组件实例在树中保留外壳元素，模板内容成为它的子元素。使用方的 CSS 给外壳元素定尺寸与位置，组件自己的 CSS 管内部。
-- 外壳元素上的 HTML 属性与指令：
-  - 全局属性（`class`、`id`、`style`、`tabindex`、`disabled`、`title`）作用于外壳元素；
-  - 普通属性 `p="文本"` 传字符串常量给参数 `p`；
-  - `bind:p="表达式"` 传绑定值；若表达式是可写的状态（`Value` 或局部状态），组件内对 `p` 的赋值写回，即双向参数；
-  - `on:e="动作或语句"` 传事件参数 `e`；
-  - 结构指令（`if`、`each`、`as`、`key`）与 `bind:class:*`、`bind:style:*` 作用于外壳元素；
-  - 参数名或事件名与全局属性重名（如 `title`）在加载期报错。
-- 作用域：组件模板内只能引用自己的参数、事件、局部状态，不能直接引用外层 ViewModel 或外层局部状态。
-- 插槽：`<slot>` 为默认插槽，`<slot name="n">` 为具名插槽；使用方以子元素填入，`slot="n"` 指定具名插槽。插槽内容的绑定在使用方的作用域中解析。
-- 实例：每个组件实例有自己的局部状态与订阅，随 `if`/`each` 的挂载与卸载创建、销毁；`each` 中按 `key` 保持实例身份。
+- 端口与使用处写法、名字的可见范围、可写性、插槽、类型检查、实例生命周期：见 `ref/SD-ixchel-context-model-and-components-20261030.md` §1、§3。要点：组件体只见自己的参数、事件与局部状态；外壳元素上的指令与插槽内容在使用方作用域中解析；写权限由使用方传入可写路径授予；未传入的参数取默认值成为实例的局部状态，无默认值即必填；参数名、事件名与全局属性重名在加载期报错。
 - 加载期解析并校验每个组件文件，诊断定位到组件文件的行列。
 - 带 Java 逻辑的组件（后续）：宿主在 Java 侧按组件路径登记工厂，每个实例得到一个子 ViewModel。模板中不写 Java 类名，relocate 后类名会变（#001）。
 
@@ -289,9 +286,22 @@ final class WaypointsView extends ViewModel {
 | `on:` | 事件名或组件事件名；修饰符为键名与 `shift`/`ctrl`/`alt`、鼠标键（#012） | 语句 | 已实现（L1），组件事件待 L2 |
 | `state:` | 状态名 | 初值表达式（只求值一次） | 已实现（L1） |
 
-结构指令：`if="表达式"`、`each="表达式" as="名" key="路径"`；`t="语言键"`（保留，未实现）。`each`/`if` 在元素自身的 `state:` 之外求值，元素的局部状态属于每个挂载的副本。
+控制块（L2 起，取代元素上的 `each`/`if`/`as`/`key` 属性，一次切换、不留兼容；元素上出现这些属性在加载期报错）：
 
-`state:` 可写在任何元素上，作用于该元素的子树；在组件模板中则属于组件实例。
+```html
+<for each="表达式" as="名" key="路径"> 内容 </for>
+<if test="表达式"> 内容 </if>
+```
+
+- 不渲染节点：内容按位置成为父元素的子节点；CSS 选择器、`Script` 选择器与诊断看到的树中没有 `for`/`if`。
+- 内容可以是任意多个元素与文本；`<for>` 每行、`<if>` 每次挂载各实例化一份。行或挂载的局部状态写在内容中的元素上。
+- 块上只允许自己的属性（`for`：`each`、`as`、`key`；`if`：`test`），其它属性与指令加载期报错。`as` 行名只对块内容可见，`key` 是从行名出发的路径（规则同现有 `each`）。
+- 顶层键处理器的规则不变：块内的元素不注册到文档根（绑定文档 §3）。
+- `test` 沿用 XSLT/JSTL 的 `<if test>`。块的挂载机制沿用现有 `Block`（以前一兄弟定位，`Bindings.java:977-1013`，本就不需要占位节点）；需要改的是一份实例由单个根变为多个根（`Instance.root`）。
+
+`t="语言键"`（保留，未实现；阶段 I）。
+
+`state:` 可写在任何元素上，作用于该元素的子树；在组件模板中则属于组件实例，写在外壳元素上的属于使用方（上下文模型文档 §1.1）。
 
 #### 3.6 表达式与语句
 
@@ -311,7 +321,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 ```
 
 - 字面量：不带小数点的数字为 `Integer`，带小数点为 `Double`；字符串用单引号，`\'`、`\\` 转义；没有 `null` 字面量。
-- 路径：首段依次查局部状态、`as` 行名、ViewModel 字段；之后每段为 record 组件，`List` 另有 `size`（`Integer`）。动作字段只能 `.pending`/`.error`。不提供任意方法调用、函数定义、循环。
+- 路径：首段依次查局部状态、`as` 行名、ViewModel 字段（各来源的可见范围见上下文模型文档 §1）；之后每段为 record 组件，`List` 另有 `size`（`Integer`）。动作字段只能 `.pending`/`.error`。不提供任意方法调用、函数定义、循环。
 - 类型（加载期检查，错误带值内行列）：
   - 数值为 `Integer`/`Long`/`Float`/`Double` 及其基本类型，二元运算按 Java 数值提升（`int / int` 仍是整除）。
   - `+` 有一侧静态类型为 `String` 时是拼接，另一侧按 `bind:text` 的转换成文本（`null` 为空）。
@@ -357,7 +367,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 | 一个元素带多个 class、选择器列表 | 支持 | — |
 | 多个样式表 | 支持，经模板中的多个 `<link>` | — |
 | 嵌套（CSS Nesting） | 报错（`CssParser`："At-rules and nested rules are reported as errors"） | 随组件实现；解析期展开，不改样式引擎 |
-| `var()` 自定义属性 | 报错（`Declarations`："custom properties are not supported yet"） | 主题出现同一结构的多个配色变体时 |
+| `var()` 自定义属性 | 报错（`Declarations`："custom properties are not supported yet"） | L3：`vanilla`、`dark` 是同一结构的两套配色；也用作页面状态进入组件外观的通道（上下文模型文档 §3.6） |
 | `@import` | 报错（不支持任何 at-rule） | 暂缓：文件组合已由模板侧 `<link>` 完成 |
 | `@layer` 语法 | 不支持 | 不开放，层由 link 位置决定 |
 | `@extend`、`@mixin` | — | 不做：不是 CSS 标准（#003），多 class 组合已覆盖 |
@@ -408,12 +418,13 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 
 1. 库内样式表 href 的保留写法（`@ixchel/…` 为暂定）。
 2. ~~格式化：内置函数还是一律写 `Derived`。~~ 已定（L1）：不提供内置函数。sample 中只做格式化的 `Derived` 绝大多数是拼接与算术；需要函数的只有 `EnvView` 的血量取整与宽度上限，`MachineView` 等引用 Java 常量（容量）的也不能搬进模板。格式化函数等出现第二处真实需要再加。
-3. 插槽的后备内容（`<slot>` 内的默认子元素）是否支持。
+3. ~~插槽的后备内容~~ 已定：支持，`<slot>` 的子元素即后备内容（上下文模型文档 §3.1）。
 4. ~~热重载时局部状态是否保留。~~ 已定（L1）：不保留，重载后按初值重建。模板结构可变，没有可靠的身份去匹配旧状态；需要跨重载保留的状态放在 ViewModel（它跨重载保留）。
-5. 组件实例的子 Scope：`each` 行与 `if` 块现无子 Scope（绑定文档 §5），组件实例需要。
+5. ~~组件实例的子 Scope~~ 已定：模板组件实例不需要子 Scope，带 Java 逻辑的组件每实例一个（上下文模型文档 §3.5）。
 6. 宿主原生元素的登记入口（与 §3.4 的 Java 组件登记是否合并）。
 7. ~~代码命名~~ 已做（L1）：`BindAttribute` → `Directive`，`isBindingAttribute` → `isDirective`，`Element.bindings()` → `directives()`。
+8. `null` 是否显式化（`?.`、`??`）。现行规则（§3.6）是隐式的：路径途经 `null` 时算术得 `null`、大小比较为 `false`、布尔运算按 `false`，可能掩盖本该报出的错误；尚未观察到实际问题，组件参数的默认值已消除"未传入即 `null`"。等出现第一处被吞掉的错误再定。
 
 ### 7. 实现顺序
 
-见 `ref/D-ixchel-roadmap-20261029.md`（阶段 D0、L1、L2、L3）。
+见 `ref/D-ixchel-roadmap-20261029.md`（阶段 D0、L1、L2、L3、I）。
