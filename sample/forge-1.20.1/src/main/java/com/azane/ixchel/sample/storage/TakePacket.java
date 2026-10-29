@@ -4,7 +4,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 
 /** Client to server: take from the open terminal's storage. Ignored unless that terminal is still open. */
-public record TakePacket(int containerId, int entryId, Mode mode) {
+public record TakePacket(int containerId, StoredItem item, Mode mode) {
     enum Mode {
         /** A full stack, or what there is, onto the cursor. */
         STACK,
@@ -16,17 +16,17 @@ public record TakePacket(int containerId, int entryId, Mode mode) {
 
     public void encode(FriendlyByteBuf buf) {
         buf.writeVarInt(containerId);
-        buf.writeVarInt(entryId);
+        item.encode(buf);
         buf.writeEnum(mode);
     }
 
     public static TakePacket decode(FriendlyByteBuf buf) {
-        return new TakePacket(buf.readVarInt(), buf.readVarInt(), buf.readEnum(Mode.class));
+        return new TakePacket(buf.readVarInt(), StoredItem.decode(buf), buf.readEnum(Mode.class));
     }
 
     public void handle(ServerPlayer player) {
         if (player.containerMenu instanceof TerminalMenu menu && menu.containerId == containerId) {
-            menu.take(entryId, mode);
+            menu.take(item, mode);
         }
     }
 }

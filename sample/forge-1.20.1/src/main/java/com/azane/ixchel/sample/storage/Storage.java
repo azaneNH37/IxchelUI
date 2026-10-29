@@ -2,9 +2,7 @@ package com.azane.ixchel.sample.storage;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
@@ -18,7 +16,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Server side: the item handlers of the block entities within {@link #RADIUS} blocks of a point, read
@@ -28,23 +25,6 @@ import java.util.Objects;
  */
 final class Storage {
     static final int RADIUS = 8;
-
-    /** Items that stack together: same item, same tag. */
-    record Key(Item item, CompoundTag tag) {
-        static Key of(ItemStack stack) {
-            return new Key(stack.getItem(), stack.getTag());
-        }
-
-        boolean matches(ItemStack stack) {
-            return !stack.isEmpty() && stack.getItem() == item && Objects.equals(stack.getTag(), tag);
-        }
-
-        ItemStack stack(int count) {
-            ItemStack s = new ItemStack(item, count);
-            s.setTag(tag == null ? null : tag.copy());
-            return s;
-        }
-    }
 
     private final List<IItemHandler> handlers;
 
@@ -79,13 +59,13 @@ final class Storage {
     }
 
     /** Every kind of stack in the storage and how many there are. */
-    Map<Key, Long> counts() {
-        Map<Key, Long> out = new HashMap<>();
+    Map<StoredItem, Long> counts() {
+        Map<StoredItem, Long> out = new HashMap<>();
         for (IItemHandler h : handlers) {
             for (int i = 0; i < h.getSlots(); i++) {
                 ItemStack s = h.getStackInSlot(i);
                 if (!s.isEmpty()) {
-                    out.merge(Key.of(s), (long) s.getCount(), Long::sum);
+                    out.merge(StoredItem.of(s), (long) s.getCount(), Long::sum);
                 }
             }
         }
@@ -93,7 +73,7 @@ final class Storage {
     }
 
     /** Takes up to {@code count} of {@code key} out; the result may be smaller or empty. */
-    ItemStack extract(Key key, int count) {
+    ItemStack extract(StoredItem key, int count) {
         int taken = 0;
         for (IItemHandler h : handlers) {
             for (int i = 0; i < h.getSlots() && taken < count; i++) {

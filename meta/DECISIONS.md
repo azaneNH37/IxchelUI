@@ -76,3 +76,9 @@
 - **context**: S3 需要单行输入与带修饰键的点击；HTML/CSS 没有"修饰键过滤"的标准语义，滚动位置要能双向绑定
 - **decision**: 用标准 `<input>`（光标、选区、剪贴板由 core 实现，剪贴板经端口 `Clipboard` 由宿主提供），`bind:value` 双向；`bind:scrolltop` 的写入只是滚动请求，由布局截取到有效范围后回写；鼠标事件过滤的修饰键精确匹配（`.left` 要求无修饰键，`.left.shift` 要求恰好按住 Shift）；`click` 只由左键触发（同 DOM，右键用 `.right`）；光标 500ms 闪烁
 - **rejected**: 自定义输入元素——违反 #003；修饰键宽松匹配（Vue 默认）——`.left` 与 `.left.shift` 会同时触发，网格的"取整组"与"移入背包"无法区分
+
+## #013 sample 服务端状态只经复制层下发
+- **decided**: 2026-10-29
+- **context**: S3 的存储是按 Menu 会话、约 1300 条的状态，原复制层只支持以方块坐标为身份、每 tick 整份比较的小快照，#48 因此让 S3 自发增量包
+- **decision**: 扩展 `network/Replication` 而不是让场景自建同步通道：kind 自带 key 编解码（方块坐标、容器 id 等）、按 kind 设采样间隔、意图处理后 `refresh` 立即推送；新增集合型 kind，每个观察维护条目 id 表，标识只发一次、之后只发增删改，观察的首条消息带 `first` 让客户端丢弃上一次观察的在途增量。新场景的服务端状态声明为快照型或集合型 kind，不另写客户端包
+- **rejected**: 场景自发增量包（#48 的 `StorageSyncPacket`）——每个场景各写一套会话身份、节奏与 id 表；在快照比较上加 delta codec——每 tick 仍全量生成快照，条目只能以 NBT 字符串为 key 重复传输，并要伪造方块坐标作身份

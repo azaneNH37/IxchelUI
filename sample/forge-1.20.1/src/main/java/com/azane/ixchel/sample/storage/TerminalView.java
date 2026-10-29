@@ -6,6 +6,9 @@ import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.sample.network.Network;
+import com.azane.ixchel.sample.network.Replica;
+import com.azane.ixchel.sample.network.Replication;
+import com.azane.ixchel.sample.network.Replication.Entry;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -35,7 +38,7 @@ final class TerminalView extends ViewModel {
         }
     }
 
-    record Cell(int id, ItemStack stack, String count) {
+    record Cell(int id, StoredItem item, ItemStack stack, String count) {
     }
 
     private final TerminalMenu menu;
@@ -46,7 +49,7 @@ final class TerminalView extends ViewModel {
     final Value<Integer> scroll = state(0);
     final Value<Boolean> carrying;
 
-    final Derived<List<TerminalMenu.Entry>> shown;
+    final Derived<List<Entry<StoredItem, Long>>> shown;
     final Derived<List<Cell>> visibleCells;
     final Derived<Integer> contentHeight;
     final Derived<Integer> padTop;
@@ -65,7 +68,10 @@ final class TerminalView extends ViewModel {
 
     TerminalView(TerminalMenu menu) {
         this.menu = menu;
-        Value<List<TerminalMenu.Entry>> contents = source(Source.polled(menu::contents));
+        Replica<List<Entry<StoredItem, Long>>> replica = Replication.watch(Network.STORAGE, menu.containerId);
+        scope().own(replica);
+        Value<List<Entry<StoredItem, Long>>> contents =
+                source(Source.polled(() -> replica.get() == null ? List.of() : replica.get()));
         carrying = source(Source.polled(() -> !menu.getCarried().isEmpty()));
         shown = derive(contents, query, derive(sortKey, descending, TerminalView::order), TerminalView::filter);
         visibleCells = derive(shown, scroll, TerminalView::visible);
@@ -81,7 +87,7 @@ final class TerminalView extends ViewModel {
     private void take(Cell c, TakePacket.Mode mode) {
         // With a stack on the cursor the click stores it instead; see store.
         if (!carrying.get()) {
-            Network.sendToServer(new TakePacket(menu.containerId, c.id(), mode));
+            Network.sendToServer(new TakePacket(menu.containerId, c.item(), mode));
         }
     }
 
@@ -91,18 +97,19 @@ final class TerminalView extends ViewModel {
         }
     }
 
-    private static Comparator<TerminalMenu.Entry> order(SortKey key, boolean descending) {
-        Comparator<TerminalMenu.Entry> byName = Comparator.comparing(e -> e.name().toLowerCase(Locale.ROOT));
-        Comparator<TerminalMenu.Entry> c = switch (key) {
+    private static Comparator<Entry<StoredItem, Long>> order(SortKey key, boolean descending) {
+        Comparator<Entry<StoredItem, Long>> byName = Comparator.comparing(e -> e.identity().name().toLowerCase(Locale.ROOT));
+        Comparator<Entry<StoredItem, Long>> c = switch (key) {
             case NAME -> byName;
-            case COUNT -> Comparator.<TerminalMenu.Entry>comparingLong(TerminalMenu.Entry::count).thenComparing(byName);
-            case MOD -> Comparator.comparing(TerminalMenu.Entry::mod).thenComparing(byName);
+            case COUNT -> Comparator.<Entry<StoredItem, Long>>comparingLong(Entry::value).thenComparing(byName);
+            case MOD -> Comparator.<Entry<StoredItem, Long>, String>comparing(e -> e.identity().mod()).thenComparing(byName);
         };
         return descending ? c.reversed() : c;
     }
 
     /** Words match the name anywhere; an {@code @word} matches the start of the mod id. */
-    static List<TerminalMenu.Entry> filter(List<TerminalMenu.Entry> all, String query, Comparator<TerminalMenu.Entry> order) {
+    static List<Entry<StoredItem, Long>> filter(List<Entry<StoredItem, Long>> all, String query,
+                                                Comparator<Entry<StoredItem, Long>> order) {
         List<String> words = new ArrayList<>();
         List<String> mods = new ArrayList<>();
         for (String w : query.toLowerCase(Locale.ROOT).trim().split("\\s+")) {
@@ -112,10 +119,10 @@ final class TerminalView extends ViewModel {
                 words.add(w);
             }
         }
-        List<TerminalMenu.Entry> out = new ArrayList<>();
-        for (TerminalMenu.Entry e : all) {
-            String name = e.name().toLowerCase(Locale.ROOT);
-            if (words.stream().allMatch(name::contains) && mods.stream().allMatch(e.mod()::startsWith)) {
+        List<Entry<StoredItem, Long>> out = new ArrayList<>();
+        for (Entry<StoredItem, Long> e : all) {
+            String name = e.identity().name().toLowerCase(Locale.ROOT);
+            if (words.stream().allMatch(name::contains) && mods.stream().allMatch(e.identity().mod()::startsWith)) {
                 out.add(e);
             }
         }
@@ -123,12 +130,12 @@ final class TerminalView extends ViewModel {
         return out;
     }
 
-    private static List<Cell> visible(List<TerminalMenu.Entry> shown, int scroll) {
+    private static List<Cell> visible(List<Entry<StoredItem, Long>> shown, int scroll) {
         int from = Math.min(shown.size(), scroll / CELL * COLUMNS);
         int to = Math.min(shown.size(), from + (VISIBLE_ROWS + SPARE_ROWS) * COLUMNS);
         List<Cell> out = new ArrayList<>(to - from);
-        for (TerminalMenu.Entry e : shown.subList(from, to)) {
-            out.add(new Cell(e.id(), e.stack(), abbreviate(e.count())));
+        for (Entry<StoredItem, Long> e : shown.subList(from, to)) {
+            out.add(new Cell(e.id(), e.identity(), e.identity().stack(), abbreviate(e.value())));
         }
         return out;
     }
