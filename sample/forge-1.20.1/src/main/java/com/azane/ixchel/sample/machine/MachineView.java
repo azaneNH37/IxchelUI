@@ -42,7 +42,6 @@ final class MachineView extends ViewModel {
     final Value<MachineState> machine;
     final Value<Item> input;
     final Value<String> waterColor;
-    final Value<Boolean> sidesOpen = state(false);
 
     final Derived<String> statusText;
     final Derived<Boolean> statusBad;
@@ -54,7 +53,6 @@ final class MachineView extends ViewModel {
     final Derived<Integer> flameHeight;
     final Derived<Integer> flameY;
     final Derived<List<RecipeRow>> recipes;
-    final Derived<Boolean> noRecipes;
     final Derived<String> redstoneLabel;
     final Derived<List<SideRow>> sideRows;
     final Value<List<Integer>> inventory = state(range(MachineMenu.INVENTORY_START, MachineMenu.HOTBAR_START));
@@ -63,7 +61,6 @@ final class MachineView extends ViewModel {
     final Action<RecipeRow> pick = action(this::pick);
     final Action<Void> cycleRedstone = action(this::cycleRedstone);
     final Action<SideRow> cycleSide = action(this::cycleSide);
-    final Action<Void> toggleSides = action(() -> sidesOpen.set(!sidesOpen.get()));
 
     MachineView(MachineMenu menu) {
         this.menu = menu;
@@ -89,7 +86,6 @@ final class MachineView extends ViewModel {
         flameY = derive(flameHeight, h -> h - FLAME_HEIGHT);
         Derived<Integer> recipe = derive(machine, MachineState::recipe);
         recipes = derive(input, recipe, MachineView::recipes);
-        noRecipes = derive(recipes, List::isEmpty);
         redstoneLabel = derive(machine, m -> "Redstone: " + m.redstone().label);
         sideRows = derive(derive(machine, MachineState::sides), MachineView::sideRows);
     }

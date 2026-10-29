@@ -98,9 +98,9 @@ final class GunModView extends ViewModel {
 
 | 项 | 规则 | 状态 |
 |---|---|---|
-| 表达式 | 路径 + `!`；复杂逻辑写成 `Derived` | ✅ |
+| 表达式 | L1 起为语言文档 §3.6 的表达式（字面量、路径、`List.size`、算术、比较、`&& \|\|`、`?:`），整条编译为一个 `Derived`；需要函数或 Java 常量的逻辑仍写 `Derived` | ✅ |
 | 绑定目标 | `text`、任意属性、`class:<名字>`（M2）；`if`、`each`（M3，`each` 必须带 `as` 与 `key`，`key` 是从行名出发的路径；`each` 与 `if` 不能在同一元素上）；`style:<属性>` 接受 CSS 语法的 String，长度类属性也接受数值（按 `px`）；双向：`value`（输入框、`<select>`）、`checked`、`open`（`<dialog>`）、`scrolltop`，目标须是 state `Value` 字段或 `each` 行里类型为 `Value<T>` 的组件 | ✅ |
-| 动作参数 | `on:x="act"` 或 `on:x="act(路径)"`，最多一个参数，加载期按 `Action<A>` 的 `A` 检查类型；事件名为 `click`、`mousedown`、`mouseup`、`wheel`、`keydown`、`keyup`。键事件可过滤：`on:keydown.<键名>[.shift|.ctrl|.alt]`（键名见 `event.Keys`），只在匹配时运行并消费；顶层元素上的键处理器注册到文档根，不需焦点即触发（`each`/`if` 块内的顶层元素除外） | ✅ |
+| 动作与语句 | `on:x` 的值是语句：`act`、`act(表达式)`、赋值 `目标 = 表达式`，以 `;` 分隔，从左到右执行；加载期按 `Action<A>` 的 `A` 与赋值目标类型检查。事件名为 `click`、`mousedown`、`mouseup`、`wheel`、`keydown`、`keyup`。键事件可过滤：`on:keydown.<键名>[.shift\|.ctrl\|.alt]`（键名见 `event.Keys`），只在匹配时运行并消费；顶层元素上的键处理器注册到文档根，不需焦点即触发（`each`/`if` 块内的顶层元素除外）。局部状态 `state:名="初值"` 见语言文档 §3.6 | ✅ |
 | i18n | `t="语言键"`；字面文本开发期警告 | 🟡 |
 | 值转文本 | `String.valueOf`；格式化（如补零）写进 `Derived`。`Component` 在 mc 层以 `getString()` 拍平为纯文本，颜色、字重只由 CSS 给出；富文本（保留 Component 内联样式）以后作为不透明宿主文本对象加入，测量与换行交给 mc 层的 vanilla `StringSplitter`，core 不建模样式 | ✅ |
 | 交互状态 | `:hover` / `:active` / `:focus` 由 event 包写状态位，`:checked` / `:open` / `:disabled` 由控件与顶层写，均不经 ViewModel | ✅ |

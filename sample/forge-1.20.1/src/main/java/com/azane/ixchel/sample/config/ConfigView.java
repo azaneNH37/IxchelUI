@@ -59,7 +59,6 @@ final class ConfigView extends ViewModel {
     final Value<String> query = state("");
     final Value<List<Category>> categories;
     final Derived<List<Row>> rows;
-    final Derived<Boolean> empty;
     final Value<Boolean> canSave = state(false);
     final Value<Boolean> canUndo = state(false);
     final Value<Boolean> restartPending = state(false);
@@ -78,11 +77,9 @@ final class ConfigView extends ViewModel {
     final Action<Void> addItem;
     final Action<Void> addPreset;
     final Action<Void> applyList;
-    final Action<Void> closeList;
     final Action<Void> save;
     final Action<Void> undo;
     final Action<Void> cancel;
-    final Action<Void> keepEditing;
     final Action<Void> discard;
 
     /** @param close closes the screen; run after the event that asked for it */
@@ -103,7 +100,6 @@ final class ConfigView extends ViewModel {
             return all.stream().filter(r -> needle.isEmpty() ? r.category().equals(cat)
                     : (r.label() + "\n" + r.id() + "\n" + r.comment()).toLowerCase(Locale.ROOT).contains(needle)).toList();
         });
-        empty = derive(rows, List::isEmpty);
         for (Row r : all) {
             lastSeen.put(r, draft(r));
             subscribe(r.bool() ? r.on() : r.value(), () -> changed(r));
@@ -144,7 +140,6 @@ final class ConfigView extends ViewModel {
                     .filter(s -> !s.isEmpty()).toList()));
             listOpen.set(false);
         });
-        closeList = action(() -> listOpen.set(false));
         save = action(this::saveAll);
         undo = action(() -> {
             if (!undoSteps.isEmpty()) {
@@ -159,7 +154,6 @@ final class ConfigView extends ViewModel {
                 closeLater();
             }
         });
-        keepEditing = action(() -> confirming.set(false));
         discard = action(this::closeLater);
     }
 

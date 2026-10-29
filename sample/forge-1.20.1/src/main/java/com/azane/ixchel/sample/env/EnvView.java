@@ -92,21 +92,14 @@ final class EnvView extends ViewModel {
     final Derived<Boolean> hasBlock = derive(block, b -> !b.equals(BlockInfo.NONE));
     final Derived<ItemStack> blockIcon = derive(block, b -> new ItemStack(b.item()));
     final Derived<Boolean> hasEntity = derive(entity, e -> !e.equals(EntityInfo.NONE));
-    final Derived<Boolean> hasTarget = derive(hasBlock, hasEntity, (b, e) -> b || e);
+    /** Rounded like the vanilla health display; the bar never overfills. */
     final Derived<String> entityHealth = derive(entity, e -> Math.round(e.health()) + " / " + Math.round(e.maxHealth()));
     final Derived<String> entityHealthWidth = derive(entity,
             e -> e.maxHealth() <= 0 ? "0%" : Math.min(100, e.health() / e.maxHealth() * 100) + "%");
-    final Derived<String> entityArmor = derive(entity, e -> e.armor() + " armor");
-    final Derived<Boolean> entityHasArmor = derive(entity, e -> e.armor() > 0);
 
     final Derived<List<Icon>> hearts = derive(health, maxHealth, (h, max) -> icons(Math.round(h), (int) Math.ceil(max)));
     final Derived<List<Icon>> armorIcons = derive(armor, a -> icons(a, 20));
-    final Derived<Boolean> hasArmor = derive(armor, a -> a > 0);
     final Derived<List<Icon>> foodIcons = derive(food, f -> icons(f, 20));
-    final Derived<String> progressWidth = derive(progress, p -> p * 100 + "%");
-
-    /** The strip starts at -90°: heading {@code h} is under the needle when the strip is moved left by h. */
-    final Derived<Integer> stripLeft = derive(heading, h -> -h);
 
     /** {@code points} out of {@code max} as icons of two points each. */
     private static List<Icon> icons(int points, int max) {

@@ -1,11 +1,11 @@
 <link rel="stylesheet" href="panel.css"/>
 <div class="panel">
   <div class="tabs">
-    <div class="tab" each="tabs" as="t" key="t.id" bind:class:selected="t.selected" on:click="select(t)">
+    <div class="tab" each="tabs" as="t" key="t.id" bind:class:selected="t.id == tab" on:click="select(t)">
       <span bind:text="t.label"></span>
     </div>
   </div>
-  <div class="page equipment" bind:class:shown="onEquipment">
+  <div class="page equipment" bind:class:shown="tab == 'equipment'">
     <div class="column">
       <mc-slot class="slot" index="5"></mc-slot>
       <mc-slot class="slot" index="6"></mc-slot>
@@ -27,21 +27,21 @@
       <mc-slot class="slot result" index="0"></mc-slot>
     </div>
   </div>
-  <div class="page list" bind:class:shown="onAttributes">
+  <div class="page list" bind:class:shown="tab == 'attributes'">
     <div class="row attribute" each="attributes" as="a" key="a.name" bind:title="a.description">
       <span class="name" bind:text="a.name"></span>
       <span class="value" bind:text="a.value"></span>
     </div>
   </div>
-  <div class="page list" bind:class:shown="onEffects">
-    <span class="empty" if="noEffects">No active effects.</span>
+  <div class="page list" bind:class:shown="tab == 'effects'">
+    <span class="empty" if="effects.size == 0">No active effects.</span>
     <div class="row effect" each="effects" as="e" key="e.id" bind:class:ending="e.ending" bind:class:dim="e.dim">
       <img class="effect-icon" bind:src="e.icon"/>
       <span class="name" bind:text="e.name"></span>
       <span class="value" bind:text="e.time"></span>
     </div>
   </div>
-  <div class="page list" bind:class:shown="onStats">
+  <div class="page list" bind:class:shown="tab == 'stats'">
     <div class="row stat" each="stats" as="s" key="s.name">
       <span class="name" bind:text="s.name"></span>
       <span class="value" bind:text="s.value"></span>

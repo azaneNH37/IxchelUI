@@ -4,7 +4,7 @@ import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.core.dom.BindAttribute;
+import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
 import org.junit.jupiter.api.Test;
@@ -151,8 +151,8 @@ class TemplateParserTest {
         Template t = TemplateParser.parse("<div class=\"ammo\"\n     bind:class:empty=\"isEmpty\"></div>", "t.html", TagRegistry.HTML, diag);
         assertFalse(diag.hasErrors(), diag.entries().toString());
         Element div = el(t.roots().get(0));
-        assertEquals(List.of(new BindAttribute("bind:class:empty", "isEmpty",
-                new SourcePos("t.html", 2, 6), new SourcePos("t.html", 2, 24))), div.bindings());
+        assertEquals(List.of(new Directive("bind:class:empty", "isEmpty",
+                new SourcePos("t.html", 2, 6), new SourcePos("t.html", 2, 24))), div.directives());
         assertTrue(div.attributes().isEmpty());
     }
 

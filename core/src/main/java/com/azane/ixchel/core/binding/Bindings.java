@@ -9,7 +9,7 @@ import com.azane.ixchel.core.css.syntax.Token;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
-import com.azane.ixchel.core.dom.BindAttribute;
+import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.Node;
@@ -40,34 +40,39 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * The binding attributes of one document ({@code bind:*}, {@code on:*}, {@code each}/{@code if}),
+ * The directives of one document ({@code bind:*}, {@code on:*}, {@code state:*}, {@code each}/{@code if}),
  * resolved against its view model.
  *
  * <pre>{@code
  * <span bind:text="loaded"></span>          <!-- value as text; the element must be empty -->
- * <div bind:class:empty="isEmpty"></div>    <!-- Boolean toggles a class; '!' negates -->
+ * <div bind:class:empty="count == 0"></div> <!-- Boolean toggles a class -->
  * <img bind:src="icon"/>                    <!-- value as a plain attribute -->
- * <mc-item bind:item="gun"></mc-item>        <!-- host object as a native element's payload -->
+ * <mc-item bind:item="gun"></mc-item>       <!-- host object as a native element's payload -->
  * <div bind:style:width="xpPercent"></div>  <!-- one longhand: a String in its CSS syntax ("37.5%"),
  *                                                a Number as px or a plain number, null to unset -->
  * <span bind:text="selected.name"></span>   <!-- path: record components, read when the record changes -->
+ * <span bind:text="rows.size + ' rows'"></span> <!-- expression: literals, paths, ! - + * / %, comparisons,
+ *                                                && ||, ?: (see Expr); one Derived over its paths -->
  * <div bind:class:busy="reload.pending"></div>  <!-- an action's pending / error -->
  * <div on:click="reload"></div>             <!-- runs an action; the event counts as handled -->
- * <div on:click="select(row)"></div>        <!-- with the value of a path as its argument -->
+ * <div on:click="select(row)"></div>        <!-- with the value of an expression as its argument -->
+ * <div on:click="open = !open; refresh"></div> <!-- statements: calls and assignments, left to right -->
+ * <div state:open="false">…</div>           <!-- local state of the element and its subtree; its type is
+ *                                                the initial value's, evaluated once per built element -->
  * <div on:keydown.delete="remove"></div>    <!-- key events may name the key (see Keys) and modifiers:
  *                                                on:keydown.up.shift fires only for Shift+Up, and plain
  *                                                on:keydown.up only with none of Shift, Ctrl, Alt -->
  * <div on:click.right="half(c)"></div>      <!-- mouse events may name the button and modifiers the same
  *                                                way; on:click.shift is a Shift+left click, and plain
  *                                                on:click any left click -->
- * <input bind:value="query"/>               <!-- two-way: typing sets the state Value<String> field; also on
+ * <input bind:value="query"/>               <!-- two-way: typing sets a state Value<String>; also on
  *                                                number and range inputs and on <select> -->
  * <input type="checkbox" bind:checked="on"/> <!-- two-way: a state Value<Boolean> -->
  * <dialog bind:open="confirming">…</dialog> <!-- two-way: open while true; Escape closes it and writes false -->
  * <input bind:value="r.text"/>              <!-- inside each: a row component of type Value<T> made with
  *                                                state(...) is two-way too; any row component that is a
  *                                                Value or Derived is read through and followed -->
- * <div bind:scrolltop="scroll"></div>       <!-- two-way: scrolling sets the state Value<Integer> field;
+ * <div bind:scrolltop="scroll"></div>       <!-- two-way: scrolling sets a state Value<Integer>;
  *                                                a value past the scroll range is clamped after layout
  *                                                and the clamped offset written back -->
  * <div on:keydown.escape="close"></div>     <!-- key handlers on a top-level element act as document-level
@@ -77,8 +82,11 @@ import java.util.function.Function;
  *      on:click="select(s)" bind:class:on="s.selected"></div>
  * }</pre>
  *
- * Expressions are a path with an optional {@code !}; anything more goes into a {@link Derived}. Every
- * name, record component and type is checked at load.
+ * A path's first name is a local state, an {@code as} row or a view model field. A two-way binding
+ * takes a bare path to something writable: a local state, a {@code state(...)} field, or a row
+ * component of type {@code Value<T>}; so does the left side of an assignment. {@code each} and
+ * {@code if} are read outside the element's own states, which belong to each mounted copy. Every name,
+ * record component and type is checked at load, and problems point at their column in the value.
  *
  * <p>A {@code bind:style:<property>} value is an inline declaration of that property: it overrides
  * stylesheet rules (except {@code !important} ones) and replaces the {@code style} attribute's
@@ -155,16 +163,6 @@ public final class Bindings {
         }
     }
 
-    /**
-     * A resolved expression: the cell to read and its declared value type; {@code rowValue} when the
-     * cell reads through a row component of type {@code Value<T>}, which two-way bindings may write.
-     */
-    private record Ref(Cell<?> cell, Type type, boolean rowValue) {
-        Ref(Cell<?> cell, Type type) {
-            this(cell, type, false);
-        }
-    }
-
     private static final class Compiler {
         private static final Set<String> STRUCTURAL = Set.of("each", "as", "key", "if");
 
@@ -177,8 +175,8 @@ public final class Bindings {
         private final PropertyRegistry properties;
         private final Diagnostics diag;
         private final TopLayer topLayer;
-        /** {@code as} names visible to the subtree being compiled. */
-        private Map<String, Ref> aliases = Map.of();
+        /** Names visible to the subtree being compiled: {@code as} rows and local states. */
+        private Map<String, Ref> scope = Map.of();
 
         Compiler(Element documentRoot, ViewModel model, Function<Object, String> textOf, TagRegistry tags,
                  PropertyRegistry properties, TopLayer topLayer, Diagnostics diag) {
@@ -192,57 +190,94 @@ public final class Bindings {
             this.diag = diag;
         }
 
-        /** Compiles {@code e}'s own attributes and its subtree into {@code out}; block templates leave the tree. */
+        /** Compiles {@code e}'s own directives and its subtree into {@code out}; block templates leave the tree. */
         void collect(Element e, Group out) {
-            for (BindAttribute a : e.bindings()) {
-                if (STRUCTURAL.contains(a.name())) {
-                    continue;
-                }
-                if (model == null) {
-                    diag.error(a.namePos(), "'" + a.name() + "' needs a view model, but this document has none");
-                } else if (a.name().startsWith("on:")) {
-                    handler(e, a);
-                } else {
-                    Binding b = binding(e, a);
-                    if (b != null) {
-                        out.parts.add(b);
+            Map<String, Ref> saved = scope;
+            try {
+                for (Directive a : e.directives()) {
+                    if (a.name().startsWith("state:")) {
+                        if (model == null) {
+                            diag.error(a.namePos(), "'" + a.name() + "' needs a view model, but this document has none");
+                        } else {
+                            state(a, out);
+                        }
                     }
                 }
-            }
-            Object prev = null;
-            for (Node n : List.copyOf(e.children())) {
-                if (n instanceof Element child && hasStructural(child)) {
-                    e.removeChild(child);
-                    Block block = model == null ? null : block(child, e, prev);
+                for (Directive a : e.directives()) {
+                    if (STRUCTURAL.contains(a.name()) || a.name().startsWith("state:")) {
+                        continue;
+                    }
                     if (model == null) {
-                        diag.error(child.pos(), "<" + child.tag() + "> has each/if, but this document has no view model");
+                        diag.error(a.namePos(), "'" + a.name() + "' needs a view model, but this document has none");
+                    } else if (a.name().startsWith("on:")) {
+                        handler(e, a);
+                    } else {
+                        Binding b = binding(e, a);
+                        if (b != null) {
+                            out.parts.add(b);
+                        }
                     }
-                    if (block != null) {
-                        out.parts.add(block);
-                        prev = block;
+                }
+                Object prev = null;
+                for (Node n : List.copyOf(e.children())) {
+                    if (n instanceof Element child && hasStructural(child)) {
+                        e.removeChild(child);
+                        Block block = model == null ? null : block(child, e, prev);
+                        if (model == null) {
+                            diag.error(child.pos(), "<" + child.tag() + "> has each/if, but this document has no view model");
+                        }
+                        if (block != null) {
+                            out.parts.add(block);
+                            prev = block;
+                        }
+                        continue;
                     }
-                    continue;
+                    if (n instanceof Element child) {
+                        collect(child, out);
+                    }
+                    prev = n;
                 }
-                if (n instanceof Element child) {
-                    collect(child, out);
-                }
-                prev = n;
+            } finally {
+                scope = saved;
             }
         }
 
-        /** Compiles {@code e} seeing the {@code as} names in {@code scope}. */
-        void collectWith(Element e, Map<String, Ref> scope, Group out) {
-            Map<String, Ref> saved = aliases;
-            aliases = scope;
+        /** Compiles {@code e} seeing the names in {@code names}. */
+        void collectWith(Element e, Map<String, Ref> names, Group out) {
+            Map<String, Ref> saved = scope;
+            scope = names;
             try {
                 collect(e, out);
             } finally {
-                aliases = saved;
+                scope = saved;
             }
         }
 
+        /** {@code state:name="init"}: a new local state, visible from here to the end of the element. */
+        private void state(Directive a, Group out) {
+            String name = a.name().substring("state:".length());
+            if (!isIdentifier(name)) {
+                diag.error(a.namePos(), "'" + name + "' is not a valid state name");
+                return;
+            }
+            if (scope.containsKey(name) || fields.containsKey(name)) {
+                diag.error(a.namePos(), "state '" + name + "' would hide " + (scope.containsKey(name)
+                        ? "a row or state of an enclosing element" : "the field of " + model.getClass().getSimpleName()));
+                return;
+            }
+            Ref init = expression(a);
+            if (init == null) {
+                return;
+            }
+            Value<Object> cell = new Value<>(model, null, null);
+            Map<String, Ref> next = new HashMap<>(scope);
+            next.put(name, new Ref(cell, init.type(), Ref.Write.VALUE));
+            scope = next;
+            out.parts.add(new StateInit(cell, init.cell(), a, diag));
+        }
+
         private static boolean hasStructural(Element e) {
-            for (BindAttribute a : e.bindings()) {
+            for (Directive a : e.directives()) {
                 if (STRUCTURAL.contains(a.name())) {
                     return true;
                 }
@@ -251,11 +286,11 @@ public final class Bindings {
         }
 
         private Block block(Element template, Element parent, Object prev) {
-            BindAttribute each = null;
-            BindAttribute as = null;
-            BindAttribute key = null;
-            BindAttribute cond = null;
-            for (BindAttribute a : template.bindings()) {
+            Directive each = null;
+            Directive as = null;
+            Directive key = null;
+            Directive cond = null;
+            for (Directive a : template.directives()) {
                 switch (a.name()) {
                     case "each" -> each = a;
                     case "as" -> as = a;
@@ -270,7 +305,7 @@ public final class Bindings {
                 return null;
             }
             if (each == null) {
-                BindAttribute stray = as != null ? as : key;
+                Directive stray = as != null ? as : key;
                 if (stray != null) {
                     diag.error(stray.namePos(), "'" + stray.name() + "' only goes with 'each'");
                     return null;
@@ -280,23 +315,22 @@ public final class Bindings {
             return eachBlock(template, parent, prev, each, as, key);
         }
 
-        private Block ifBlock(Element template, Element parent, Object prev, BindAttribute cond) {
-            String expr = cond.value().trim();
-            boolean negate = expr.startsWith("!");
-            Ref ref = resolve(cond, negate ? expr.substring(1).trim() : expr);
+        private Block ifBlock(Element template, Element parent, Object prev, Directive cond) {
+            Ref ref = expression(cond);
             if (ref == null) {
                 return null;
             }
-            if (!isBoolean(ref.type)) {
-                diag.error(cond.valuePos(), "'if' needs a Boolean, but '" + expr + "' is " + ref.type.getTypeName());
+            if (!Types.isBoolean(ref.type())) {
+                diag.error(cond.valuePos(), "'if' needs a Boolean, but '" + cond.value().trim() + "' is "
+                        + ref.type().getTypeName());
                 return null;
             }
-            collectWith(cloneTree(template), aliases, new Group());
-            return new IfBlock(this, aliases, template, parent, prev, ref.cell, negate, cond);
+            collectWith(cloneTree(template), scope, new Group());
+            return new IfBlock(this, scope, template, parent, prev, ref.cell(), cond);
         }
 
-        private Block eachBlock(Element template, Element parent, Object prev, BindAttribute each,
-                                BindAttribute as, BindAttribute key) {
+        private Block eachBlock(Element template, Element parent, Object prev, Directive each,
+                                Directive as, Directive key) {
             if (as == null || key == null) {
                 diag.error(each.namePos(), "'each' needs 'as' (the row name) and 'key' (a path identifying a row)");
                 return null;
@@ -306,47 +340,52 @@ public final class Bindings {
                 diag.error(as.valuePos(), "'as' takes a name, got '" + as.value() + "'");
                 return null;
             }
-            Ref list = resolve(each, each.value().trim());
+            Ref list = expression(each);
             if (list == null) {
                 return null;
             }
-            if (!List.class.isAssignableFrom(rawClass(list.type))) {
+            if (!List.class.isAssignableFrom(Types.rawClass(list.type()))) {
                 diag.error(each.valuePos(), "'each' needs a List, but '" + each.value().trim() + "' is "
-                        + list.type.getTypeName());
+                        + list.type().getTypeName());
                 return null;
             }
-            Type element = typeArgument(list.type);
+            Type element = Types.typeArgument(list.type());
             Ref row = new Ref(new Value<>(model, null, null), element == null ? Object.class : element);
-            Map<String, Ref> rowScope = new HashMap<>(aliases);
+            Map<String, Ref> rowScope = new HashMap<>(scope);
             rowScope.put(alias, row);
-            String keyExpr = key.value().trim();
-            if (!keyExpr.equals(alias) && !keyExpr.startsWith(alias + ".")) {
-                diag.error(key.valuePos(), "'key' is a path from the row '" + alias + "', got '" + keyExpr + "'");
+            Expr keyExpr = parse(key);
+            if (keyExpr == null) {
                 return null;
             }
-            Map<String, Ref> saved = aliases;
-            aliases = rowScope;
+            if (!(keyExpr instanceof Expr.Path keyPath) || !keyPath.names().get(0).equals(alias)) {
+                diag.error(key.valuePos(), "'key' is a path from the row '" + alias + "', got '" + key.value().trim() + "'");
+                return null;
+            }
+            Map<String, Ref> saved = scope;
+            scope = rowScope;
             Ref keyRef;
             try {
-                keyRef = resolve(key, keyExpr);
+                keyRef = resolve(key, keyPath);
             } finally {
-                aliases = saved;
+                scope = saved;
             }
             if (keyRef == null) {
                 return null;
             }
             collectWith(cloneTree(template), rowScope, new Group());
             @SuppressWarnings("unchecked")
-            Value<Object> keyInput = (Value<Object>) row.cell;
-            return new EachBlock(this, aliases, template, parent, prev, list.cell, alias, row.type,
-                    keyInput, keyRef.cell, each, key);
+            Value<Object> keyInput = (Value<Object>) row.cell();
+            return new EachBlock(this, scope, template, parent, prev, list.cell(), alias, row.type(),
+                    keyInput, keyRef.cell(), each, key);
         }
 
-        private Binding binding(Element e, BindAttribute a) {
+        private Binding binding(Element e, Directive a) {
             String target = a.name().substring("bind:".length());
-            String expr = a.value().trim();
-            boolean negate = expr.startsWith("!");
-            Ref ref = resolve(a, negate ? expr.substring(1).trim() : expr);
+            Expr parsed = parse(a);
+            if (parsed == null) {
+                return null;
+            }
+            Ref ref = compile(a, parsed);
             if (ref == null) {
                 return null;
             }
@@ -359,13 +398,12 @@ public final class Bindings {
                 default -> false;
             };
             if (twoWay) {
-                return twoWay(e, a, expr, ref, negate, target);
+                return twoWay(e, a, parsed, ref, target);
             }
             boolean isClass = target.startsWith("class:");
-            boolean isFlag = isClass || target.equals("disabled");
-            if ((negate || isFlag) && !isBoolean(ref.type)) {
-                diag.error(a.valuePos(), (negate ? "'!'" : "'" + a.name() + "'") + " needs a Boolean, but '"
-                        + a.value().trim() + "' is " + ref.type.getTypeName());
+            if ((isClass || target.equals("disabled")) && !Types.isBoolean(ref.type())) {
+                diag.error(a.valuePos(), "'" + a.name() + "' needs a Boolean, but '" + a.value().trim() + "' is "
+                        + ref.type().getTypeName());
                 return null;
             }
             if (target.equals("text")) {
@@ -375,10 +413,10 @@ public final class Bindings {
                 }
                 TextNode text = new TextNode("", a.valuePos());
                 e.appendChild(text);
-                return new TextBinding(ref.cell, negate, a, diag, textOf, text);
+                return new TextBinding(ref.cell(), a, diag, textOf, text);
             }
             if (target.equals(tags.payloadAttribute(e.tag()))) {
-                return new PayloadBinding(ref.cell, negate, a, diag, e);
+                return new PayloadBinding(ref.cell(), a, diag, e);
             }
             if (isClass) {
                 String cls = target.substring("class:".length());
@@ -386,13 +424,13 @@ public final class Bindings {
                     diag.error(a.namePos(), "'" + cls + "' is not a valid class name");
                     return null;
                 }
-                return new ClassBinding(ref.cell, negate, a, diag, e, cls);
+                return new ClassBinding(ref.cell(), a, diag, e, cls);
             }
             if (target.equals("disabled")) {
-                return new DisabledBinding(ref.cell, negate, a, diag, e);
+                return new DisabledBinding(ref.cell(), a, diag, e);
             }
             if (target.startsWith("style:")) {
-                return styleBinding(e, a, ref, negate);
+                return styleBinding(e, a, ref);
             }
             switch (target) {
                 case "class" -> diag.error(a.namePos(), "bind:class takes a class name: bind:class:<name>");
@@ -402,15 +440,15 @@ public final class Bindings {
                     if (target.indexOf(':') >= 0 || !tags.isAllowedAttribute(e.tag(), target)) {
                         diag.error(a.namePos(), "unknown binding target '" + a.name() + "' on <" + e.tag() + ">");
                     } else {
-                        return new AttributeBinding(ref.cell, negate, a, diag, textOf, e, target);
+                        return new AttributeBinding(ref.cell(), a, diag, textOf, e, target);
                     }
                 }
             }
             return null;
         }
 
-        /** {@code bind:style:<longhand>} with a String, Number or Object path. */
-        private Binding styleBinding(Element e, BindAttribute a, Ref ref, boolean negate) {
+        /** {@code bind:style:<longhand>} with a String, Number or Object value. */
+        private Binding styleBinding(Element e, Directive a, Ref ref) {
             String name = a.name().substring("bind:style:".length()).toLowerCase(Locale.ROOT);
             PropertyDef<?> property = properties.byName(name);
             if (property == null) {
@@ -427,81 +465,84 @@ public final class Bindings {
                 }
                 return null;
             }
-            Class<?> raw = box(rawClass(ref.type));
+            Class<?> raw = Types.boxed(ref.type());
             boolean number = Number.class.isAssignableFrom(raw);
-            if (negate || !(number || raw == String.class || raw == Object.class)) {
+            if (!(number || raw == String.class || raw == Object.class)) {
                 diag.error(a.valuePos(), "'" + a.name() + "' takes a String or a Number, but '" + a.value().trim()
-                        + "' is " + (negate ? "a Boolean" : ref.type.getTypeName()));
+                        + "' is " + ref.type().getTypeName());
                 return null;
             }
             if (number && property.syntax().numberUnit() == null) {
                 diag.error(a.valuePos(), "'" + name + "' takes no plain numbers; bind a String with its CSS value");
                 return null;
             }
-            return new StyleBinding(ref.cell, a, diag, e, property);
+            return new StyleBinding(ref.cell(), a, diag, e, property);
         }
 
         /**
          * {@code bind:value} on a form control (a String), {@code bind:checked} on a checkbox and
          * {@code bind:open} on a dialog (a Boolean), {@code bind:scrolltop} (an Integer): the view follows
-         * the cell and writes its own changes back to it, so the path must be a state {@link Value}
-         * field of the model itself, or a row component of type {@code Value<T>} made by
-         * {@code state(...)}.
+         * the cell and writes its own changes back to it, so the value must be a bare writable path.
          */
-        @SuppressWarnings("unchecked")
-        private Binding twoWay(Element e, BindAttribute a, String expr, Ref ref, boolean negate, String target) {
+        private Binding twoWay(Element e, Directive a, Expr parsed, Ref ref, String target) {
             Class<?> want = switch (target) {
                 case "value" -> String.class;
                 case "scrolltop" -> Integer.class;
                 default -> Boolean.class;
             };
-            boolean field = !aliases.containsKey(expr) && fields.containsKey(expr)
-                    && ref.cell instanceof Value<?> v && v.isState();
-            boolean state = !negate && (field || ref.rowValue);
-            if (!state || box(rawClass(ref.type)) != want) {
-                diag.error(a.valuePos(), "'" + a.name() + "' writes back to the view model: it needs a state Value<"
-                        + want.getSimpleName() + "> field or row component, but '" + a.value().trim() + "' is "
-                        + (state ? ref.type.getTypeName() : negate ? "negated" : "not one"));
+            boolean writable = parsed instanceof Expr.Path && ref.write() != Ref.Write.NONE;
+            if (!writable || Types.boxed(ref.type()) != want) {
+                diag.error(a.valuePos(), "'" + a.name() + "' writes back: it needs a state Value<" + want.getSimpleName()
+                        + "> (a state(...) field, a local state or a row component), but '" + a.value().trim() + "' is "
+                        + (writable ? ref.type().getTypeName() : "not one"));
                 return null;
             }
-            Consumer<Object> writeBack = field ? v -> ((Value<Object>) ref.cell).set(v) : v -> {
-                Cell<?> inner = ((Flat<?>) ref.cell).current();
-                if (inner instanceof Value<?> value && value.isState()) {
-                    ((Value<Object>) value).set(v);
-                } else {
-                    diag.error(a.valuePos(), "'" + a.value().trim() + "' is not a state Value (made by state(...)); "
-                            + "'" + a.name() + "' cannot write to it");
-                }
-            };
+            Consumer<Object> writeBack = writer(a.valuePos(), a.value().trim(), ref);
             switch (target) {
                 case "value" -> {
                     e.addEventListener(UiEvent.Type.INPUT, false, ev -> writeBack.accept(e.control().value()));
-                    return new ValueBinding(ref.cell, a, diag, e);
+                    return new ValueBinding(ref.cell(), a, diag, e);
                 }
                 case "checked" -> {
                     e.addEventListener(UiEvent.Type.INPUT, false, ev -> writeBack.accept(e.control().checked()));
-                    return new CheckedBinding(ref.cell, a, diag, e);
+                    return new CheckedBinding(ref.cell(), a, diag, e);
                 }
                 case "open" -> {
                     e.addEventListener(UiEvent.Type.CLOSE, false, ev -> writeBack.accept(false));
-                    return new OpenBinding(ref.cell, a, diag, e, topLayer);
+                    return new OpenBinding(ref.cell(), a, diag, e, topLayer);
                 }
                 default -> {
                     e.addEventListener(UiEvent.Type.SCROLL, false, ev -> writeBack.accept(Math.round(e.scrollTop())));
-                    return new ScrollBinding(ref.cell, a, diag, e);
+                    return new ScrollBinding(ref.cell(), a, diag, e);
                 }
             }
         }
 
+        /** Sets a writable {@code ref}; a row component that turns out not to be a state is reported at {@code pos}. */
+        @SuppressWarnings("unchecked")
+        private Consumer<Object> writer(SourcePos pos, String path, Ref ref) {
+            if (ref.write() == Ref.Write.VALUE) {
+                return v -> ((Value<Object>) ref.cell()).set(v);
+            }
+            return v -> {
+                Cell<?> inner = ((Flat<?>) ref.cell()).current();
+                if (inner instanceof Value<?> value && value.isState()) {
+                    ((Value<Object>) value).set(v);
+                } else {
+                    diag.error(pos, "'" + path + "' is not a state Value (made by state(...)); it cannot be written");
+                }
+            };
+        }
+
         /**
-         * {@code on:<event>="action"} or {@code on:<event>="action(path)"}. {@code keydown} and
-         * {@code keyup} take a filter {@code .<key>[.<modifier>…]}, {@code mousedown}, {@code mouseup} and
-         * {@code click} a filter {@code [.<button>][.<modifier>…]}, with the names of {@link Keys}: the
-         * listener runs, and consumes the event, only for that key or button (left when a mouse filter
-         * names none) with exactly the named modifiers among Shift, Ctrl and Alt. Without a filter it
-         * runs for every event of the type, except that {@code click} is a left click, as in the DOM.
+         * {@code on:<event>="statements"}. {@code keydown} and {@code keyup} take a filter
+         * {@code .<key>[.<modifier>…]}, {@code mousedown}, {@code mouseup} and {@code click} a filter
+         * {@code [.<button>][.<modifier>…]}, with the names of {@link Keys}: the listener runs, and
+         * consumes the event, only for that key or button (left when a mouse filter names none) with
+         * exactly the named modifiers among Shift, Ctrl and Alt. Without a filter it runs for every event
+         * of the type, except that {@code click} is a left click, as in the DOM.
          */
-        private void handler(Element e, BindAttribute a) {
+        private void handler(Element e, Directive a) {
             String[] parts = a.name().substring("on:".length()).split("\\.", -1);
             String eventName = parts[0];
             UiEvent.Type type = UiEvent.Type.byTemplateName(eventName);
@@ -548,59 +589,23 @@ public final class Bindings {
                     filterMods |= bit;
                 }
             }
-            String expr = a.value().trim();
-            int open = expr.indexOf('(');
-            String name = open < 0 ? expr : expr.substring(0, open).trim();
-            String argExpr = null;
-            if (open >= 0) {
-                if (!expr.endsWith(")")) {
-                    diag.error(a.valuePos(), "expected 'action' or 'action(path)', got '" + a.value() + "'");
-                    return;
-                }
-                argExpr = expr.substring(open + 1, expr.length() - 1).trim();
-                if (argExpr.isEmpty() || argExpr.indexOf(',') >= 0) {
-                    diag.error(a.valuePos(), "an action takes one argument path or none, got '" + a.value() + "'");
-                    return;
-                }
-            }
-            Field field = isIdentifier(name) ? fields.get(name) : null;
-            if (field == null || field.getType() != Action.class) {
-                diag.error(a.valuePos(), "'" + name + "' is not an Action field of " + model.getClass().getSimpleName());
+            List<Expr.Stmt> statements;
+            try {
+                statements = Expr.parseStatements(a.value());
+            } catch (Expr.SyntaxError ex) {
+                diag.error(at(a, ex.at), ex.getMessage());
                 return;
             }
-            @SuppressWarnings("unchecked")
-            Action<Object> action = (Action<Object>) read(field);
-            if (action == null) {
-                diag.error(a.valuePos(), "field '" + name + "' of " + model.getClass().getSimpleName() + " is null");
+            List<Runnable> steps = new ArrayList<>();
+            boolean ok = true;
+            for (Expr.Stmt s : statements) {
+                Runnable step = s instanceof Expr.Call c ? call(a, c) : assign(a, (Expr.Assign) s);
+                ok &= step != null;
+                steps.add(step);
+            }
+            if (!ok) {
                 return;
             }
-            Type param = typeArgument(field.getGenericType());
-            boolean wantsArg = param != null && param != Void.class;
-            if (argExpr == null && wantsArg) {
-                diag.error(a.valuePos(), "'" + name + "' takes a " + param.getTypeName() + "; pass it as " + name + "(path)");
-                return;
-            }
-            if (argExpr != null && !wantsArg) {
-                diag.error(a.valuePos(), "'" + name + "' takes no argument");
-                return;
-            }
-            Cell<?> arg = null;
-            if (argExpr != null) {
-                Ref ref = resolve(a, argExpr);
-                if (ref == null) {
-                    return;
-                }
-                if (param instanceof Class<?> || param instanceof ParameterizedType) {
-                    Class<?> want = rawClass(param);
-                    if (!want.isAssignableFrom(box(rawClass(ref.type)))) {
-                        diag.error(a.valuePos(), "'" + name + "' takes a " + param.getTypeName() + ", but '"
-                                + argExpr + "' is " + ref.type.getTypeName());
-                        return;
-                    }
-                }
-                arg = ref.cell;
-            }
-            Cell<?> argCell = arg;
             int wantKey = filterKey;
             int wantButton = filterButton;
             int wantMods = filterMods;
@@ -613,7 +618,9 @@ public final class Bindings {
                     return;
                 }
                 try {
-                    action.run(argCell == null ? null : argCell.get());
+                    for (int i = 0, n = steps.size(); i < n; i++) {
+                        steps.get(i).run();
+                    }
                 } catch (RuntimeException ex) {
                     diag.error(a.valuePos(), "'" + a.value() + "' threw " + ex);
                 }
@@ -621,47 +628,130 @@ public final class Bindings {
             });
         }
 
-        /** Resolves {@code name(.component)*}; reports and returns {@code null} on failure. */
-        private Ref resolve(BindAttribute a, String path) {
-            String[] parts = path.split("\\.", -1);
-            for (String p : parts) {
-                if (!isIdentifier(p)) {
-                    diag.error(a.valuePos(), "expected a view model field or a path like 'a.b', got '" + a.value() + "'");
-                    return null;
-                }
+        /** {@code action} or {@code action(expression)}; {@code null} after reporting. */
+        private Runnable call(Directive a, Expr.Call c) {
+            String name = c.action();
+            Field field = fields.get(name);
+            if (field == null || field.getType() != Action.class) {
+                diag.error(at(a, c.at()), "'" + name + "' is not an Action field of " + model.getClass().getSimpleName());
+                return null;
             }
-            Ref ref = aliases.get(parts[0]);
+            @SuppressWarnings("unchecked")
+            Action<Object> action = (Action<Object>) read(field);
+            if (action == null) {
+                diag.error(at(a, c.at()), "field '" + name + "' of " + model.getClass().getSimpleName() + " is null");
+                return null;
+            }
+            Type param = Types.typeArgument(field.getGenericType());
+            boolean wantsArg = param != null && param != Void.class;
+            if (c.arg() == null && wantsArg) {
+                diag.error(at(a, c.at()), "'" + name + "' takes a " + param.getTypeName() + "; pass it as " + name + "(value)");
+                return null;
+            }
+            if (c.arg() != null && !wantsArg) {
+                diag.error(at(a, c.at()), "'" + name + "' takes no argument");
+                return null;
+            }
+            if (c.arg() == null) {
+                return () -> action.run(null);
+            }
+            Ref arg = compile(a, c.arg());
+            if (arg == null) {
+                return null;
+            }
+            boolean checkable = param instanceof Class<?> || param instanceof ParameterizedType;
+            if (checkable && !Types.assignable(arg.type(), param)) {
+                diag.error(at(a, c.arg().at()), "'" + name + "' takes a " + param.getTypeName() + ", but "
+                        + describe(c.arg()) + " is " + arg.type().getTypeName());
+                return null;
+            }
+            Cell<?> cell = arg.cell();
+            return () -> action.run(Types.convert(cell.get(), param));
+        }
+
+        /** {@code path = expression}; {@code null} after reporting. */
+        private Runnable assign(Directive a, Expr.Assign s) {
+            Ref target = resolve(a, s.target());
+            Ref value = compile(a, s.value());
+            if (target == null || value == null) {
+                return null;
+            }
+            String path = s.target().text();
+            if (target.write() == Ref.Write.NONE) {
+                diag.error(at(a, s.at()), "'" + path + "' cannot be assigned: only local states, state(...) fields "
+                        + "and row components of type Value<T> can");
+                return null;
+            }
+            if (!Types.assignable(value.type(), target.type())) {
+                diag.error(at(a, s.value().at()), "'" + path + "' is " + target.type().getTypeName() + ", but "
+                        + describe(s.value()) + " is " + value.type().getTypeName());
+                return null;
+            }
+            Consumer<Object> write = writer(at(a, s.at()), path, target);
+            Cell<?> cell = value.cell();
+            Type type = target.type();
+            return () -> write.accept(Types.convert(cell.get(), type));
+        }
+
+        private static String describe(Expr e) {
+            return e instanceof Expr.Path p ? "'" + p.text() + "'" : "the value";
+        }
+
+        /** The parsed value of {@code a}; {@code null} after reporting a syntax error. */
+        private Expr parse(Directive a) {
+            try {
+                return Expr.parseExpression(a.value());
+            } catch (Expr.SyntaxError ex) {
+                diag.error(at(a, ex.at), ex.getMessage());
+                return null;
+            }
+        }
+
+        private Ref compile(Directive a, Expr e) {
+            return Expressions.compile(e, p -> resolve(a, p), textOf, (offset, message) -> diag.error(at(a, offset), message));
+        }
+
+        private Ref expression(Directive a) {
+            Expr e = parse(a);
+            return e == null ? null : compile(a, e);
+        }
+
+        /** Resolves {@code name(.member)*}; reports and returns {@code null} on failure. */
+        private Ref resolve(Directive a, Expr.Path path) {
+            String first = path.names().get(0);
+            Ref ref = scope.get(first);
             int next = 1;
             if (ref == null) {
-                Field field = fields.get(parts[0]);
+                Field field = fields.get(first);
                 if (field == null) {
-                    diag.error(a.valuePos(), "'" + parts[0] + "' is not a field of " + model.getClass().getSimpleName());
+                    diag.error(at(a, path.at()), "'" + first + "' is not a field of " + model.getClass().getSimpleName());
                     return null;
                 }
                 Object value = read(field);
                 if (value == null) {
-                    diag.error(a.valuePos(), "field '" + parts[0] + "' of " + model.getClass().getSimpleName() + " is null");
+                    diag.error(at(a, path.at()), "field '" + first + "' of " + model.getClass().getSimpleName() + " is null");
                     return null;
                 }
                 if (value instanceof Action<?> action) {
-                    String member = parts.length > 1 ? parts[1] : "";
+                    String member = path.names().size() > 1 ? path.names().get(1) : "";
                     switch (member) {
                         case "pending" -> ref = new Ref(action.pending(), Boolean.class);
                         case "error" -> ref = new Ref(action.error(), Throwable.class);
                         default -> {
-                            diag.error(a.valuePos(), "an action is not a value; bind '" + parts[0] + ".pending' or '"
-                                    + parts[0] + ".error'");
+                            diag.error(at(a, path.at()), "an action is not a value; use '" + first + ".pending' or '"
+                                    + first + ".error'");
                             return null;
                         }
                     }
                     next = 2;
                 } else {
-                    Type t = typeArgument(field.getGenericType());
-                    ref = new Ref((Cell<?>) value, t == null ? Object.class : t);
+                    Type t = Types.typeArgument(field.getGenericType());
+                    boolean state = value instanceof Value<?> v && v.isState();
+                    ref = new Ref((Cell<?>) value, t == null ? Object.class : t, state ? Ref.Write.VALUE : Ref.Write.NONE);
                 }
             }
-            for (int i = next; i < parts.length; i++) {
-                ref = component(a, ref, parts[i]);
+            for (int i = next; i < path.names().size(); i++) {
+                ref = member(a, path, i, ref);
                 if (ref == null) {
                     return null;
                 }
@@ -669,17 +759,24 @@ public final class Bindings {
             return ref;
         }
 
-        private Ref component(BindAttribute a, Ref base, String name) {
-            Class<?> raw = rawClass(base.type);
+        /** Member {@code i} of {@code path} on {@code base}: a record component, or a List's {@code size}. */
+        private Ref member(Directive a, Expr.Path path, int i, Ref base) {
+            String name = path.names().get(i);
+            SourcePos pos = at(a, path.offsets().get(i));
+            Class<?> raw = Types.rawClass(base.type());
+            if (List.class.isAssignableFrom(raw) && name.equals("size")) {
+                return new Ref(new Derived<>(new Cell<?>[]{base.cell()},
+                        args -> args[0] == null ? null : ((List<?>) args[0]).size()), Integer.class);
+            }
             if (!raw.isRecord()) {
-                diag.error(a.valuePos(), "'" + name + "' in '" + a.value() + "': " + base.type.getTypeName()
-                        + " is not a record");
+                diag.error(pos, "'" + name + "' in '" + path.text() + "': " + base.type().getTypeName()
+                        + (List.class.isAssignableFrom(raw) ? " has only 'size'" : " is not a record"));
                 return null;
             }
             for (RecordComponent rc : raw.getRecordComponents()) {
                 if (rc.getName().equals(name)) {
                     MethodHandle accessor = accessor(rc.getAccessor());
-                    Cell<?> cell = new Derived<>(new Cell<?>[]{base.cell}, args -> {
+                    Cell<?> cell = new Derived<>(new Cell<?>[]{base.cell()}, args -> {
                         if (args[0] == null) {
                             return null;
                         }
@@ -692,16 +789,17 @@ public final class Bindings {
                         }
                     });
                     Type type = rc.getGenericType();
-                    if (Cell.class.isAssignableFrom(rawClass(type))) {
-                        Type inner = typeArgument(type);
+                    if (Cell.class.isAssignableFrom(Types.rawClass(type))) {
+                        Type inner = Types.typeArgument(type);
                         @SuppressWarnings({"unchecked", "rawtypes"})
                         Cell<?> flat = new Flat<>((Cell) cell);
-                        return new Ref(flat, inner == null ? Object.class : inner, rawClass(type) == Value.class);
+                        return new Ref(flat, inner == null ? Object.class : inner,
+                                Types.rawClass(type) == Value.class ? Ref.Write.ROW : Ref.Write.NONE);
                     }
                     return new Ref(cell, type);
                 }
             }
-            diag.error(a.valuePos(), raw.getSimpleName() + " has no component '" + name + "'");
+            diag.error(pos, raw.getSimpleName() + " has no component '" + name + "'");
             return null;
         }
 
@@ -712,6 +810,23 @@ public final class Bindings {
                 throw new IllegalStateException(ex);
             }
         }
+    }
+
+    /** The position of character {@code offset} of {@code a}'s value. */
+    private static SourcePos at(Directive a, int offset) {
+        SourcePos p = a.valuePos();
+        String v = a.value();
+        int line = p.line();
+        int column = p.column();
+        for (int k = 0; k < offset && k < v.length(); k++) {
+            if (v.charAt(k) == '\n') {
+                line++;
+                column = 1;
+            } else {
+                column++;
+            }
+        }
+        return new SourcePos(p.file(), line, column);
     }
 
     private static String eventNames() {
@@ -745,40 +860,33 @@ public final class Bindings {
         }
     }
 
-    /** The first type argument of a parameterized field type, or {@code null}. */
-    private static Type typeArgument(Type t) {
-        return t instanceof ParameterizedType p ? p.getActualTypeArguments()[0] : null;
-    }
+    /** {@code state:name="init"}: sets the state once, on the first update after its element is built. */
+    private static final class StateInit implements Part {
+        private final Value<Object> state;
+        private final Cell<?> init;
+        private final Directive attribute;
+        private final Diagnostics diag;
+        private boolean done;
 
-    private static Class<?> rawClass(Type t) {
-        if (t instanceof Class<?> c) {
-            return c;
+        StateInit(Value<Object> state, Cell<?> init, Directive attribute, Diagnostics diag) {
+            this.state = state;
+            this.init = init;
+            this.attribute = attribute;
+            this.diag = diag;
         }
-        if (t instanceof ParameterizedType p && p.getRawType() instanceof Class<?> c) {
-            return c;
-        }
-        return Object.class;
-    }
 
-    private static Class<?> box(Class<?> c) {
-        if (!c.isPrimitive()) {
-            return c;
+        @Override
+        public boolean update() {
+            if (!done) {
+                done = true;
+                try {
+                    state.replace(init.get());
+                } catch (RuntimeException ex) {
+                    diag.error(attribute.valuePos(), "'" + attribute.value() + "' threw " + ex);
+                }
+            }
+            return false;
         }
-        return switch (c.getName()) {
-            case "boolean" -> Boolean.class;
-            case "int" -> Integer.class;
-            case "long" -> Long.class;
-            case "float" -> Float.class;
-            case "double" -> Double.class;
-            case "char" -> Character.class;
-            case "byte" -> Byte.class;
-            case "short" -> Short.class;
-            default -> Void.class;
-        };
-    }
-
-    private static boolean isBoolean(Type t) {
-        return t == Boolean.class || t == boolean.class;
     }
 
     private static boolean isIdentifier(String s) {
@@ -809,9 +917,9 @@ public final class Bindings {
     /** A deep copy of a block template without its own structural attributes; bindings are not resolved. */
     private static Element cloneTree(Element src) {
         Element e = copy(src);
-        for (BindAttribute a : src.bindings()) {
+        for (Directive a : src.directives()) {
             if (!Compiler.STRUCTURAL.contains(a.name())) {
-                e.addBinding(a);
+                e.addDirective(a);
             }
         }
         return e;
@@ -829,8 +937,8 @@ public final class Bindings {
         for (Node n : src.children()) {
             if (n instanceof Element c) {
                 Element child = copy(c);
-                for (BindAttribute a : c.bindings()) {
-                    child.addBinding(a);
+                for (Directive a : c.directives()) {
+                    child.addDirective(a);
                 }
                 e.appendChild(child);
             } else {
@@ -900,16 +1008,14 @@ public final class Bindings {
     /** {@code if="path"}: mounted while the Boolean is true; recreated on each false-to-true change. */
     private static final class IfBlock extends Block {
         private final Cell<?> cond;
-        private final boolean negate;
-        private final BindAttribute attribute;
+        private final Directive attribute;
         private Instance instance;
         private boolean failing;
 
         IfBlock(Compiler compiler, Map<String, Ref> scope, Element template, Element parent, Object prev,
-                Cell<?> cond, boolean negate, BindAttribute attribute) {
+                Cell<?> cond, Directive attribute) {
             super(compiler, scope, template, parent, prev);
             this.cond = cond;
-            this.negate = negate;
             this.attribute = attribute;
         }
 
@@ -922,7 +1028,7 @@ public final class Bindings {
         public boolean update() {
             boolean on;
             try {
-                on = Boolean.TRUE.equals(cond.get()) != negate;
+                on = Boolean.TRUE.equals(cond.get());
                 failing = false;
             } catch (RuntimeException ex) {
                 if (!failing) {
@@ -959,15 +1065,15 @@ public final class Bindings {
         private final Type rowType;
         private final Value<Object> keyInput;
         private final Cell<?> key;
-        private final BindAttribute eachAttribute;
-        private final BindAttribute keyAttribute;
+        private final Directive eachAttribute;
+        private final Directive keyAttribute;
         private Map<Object, Instance> rows = new LinkedHashMap<>();
         private boolean failing;
         private boolean reportedDuplicate;
 
         EachBlock(Compiler compiler, Map<String, Ref> scope, Element template, Element parent, Object prev,
                   Cell<?> list, String alias, Type rowType, Value<Object> keyInput, Cell<?> key,
-                  BindAttribute eachAttribute, BindAttribute keyAttribute) {
+                  Directive eachAttribute, Directive keyAttribute) {
             super(compiler, scope, template, parent, prev);
             this.list = list;
             this.alias = alias;
@@ -1055,14 +1161,12 @@ public final class Bindings {
     /** One bound attribute; writes the DOM only when the value differs from the last write. */
     private abstract static class Binding implements Part {
         private final Cell<?> cell;
-        private final boolean negate;
-        final BindAttribute attribute;
+        final Directive attribute;
         final Diagnostics diag;
         private boolean failing;
 
-        Binding(Cell<?> cell, boolean negate, BindAttribute attribute, Diagnostics diag) {
+        Binding(Cell<?> cell, Directive attribute, Diagnostics diag) {
             this.cell = cell;
-            this.negate = negate;
             this.attribute = attribute;
             this.diag = diag;
         }
@@ -1081,9 +1185,6 @@ public final class Bindings {
                 return false;
             }
             failing = false;
-            if (negate) {
-                v = !Boolean.TRUE.equals(v);
-            }
             return write(v);
         }
 
@@ -1094,9 +1195,9 @@ public final class Bindings {
         private final Function<Object, String> textOf;
         private final TextNode text;
 
-        TextBinding(Cell<?> cell, boolean negate, BindAttribute a, Diagnostics diag,
+        TextBinding(Cell<?> cell, Directive a, Diagnostics diag,
                     Function<Object, String> textOf, TextNode text) {
-            super(cell, negate, a, diag);
+            super(cell, a, diag);
             this.textOf = textOf;
             this.text = text;
         }
@@ -1116,8 +1217,8 @@ public final class Bindings {
         private final Element element;
         private final String cls;
 
-        ClassBinding(Cell<?> cell, boolean negate, BindAttribute a, Diagnostics diag, Element element, String cls) {
-            super(cell, negate, a, diag);
+        ClassBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element, String cls) {
+            super(cell, a, diag);
             this.element = element;
             this.cls = cls;
         }
@@ -1141,8 +1242,8 @@ public final class Bindings {
     private static final class DisabledBinding extends Binding {
         private final Element element;
 
-        DisabledBinding(Cell<?> cell, boolean negate, BindAttribute a, Diagnostics diag, Element element) {
-            super(cell, negate, a, diag);
+        DisabledBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element) {
+            super(cell, a, diag);
             this.element = element;
         }
 
@@ -1165,8 +1266,8 @@ public final class Bindings {
     private static final class ValueBinding extends Binding {
         private final Element element;
 
-        ValueBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element) {
-            super(cell, false, a, diag);
+        ValueBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element) {
+            super(cell, a, diag);
             this.element = element;
         }
 
@@ -1182,8 +1283,8 @@ public final class Bindings {
     private static final class CheckedBinding extends Binding {
         private final Element element;
 
-        CheckedBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element) {
-            super(cell, false, a, diag);
+        CheckedBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element) {
+            super(cell, a, diag);
             this.element = element;
         }
 
@@ -1199,8 +1300,8 @@ public final class Bindings {
         private final Element element;
         private final TopLayer topLayer;
 
-        OpenBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element, TopLayer topLayer) {
-            super(cell, false, a, diag);
+        OpenBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element, TopLayer topLayer) {
+            super(cell, a, diag);
             this.element = element;
             this.topLayer = topLayer;
         }
@@ -1223,8 +1324,8 @@ public final class Bindings {
     private static final class ScrollBinding extends Binding {
         private final Element element;
 
-        ScrollBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element) {
-            super(cell, false, a, diag);
+        ScrollBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element) {
+            super(cell, a, diag);
             this.element = element;
         }
 
@@ -1248,9 +1349,9 @@ public final class Bindings {
         private final Element element;
         private final String name;
 
-        AttributeBinding(Cell<?> cell, boolean negate, BindAttribute a, Diagnostics diag,
+        AttributeBinding(Cell<?> cell, Directive a, Diagnostics diag,
                          Function<Object, String> textOf, Element element, String name) {
-            super(cell, negate, a, diag);
+            super(cell, a, diag);
             this.textOf = textOf;
             this.element = element;
             this.name = name;
@@ -1271,8 +1372,8 @@ public final class Bindings {
     private static final class PayloadBinding extends Binding {
         private final Element element;
 
-        PayloadBinding(Cell<?> cell, boolean negate, BindAttribute a, Diagnostics diag, Element element) {
-            super(cell, negate, a, diag);
+        PayloadBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element) {
+            super(cell, a, diag);
             this.element = element;
         }
 
@@ -1298,8 +1399,8 @@ public final class Bindings {
         private Object last = NONE;
         private boolean invalid;
 
-        StyleBinding(Cell<?> cell, BindAttribute a, Diagnostics diag, Element element, PropertyDef<?> property) {
-            super(cell, false, a, diag);
+        StyleBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element, PropertyDef<?> property) {
+            super(cell, a, diag);
             this.element = element;
             this.property = property;
         }

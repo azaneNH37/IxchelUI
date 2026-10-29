@@ -8,7 +8,7 @@
         </div>
       </div>
     </div>
-    <div class="line" if="hasArmor">
+    <div class="line" if="armor > 0">
       <div class="icons">
         <div class="icon armor" each="armorIcons" as="a" key="a.index" bind:class:full="a.full" bind:class:half="a.half"></div>
       </div>
@@ -21,14 +21,14 @@
       </div>
     </div>
     <div class="xp">
-      <div class="xp-fill" bind:style:width="progressWidth"></div>
+      <div class="xp-fill" bind:style:width="progress * 100 + '%'"></div>
     </div>
     <span class="level" bind:text="level"></span>
   </div>
   <div class="top">
     <div class="compass">
       <div class="bar">
-        <div class="strip" bind:style:left="stripLeft">
+        <div class="strip" bind:style:left="-heading">
           <div class="mark" each="marks" as="m" key="m.id" bind:style:left="m.left" bind:class:major="m.major">
             <div class="tick"></div>
             <span class="mark-label" bind:text="m.label"></span>
@@ -41,7 +41,7 @@
         <span class="waypoint-label" bind:text="w.label"></span>
       </div>
     </div>
-    <div class="target" if="hasTarget">
+    <div class="target" if="hasBlock || hasEntity">
       <div class="block" if="hasBlock">
         <mc-item class="block-icon" bind:item="blockIcon"></mc-item>
         <div class="lines">
@@ -62,7 +62,7 @@
           </div>
           <span class="health-text" bind:text="entityHealth"></span>
         </div>
-        <span class="armor-text" if="entityHasArmor" bind:text="entityArmor"></span>
+        <span class="armor-text" if="entity.armor > 0" bind:text="entity.armor + ' armor'"></span>
         <span class="mod" bind:text="entity.mod"></span>
       </div>
     </div>

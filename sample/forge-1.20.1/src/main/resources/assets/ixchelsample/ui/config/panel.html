@@ -13,7 +13,7 @@
         </div>
       </div>
       <div class="entries">
-        <span class="none" if="empty">No setting matches the search</span>
+        <span class="none" if="rows.size == 0">No setting matches the search</span>
         <div class="entry" each="rows" as="r" key="r.id" bind:title="r.comment"
              bind:class:modified="r.modified" bind:class:invalid="r.invalid">
           <div class="line">
@@ -72,14 +72,14 @@
       </select>
     </div>
     <div class="dialog-row">
-      <button class="list-cancel" on:click="closeList">Cancel</button>
+      <button class="list-cancel" on:click="listOpen = false">Cancel</button>
       <button class="list-done" on:click="applyList">Done</button>
     </div>
   </dialog>
   <dialog class="confirm" bind:open="confirming">
     <span>Discard the unsaved changes?</span>
     <div class="dialog-row">
-      <button class="keep" on:click="keepEditing">Keep editing</button>
+      <button class="keep" on:click="confirming = false">Keep editing</button>
       <button class="discard" on:click="discard">Discard</button>
     </div>
   </dialog>

@@ -62,7 +62,7 @@ public final class Element extends Node {
     private final List<Node> childrenView = Collections.unmodifiableList(children);
     private final Set<String> classes = new LinkedHashSet<>();
     private final Map<String, String> attributes = new LinkedHashMap<>();
-    private final List<BindAttribute> bindings = new ArrayList<>();
+    private final List<Directive> directives = new ArrayList<>();
     private int stateBits;
     private int dirty = STYLE_DIRTY | TREE_CHANGED;
     private ComputedStyle computed;
@@ -256,13 +256,13 @@ public final class Element extends Node {
         }
     }
 
-    /** {@code bind:*} attributes from the template, in source order. */
-    public List<BindAttribute> bindings() {
-        return Collections.unmodifiableList(bindings);
+    /** The template's directives ({@code bind:*}, {@code on:*}, {@code state:*}, {@code each}…), in source order. */
+    public List<Directive> directives() {
+        return Collections.unmodifiableList(directives);
     }
 
-    public void addBinding(BindAttribute binding) {
-        bindings.add(binding);
+    public void addDirective(Directive directive) {
+        directives.add(directive);
     }
 
     /** The host object a native element is drawn from; set by its payload binding. */

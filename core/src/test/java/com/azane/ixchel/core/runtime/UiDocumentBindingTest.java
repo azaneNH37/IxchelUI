@@ -128,7 +128,7 @@ class UiDocumentBindingTest {
         assertTrue(m.startsWith("6 errors"), m);
         assertTrue(m.contains("t.html:2:17:") && m.contains("'missing' is not a field of Ammo"), m);
         assertTrue(m.contains("t.html:3:20:") && m.contains("needs a Boolean"), m);
-        assertTrue(m.contains("t.html:4:17:") && m.contains("java.lang.String is not a record"), m);
+        assertTrue(m.contains("t.html:4:22:") && m.contains("java.lang.String is not a record"), m);
         assertTrue(m.contains("t.html:5:7:") && m.contains("leave it empty"), m);
         assertTrue(m.contains("t.html:6:6:") && m.contains("bind:style takes a property name: bind:style:<property>"), m);
         assertTrue(m.contains("t.html:7:6:") && m.contains("unknown binding target 'bind:href'"), m);
@@ -262,9 +262,9 @@ class UiDocumentBindingTest {
         assertTrue(m.startsWith("6 errors"), m);
         assertTrue(m.contains("t.html:2:6:") && m.contains("unknown event 'hover'"), m);
         assertTrue(m.contains("t.html:3:16:") && m.contains("'row' is not an Action field"), m);
-        assertTrue(m.contains("t.html:4:16:") && m.contains("pass it as select(path)"), m);
+        assertTrue(m.contains("t.html:4:16:") && m.contains("pass it as select(value)"), m);
         assertTrue(m.contains("t.html:5:16:") && m.contains("'reload' takes no argument"), m);
-        assertTrue(m.contains("t.html:6:16:") && m.contains("but 'selected' is java.lang.String"), m);
+        assertTrue(m.contains("t.html:6:23:") && m.contains("but 'selected' is java.lang.String"), m);
         assertTrue(m.contains("t.html:7:17:") && m.contains("an action is not a value"), m);
     }
 
@@ -425,7 +425,61 @@ class UiDocumentBindingTest {
         assertTrue(m.contains("t.html:6:6:") && m.contains("'as' only goes with 'each'"), m);
         assertTrue(m.contains("t.html:7:33:") && m.contains("cannot share an element"), m);
         assertTrue(m.contains("t.html:8:33:") && m.contains("'nope' is not a field"), m);
-        assertTrue(m.contains("t.html:9:55:") && m.contains("Row has no component 'missing'"), m);
+        assertTrue(m.contains("t.html:9:57:") && m.contains("Row has no component 'missing'"), m);
+    }
+
+    @Test
+    void expressionsFollowTheirPathsAndStatementsRunInOrderOnLocalState() {
+        Picker m = new Picker();
+        UiDocument doc = load("""
+                <div state:n="rows.size * 10">
+                  <div class="b" on:click="n = n + 1; selected = 'n' + n"></div>
+                  <span bind:text="row.name + ': ' + (row.count == 1 ? 'one' : row.count + ' items') + ' ' + n / 4"></span>
+                  <span if="n > 20 && !show">big</span>
+                </div>
+                """, ".b { width: 10px; height: 10px }", m);
+        assertEquals("text 0 10 9 #FFFFFFFF \"ammo: one 5\"", GoldenTest.print(doc.frame(100, 100)),
+                "the state starts from the polled list; int / int divides as in Java");
+
+        click(doc);
+        assertEquals("n21", m.selected.get(), "the second statement reads the first one's write");
+        m.row.set(new Row("ammo", 3));
+        assertEquals("text 0 10 9 #FFFFFFFF \"ammo: 3 items 5\"\ntext 0 19 9 #FFFFFFFF \"big\"",
+                GoldenTest.print(doc.frame(100, 100)));
+    }
+
+    @Test
+    void eachRowHasItsOwnLocalState() {
+        Picker m = new Picker();
+        UiDocument doc = load("""
+                <span each="rows" as="r" key="r.name" state:open="false" class="r"
+                      on:click="open = !open" bind:text="r.name + (open ? '+' : '-')"></span>
+                """, ".r { width: 10px; height: 10px }", m);
+        doc.frame(100, 100);
+        click(doc);
+        assertEquals("text 0 0 9 #FFFFFFFF \"a+\"\ntext 0 10 9 #FFFFFFFF \"b-\"", GoldenTest.print(doc.frame(100, 100)));
+    }
+
+    @Test
+    void loadReportsBadExpressionsAndStatementsAtTheirColumn() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
+                <div bind:text="row.count + "></div>
+                <div bind:class:x="row.count && show"></div>
+                <div on:click="detail = 'x'"></div>
+                <div on:click="show = 1"></div>
+                <div state:show="1"></div>
+                <div bind:text="row.name < 3"></div>
+                <input bind:value="selected + ''"/>
+                """, "", new Picker()));
+        String m = e.getMessage();
+        assertTrue(m.startsWith("7 errors"), m);
+        assertTrue(m.contains("t.html:2:29:") && m.contains("expected a value"), m);
+        assertTrue(m.contains("t.html:3:30:") && m.contains("'&&' needs Booleans, got int and java.lang.Boolean"), m);
+        assertTrue(m.contains("t.html:4:16:") && m.contains("'detail' cannot be assigned"), m);
+        assertTrue(m.contains("t.html:5:23:") && m.contains("'show' is java.lang.Boolean, but the value is java.lang.Integer"), m);
+        assertTrue(m.contains("t.html:6:6:") && m.contains("state 'show' would hide the field of Picker"), m);
+        assertTrue(m.contains("t.html:7:26:") && m.contains("'<' needs numbers"), m);
+        assertTrue(m.contains("t.html:8:20:") && m.contains("'bind:value' writes back"), m);
     }
 
     static final class Bars extends ViewModel {

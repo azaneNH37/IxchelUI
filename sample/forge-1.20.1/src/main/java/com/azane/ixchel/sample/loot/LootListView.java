@@ -27,7 +27,7 @@ final class LootListView extends ViewModel {
     }
 
     /** A filter button: shows drops of rarity {@code level} (vanilla's order) and above. */
-    record Filter(int level, String label, boolean selected) {
+    record Filter(int level, String label) {
     }
 
     private static final String[] FILTERS = {"All", "Uncommon+", "Rare+", "Epic"};
@@ -36,11 +36,8 @@ final class LootListView extends ViewModel {
     final Value<List<Row>> drops = source(ClientSources.player(LootListView::rows, List.of()));
     final Derived<List<Row>> rows = derive(drops, minRarity,
             (all, min) -> all.stream().filter(r -> r.rarity() >= min).toList());
-    final Derived<List<Filter>> filters = derive(minRarity, LootListView::filters);
-    final Derived<Boolean> empty = derive(rows, List::isEmpty);
-    final Derived<String> count = derive(rows, drops, (shown, all) -> shown.size() + " of " + all.size() + " drops");
+    final Value<List<Filter>> filters = state(filters());
 
-    final Action<Filter> filter = action(f -> minRarity.set(f.level()));
     final Action<Row> pickUp = action(r -> Network.sendToServer(new PickUpDropPacket(r.id())));
 
     private static List<Row> rows(LocalPlayer p) {
@@ -55,10 +52,10 @@ final class LootListView extends ViewModel {
         return out;
     }
 
-    private static List<Filter> filters(int selected) {
+    private static List<Filter> filters() {
         List<Filter> out = new ArrayList<>(FILTERS.length);
         for (int i = 0; i < FILTERS.length; i++) {
-            out.add(new Filter(i, FILTERS[i], i == selected));
+            out.add(new Filter(i, FILTERS[i]));
         }
         return out;
     }

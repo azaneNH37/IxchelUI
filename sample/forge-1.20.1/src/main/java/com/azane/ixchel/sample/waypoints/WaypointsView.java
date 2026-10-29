@@ -19,16 +19,13 @@ import java.util.List;
  * the template's key filters), remove the selected one. Distances follow the player every frame.
  */
 final class WaypointsView extends ViewModel {
-    record Row(int id, String name, String coords, String distance, boolean selected) {
+    record Row(int id, String name, int x, int y, int z, long distance) {
     }
 
     final Value<List<Waypoint>> waypoints = source(Source.polled(Waypoints::all));
     final Value<Integer> selectedId = state(-1);
     final Value<BlockPos> playerPos = source(ClientSources.player(LocalPlayer::blockPosition, BlockPos.ZERO));
-    final Derived<List<Row>> rows = derive(waypoints, selectedId, playerPos, WaypointsView::rows);
-    final Derived<Boolean> empty = derive(waypoints, List::isEmpty);
-    final Derived<Boolean> hasSelection = derive(selectedId, id -> id >= 0);
-    final Derived<String> count = derive(waypoints, w -> w.size() + (w.size() == 1 ? " waypoint" : " waypoints"));
+    final Derived<List<Row>> rows = derive(waypoints, playerPos, WaypointsView::rows);
 
     final Action<Void> add = action(() -> {
         LocalPlayer p = Minecraft.getInstance().player;
@@ -70,12 +67,11 @@ final class WaypointsView extends ViewModel {
         return -1;
     }
 
-    private static List<Row> rows(List<Waypoint> waypoints, int selectedId, BlockPos player) {
+    private static List<Row> rows(List<Waypoint> waypoints, BlockPos player) {
         List<Row> out = new ArrayList<>(waypoints.size());
         for (Waypoint w : waypoints) {
-            String coords = w.pos().getX() + ", " + w.pos().getY() + ", " + w.pos().getZ();
-            String distance = Math.round(Math.sqrt(w.pos().distSqr(player))) + " m";
-            out.add(new Row(w.id(), w.name(), coords, distance, w.id() == selectedId));
+            BlockPos p = w.pos();
+            out.add(new Row(w.id(), w.name(), p.getX(), p.getY(), p.getZ(), Math.round(Math.sqrt(p.distSqr(player)))));
         }
         return out;
     }

@@ -1,7 +1,7 @@
 package com.azane.ixchel.core.template;
 
 import com.azane.ixchel.core.css.syntax.CssParser;
-import com.azane.ixchel.core.dom.BindAttribute;
+import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
@@ -142,7 +142,7 @@ public final class TemplateParser {
             parseAttribute(element, known, seen);
         }
         if (known && tag.equals("img") && element.attribute("src") == null
-                && element.bindings().stream().noneMatch(b -> b.name().equals("bind:src"))) {
+                && element.directives().stream().noneMatch(b -> b.name().equals("bind:src"))) {
             diag.error(openPos, "<img> requires a 'src' attribute or a 'bind:src' binding");
         }
         if (known && tag.equals("input") && FormControl.Kind.ofInputType(element.attribute("type")) == null) {
@@ -239,11 +239,11 @@ public final class TemplateParser {
         if (!tagKnown) {
             return;
         }
-        if (isBindingAttribute(name)) {
+        if (isDirective(name)) {
             if (tag.equals("style") || tag.equals("link")) {
                 diag.error(namePos, "<" + tag + "> takes no " + (tag.equals("style") ? "attributes" : "bindings"));
             } else {
-                element.addBinding(new BindAttribute(name, decode(valueStart, end, false), namePos, pos(valueStart)));
+                element.addDirective(new Directive(name, decode(valueStart, end, false), namePos, pos(valueStart)));
             }
             return;
         }
@@ -269,9 +269,10 @@ public final class TemplateParser {
         }
     }
 
-    /** Attributes interpreted by the binding layer: {@code bind:*}, {@code on:*}, {@code each/as/key/if}. */
-    static boolean isBindingAttribute(String attribute) {
-        return attribute.startsWith("bind:") || attribute.startsWith("on:") || STRUCTURAL.contains(attribute);
+    /** Attributes interpreted by the binding layer: {@code bind:*}, {@code on:*}, {@code state:*}, {@code each/as/key/if}. */
+    static boolean isDirective(String attribute) {
+        return attribute.startsWith("bind:") || attribute.startsWith("on:") || attribute.startsWith("state:")
+                || STRUCTURAL.contains(attribute);
     }
 
     /** Template attributes with planned meaning that are not implemented yet (i18n). */
@@ -359,7 +360,7 @@ public final class TemplateParser {
                     k++;
                 }
                 sb.append(' ');
-            } else if (c == '&') {
+            } else if (c == '&' && k + 1 < end && (isAsciiLetter(src.charAt(k + 1)) || src.charAt(k + 1) == '#')) {
                 int semi = src.indexOf(';', k);
                 String decoded = semi < 0 || semi >= end ? null : entity(src.substring(k + 1, semi));
                 if (decoded == null) {

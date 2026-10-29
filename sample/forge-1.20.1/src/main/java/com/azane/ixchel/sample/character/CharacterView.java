@@ -1,7 +1,6 @@
 package com.azane.ixchel.sample.character;
 
 import com.azane.ixchel.core.binding.Action;
-import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
@@ -34,7 +33,7 @@ import java.util.stream.IntStream;
  * player's stats counter, which the next frame reads.
  */
 final class CharacterView extends ViewModel {
-    record Tab(String id, String label, boolean selected) {
+    record Tab(String id, String label) {
     }
 
     /** One attribute; {@code description} is the row's tooltip. */
@@ -70,11 +69,7 @@ final class CharacterView extends ViewModel {
     };
 
     final Value<String> tab = state("equipment");
-    final Derived<List<Tab>> tabs = derive(tab, CharacterView::tabs);
-    final Derived<Boolean> onEquipment = derive(tab, "equipment"::equals);
-    final Derived<Boolean> onAttributes = derive(tab, "attributes"::equals);
-    final Derived<Boolean> onEffects = derive(tab, "effects"::equals);
-    final Derived<Boolean> onStats = derive(tab, "stats"::equals);
+    final Value<List<Tab>> tabs = state(tabs());
     final Value<List<Integer>> inventory = state(range(InventoryMenu.INV_SLOT_START, InventoryMenu.INV_SLOT_END));
     final Value<List<Integer>> hotbar = state(range(InventoryMenu.USE_ROW_SLOT_START, InventoryMenu.USE_ROW_SLOT_END));
 
@@ -82,7 +77,6 @@ final class CharacterView extends ViewModel {
     final Value<Supplier<LivingEntity>> doll = state(() -> Minecraft.getInstance().player);
     final Value<List<AttributeRow>> attributes = source(ClientSources.player(CharacterView::attributes, List.of()));
     final Value<List<EffectRow>> effects = source(ClientSources.player(CharacterView::effects, List.of()));
-    final Derived<Boolean> noEffects = derive(effects, List::isEmpty);
     final Value<List<StatRow>> stats = source(ClientSources.player(CharacterView::stats, List.of()));
 
     final Action<Tab> select = action(t -> {
@@ -95,10 +89,10 @@ final class CharacterView extends ViewModel {
         }
     });
 
-    private static List<Tab> tabs(String selected) {
+    private static List<Tab> tabs() {
         List<Tab> out = new ArrayList<>(TABS.length);
         for (String[] t : TABS) {
-            out.add(new Tab(t[0], t[1], t[0].equals(selected)));
+            out.add(new Tab(t[0], t[1]));
         }
         return out;
     }

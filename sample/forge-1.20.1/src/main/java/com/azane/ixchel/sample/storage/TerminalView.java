@@ -48,18 +48,16 @@ final class TerminalView extends ViewModel {
     final Value<Boolean> descending = state(false);
     final Value<Integer> scroll = state(0);
     final Value<Boolean> carrying;
+    final Value<List<Entry<StoredItem, Long>>> contents;
 
     final Derived<List<Entry<StoredItem, Long>>> shown;
     final Derived<List<Cell>> visibleCells;
     final Derived<Integer> contentHeight;
     final Derived<Integer> padTop;
     final Derived<String> sortLabel;
-    final Derived<String> directionLabel;
-    final Derived<String> summary;
     final Value<List<Integer>> inventory = state(range(TerminalMenu.INVENTORY_START, TerminalMenu.SLOT_COUNT));
 
     final Action<Void> cycleSort = action(() -> sortKey.set(SortKey.values()[(sortKey.get().ordinal() + 1) % SortKey.values().length]));
-    final Action<Void> flipDirection = action(() -> descending.set(!descending.get()));
     final Action<Cell> take = action((Cell c) -> take(c, TakePacket.Mode.STACK));
     final Action<Cell> takeHalf = action((Cell c) -> take(c, TakePacket.Mode.HALF));
     final Action<Cell> toInventory = action((Cell c) -> take(c, TakePacket.Mode.TO_INVENTORY));
@@ -70,16 +68,13 @@ final class TerminalView extends ViewModel {
         this.menu = menu;
         Replica<List<Entry<StoredItem, Long>>> replica = Replication.watch(Network.STORAGE, menu.containerId);
         scope().own(replica);
-        Value<List<Entry<StoredItem, Long>>> contents =
-                source(Source.polled(() -> replica.get() == null ? List.of() : replica.get()));
+        contents = source(Source.polled(() -> replica.get() == null ? List.of() : replica.get()));
         carrying = source(Source.polled(() -> !menu.getCarried().isEmpty()));
         shown = derive(contents, query, derive(sortKey, descending, TerminalView::order), TerminalView::filter);
         visibleCells = derive(shown, scroll, TerminalView::visible);
         contentHeight = derive(shown, s -> rows(s.size()) * CELL);
         padTop = derive(scroll, s -> s / CELL * CELL);
         sortLabel = derive(sortKey, k -> k.label);
-        directionLabel = derive(descending, d -> d ? "Desc" : "Asc");
-        summary = derive(shown, contents, (s, all) -> s.size() + " / " + all.size());
         // A new search starts at the top.
         subscribe(query, () -> scroll.set(0));
     }

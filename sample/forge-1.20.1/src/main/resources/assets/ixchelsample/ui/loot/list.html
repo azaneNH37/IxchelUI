@@ -3,15 +3,15 @@
   <div class="panel">
     <div class="header">
       <span class="title">Nearby drops</span>
-      <span class="count" bind:text="count"></span>
+      <span class="count" bind:text="rows.size + ' of ' + drops.size + ' drops'"></span>
     </div>
     <div class="filters">
-      <div class="filter" each="filters" as="f" key="f.level" bind:class:selected="f.selected" on:click="filter(f)">
+      <div class="filter" each="filters" as="f" key="f.level" bind:class:selected="f.level == minRarity" on:click="minRarity = f.level">
         <span bind:text="f.label"></span>
       </div>
     </div>
     <div class="list">
-      <span class="empty" if="empty">Nothing dropped nearby.</span>
+      <span class="empty" if="rows.size == 0">Nothing dropped nearby.</span>
       <div class="row" each="rows" as="r" key="r.id">
         <span class="arrow" bind:text="r.arrow"></span>
         <mc-item class="icon" bind:item="r.icon"></mc-item>
