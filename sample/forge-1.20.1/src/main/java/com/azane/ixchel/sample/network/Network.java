@@ -8,6 +8,8 @@ import com.azane.ixchel.sample.machine.OpenMachinePacket;
 import com.azane.ixchel.sample.machine.PickRecipePacket;
 import com.azane.ixchel.sample.machine.SetRedstonePacket;
 import com.azane.ixchel.sample.machine.SetSidePacket;
+import com.azane.ixchel.sample.quests.ClaimQuestPacket;
+import com.azane.ixchel.sample.quests.Claimed;
 import com.azane.ixchel.sample.storage.OpenTerminalPacket;
 import com.azane.ixchel.sample.storage.StorePacket;
 import com.azane.ixchel.sample.storage.StoredItem;
@@ -54,6 +56,10 @@ public final class Network {
                     StoredItem::encode, StoredItem::decode, (count, buf) -> buf.writeVarLong(count),
                     FriendlyByteBuf::readVarLong, TerminalMenu::view);
 
+    /** The quests the player claimed (the key is unused, 0); every ten ticks, and at once after a claim. */
+    public static final Replication.Kind<Integer, Claimed> QUESTS = Replication.snapshot(
+            FriendlyByteBuf::writeVarInt, FriendlyByteBuf::readVarInt, 10, Claimed::encode, Claimed::decode, Claimed::view);
+
     private Network() {
     }
 
@@ -72,6 +78,7 @@ public final class Network {
         toServer(OpenTerminalPacket.class, OpenTerminalPacket::encode, OpenTerminalPacket::decode, OpenTerminalPacket::handle);
         toServer(TakePacket.class, TakePacket::encode, TakePacket::decode, TakePacket::handle);
         toServer(StorePacket.class, StorePacket::encode, StorePacket::decode, StorePacket::handle);
+        toServer(ClaimQuestPacket.class, ClaimQuestPacket::encode, ClaimQuestPacket::decode, ClaimQuestPacket::handle);
     }
 
     public static void sendToServer(Object packet) {

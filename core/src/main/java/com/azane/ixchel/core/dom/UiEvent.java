@@ -13,10 +13,13 @@ public final class UiEvent {
      * committed a value: a checkbox toggled, an option picked, a range released or stepped by a key,
      * a text field left or Enter pressed in it after its value changed. {@code CLOSE}: a
      * {@code <dialog>} closed by Escape. {@code SCROLL}: an element's {@link Element#scrollTop()}
-     * changed; as in the DOM it runs the target's listeners only and does not bubble.
+     * changed; as in the DOM it runs the target's listeners only and does not bubble. {@code MOUSE_MOVE}:
+     * the pointer moved; while a button is held it goes to the element that button pressed, wherever the
+     * pointer is, with {@link #button()} that button, else to the element under the pointer with
+     * {@code button() == -1}.
      */
     public enum Type {
-        MOUSE_DOWN, MOUSE_UP, CLICK, WHEEL, KEY_DOWN, KEY_UP, INPUT, CHANGE, CLOSE, SCROLL;
+        MOUSE_DOWN, MOUSE_UP, CLICK, MOUSE_MOVE, WHEEL, KEY_DOWN, KEY_UP, INPUT, CHANGE, CLOSE, SCROLL;
 
         /** The name used in templates: {@code on:<name>}. */
         public String templateName() {
@@ -52,6 +55,8 @@ public final class UiEvent {
     private final float y;
     private final int button;
     private final double wheelDelta;
+    private final float movementX;
+    private final float movementY;
     private final int key;
     private final int modifiers;
     private Element currentTarget;
@@ -60,6 +65,11 @@ public final class UiEvent {
     private boolean consumed;
 
     private UiEvent(Type type, Element target, float x, float y, int button, double wheelDelta, int key, int modifiers) {
+        this(type, target, x, y, button, wheelDelta, key, modifiers, 0, 0);
+    }
+
+    private UiEvent(Type type, Element target, float x, float y, int button, double wheelDelta, int key, int modifiers,
+                    float movementX, float movementY) {
         this.type = type;
         this.target = target;
         this.x = x;
@@ -68,11 +78,18 @@ public final class UiEvent {
         this.wheelDelta = wheelDelta;
         this.key = key;
         this.modifiers = modifiers;
+        this.movementX = movementX;
+        this.movementY = movementY;
     }
 
     /** {@code button}: 0 left, 1 right, 2 middle; {@code modifiers}: GLFW modifier bits held. */
     public static UiEvent mouse(Type type, Element target, float x, float y, int button, int modifiers) {
         return new UiEvent(type, target, x, y, button, 0, -1, modifiers);
+    }
+
+    /** A {@link Type#MOUSE_MOVE} by {@code (movementX, movementY)} to {@code (x, y)}; {@code button} as {@link Type#MOUSE_MOVE} says. */
+    public static UiEvent move(Element target, float x, float y, float movementX, float movementY, int button) {
+        return new UiEvent(Type.MOUSE_MOVE, target, x, y, button, 0, -1, 0, movementX, movementY);
     }
 
     /** An event that carries nothing but its type and target: {@link Type#INPUT}, {@link Type#CHANGE}, {@link Type#CLOSE}, {@link Type#SCROLL}. */
@@ -121,6 +138,15 @@ public final class UiEvent {
     /** Positive scrolls up, as GLFW reports it. */
     public double wheelDelta() {
         return wheelDelta;
+    }
+
+    /** How far the pointer moved since the previous {@link Type#MOUSE_MOVE}, in GUI pixels; 0 for other events. */
+    public float movementX() {
+        return movementX;
+    }
+
+    public float movementY() {
+        return movementY;
     }
 
     public int key() {

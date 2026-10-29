@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.paint;
 
+import com.azane.ixchel.core.css.property.Affine;
+
 /**
  * The contract between the core and the mc painter. Coordinates are document GUI pixels; colors are
  * ARGB. Java 17 has no pattern-matching switch, so consumers dispatch through {@link Visitor}, which
@@ -7,7 +9,7 @@ package com.azane.ixchel.core.paint;
  */
 public sealed interface DrawCommand
         permits DrawCommand.Rect, DrawCommand.Text, DrawCommand.Image, DrawCommand.Custom,
-        DrawCommand.PushClip, DrawCommand.PopClip {
+        DrawCommand.PushClip, DrawCommand.PopClip, DrawCommand.PushTransform, DrawCommand.PopTransform {
 
     <R> R accept(Visitor<R> v);
 
@@ -23,6 +25,10 @@ public sealed interface DrawCommand
         R visitPushClip(PushClip c);
 
         R visitPopClip(PopClip c);
+
+        R visitPushTransform(PushTransform c);
+
+        R visitPopTransform(PopTransform c);
     }
 
     record Rect(float x, float y, float width, float height, int color) implements DrawCommand {
@@ -78,6 +84,27 @@ public sealed interface DrawCommand
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitPopClip(this);
+        }
+    }
+
+    /**
+     * Maps the coordinates of the commands up to the matching {@link PopTransform} through
+     * {@code matrix}, after any outer transform; clip rectangles pushed inside are in those mapped
+     * coordinates too.
+     */
+    record PushTransform(Affine matrix) implements DrawCommand {
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitPushTransform(this);
+        }
+    }
+
+    record PopTransform() implements DrawCommand {
+        public static final PopTransform INSTANCE = new PopTransform();
+
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitPopTransform(this);
         }
     }
 }

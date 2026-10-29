@@ -16,9 +16,20 @@
   position: absolute;
   width: 30px;
   padding: 1px;
-  text-align: center;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  column-gap: 2px;
   color: #FFFF55;
   background-color: #00000060;
+}
+
+/* The arrow item points up and right: turned by 45 degrees a sector, less 45. */
+.arrow {
+  width: 8px;
+  height: 8px;
+  background-image: url("minecraft:textures/item/arrow.png");
+  background-size: 8px 8px;
 }
 
 .toasts {

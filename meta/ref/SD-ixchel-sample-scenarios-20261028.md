@@ -115,7 +115,7 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 阶段 0、A 结果（2026-10-28）：
 - 阶段 0 全部落地：`title` 属性走原版 tooltip（mc 层 `ItemTooltips` 改名 `Tooltips`）；`disabled` 为全局布尔属性，可 `bind:disabled`。
 - S5 为 `env`，S4 为 `loot`（HUD + 列表界面，U 键）。`pickup` 已删除，拾取提示并入 S4 HUD。`status` 的生命、护甲、饥饿、经验已移入 S5，只剩效果列表，等 S1 接走后删除。路径点数据移到共享的 `waypoints/Waypoints`（不可变列表，变更即替换），列表界面与 S5 罗盘共用。
-- S4 方向箭头暂用 8 方向 Unicode 箭头字形（unifont 回退可显示），不画精灵图；阶段 D 有 rotate 后再换。
+- S4 方向箭头暂用 8 方向 Unicode 箭头字形（unifont 回退可显示），不画精灵图；阶段 D 已改为 rotate（见阶段 D 结果）。
 - 帧耗时（开发机 AMD 核显，`FrameTimer` 计 Pre→Post 的 CPU 时间）：S5 HUD 静止中位数 / p95 约 1.1–1.4 / 2.0–3.1 ms，每 tick 移动转向约 1.2–2.1 / 3.2–3.4 ms；加罗盘前移动约 0.9 / 1.8 ms。S4 列表 27 行静止约 3.1–3.6 / 4.1–6.9 ms，每 tick 重排约 4.0–4.1 / 6.3–6.6 ms。检查预算取 p95 的约两倍（S5 6 ms，S4 14 ms）。
 - 由此的发现（未处理）：静止与变化帧耗时相当，开销在每帧回放显示列表，不在布局；`McPainter` 的裁剪只用 scissor，被裁掉的命令（罗盘条两侧刻度、列表滚出视口的行及其物品）照样提交。若要降，先在 Painter 剔除完全落在裁剪外的命令。
 
@@ -145,6 +145,15 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - S6 为 `config`：编辑 `ixchelsample-client.toml` 的真实规格（`SampleConfig`，4 个分类），分类、搜索、开关、滑条 + 数字框、枚举下拉、颜色、列表对话框（预设下拉）、恢复默认、已修改 / 越界标记、需重启提示、撤销、保存、有未保存修改时 Escape 先确认。检查 `config` 28 项，前后都把配置复位为默认值。
 - 未验证：检查在已进入世界时经 mod 列表工厂以标题界面为父打开，真正无世界（`player == null`）的路径没有退出世界实测。
 
+阶段 D 结果（2026-10-29）：
+- core：`transform`（`translate`/`translateX|Y`/`scale`/`scaleX|Y`/`rotate`/`none`，百分比相对边框盒）与 `transform-origin`，计算值 `css.property.Transform`，矩阵 `Affine`；只在绘制与命中时生效，布局、滚动不受影响。`Painter` 以 `DrawCommand.PushTransform`/`PopTransform` 包住元素子树；命中测试与指针局部坐标（光标、滑条）沿祖先链逆变换，零缩放不可命中。
+- 事件：`mousemove`（按住键时发给按下的元素，可用 `.left` 等过滤），`on:` 语句里可读 `event.x`/`y`/`movementX`/`movementY`/`delta`（`binding.EventInfo`）。mc 层原有的 `mouseMoved` 转发已覆盖拖拽，`mouseDragged` 未接。
+- mc：两个版本的 `McPainter` 把变换写进 pose；scissor 与重叠分层用变换后矩形的包围盒，旋转内容的裁剪因此偏宽。
+- S7 为 `quests`（索引入口）：数据 `data/ixchelsample/quests.json`，3 章 99 个任务；已领取集合经快照 kind `Network.QUESTS` 复制，`ClaimQuestPacket` 由服务端校验前置与物品。画布拖拽平移、滚轮缩放 0.5–2、连线为旋转细 `div`、详情侧栏不随画布变换。检查 `quests` 21 项。
+- S4：`Drops.heading` 给出整数角度，HUD 边缘与列表的箭头为 `minecraft:textures/item/arrow.png` 加 `rotate`，删去 8 方向字形；检查读 `transform` 计算值换算为扇区。
+- 检查驱动：`Script.drag(sel, dx, dy)`；`paintedCenter` 取经变换与滚动后的绘制中心，`click`/`hover` 均改用它。
+- 帧耗时：S7 静止中位数 / p95 约 2.2–2.6 / 2.8–4.1 ms，每 tick 平移约 2.1–2.3 / 3.1–3.8 ms，预算均 8 ms。
+
 ### 4. 自动化检查
 
 #### 4.1 现状
@@ -153,7 +162,7 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - `testmod/shade-a/.../ContainerCheck` 自己又写了一套步骤队列，与 `Script` 重复。
 - CI 只跑 `./gradlew build`。
 
-2026-10-28 起，§4.2 的命名、驱动 API（`type`、`drag` 除外，分别随阶段 C、D 加入）、顺序运行与 `report.txt` 已落地；另加一条约定：两步之间必先画一帧（世界刚载入时 tick 会连续补跑而不出帧，文档尚未布局）。shade-a 的 `ContainerCheck` 仍独立。
+2026-10-28 起，§4.2 的命名、驱动 API、顺序运行与 `report.txt` 已落地（`type` 随阶段 C、`drag` 随阶段 D 加入）；另加一条约定：两步之间必先画一帧（世界刚载入时 tick 会连续补跑而不出帧，文档尚未布局）。shade-a 的 `ContainerCheck` 仍独立。
 
 #### 4.2 目标流程
 

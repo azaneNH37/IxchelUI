@@ -1,7 +1,10 @@
 <link rel="stylesheet" href="hud.css"/>
 <div class="radar">
   <span class="label" each="labels" as="l" key="l.id" bind:style:left="l.left" bind:style:top="l.top" bind:style:color="l.color" bind:text="l.text"></span>
-  <span class="edge" each="edges" as="e" key="e.sector" bind:style:left="e.left" bind:style:top="e.top" bind:text="e.text"></span>
+  <div class="edge" each="edges" as="e" key="e.sector" bind:style:left="e.left" bind:style:top="e.top">
+    <div class="arrow" bind:style:transform="'rotate(' + (e.sector * 45 - 45) + 'deg)'"></div>
+    <span class="count" bind:text="e.count"></span>
+  </div>
   <div class="toasts">
     <div class="toast" each="toasts" as="t" key="t.id" bind:class:fading="t.fading">
       <mc-item class="icon" bind:item="t.stack"></mc-item>

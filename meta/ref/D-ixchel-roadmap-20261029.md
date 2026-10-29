@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C；接下来依次是 D0（改名与清理）、L1（表达式、语句、局部状态）、D（S7、S4 箭头）、L2（组件）、L3（主题），E（S8、S9）在 L2 之后。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D；接下来依次是 L2（组件）、L3（主题），E（S8、S9）在 L2 之后。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
 
 ## Detail
 
@@ -31,7 +31,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | C | 完成 | S3、S6 | 文本输入、虚拟网格、表单控件、顶层与对话框、Tab 焦点 |
 | D0 | 完成 | — | 改名与清理 |
 | L1 | 完成 | — | 表达式、`on:` 语句、`state:` |
-| D | 待做 | S7、S4 箭头 | transform、画线、拖拽 |
+| D | 完成 | S7、S4 箭头 | transform、拖拽 |
 | L2 | 待做 | — | 组件、组件层、CSS 嵌套 |
 | L3 | 待做 | — | 主题层与主题 |
 | E | 待做 | S8、S9 | 行内流式排版、tooltip 宿主、`Component` 富文本 |
@@ -59,6 +59,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 引擎：transform（translate/scale/rotate）与逆变换命中测试；画线命令（`DrawCommand` 加类型，visitor 同步）；`mouseDragged` 转发与检查驱动 `drag(sel, dx, dy)`。
 - sample：S7 界面与检查（约 100 节点），按 L1 语法写；S4 方向箭头改用 rotate，去掉 8 方向字形。
 - 验收：场景文档 §2 S7 的交互即检查清单；帧耗时进 `FrameTimer` 预算。
+- 结果（2026-10-29）：见场景文档"阶段 D 结果"。画线命令与 `mouseDragged` 转发未做：连线用旋转的细 `div`，拖拽用已转发的 `mousemove` 加按键过滤。`-Pcheck=all` 143 项通过；testmod 1.21.1 只经 `build` 编译，未进游戏。
 
 #### L2 组件
 

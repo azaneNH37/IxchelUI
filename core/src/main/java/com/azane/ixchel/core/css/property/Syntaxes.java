@@ -229,6 +229,176 @@ public final class Syntaxes {
         };
     }
 
+    /**
+     * {@code transform}: {@code none} or a list of {@code translate()}, {@code translateX()},
+     * {@code translateY()}, {@code scale()}, {@code scaleX()}, {@code scaleY()} and {@code rotate()}
+     * (angles in {@code deg}, {@code rad}, {@code grad} or {@code turn}). Two lists interpolate function
+     * by function when their kinds match, a missing side counting as {@code none}; others jump.
+     */
+    public static Syntax<Transform> transform() {
+        return interpolating((value, pos, diag) -> {
+            List<ComponentValue> parts = significant(value);
+            if (parts.size() == 1 && parts.get(0) instanceof Token t && t.isIdent("none")) {
+                return Transform.NONE;
+            }
+            List<Transform.Fn> out = new ArrayList<>(parts.size());
+            for (ComponentValue v : parts) {
+                if (!(v instanceof ComponentValue.Function f)) {
+                    diag.error(v.pos(), "expected none or transform functions");
+                    return null;
+                }
+                Transform.Fn fn = transformFn(f, diag);
+                if (fn == null) {
+                    return null;
+                }
+                out.add(fn);
+            }
+            return new Transform(List.copyOf(out));
+        }, Syntaxes::mixTransform, null);
+    }
+
+    private static Transform.Fn transformFn(ComponentValue.Function f, Diagnostics diag) {
+        String name = f.name().toLowerCase(Locale.ROOT);
+        List<ComponentValue> args = new ArrayList<>();
+        for (ComponentValue a : significant(f.args())) {
+            if (!(a instanceof Token t && t.is(Token.Kind.COMMA))) {
+                args.add(a);
+            }
+        }
+        int max = name.equals("translate") || name.equals("scale") ? 2 : 1;
+        if (args.isEmpty() || args.size() > max) {
+            diag.error(f.pos(), name + "() takes " + (max == 2 ? "1 or 2 values" : "1 value"));
+            return null;
+        }
+        switch (name) {
+            case "translate", "translatex", "translatey" -> {
+                Length a = lengthOf(args.get(0), true, false, true, diag);
+                Length b = args.size() == 2 ? lengthOf(args.get(1), true, false, true, diag) : Length.ZERO;
+                if (a == null || b == null) {
+                    return null;
+                }
+                return name.equals("translatey")
+                        ? new Transform.Fn(Transform.Kind.TRANSLATE, Length.ZERO, a)
+                        : new Transform.Fn(Transform.Kind.TRANSLATE, a, b);
+            }
+            case "scale", "scalex", "scaley" -> {
+                Float a = factor(args.get(0), diag);
+                Float b = args.size() == 2 ? factor(args.get(1), diag) : a;
+                if (a == null || b == null) {
+                    return null;
+                }
+                return new Transform.Fn(Transform.Kind.SCALE,
+                        Length.px(name.equals("scaley") ? 1 : a), Length.px(name.equals("scalex") ? 1 : b));
+            }
+            case "rotate" -> {
+                Float deg = angle(args.get(0), diag);
+                return deg == null ? null : new Transform.Fn(Transform.Kind.ROTATE, Length.px(deg), Length.ZERO);
+            }
+            default -> {
+                diag.error(f.pos(), "unsupported transform function '" + f.name()
+                        + "' (translate, translateX, translateY, scale, scaleX, scaleY, rotate)");
+                return null;
+            }
+        }
+    }
+
+    private static Float factor(ComponentValue v, Diagnostics diag) {
+        if (v instanceof Token t && t.is(Token.Kind.NUMBER)) {
+            return (float) t.number();
+        }
+        if (v instanceof Token t && t.is(Token.Kind.PERCENTAGE)) {
+            return (float) t.number() / 100;
+        }
+        diag.error(v.pos(), "expected a number or percentage");
+        return null;
+    }
+
+    /** Degrees. */
+    private static Float angle(ComponentValue v, Diagnostics diag) {
+        if (v instanceof Token t) {
+            if (t.is(Token.Kind.NUMBER) && t.number() == 0) {
+                return 0f;
+            }
+            if (t.is(Token.Kind.DIMENSION)) {
+                double n = t.number();
+                switch (t.unit().toLowerCase(Locale.ROOT)) {
+                    case "deg":
+                        return (float) n;
+                    case "rad":
+                        return (float) Math.toDegrees(n);
+                    case "grad":
+                        return (float) (n * 0.9);
+                    case "turn":
+                        return (float) (n * 360);
+                    default:
+                        break;
+                }
+            }
+        }
+        diag.error(v.pos(), "expected an angle (deg, rad, grad or turn)");
+        return null;
+    }
+
+    private static Transform mixTransform(Transform from, Transform to, float p) {
+        int n = Math.max(from.functions().size(), to.functions().size());
+        List<Transform.Fn> out = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            Transform.Fn a = i < from.functions().size() ? from.functions().get(i) : null;
+            Transform.Fn b = i < to.functions().size() ? to.functions().get(i) : null;
+            if (a == null) {
+                a = b.identity();
+            } else if (b == null) {
+                b = a.identity();
+            }
+            if (a.kind() != b.kind() || a.x().unit() != b.x().unit() || a.y().unit() != b.y().unit()) {
+                return null;
+            }
+            out.add(new Transform.Fn(a.kind(), new Length(mix(a.x().value(), b.x().value(), p), a.x().unit()),
+                    new Length(mix(a.y().value(), b.y().value(), p), a.y().unit())));
+        }
+        return new Transform(List.copyOf(out));
+    }
+
+    /**
+     * {@code transform-origin}: one or two of a length, a percentage or a keyword ({@code left},
+     * {@code center}, {@code right}, {@code top}, {@code bottom}); a single keyword {@code top} or
+     * {@code bottom} sets the vertical side, a missing side is {@code center}.
+     */
+    public static Syntax<TransformOrigin> transformOrigin() {
+        return (value, pos, diag) -> {
+            List<ComponentValue> parts = significant(value);
+            if (parts.size() > 2) {
+                diag.error(parts.get(2).pos(), "expected 1 or 2 values");
+                return null;
+            }
+            Length center = Length.percent(50);
+            ComponentValue first = parts.get(0);
+            if (parts.size() == 1 && first instanceof Token t && (t.isIdent("top") || t.isIdent("bottom"))) {
+                return new TransformOrigin(center, Length.percent(t.isIdent("top") ? 0 : 100));
+            }
+            Length x = originSide(first, "left", "right", diag);
+            Length y = parts.size() == 2 ? originSide(parts.get(1), "top", "bottom", diag) : center;
+            return x == null || y == null ? null : new TransformOrigin(x, y);
+        };
+    }
+
+    private static Length originSide(ComponentValue v, String start, String end, Diagnostics diag) {
+        if (v instanceof Token t && t.is(Token.Kind.IDENT)) {
+            if (t.isIdent(start)) {
+                return Length.percent(0);
+            }
+            if (t.isIdent("center")) {
+                return Length.percent(50);
+            }
+            if (t.isIdent(end)) {
+                return Length.percent(100);
+            }
+            diag.error(t.pos(), "expected a length, a percentage, " + start + ", center or " + end);
+            return null;
+        }
+        return lengthOf(v, true, false, true, diag);
+    }
+
     /** Prefix of an image source that names an atlas sprite; the host resolves it. */
     public static final String SPRITE = "sprite:";
 

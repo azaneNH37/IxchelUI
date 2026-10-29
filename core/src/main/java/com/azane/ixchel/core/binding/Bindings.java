@@ -536,11 +536,15 @@ public final class Bindings {
 
         /**
          * {@code on:<event>="statements"}. {@code keydown} and {@code keyup} take a filter
-         * {@code .<key>[.<modifier>…]}, {@code mousedown}, {@code mouseup} and {@code click} a filter
-         * {@code [.<button>][.<modifier>…]}, with the names of {@link Keys}: the listener runs, and
-         * consumes the event, only for that key or button (left when a mouse filter names none) with
-         * exactly the named modifiers among Shift, Ctrl and Alt. Without a filter it runs for every event
-         * of the type, except that {@code click} is a left click, as in the DOM.
+         * {@code .<key>[.<modifier>…]}, {@code mousedown}, {@code mouseup}, {@code click} and
+         * {@code mousemove} a filter {@code [.<button>][.<modifier>…]}, with the names of {@link Keys}: the
+         * listener runs, and consumes the event, only for that key or button (left when a mouse filter
+         * names none; for {@code mousemove} the button held) with exactly the named modifiers among Shift,
+         * Ctrl and Alt (a move carries none). Without a filter it runs for every event of the type, except
+         * that {@code click} is a left click, as in the DOM.
+         *
+         * <p>The statements see the event as {@code event}, an {@link EventInfo}, ahead of the view model's
+         * fields.
          */
         private void handler(Element e, Directive a) {
             String[] parts = a.name().substring("on:".length()).split("\\.", -1);
@@ -552,14 +556,14 @@ public final class Bindings {
             }
             boolean keyEvent = type == UiEvent.Type.KEY_DOWN || type == UiEvent.Type.KEY_UP;
             boolean mouseEvent = type == UiEvent.Type.MOUSE_DOWN || type == UiEvent.Type.MOUSE_UP
-                    || type == UiEvent.Type.CLICK;
+                    || type == UiEvent.Type.CLICK || type == UiEvent.Type.MOUSE_MOVE;
             int filterKey = -1;
             int filterButton = type == UiEvent.Type.CLICK ? 0 : -1;
             int filterMods = -1;
             if (parts.length > 1) {
                 if (!keyEvent && !mouseEvent) {
                     diag.error(a.namePos(), "'" + eventName + "' takes no filter; only keydown, keyup, mousedown, "
-                            + "mouseup and click do");
+                            + "mouseup, click and mousemove do");
                     return;
                 }
                 int k = 1;
@@ -596,12 +600,21 @@ public final class Bindings {
                 diag.error(at(a, ex.at), ex.getMessage());
                 return;
             }
+            Value<EventInfo> event = new Value<>(model, null, null);
+            Map<String, Ref> saved = scope;
+            Map<String, Ref> withEvent = new HashMap<>(scope);
+            withEvent.put("event", new Ref(event, EventInfo.class));
+            scope = withEvent;
             List<Runnable> steps = new ArrayList<>();
             boolean ok = true;
-            for (Expr.Stmt s : statements) {
-                Runnable step = s instanceof Expr.Call c ? call(a, c) : assign(a, (Expr.Assign) s);
-                ok &= step != null;
-                steps.add(step);
+            try {
+                for (Expr.Stmt s : statements) {
+                    Runnable step = s instanceof Expr.Call c ? call(a, c) : assign(a, (Expr.Assign) s);
+                    ok &= step != null;
+                    steps.add(step);
+                }
+            } finally {
+                scope = saved;
             }
             if (!ok) {
                 return;
@@ -618,6 +631,7 @@ public final class Bindings {
                     return;
                 }
                 try {
+                    event.replace(new EventInfo(ev.x(), ev.y(), ev.movementX(), ev.movementY(), ev.wheelDelta()));
                     for (int i = 0, n = steps.size(); i < n; i++) {
                         steps.get(i).run();
                     }

@@ -1,0 +1,46 @@
+<link rel="stylesheet" href="tree.css"/>
+<div class="screen">
+  <div class="panel">
+    <div class="header">
+      <span class="title">Quests</span>
+      <span class="hint">Drag to pan, wheel to zoom, click a quest</span>
+    </div>
+    <div class="body">
+      <div class="chapters">
+        <button class="chapter" each="chapters" as="c" key="c.id" bind:class:selected="c.id == chapter"
+                on:click="chapter = c.id; selected = ''">
+          <mc-item class="icon" bind:item="c.icon"></mc-item>
+          <span bind:text="c.title"></span>
+        </button>
+      </div>
+      <div class="stage">
+        <div class="view" on:mousedown="press" on:mousemove.left="drag(event)" on:wheel="wheel(event)">
+          <div class="world" bind:style:transform="'translate(' + panX + 'px, ' + panY + 'px) scale(' + zoom + ')'">
+            <div class="edge" each="edges" as="e" key="e.id" bind:class:done="e.done"
+                 bind:style:left="e.x" bind:style:top="e.y" bind:style:width="e.length"
+                 bind:style:transform="'rotate(' + e.angle + 'deg)'"></div>
+            <div class="node" each="nodes" as="n" key="n.id" bind:class:locked="n.state == 'locked'"
+                 bind:class:ready="n.state == 'ready'" bind:class:done="n.state == 'done'"
+                 bind:class:selected="n.id == selected" bind:style:left="n.x" bind:style:top="n.y"
+                 bind:title="n.tooltip" on:click="open(n)">
+              <mc-item class="icon" bind:item="n.icon"></mc-item>
+            </div>
+          </div>
+        </div>
+        <div class="detail" if="selected != ''">
+          <div class="detail-head">
+            <mc-item class="icon" bind:item="detail.icon"></mc-item>
+            <span class="name" bind:text="detail.title"></span>
+          </div>
+          <span class="line" bind:text="detail.task"></span>
+          <span class="line" bind:text="detail.reward"></span>
+          <span class="state" bind:text="detail.state"></span>
+          <div class="actions">
+            <button class="claim" bind:disabled="!detail.ready" on:click="claim">Claim</button>
+            <button class="close" on:click="selected = ''">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

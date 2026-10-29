@@ -1,5 +1,7 @@
 package com.azane.ixchel.sample.check;
 
+import com.azane.ixchel.core.css.property.Affine;
+import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.runtime.UiDocument;
@@ -211,8 +213,8 @@ public final class Script {
     /** Left click on the {@code index}th element {@code selector} matches; the list is not scrolled. */
     public Script clickNth(String selector, int index) {
         return run(() -> {
-            LayoutBox b = query(selector).get(index).box();
-            clickAt(b.x() + b.width() / 2, b.y() + b.height() / 2, 0);
+            float[] p = paintedCenter(query(selector).get(index));
+            clickAt(p[0], p[1], 0);
         });
     }
 
@@ -221,7 +223,8 @@ public final class Script {
         return run(() -> {
             Element e = query(selector).stream().filter(x -> x.textContent().equals(text)).findFirst()
                     .orElseThrow(() -> new IllegalStateException("no " + selector + " reads " + text));
-            clickAt(e.box().x() + e.box().width() / 2, e.box().y() + e.box().height() / 2 - e.scrollOffset(), 0);
+            float[] p = paintedCenter(e);
+            clickAt(p[0], p[1], 0);
         });
     }
 
@@ -239,6 +242,28 @@ public final class Script {
         return run(() -> {
             float[] p = center(selector);
             screen().mouseScrolled(p[0], p[1], delta);
+        });
+    }
+
+    /**
+     * A left-button drag from the element's center by {@code (dx, dy)} GUI pixels in four moves, as
+     * vanilla reports one: {@code mouseMoved} then {@code mouseDragged} per move, the cursor following.
+     */
+    public Script drag(String selector, float dx, float dy) {
+        return run(() -> {
+            float[] p = center(selector);
+            Screen s = screen();
+            hoverAt(p[0], p[1]);
+            s.mouseMoved(p[0], p[1]);
+            s.mouseClicked(p[0], p[1], 0);
+            for (int i = 1; i <= 4; i++) {
+                double x = p[0] + dx * i / 4;
+                double y = p[1] + dy * i / 4;
+                hoverAt(x, y);
+                s.mouseMoved(x, y);
+                s.mouseDragged(x, y, 0, dx / 4, dy / 4);
+            }
+            s.mouseReleased(p[0] + dx, p[1] + dy, 0);
         });
     }
 
@@ -397,8 +422,31 @@ public final class Script {
         if (found.isEmpty()) {
             throw new IllegalStateException("no element matches " + selector);
         }
-        Element e = found.get(0);
-        return new float[]{e.box().x() + e.box().width() / 2, e.box().y() + e.box().height() / 2 - e.scrollOffset()};
+        return paintedCenter(found.get(0));
+    }
+
+    /**
+     * The center of the element's border box where it paints: through the transforms and scroll offsets
+     * on it and above it, up to placed top-layer content ({@link Element#isPlaced()}), which paints alone.
+     */
+    public static float[] paintedCenter(Element e) {
+        LayoutBox b = e.box();
+        float x = b.x() + b.width() / 2;
+        float y = b.y() + b.height() / 2;
+        for (Element a = e; a != null; a = a.parent()) {
+            LayoutBox ab = a.box();
+            Affine m = a.computed() == null ? null : Transform.of(a.computed(), ab.x(), ab.y(), ab.width(), ab.height());
+            if (m != null) {
+                float mx = m.x(x, y);
+                y = m.y(x, y);
+                x = mx;
+            }
+            if (a.isPlaced() || a.parent() == null) {
+                break;
+            }
+            y -= a.parent().scrollTop();
+        }
+        return new float[]{x, y};
     }
 
     private static Screen screen() {

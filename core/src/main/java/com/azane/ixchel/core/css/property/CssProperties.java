@@ -26,6 +26,8 @@ import static com.azane.ixchel.core.css.property.Syntaxes.keyword;
 import static com.azane.ixchel.core.css.property.Syntaxes.length;
 import static com.azane.ixchel.core.css.property.Syntaxes.number;
 import static com.azane.ixchel.core.css.property.Syntaxes.time;
+import static com.azane.ixchel.core.css.property.Syntaxes.transform;
+import static com.azane.ixchel.core.css.property.Syntaxes.transformOrigin;
 import static com.azane.ixchel.core.css.property.Syntaxes.transitionProperty;
 
 /**
@@ -89,6 +91,10 @@ public final class CssProperties {
     public static final PropertyDef<Overflow> OVERFLOW = R.register("overflow", keyword(Overflow.class), Overflow.VISIBLE, false, true, false);
     /** A number; values above 1 act as 1. Percentages are not supported. */
     public static final PropertyDef<Float> OPACITY = R.register("opacity", number(false), 1f, false, false, true);
+    /** Paint-time only: layout ignores it, painting and hit testing go through it. */
+    public static final PropertyDef<Transform> TRANSFORM = R.register("transform", transform(), Transform.NONE, false, false, true);
+    public static final PropertyDef<TransformOrigin> TRANSFORM_ORIGIN =
+            R.register("transform-origin", transformOrigin(), TransformOrigin.CENTER, false, false, false);
     /** Used width is 0 while the side's style is {@code none}; the initial width is CSS {@code medium}, 3px. */
     public static final PropertyDef<Length> BORDER_TOP_WIDTH = R.register("border-top-width", BORDER_WIDTH, MEDIUM, false, true, true);
     public static final PropertyDef<Length> BORDER_RIGHT_WIDTH = R.register("border-right-width", BORDER_WIDTH, MEDIUM, false, true, true);

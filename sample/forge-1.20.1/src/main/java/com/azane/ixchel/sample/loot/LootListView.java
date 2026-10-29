@@ -20,9 +20,10 @@ import java.util.List;
 final class LootListView extends ViewModel {
     /**
      * A drop's row. {@code icon} is a copy: the entity's stack shrinks in place as it is picked up,
-     * and {@link ClientSources#player} compares stacks by item, count and tag.
+     * and {@link ClientSources#player} compares stacks by item, count and tag. {@code heading}: degrees
+     * clockwise from the player's facing, which the template turns the arrow by.
      */
-    record Row(int id, ItemStack icon, String name, String count, String distance, String arrow, String color,
+    record Row(int id, ItemStack icon, String name, String count, String distance, int heading, String color,
                int rarity, boolean inRange) {
     }
 
@@ -46,7 +47,7 @@ final class LootListView extends ViewModel {
             ItemStack s = d.entity().getItem();
             out.add(new Row(d.entity().getId(), s.copy(), s.getHoverName().getString(),
                     s.getCount() > 1 ? "x" + s.getCount() : "", Math.round(d.distance()) + " m",
-                    Drops.arrow(Drops.sector(p, d.entity())), Drops.color(s.getRarity()), s.getRarity().ordinal(),
+                    Drops.heading(p, d.entity()), Drops.color(s.getRarity()), s.getRarity().ordinal(),
                     d.distance() <= PickUpDropPacket.PICK_RANGE));
         }
         return out;

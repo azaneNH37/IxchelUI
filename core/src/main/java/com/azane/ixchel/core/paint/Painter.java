@@ -1,10 +1,12 @@
 package com.azane.ixchel.core.paint;
 
+import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.css.property.BackgroundSize;
 import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Length;
+import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.FormControl;
@@ -53,6 +55,10 @@ import java.util.Set;
  * <p>After the tree, each {@link TopLayer} entry in order, with no clip and full opacity: an open
  * dialog over a translucent black backdrop covering the viewport, the options of an open select.
  * Neither is painted where it sits in the tree.
+ *
+ * <p>{@code transform} wraps the element's commands in a {@link DrawCommand.PushTransform}; layout
+ * and scroll offsets are not affected. Clips inside a transformed subtree are rectangles in its local
+ * coordinates; under a rotation the host clips to their bounding box.
  */
 public final class Painter {
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
@@ -139,7 +145,15 @@ public final class Painter {
         }
         float outer = alpha;
         alpha = outer * Math.min(1, opacity);
+        LayoutBox b = e.box();
+        Affine m = Transform.of(cs, b.x(), b.y() - dy, b.width(), b.height());
+        if (m != null) {
+            out.add(new DrawCommand.PushTransform(m));
+        }
         paintBox(e, cs, dy, out);
+        if (m != null) {
+            out.add(DrawCommand.PopTransform.INSTANCE);
+        }
         alpha = outer;
     }
 

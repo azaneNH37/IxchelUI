@@ -13,7 +13,7 @@
     <div class="list">
       <span class="empty" if="rows.size == 0">Nothing dropped nearby.</span>
       <div class="row" each="rows" as="r" key="r.id">
-        <span class="arrow" bind:text="r.arrow"></span>
+        <div class="arrow" bind:style:transform="'rotate(' + (r.heading - 45) + 'deg)'"></div>
         <mc-item class="icon" bind:item="r.icon"></mc-item>
         <span class="name" bind:style:color="r.color" bind:text="r.name"></span>
         <span class="amount" bind:text="r.count"></span>

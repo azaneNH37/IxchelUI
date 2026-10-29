@@ -12,8 +12,6 @@ import java.util.List;
 final class Drops {
     /** How far the radar looks, in blocks. */
     static final double RANGE = 24;
-    /** Glyphs for the eight directions relative to the player's facing, clockwise from ahead. */
-    private static final String[] ARROWS = {"\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"};
 
     record Drop(ItemEntity entity, double distance) {
     }
@@ -34,18 +32,18 @@ final class Drops {
         return out;
     }
 
-    /** Which of eight sectors around the player's facing {@code e} is in: 0 ahead, 2 right, 4 behind, 6 left. */
-    static int sector(LocalPlayer p, ItemEntity e) {
+    /** Where {@code e} is from the player's facing, in whole degrees clockwise from ahead, 0 to 359. */
+    static int heading(LocalPlayer p, ItemEntity e) {
         double dx = e.getX() - p.getX();
         double dz = e.getZ() - p.getZ();
         // Bearing clockwise from north (-z); the player's heading the same way from its yaw.
         double bearing = Math.toDegrees(Math.atan2(dx, -dz));
-        double delta = bearing - (p.getYRot() + 180);
-        return Math.floorMod((int) Math.round(delta / 45), 8);
+        return Math.floorMod((int) Math.round(bearing - (p.getYRot() + 180)), 360);
     }
 
-    static String arrow(int sector) {
-        return ARROWS[sector];
+    /** Which of eight sectors around the player's facing {@code e} is in: 0 ahead, 2 right, 4 behind, 6 left. */
+    static int sector(LocalPlayer p, ItemEntity e) {
+        return Math.floorMod(Math.round(heading(p, e) / 45f), 8);
     }
 
     /** The rarity's chat color as {@code #RRGGBB}. */

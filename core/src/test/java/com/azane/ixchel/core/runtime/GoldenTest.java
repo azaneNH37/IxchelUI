@@ -102,6 +102,17 @@ class GoldenTest {
             public String visitPopClip(DrawCommand.PopClip c) {
                 return "unclip";
             }
+
+            @Override
+            public String visitPushTransform(DrawCommand.PushTransform c) {
+                var m = c.matrix();
+                return "transform " + n(m.a()) + " " + n(m.b()) + " " + n(m.c()) + " " + n(m.d()) + " " + n(m.e()) + " " + n(m.f());
+            }
+
+            @Override
+            public String visitPopTransform(DrawCommand.PopTransform c) {
+                return "untransform";
+            }
         };
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) {

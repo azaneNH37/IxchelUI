@@ -29,8 +29,8 @@ final class LootView extends ViewModel {
     record Label(int id, String text, int left, int top, String color) {
     }
 
-    /** Drops out of view in one of eight directions, shown at that edge of the screen. */
-    record Edge(int sector, String text, int left, int top) {
+    /** Drops out of view in one of eight directions (the template turns the arrow by 45° a sector), shown at that edge of the screen. */
+    record Edge(int sector, int count, int left, int top) {
     }
 
     private final PickupToasts log = new PickupToasts();
@@ -79,7 +79,7 @@ final class LootView extends ViewModel {
         List<Edge> out = new ArrayList<>();
         for (int i = 0; i < 8; i++) {
             if (counts[i] > 0) {
-                out.add(new Edge(i, Drops.arrow(i) + " " + counts[i], at[i][0], at[i][1]));
+                out.add(new Edge(i, counts[i], at[i][0], at[i][1]));
             }
         }
         return out;

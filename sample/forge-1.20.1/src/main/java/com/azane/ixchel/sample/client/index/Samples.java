@@ -6,6 +6,7 @@ import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
 import com.azane.ixchel.sample.registry.ModItems;
+import com.azane.ixchel.sample.quests.QuestsScreen;
 import com.azane.ixchel.sample.storage.TerminalScreen;
 import com.azane.ixchel.sample.waypoints.WaypointsScreen;
 import net.minecraft.world.item.ItemStack;
@@ -48,6 +49,10 @@ public final class Samples {
                 Sample.screen("config", "Config panel", "The sample's client config: categories, search, toggles, "
                         + "sliders, number and text fields, enum selects, colors and a list editor dialog; changes "
                         + "are checked against the spec and saved or discarded. Also behind Mods > Ixchel sample > "
-                        + "Config.", new ItemStack(Items.COMPARATOR), ConfigScreen::open));
+                        + "Config.", new ItemStack(Items.COMPARATOR), ConfigScreen::open),
+                Sample.screen("quests", "Quest tree", "99 quests in three chapters on a canvas you drag and zoom; "
+                        + "a quest unlocks when the ones before it are claimed, asks you to hold some items, and the "
+                        + "server checks the claim before it gives the reward.", new ItemStack(Items.WRITABLE_BOOK),
+                        QuestsScreen::open));
     }
 }

@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.paint;
 
+import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -15,6 +16,8 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,6 +30,9 @@ import java.util.Map;
  * <p>Native drawings go through vanilla and write depth above the level they draw at. Each command
  * draws at the highest depth reached by the earlier commands it overlaps ({@link Layers}), so it
  * paints on top of them, and the depth grows only with how much stacks at one spot.
+ *
+ * <p>A transform goes into the pose the quads, text and native drawings are written in; depth
+ * levels and scissor clips use the transformed rectangles' bounding boxes.
  */
 public final class McPainter implements DrawCommand.Visitor<Void> {
     private static final float VANILLA_SIZE = 9f;
@@ -37,8 +43,15 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     private final Map<String, NativePainter> natives;
     private final Map<String, ResourceLocation> textures = new HashMap<>();
     private final Matrix4f textMatrix = new Matrix4f();
+    private final Matrix4f local = new Matrix4f();
+    private final Deque<Affine> outer = new ArrayDeque<>();
     private GuiGraphics graphics;
-    private Matrix4f pose;
+    private Matrix4f base;
+    /** {@link #base} times {@link #transform}. */
+    private final Matrix4f pose = new Matrix4f();
+    private Affine transform = Affine.IDENTITY;
+    /** Written by {@link #bounds}. */
+    private float bx0, by0, bx1, by1;
     private BufferBuilder buffer;
     private Batch batch = Batch.NONE;
     private ResourceLocation texture;
@@ -60,13 +73,16 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         this.pointerX = pointerX;
         this.pointerY = pointerY;
         graphics = g;
-        pose = g.pose().last().pose();
+        base = g.pose().last().pose();
+        transform = Affine.IDENTITY;
+        outer.clear();
+        pose.set(base);
         layers.clear();
         list.replay(this);
         flush();
         RenderSystem.disableBlend();
         graphics = null;
-        pose = null;
+        base = null;
     }
 
     /**
@@ -89,8 +105,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         float y0 = c.y();
         float x1 = x0 + c.width();
         float y1 = y0 + c.height();
-        float z = layers.level(x0, y0, x1, y1);
-        layers.add(x0, y0, x1, y1, z);
+        float z = level(x0, y0, x1, y1);
         buffer.addVertex(pose, x0, y0, z).setColor(r, g, b, a);
         buffer.addVertex(pose, x0, y1, z).setColor(r, g, b, a);
         buffer.addVertex(pose, x1, y1, z).setColor(r, g, b, a);
@@ -110,8 +125,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         float y0 = c.y();
         float x1 = x0 + c.width();
         float y1 = y0 + c.height();
-        float z = layers.level(x0, y0, x1, y1);
-        layers.add(x0, y0, x1, y1, z);
+        float z = level(x0, y0, x1, y1);
         buffer.addVertex(pose, x0, y0, z).setColor(r, g, b, a).setUv(c.u0(), c.v0());
         buffer.addVertex(pose, x0, y1, z).setColor(r, g, b, a).setUv(c.u0(), c.v1());
         buffer.addVertex(pose, x1, y1, z).setColor(r, g, b, a).setUv(c.u1(), c.v1());
@@ -129,10 +143,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         float z = 0;
         // Measuring is only needed once something is raised.
         if (!layers.isEmpty()) {
-            float x1 = c.x() + font.width(c.text()) * scale;
-            float y1 = c.y() + c.size();
-            z = layers.level(c.x(), c.y(), x1, y1);
-            layers.add(c.x(), c.y(), x1, y1, z);
+            z = level(c.x(), c.y(), c.x() + font.width(c.text()) * scale, c.y() + c.size());
         }
         begin(Batch.TEXT, null);
         textMatrix.set(pose).translate(c.x(), c.y(), z).scale(scale, scale, 1);
@@ -149,18 +160,25 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
             throw new IllegalStateException("no painter for native element <" + c.kind() + ">");
         }
         flush();
-        float x1 = c.x() + c.width();
-        float y1 = c.y() + c.height();
-        float z = layers.level(c.x(), c.y(), x1, y1);
-        layers.add(c.x(), c.y(), x1, y1, z + p.paint(graphics, c, z, pointerX, pointerY));
+        boolean transformed = transform != Affine.IDENTITY;
+        if (transformed) {
+            graphics.pose().pushPose();
+            graphics.pose().mulPose(local);
+        }
+        bounds(c.x(), c.y(), c.x() + c.width(), c.y() + c.height());
+        float z = layers.level(bx0, by0, bx1, by1);
+        layers.add(bx0, by0, bx1, by1, z + p.paint(graphics, c, z, pointerX, pointerY));
+        if (transformed) {
+            graphics.pose().popPose();
+        }
         return null;
     }
 
     @Override
     public Void visitPushClip(DrawCommand.PushClip c) {
         flush();
-        graphics.enableScissor((int) Math.floor(c.x()), (int) Math.floor(c.y()),
-                (int) Math.ceil(c.x() + c.width()), (int) Math.ceil(c.y() + c.height()));
+        bounds(c.x(), c.y(), c.x() + c.width(), c.y() + c.height());
+        graphics.enableScissor((int) Math.floor(bx0), (int) Math.floor(by0), (int) Math.ceil(bx1), (int) Math.ceil(by1));
         return null;
     }
 
@@ -169,6 +187,53 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         flush();
         graphics.disableScissor();
         return null;
+    }
+
+    @Override
+    public Void visitPushTransform(DrawCommand.PushTransform c) {
+        outer.push(transform);
+        setTransform(transform.then(c.matrix()));
+        return null;
+    }
+
+    @Override
+    public Void visitPopTransform(DrawCommand.PopTransform c) {
+        setTransform(outer.pop());
+        return null;
+    }
+
+    private void setTransform(Affine m) {
+        transform = m;
+        local.set(m.a(), m.b(), 0, 0, m.c(), m.d(), 0, 0, 0, 0, 1, 0, m.e(), m.f(), 0, 1);
+        pose.set(base).mul(local);
+    }
+
+    /** The depth for the rectangle {@code (x0, y0)}-{@code (x1, y1)}, which it then occupies. */
+    private float level(float x0, float y0, float x1, float y1) {
+        bounds(x0, y0, x1, y1);
+        float z = layers.level(bx0, by0, bx1, by1);
+        layers.add(bx0, by0, bx1, by1, z);
+        return z;
+    }
+
+    /** Sets {@link #bx0}…{@link #by1} to the box of the rectangle through the current transform. */
+    private void bounds(float x0, float y0, float x1, float y1) {
+        Affine m = transform;
+        if (m == Affine.IDENTITY) {
+            bx0 = x0;
+            by0 = y0;
+            bx1 = x1;
+            by1 = y1;
+            return;
+        }
+        float ax = m.x(x0, y0), ay = m.y(x0, y0);
+        float bx = m.x(x1, y0), by = m.y(x1, y0);
+        float cx = m.x(x0, y1), cy = m.y(x0, y1);
+        float dx = m.x(x1, y1), dy = m.y(x1, y1);
+        bx0 = Math.min(Math.min(ax, bx), Math.min(cx, dx));
+        by0 = Math.min(Math.min(ay, by), Math.min(cy, dy));
+        bx1 = Math.max(Math.max(ax, bx), Math.max(cx, dx));
+        by1 = Math.max(Math.max(ay, by), Math.max(cy, dy));
     }
 
     private void begin(Batch next, ResourceLocation nextTexture) {

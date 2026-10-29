@@ -1,7 +1,9 @@
 package com.azane.ixchel.core.event;
 
+import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
+import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.LayoutBox;
@@ -20,6 +22,10 @@ import java.util.Map;
  * Turns host input into tree events against the last laid-out frame: hit testing, capture / target /
  * bubble dispatch, the {@code :hover} / {@code :active} / {@code :focus} state bits, focus, and the
  * default actions of the form controls and the {@link TopLayer}.
+ *
+ * <p>{@code transform} moves where an element is hit, as it moves where it paints: the pointer is
+ * mapped through the inverse transforms on the way down, and an element scaled to nothing is not hit.
+ * Caret placement and range dragging use the pointer in the element's own coordinates.
  *
  * <p>Hit testing follows paint order: the top layer first, its last entry first (an open select's
  * options; an open dialog, which takes every point outside its content too: everything below it is
@@ -99,6 +105,8 @@ public final class EventDispatcher {
     private String dragStart;
     private float mouseX = Float.NaN;
     private float mouseY = Float.NaN;
+    /** The second result of {@link #localX}. */
+    private float localY;
     private Clipboard clipboard = new Clipboard() {
         private String text = "";
 
@@ -156,14 +164,23 @@ public final class EventDispatcher {
     }
 
     public boolean mouseMoved(float x, float y) {
+        float movementX = Float.isNaN(mouseX) ? 0 : x - mouseX;
+        float movementY = Float.isNaN(mouseY) ? 0 : y - mouseY;
         mouseX = x;
         mouseY = y;
         Element target = hitTest(x, y);
         setStatePath(hovered, target, Element.HOVER);
-        if (dragging != null && FormEditing.rangeAt(dragging, x)) {
+        if (dragging != null && FormEditing.rangeAt(dragging, localX(dragging, x, y))) {
             dispatch(UiEvent.of(UiEvent.Type.INPUT, dragging));
         }
-        return target != root;
+        if (movementX == 0 && movementY == 0) {
+            return target != root;
+        }
+        // While a button is held its press target keeps the moves, as a drag must not stop at its edge.
+        UiEvent e = UiEvent.move(pressed != null ? pressed : target, x, y, movementX, movementY,
+                pressed != null ? pressedButton : -1);
+        dispatch(e);
+        return target != root || e.isConsumed();
     }
 
     /** {@code modifiers}: the GLFW modifier bits held, which mouse filters compare. */
@@ -178,7 +195,7 @@ public final class EventDispatcher {
             pressedButton = -1;
             return true;
         }
-        if (top.isOpen(target) && target.tag().equals("dialog") && !inBox(target, x, y)) {
+        if (top.isOpen(target) && target.tag().equals("dialog") && !inBox(target, localX(target, x, y), localY)) {
             // The backdrop: everything under it is inert, and focus stays inside the dialog.
             swallowed = true;
             pressed = null;
@@ -196,7 +213,7 @@ public final class EventDispatcher {
         if (button == 0) {
             setStatePath(active, target, Element.ACTIVE);
             if (target.textField() != null) {
-                placeCaret(target, x, (modifiers & Keys.MOD_SHIFT) != 0);
+                placeCaret(target, localX(target, x, y), (modifiers & Keys.MOD_SHIFT) != 0);
             }
         }
         pressed = target;
@@ -206,7 +223,7 @@ public final class EventDispatcher {
         if (button == 0 && !e.isConsumed() && isKind(target, FormControl.Kind.RANGE)) {
             dragging = target;
             dragStart = target.control().value();
-            if (FormEditing.rangeAt(target, x)) {
+            if (FormEditing.rangeAt(target, localX(target, x, y))) {
                 dispatch(UiEvent.of(UiEvent.Type.INPUT, target));
             }
         }
@@ -564,14 +581,25 @@ public final class EventDispatcher {
     }
 
     /**
-     * {@code (x, y)} in the coordinates {@code e} is laid out in, i.e. undone by the scroll offsets above
-     * it. Dialogs and a select's options are top-layer content: hit only from {@link #hitTest}'s layer pass.
+     * {@code (x, y)} in the coordinates {@code e} is laid out in, i.e. undone by the scroll offsets and
+     * transforms above it; {@code e}'s own transform is undone here. Dialogs and a select's options are
+     * top-layer content: hit only from {@link #hitTest}'s layer pass.
      */
     private static Element hit(Element e, float x, float y) {
         if (e.computed() == null || e.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE) {
             return null;
         }
         LayoutBox b = e.box();
+        Affine m = Transform.of(e.computed(), b.x(), b.y(), b.width(), b.height());
+        if (m != null) {
+            Affine inverse = m.invert();
+            if (inverse == null) {
+                return null;
+            }
+            float lx = inverse.x(x, y);
+            y = inverse.y(x, y);
+            x = lx;
+        }
         boolean inside = x >= b.x() && y >= b.y() && x < b.x() + b.width() && y < b.y() + b.height();
         if (e.tag().equals("select")) {
             return inside ? e : null;
@@ -758,5 +786,36 @@ public final class EventDispatcher {
     private static boolean inBox(Element e, float x, float y) {
         LayoutBox b = e.box();
         return x >= b.x() && y >= b.y() && x < b.x() + b.width() && y < b.y() + b.height();
+    }
+
+    /**
+     * {@code x} of the pointer {@code (x, y)} in the coordinates {@code e}'s box is laid out in, its own
+     * transform undone too, as {@link #hit} maps it; {@code y} goes to {@link #localY}. The chain starts at
+     * the root, or at the {@linkplain Element#isPlaced() placed} top-layer content {@code e} is in.
+     */
+    private float localX(Element e, float x, float y) {
+        List<Element> chain = new ArrayList<>();
+        for (Element a = e; a != null; a = a.parent()) {
+            chain.add(a);
+            if (a.isPlaced()) {
+                break;
+            }
+        }
+        for (int i = chain.size() - 1; i >= 0; i--) {
+            Element a = chain.get(i);
+            LayoutBox b = a.box();
+            Affine m = a.computed() == null ? null : Transform.of(a.computed(), b.x(), b.y(), b.width(), b.height());
+            Affine inverse = m == null ? null : m.invert();
+            if (inverse != null) {
+                float lx = inverse.x(x, y);
+                y = inverse.y(x, y);
+                x = lx;
+            }
+            if (i > 0) {
+                y += a.scrollTop();
+            }
+        }
+        localY = y;
+        return x;
     }
 }

@@ -1,5 +1,7 @@
 package com.azane.ixchel.sample.check.scenario;
 
+import com.azane.ixchel.core.css.property.CssProperties;
+import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.mc.UiHud;
 import com.azane.ixchel.sample.check.Checks;
@@ -52,9 +54,10 @@ public final class LootCheck {
                 p.teleportTo(l, 0.5, -60, 0.5, 180, 0);
             });
             s.run(() -> hud.show(true));
-            // Fails if drops are not scanned or projected, or the one behind is not an arrow.
+            // Fails if drops are not scanned or projected, or the one behind is not an arrow turned to point back.
             s.waitUntil("three labels in view, the drop behind as an arrow at the bottom", () -> Script.query(hud, ".label").size() == 3
-                    && Script.texts(hud, ".edge").equals(List.of("\u2193 1")), Script.WAIT);
+                    && Script.texts(hud, ".edge .count").equals(List.of("1"))
+                    && sectors(Script.query(hud, ".edge .arrow")).equals(List.of(4)), Script.WAIT);
             s.expect("labels name, count and distance", () -> Script.texts(hud, ".label")
                     .containsAll(List.of("Cobblestone x12 4 m", "Bottle o' Enchanting 6 m", "Golden Apple x2 10 m")));
             // Fails if a label is not centered over its drop (straight ahead: the middle of the screen).
@@ -65,11 +68,11 @@ public final class LootCheck {
             });
             s.shot("loot-hud");
             s.run(LootScreens::openList);
-            // Fails if the list is not sorted by distance or the direction arrows are wrong.
+            // Fails if the list is not sorted by distance or the direction arrows are turned wrong.
             s.waitUntil("list nearest first, arrows ahead and behind", () -> Script.isOpen()
                     && Script.texts(".row .name").equals(List.of(
                     "Cobblestone", "Enchanted Golden Apple", "Bottle o' Enchanting", "Golden Apple"))
-                    && Script.texts(".row .arrow").equals(List.of("\u2191", "\u2193", "\u2191", "\u2191")), Script.WAIT);
+                    && sectors(Script.query(".row .arrow")).equals(List.of(0, 4, 0, 0)), Script.WAIT);
             // Fails if the button is not disabled out of range.
             s.expect("only the golden apple at 10 m is out of pick-up range", () -> Script.query(".pick:disabled").size() == 1);
             s.shot("loot-list");
@@ -129,6 +132,15 @@ public final class LootCheck {
 
     private static Element labeled(UiHud hud, String text) {
         return Script.query(hud, ".label").stream().filter(e -> e.textContent().equals(text)).findFirst().orElse(null);
+    }
+
+    /** The direction each arrow points, read from its {@code rotate()}, as a sector: 0 ahead, 4 behind. */
+    private static List<Integer> sectors(List<Element> arrows) {
+        return arrows.stream().map(a -> {
+            Transform t = a.computed().get(CssProperties.TRANSFORM);
+            float pointing = t.functions().get(0).x().value() + 45;
+            return Math.floorMod(Math.round(pointing / 45), 8);
+        }).toList();
     }
 
     private static int entityOf(Item item) {

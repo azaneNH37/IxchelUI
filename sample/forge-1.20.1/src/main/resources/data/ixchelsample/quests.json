@@ -1,0 +1,1315 @@
+{
+ "chapters": [
+  {
+   "id": "stone",
+   "title": "Stone Age",
+   "icon": "minecraft:stone_pickaxe",
+   "quests": [
+    {
+     "id": "stone/0",
+     "title": "Oak Log",
+     "x": 20,
+     "y": 16,
+     "deps": [],
+     "item": "minecraft:oak_log",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/1",
+     "title": "Oak Planks",
+     "x": 28,
+     "y": 54,
+     "deps": [],
+     "item": "minecraft:oak_planks",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/2",
+     "title": "Stick",
+     "x": 20,
+     "y": 92,
+     "deps": [],
+     "item": "minecraft:stick",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/3",
+     "title": "Crafting Table",
+     "x": 28,
+     "y": 130,
+     "deps": [],
+     "item": "minecraft:crafting_table",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/4",
+     "title": "Wooden Pickaxe",
+     "x": 20,
+     "y": 168,
+     "deps": [],
+     "item": "minecraft:wooden_pickaxe",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/5",
+     "title": "Cobblestone",
+     "x": 68,
+     "y": 16,
+     "deps": [
+      "stone/0"
+     ],
+     "item": "minecraft:cobblestone",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/6",
+     "title": "Stone Pickaxe",
+     "x": 76,
+     "y": 54,
+     "deps": [
+      "stone/1",
+      "stone/2"
+     ],
+     "item": "minecraft:stone_pickaxe",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/7",
+     "title": "Furnace",
+     "x": 68,
+     "y": 92,
+     "deps": [
+      "stone/2"
+     ],
+     "item": "minecraft:furnace",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/8",
+     "title": "Coal",
+     "x": 76,
+     "y": 130,
+     "deps": [
+      "stone/3",
+      "stone/4"
+     ],
+     "item": "minecraft:coal",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/9",
+     "title": "Charcoal",
+     "x": 68,
+     "y": 168,
+     "deps": [
+      "stone/4"
+     ],
+     "item": "minecraft:charcoal",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "stone/10",
+     "title": "Torch",
+     "x": 116,
+     "y": 16,
+     "deps": [
+      "stone/5"
+     ],
+     "item": "minecraft:torch",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/11",
+     "title": "Stone",
+     "x": 124,
+     "y": 54,
+     "deps": [
+      "stone/6",
+      "stone/7"
+     ],
+     "item": "minecraft:stone",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/12",
+     "title": "Stone Bricks",
+     "x": 116,
+     "y": 92,
+     "deps": [
+      "stone/7"
+     ],
+     "item": "minecraft:stone_bricks",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/13",
+     "title": "Smooth Stone",
+     "x": 124,
+     "y": 130,
+     "deps": [
+      "stone/8",
+      "stone/9"
+     ],
+     "item": "minecraft:smooth_stone",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/14",
+     "title": "Chest",
+     "x": 116,
+     "y": 168,
+     "deps": [
+      "stone/9"
+     ],
+     "item": "minecraft:chest",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/15",
+     "title": "Ladder",
+     "x": 164,
+     "y": 16,
+     "deps": [
+      "stone/10"
+     ],
+     "item": "minecraft:ladder",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/16",
+     "title": "Wooden Axe",
+     "x": 172,
+     "y": 54,
+     "deps": [
+      "stone/11",
+      "stone/12"
+     ],
+     "item": "minecraft:wooden_axe",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/17",
+     "title": "Wooden Shovel",
+     "x": 164,
+     "y": 92,
+     "deps": [
+      "stone/12"
+     ],
+     "item": "minecraft:wooden_shovel",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/18",
+     "title": "Stone Axe",
+     "x": 172,
+     "y": 130,
+     "deps": [
+      "stone/13",
+      "stone/14"
+     ],
+     "item": "minecraft:stone_axe",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/19",
+     "title": "Stone Shovel",
+     "x": 164,
+     "y": 168,
+     "deps": [
+      "stone/14"
+     ],
+     "item": "minecraft:stone_shovel",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "stone/20",
+     "title": "Stone Sword",
+     "x": 212,
+     "y": 16,
+     "deps": [
+      "stone/15"
+     ],
+     "item": "minecraft:stone_sword",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/21",
+     "title": "Wheat Seeds",
+     "x": 220,
+     "y": 54,
+     "deps": [
+      "stone/16",
+      "stone/17"
+     ],
+     "item": "minecraft:wheat_seeds",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/22",
+     "title": "Wheat",
+     "x": 212,
+     "y": 92,
+     "deps": [
+      "stone/17"
+     ],
+     "item": "minecraft:wheat",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/23",
+     "title": "Bread",
+     "x": 220,
+     "y": 130,
+     "deps": [
+      "stone/18",
+      "stone/19"
+     ],
+     "item": "minecraft:bread",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/24",
+     "title": "Hay Block",
+     "x": 212,
+     "y": 168,
+     "deps": [
+      "stone/19"
+     ],
+     "item": "minecraft:hay_block",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/25",
+     "title": "White Wool",
+     "x": 260,
+     "y": 16,
+     "deps": [
+      "stone/20"
+     ],
+     "item": "minecraft:white_wool",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/26",
+     "title": "White Bed",
+     "x": 268,
+     "y": 54,
+     "deps": [
+      "stone/21",
+      "stone/22"
+     ],
+     "item": "minecraft:white_bed",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/27",
+     "title": "Campfire",
+     "x": 260,
+     "y": 92,
+     "deps": [
+      "stone/22"
+     ],
+     "item": "minecraft:campfire",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/28",
+     "title": "Flint",
+     "x": 268,
+     "y": 130,
+     "deps": [
+      "stone/23",
+      "stone/24"
+     ],
+     "item": "minecraft:flint",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/29",
+     "title": "Flint And Steel",
+     "x": 260,
+     "y": 168,
+     "deps": [
+      "stone/24"
+     ],
+     "item": "minecraft:flint_and_steel",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "stone/30",
+     "title": "Barrel",
+     "x": 308,
+     "y": 16,
+     "deps": [
+      "stone/25"
+     ],
+     "item": "minecraft:barrel",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 4
+    },
+    {
+     "id": "stone/31",
+     "title": "Composter",
+     "x": 316,
+     "y": 54,
+     "deps": [
+      "stone/26",
+      "stone/27"
+     ],
+     "item": "minecraft:composter",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 4
+    },
+    {
+     "id": "stone/32",
+     "title": "Bone Meal",
+     "x": 308,
+     "y": 92,
+     "deps": [
+      "stone/27"
+     ],
+     "item": "minecraft:bone_meal",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 4
+    }
+   ]
+  },
+  {
+   "id": "iron",
+   "title": "Iron Works",
+   "icon": "minecraft:iron_pickaxe",
+   "quests": [
+    {
+     "id": "iron/0",
+     "title": "Raw Iron",
+     "x": 20,
+     "y": 16,
+     "deps": [],
+     "item": "minecraft:raw_iron",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/1",
+     "title": "Iron Ingot",
+     "x": 28,
+     "y": 54,
+     "deps": [],
+     "item": "minecraft:iron_ingot",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/2",
+     "title": "Iron Pickaxe",
+     "x": 20,
+     "y": 92,
+     "deps": [],
+     "item": "minecraft:iron_pickaxe",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/3",
+     "title": "Bucket",
+     "x": 28,
+     "y": 130,
+     "deps": [],
+     "item": "minecraft:bucket",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/4",
+     "title": "Water Bucket",
+     "x": 20,
+     "y": 168,
+     "deps": [],
+     "item": "minecraft:water_bucket",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/5",
+     "title": "Shield",
+     "x": 68,
+     "y": 16,
+     "deps": [
+      "iron/0"
+     ],
+     "item": "minecraft:shield",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/6",
+     "title": "Iron Sword",
+     "x": 76,
+     "y": 54,
+     "deps": [
+      "iron/1",
+      "iron/2"
+     ],
+     "item": "minecraft:iron_sword",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/7",
+     "title": "Iron Axe",
+     "x": 68,
+     "y": 92,
+     "deps": [
+      "iron/2"
+     ],
+     "item": "minecraft:iron_axe",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/8",
+     "title": "Iron Helmet",
+     "x": 76,
+     "y": 130,
+     "deps": [
+      "iron/3",
+      "iron/4"
+     ],
+     "item": "minecraft:iron_helmet",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/9",
+     "title": "Iron Chestplate",
+     "x": 68,
+     "y": 168,
+     "deps": [
+      "iron/4"
+     ],
+     "item": "minecraft:iron_chestplate",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "iron/10",
+     "title": "Iron Leggings",
+     "x": 116,
+     "y": 16,
+     "deps": [
+      "iron/5"
+     ],
+     "item": "minecraft:iron_leggings",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/11",
+     "title": "Iron Boots",
+     "x": 124,
+     "y": 54,
+     "deps": [
+      "iron/6",
+      "iron/7"
+     ],
+     "item": "minecraft:iron_boots",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/12",
+     "title": "Anvil",
+     "x": 116,
+     "y": 92,
+     "deps": [
+      "iron/7"
+     ],
+     "item": "minecraft:anvil",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/13",
+     "title": "Hopper",
+     "x": 124,
+     "y": 130,
+     "deps": [
+      "iron/8",
+      "iron/9"
+     ],
+     "item": "minecraft:hopper",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/14",
+     "title": "Minecart",
+     "x": 116,
+     "y": 168,
+     "deps": [
+      "iron/9"
+     ],
+     "item": "minecraft:minecart",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/15",
+     "title": "Rail",
+     "x": 164,
+     "y": 16,
+     "deps": [
+      "iron/10"
+     ],
+     "item": "minecraft:rail",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/16",
+     "title": "Redstone",
+     "x": 172,
+     "y": 54,
+     "deps": [
+      "iron/11",
+      "iron/12"
+     ],
+     "item": "minecraft:redstone",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/17",
+     "title": "Piston",
+     "x": 164,
+     "y": 92,
+     "deps": [
+      "iron/12"
+     ],
+     "item": "minecraft:piston",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/18",
+     "title": "Compass",
+     "x": 172,
+     "y": 130,
+     "deps": [
+      "iron/13",
+      "iron/14"
+     ],
+     "item": "minecraft:compass",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/19",
+     "title": "Lantern",
+     "x": 164,
+     "y": 168,
+     "deps": [
+      "iron/14"
+     ],
+     "item": "minecraft:lantern",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "iron/20",
+     "title": "Iron Bars",
+     "x": 212,
+     "y": 16,
+     "deps": [
+      "iron/15"
+     ],
+     "item": "minecraft:iron_bars",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/21",
+     "title": "Chain",
+     "x": 220,
+     "y": 54,
+     "deps": [
+      "iron/16",
+      "iron/17"
+     ],
+     "item": "minecraft:chain",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/22",
+     "title": "Cauldron",
+     "x": 212,
+     "y": 92,
+     "deps": [
+      "iron/17"
+     ],
+     "item": "minecraft:cauldron",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/23",
+     "title": "Iron Door",
+     "x": 220,
+     "y": 130,
+     "deps": [
+      "iron/18",
+      "iron/19"
+     ],
+     "item": "minecraft:iron_door",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/24",
+     "title": "Iron Trapdoor",
+     "x": 212,
+     "y": 168,
+     "deps": [
+      "iron/19"
+     ],
+     "item": "minecraft:iron_trapdoor",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/25",
+     "title": "Shears",
+     "x": 260,
+     "y": 16,
+     "deps": [
+      "iron/20"
+     ],
+     "item": "minecraft:shears",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/26",
+     "title": "Blast Furnace",
+     "x": 268,
+     "y": 54,
+     "deps": [
+      "iron/21",
+      "iron/22"
+     ],
+     "item": "minecraft:blast_furnace",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/27",
+     "title": "Smithing Table",
+     "x": 260,
+     "y": 92,
+     "deps": [
+      "iron/22"
+     ],
+     "item": "minecraft:smithing_table",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/28",
+     "title": "Lava Bucket",
+     "x": 268,
+     "y": 130,
+     "deps": [
+      "iron/23",
+      "iron/24"
+     ],
+     "item": "minecraft:lava_bucket",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/29",
+     "title": "Obsidian",
+     "x": 260,
+     "y": 168,
+     "deps": [
+      "iron/24"
+     ],
+     "item": "minecraft:obsidian",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "iron/30",
+     "title": "Diamond",
+     "x": 308,
+     "y": 16,
+     "deps": [
+      "iron/25"
+     ],
+     "item": "minecraft:diamond",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 4
+    },
+    {
+     "id": "iron/31",
+     "title": "Diamond Pickaxe",
+     "x": 316,
+     "y": 54,
+     "deps": [
+      "iron/26",
+      "iron/27"
+     ],
+     "item": "minecraft:diamond_pickaxe",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 4
+    },
+    {
+     "id": "iron/32",
+     "title": "Diamond Sword",
+     "x": 308,
+     "y": 92,
+     "deps": [
+      "iron/27"
+     ],
+     "item": "minecraft:diamond_sword",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 4
+    }
+   ]
+  },
+  {
+   "id": "nether",
+   "title": "The Nether",
+   "icon": "minecraft:netherrack",
+   "quests": [
+    {
+     "id": "nether/0",
+     "title": "Flint And Steel",
+     "x": 20,
+     "y": 16,
+     "deps": [],
+     "item": "minecraft:flint_and_steel",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/1",
+     "title": "Netherrack",
+     "x": 28,
+     "y": 54,
+     "deps": [],
+     "item": "minecraft:netherrack",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/2",
+     "title": "Quartz",
+     "x": 20,
+     "y": 92,
+     "deps": [],
+     "item": "minecraft:quartz",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/3",
+     "title": "Nether Bricks",
+     "x": 28,
+     "y": 130,
+     "deps": [],
+     "item": "minecraft:nether_bricks",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/4",
+     "title": "Glowstone Dust",
+     "x": 20,
+     "y": 168,
+     "deps": [],
+     "item": "minecraft:glowstone_dust",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/5",
+     "title": "Glowstone",
+     "x": 68,
+     "y": 16,
+     "deps": [
+      "nether/0"
+     ],
+     "item": "minecraft:glowstone",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/6",
+     "title": "Soul Sand",
+     "x": 76,
+     "y": 54,
+     "deps": [
+      "nether/1",
+      "nether/2"
+     ],
+     "item": "minecraft:soul_sand",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/7",
+     "title": "Soul Torch",
+     "x": 68,
+     "y": 92,
+     "deps": [
+      "nether/2"
+     ],
+     "item": "minecraft:soul_torch",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/8",
+     "title": "Blaze Rod",
+     "x": 76,
+     "y": 130,
+     "deps": [
+      "nether/3",
+      "nether/4"
+     ],
+     "item": "minecraft:blaze_rod",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/9",
+     "title": "Blaze Powder",
+     "x": 68,
+     "y": 168,
+     "deps": [
+      "nether/4"
+     ],
+     "item": "minecraft:blaze_powder",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 1
+    },
+    {
+     "id": "nether/10",
+     "title": "Nether Wart",
+     "x": 116,
+     "y": 16,
+     "deps": [
+      "nether/5"
+     ],
+     "item": "minecraft:nether_wart",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/11",
+     "title": "Glass Bottle",
+     "x": 124,
+     "y": 54,
+     "deps": [
+      "nether/6",
+      "nether/7"
+     ],
+     "item": "minecraft:glass_bottle",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/12",
+     "title": "Brewing Stand",
+     "x": 116,
+     "y": 92,
+     "deps": [
+      "nether/7"
+     ],
+     "item": "minecraft:brewing_stand",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/13",
+     "title": "Magma Cream",
+     "x": 124,
+     "y": 130,
+     "deps": [
+      "nether/8",
+      "nether/9"
+     ],
+     "item": "minecraft:magma_cream",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/14",
+     "title": "Ghast Tear",
+     "x": 116,
+     "y": 168,
+     "deps": [
+      "nether/9"
+     ],
+     "item": "minecraft:ghast_tear",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/15",
+     "title": "Gold Nugget",
+     "x": 164,
+     "y": 16,
+     "deps": [
+      "nether/10"
+     ],
+     "item": "minecraft:gold_nugget",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/16",
+     "title": "Gold Ingot",
+     "x": 172,
+     "y": 54,
+     "deps": [
+      "nether/11",
+      "nether/12"
+     ],
+     "item": "minecraft:gold_ingot",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/17",
+     "title": "Golden Apple",
+     "x": 164,
+     "y": 92,
+     "deps": [
+      "nether/12"
+     ],
+     "item": "minecraft:golden_apple",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/18",
+     "title": "Crimson Stem",
+     "x": 172,
+     "y": 130,
+     "deps": [
+      "nether/13",
+      "nether/14"
+     ],
+     "item": "minecraft:crimson_stem",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/19",
+     "title": "Warped Stem",
+     "x": 164,
+     "y": 168,
+     "deps": [
+      "nether/14"
+     ],
+     "item": "minecraft:warped_stem",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 2
+    },
+    {
+     "id": "nether/20",
+     "title": "Crimson Planks",
+     "x": 212,
+     "y": 16,
+     "deps": [
+      "nether/15"
+     ],
+     "item": "minecraft:crimson_planks",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/21",
+     "title": "Warped Planks",
+     "x": 220,
+     "y": 54,
+     "deps": [
+      "nether/16",
+      "nether/17"
+     ],
+     "item": "minecraft:warped_planks",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/22",
+     "title": "Basalt",
+     "x": 212,
+     "y": 92,
+     "deps": [
+      "nether/17"
+     ],
+     "item": "minecraft:basalt",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/23",
+     "title": "Blackstone",
+     "x": 220,
+     "y": 130,
+     "deps": [
+      "nether/18",
+      "nether/19"
+     ],
+     "item": "minecraft:blackstone",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/24",
+     "title": "Polished Blackstone",
+     "x": 212,
+     "y": 168,
+     "deps": [
+      "nether/19"
+     ],
+     "item": "minecraft:polished_blackstone",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/25",
+     "title": "Ancient Debris",
+     "x": 260,
+     "y": 16,
+     "deps": [
+      "nether/20"
+     ],
+     "item": "minecraft:ancient_debris",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/26",
+     "title": "Netherite Scrap",
+     "x": 268,
+     "y": 54,
+     "deps": [
+      "nether/21",
+      "nether/22"
+     ],
+     "item": "minecraft:netherite_scrap",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/27",
+     "title": "Netherite Ingot",
+     "x": 260,
+     "y": 92,
+     "deps": [
+      "nether/22"
+     ],
+     "item": "minecraft:netherite_ingot",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/28",
+     "title": "Ender Pearl",
+     "x": 268,
+     "y": 130,
+     "deps": [
+      "nether/23",
+      "nether/24"
+     ],
+     "item": "minecraft:ender_pearl",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/29",
+     "title": "Ender Eye",
+     "x": 260,
+     "y": 168,
+     "deps": [
+      "nether/24"
+     ],
+     "item": "minecraft:ender_eye",
+     "count": 4,
+     "reward": "minecraft:emerald",
+     "rewardCount": 3
+    },
+    {
+     "id": "nether/30",
+     "title": "Respawn Anchor",
+     "x": 308,
+     "y": 16,
+     "deps": [
+      "nether/25"
+     ],
+     "item": "minecraft:respawn_anchor",
+     "count": 3,
+     "reward": "minecraft:emerald",
+     "rewardCount": 4
+    },
+    {
+     "id": "nether/31",
+     "title": "Lodestone",
+     "x": 316,
+     "y": 54,
+     "deps": [
+      "nether/26",
+      "nether/27"
+     ],
+     "item": "minecraft:lodestone",
+     "count": 2,
+     "reward": "minecraft:emerald",
+     "rewardCount": 4
+    },
+    {
+     "id": "nether/32",
+     "title": "Crying Obsidian",
+     "x": 308,
+     "y": 92,
+     "deps": [
+      "nether/27"
+     ],
+     "item": "minecraft:crying_obsidian",
+     "count": 1,
+     "reward": "minecraft:emerald",
+     "rewardCount": 4
+    }
+   ]
+  }
+ ]
+}

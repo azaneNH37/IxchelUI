@@ -69,10 +69,12 @@
   background-color: #FFFFFF20;
 }
 
+/* The arrow item points up and right: turned by the heading less 45 degrees. */
 .arrow {
   width: 12px;
-  text-align: center;
-  color: #FFFF55;
+  height: 12px;
+  background-image: url("minecraft:textures/item/arrow.png");
+  background-size: 12px 12px;
 }
 
 .icon {

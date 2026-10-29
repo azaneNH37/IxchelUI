@@ -6,6 +6,7 @@ import com.azane.ixchel.sample.check.scenario.EnvCheck;
 import com.azane.ixchel.sample.check.scenario.IndexCheck;
 import com.azane.ixchel.sample.check.scenario.LootCheck;
 import com.azane.ixchel.sample.check.scenario.MachineCheck;
+import com.azane.ixchel.sample.check.scenario.QuestsCheck;
 import com.azane.ixchel.sample.check.scenario.StorageCheck;
 import com.azane.ixchel.sample.check.scenario.WaypointsCheck;
 import net.minecraftforge.fml.common.Mod;
@@ -38,5 +39,6 @@ public final class IxchelSampleCheckMod {
         WaypointsCheck.register();
         StorageCheck.register();
         ConfigCheck.register();
+        QuestsCheck.register();
     }
 }
