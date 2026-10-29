@@ -12,38 +12,38 @@
       <div class="water-fill" bind:style:height="waterHeight" bind:style:background-color="waterColor"></div>
     </div>
     <div class="feed">
-      <item-slot class="slot" slot="1" title="Water bucket: 1000 mB"></item-slot>
+      <mc-slot class="slot" index="1" title="Water bucket: 1000 mB"></mc-slot>
       <div class="flame">
         <div class="flame-fill" bind:style:height="flameHeight" bind:style:background-position-y="flameY"></div>
       </div>
-      <item-slot class="slot" slot="0" title="Fuel"></item-slot>
+      <mc-slot class="slot" index="0" title="Fuel"></mc-slot>
     </div>
     <div class="work">
       <div class="io">
-        <item-slot class="slot" slot="2"></item-slot>
+        <mc-slot class="slot" index="2"></mc-slot>
         <div class="arrow">
           <div class="arrow-fill" bind:style:width="arrowWidth"></div>
         </div>
-        <item-slot class="slot output" slot="3"></item-slot>
+        <mc-slot class="slot output" index="3"></mc-slot>
       </div>
       <div class="recipes">
         <span class="hint" if="noRecipes">Put a block to cut in the left slot.</span>
         <div class="recipe" each="recipes" as="r" key="r.index" bind:class:selected="r.selected" bind:title="r.name"
              on:click="pick(r)">
-          <item class="icon" bind:item="r.icon"></item>
+          <mc-item class="icon" bind:item="r.icon"></mc-item>
         </div>
       </div>
     </div>
   </div>
   <div class="buttons">
-    <div class="button redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></div>
-    <div class="button sides-toggle" bind:class:selected="sidesOpen" on:click="toggleSides"><span>Sides</span></div>
+    <button class="redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></button>
+    <button class="sides-toggle" bind:class:selected="sidesOpen" on:click="toggleSides">Sides</button>
   </div>
   <div class="grid">
-    <item-slot class="slot" each="inventory" as="i" key="i" bind:slot="i"></item-slot>
+    <mc-slot class="slot" each="inventory" as="i" key="i" bind:index="i"></mc-slot>
   </div>
   <div class="grid hotbar">
-    <item-slot class="slot" each="hotbar" as="i" key="i" bind:slot="i"></item-slot>
+    <mc-slot class="slot" each="hotbar" as="i" key="i" bind:index="i"></mc-slot>
   </div>
   <div class="sides" bind:class:open="sidesOpen">
     <div class="side" each="sideRows" as="s" key="s.side" on:click="cycleSide(s)">

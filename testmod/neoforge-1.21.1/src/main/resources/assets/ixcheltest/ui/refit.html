@@ -10,7 +10,7 @@
         <span class="label">Attachments</span>
         <div class="row slot" each="slots" as="s" key="s.type" tabindex="0"
              on:click="select(s)" bind:class:selected="s.selected">
-          <item class="icon" bind:item="s.icon"></item>
+          <mc-item class="icon" bind:item="s.icon"></mc-item>
           <span bind:text="s.name"></span>
         </div>
       </div>
@@ -19,7 +19,7 @@
         <div class="options" bind:class:busy="install.pending">
           <div class="row option" each="options" as="o" key="o.id" on:click="install(o)"
                bind:class:installed="o.installed" bind:class:missing="o.missing">
-            <item class="icon" bind:item="o.icon"></item>
+            <mc-item class="icon" bind:item="o.icon"></mc-item>
             <span bind:text="o.label"></span>
           </div>
         </div>
@@ -31,7 +31,7 @@
         <span class="label">Laser</span>
         <div class="row swatch" each="swatches" as="w" key="w.id" on:click="pickLaser(w)"
              bind:class:selected="w.draft" bind:class:installed="w.current">
-          <item class="icon" bind:item="w.icon"></item>
+          <mc-item class="icon" bind:item="w.icon"></mc-item>
           <span bind:text="w.name"></span>
         </div>
         <div class="button" if="hasDraft" on:click="applyLaser" bind:class:busy="applyLaser.pending">

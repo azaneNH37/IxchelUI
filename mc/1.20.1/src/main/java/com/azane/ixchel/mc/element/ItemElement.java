@@ -9,12 +9,14 @@ import net.minecraft.world.item.ItemStack;
 import java.util.function.Supplier;
 
 /**
- * {@code <item>}: an item drawn like a vanilla slot item, scaled from 16×16 to the border box. The
+ * {@code <mc-item>}: an item drawn like a vanilla slot item, scaled from 16×16 to the border box. The
  * payload is an {@link ItemStack} snapshot from a value cell, or a {@code Supplier<ItemStack>} handle
  * read at paint time, so a live stack is drawn every frame without any comparison or copy.
  */
 final class ItemElement implements NativePainter {
-    static final String TAG = "item";
+    static final String TAG = "mc-item";
+    /** The payload attribute: {@code bind:item}. */
+    static final String PAYLOAD = "item";
     static final ItemElement PAINTER = new ItemElement();
     private static final float SIZE = 16f;
     /** Vanilla item rendering writes depth up to {@code z + 158}. */
@@ -46,7 +48,7 @@ final class ItemElement implements NativePainter {
         if (payload instanceof Supplier<?> handle && handle.get() instanceof ItemStack stack) {
             return stack;
         }
-        throw new IllegalStateException("<item> needs an ItemStack or a Supplier<ItemStack>, got "
+        throw new IllegalStateException("<mc-item> needs an ItemStack or a Supplier<ItemStack>, got "
                 + (payload instanceof Supplier<?> h ? "a Supplier of " + h.get() : payload.getClass().getName()));
     }
 }

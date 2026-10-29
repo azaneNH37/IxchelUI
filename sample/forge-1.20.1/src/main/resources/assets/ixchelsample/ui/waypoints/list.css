@@ -82,14 +82,15 @@
   margin-top: 4px;
 }
 
-.button {
+button {
   padding: 3px 6px;
   margin-right: 4px;
+  border-style: none;
   background-color: #FFFFFF30;
   color: #FFFFFF;
   transition: background-color 120ms;
 }
 
-.button:hover {
+button:hover {
   background-color: #FFFFFF60;
 }

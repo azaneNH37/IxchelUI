@@ -17,7 +17,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 
 /**
  * A container screen whose layout is a document. The host's menu defines the slots; the template
- * places them with {@code <item-slot slot="N">} elements, and the resulting positions are written
+ * places them with {@code <mc-slot index="N">} elements, and the resulting positions are written
  * back to {@code Slot.x/y}. Highlight, tooltips, clicks, drags, quick moves and the client prediction
  * stay vanilla, so other mods that read slot positions or {@code hoveredSlot} keep working. Who draws
  * the slot items is chosen by {@link SlotItemRendering}.
@@ -42,7 +42,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
  *       a full-screen wrapper makes the whole screen the GUI area. A click on no element counts as
  *       outside, so it drops the carried stack like vanilla.</li>
  *   <li>A slot is hovered only when the document element under the mouse is (inside) its
- *       {@code <item-slot>}; a panel drawn over a slot blocks it.</li>
+ *       {@code <mc-slot>}; a panel drawn over a slot blocks it.</li>
  * </ul>
  * Mouse buttons go to the document and then to vanilla (see {@link #mouseClicked}); wheel and keys go
  * to the document first, and what it does not consume goes to vanilla. Template problems are
@@ -112,7 +112,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
 
     /**
      * Paints the document, then raises the pose by its depth until the end of {@link #render}: the
-     * painter's depth grows with every group of {@code <item>}s, and vanilla would otherwise draw slot
+     * painter's depth grows with every group of {@code <mc-item>}s, and vanilla would otherwise draw slot
      * items under rects that come later in the document.
      */
     @Override

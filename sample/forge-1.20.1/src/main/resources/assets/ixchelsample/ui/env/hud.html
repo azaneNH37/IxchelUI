@@ -43,7 +43,7 @@
     </div>
     <div class="target" if="hasTarget">
       <div class="block" if="hasBlock">
-        <item class="block-icon" bind:item="blockIcon"></item>
+        <mc-item class="block-icon" bind:item="blockIcon"></mc-item>
         <div class="lines">
           <span class="name" bind:text="block.name"></span>
           <span class="tool" bind:class:bad="!block.harvestable" bind:text="block.tool"></span>

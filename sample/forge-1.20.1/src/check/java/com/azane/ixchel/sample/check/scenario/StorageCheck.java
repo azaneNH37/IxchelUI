@@ -74,7 +74,7 @@ public final class StorageCheck {
                     + view().maxScrollTop(), Script.query(".cell").size() == BUILT_CELLS
                     && view().maxScrollTop() == rows(kinds[0]) * CELL - 6 * CELL));
             s.expect("every inventory slot placed", () -> Script.query(".slot").size() == 36);
-            s.hover(".cell item");
+            s.hover(".cell mc-item");
             s.shot("storage-open");
 
             // Fails if the built rows do not follow the scroll offset (a blank or stale view).
@@ -266,7 +266,7 @@ public final class StorageCheck {
     }
 
     private static List<ItemStack> shownStacks() {
-        return Script.query(".cell item").stream().map(e -> (ItemStack) e.payload()).toList();
+        return Script.query(".cell mc-item").stream().map(e -> (ItemStack) e.payload()).toList();
     }
 
     private static boolean firstIs(Item item, String count) {

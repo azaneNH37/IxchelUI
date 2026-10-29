@@ -44,7 +44,7 @@ import java.util.function.Predicate;
  * <pre>{@code
  * Checks.register("waypoints", s -> s
  *         .run(WaypointsScreen::open)
- *         .click(".button")
+ *         .click("button")
  *         .waitUntil("one row", () -> Script.query(".row").size() == 1, 10)
  *         .shot("waypoints-one"));
  * }</pre>

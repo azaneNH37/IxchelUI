@@ -9,7 +9,7 @@ related: [DECISIONS.md#005, DECISIONS.md#009, ref/D-ixchel-module-breakdown-2026
 
 ## Summary
 
-sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器面板、存储终端、掉落物雷达、环境 HUD、配置面板、任务树、指南书、增强 tooltip。只做 Forge 1.20.1（#005）。sample 同时驱动路线图：每个场景列出需要的新库能力，按 §3 的顺序实现；场景的检查（§4）通过，即为对应能力的验收。现有 refit 保留作性能基线，status、pickup、waypoints 并入新场景，背包改装在角色面板与机器面板落地后删除。美术用原版资源，缺的图标自画 16×16。
+sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器面板、存储终端、掉落物雷达、环境 HUD、配置面板、任务树、指南书、增强 tooltip。只做 Forge 1.20.1（#005）。sample 同时驱动路线图：每个场景列出需要的新库能力，实现顺序与状态见 `ref/D-ixchel-roadmap-20261029.md`；场景的检查（§4）通过，即为对应能力的验收。现有 refit 保留作性能基线，status、pickup、waypoints 并入新场景，背包改装在角色面板与机器面板落地后删除。美术用原版资源，缺的图标自画 16×16。
 
 ## Detail
 
@@ -103,18 +103,9 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 交互与视觉：按稀有度着色的边框、标题、图标、附魔列表、属性与当前装备对比（绿增红减）、耐久条，按住 Shift 显示详情。尺寸随内容，贴近光标，碰到屏幕边缘时翻转。
 - 新能力：tooltip 宿主。替换原版 tooltip 与其它 mod 冲突面大，由宿主 API 参数开启（#009）。性能：鼠标扫过网格时每帧都可能换物品。
 
-### 3. 实现顺序
+### 3. 实现与结果
 
-原则：先做共用的小能力，再按能力族推进；每个场景先打通最薄的一条路径。
-
-| 阶段 | 场景 | 本阶段引入的库能力 |
-|---|---|---|
-| 0 | — | border、opacity、text-align、`white-space: nowrap` + `text-overflow: ellipsis`、`:disabled`、自定义元素 tooltip |
-| A | S5 环境 HUD、S4 掉落物雷达 | 基本已有；status、pickup、waypoints 在这里迁移 |
-| B | S1 角色面板、S2 机器面板 | `<entity>`、方块图集精灵 + tint；完成后删除背包改装 |
-| C | S3 存储终端、S6 配置面板 | `charTyped` 与文本输入、虚拟网格、表单控件、弹出层 / z-index、Tab 焦点、无世界上下文 |
-| D | S7 任务树、S4 方向箭头 | transform 与逆变换命中、画线、`mouseDragged` |
-| E | S8 指南书、S9 增强 tooltip | 行内流式排版、tooltip 宿主 |
+实现顺序、各阶段范围与状态见 `ref/D-ixchel-roadmap-20261029.md`。本节记录已完成阶段的结果。
 
 现有 sample 的处理（2026-10-28 重构后）：
 - `refit` / `RefitBench`、`HudBench`、`probe`、弹药 HUD 已删除，不再保留手写原版对照基准；性能基线由 S4、S5 检查里的 `FrameTimer` 预算承担。
@@ -153,11 +144,6 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - mc：`UiScreen` 可带父界面，关闭时回到父界面；S6 经 `ConfigScreenHandler.ConfigScreenFactory` 从 mod 列表打开。
 - S6 为 `config`：编辑 `ixchelsample-client.toml` 的真实规格（`SampleConfig`，4 个分类），分类、搜索、开关、滑条 + 数字框、枚举下拉、颜色、列表对话框（预设下拉）、恢复默认、已修改 / 越界标记、需重启提示、撤销、保存、有未保存修改时 Escape 先确认。检查 `config` 28 项，前后都把配置复位为默认值。
 - 未验证：检查在已进入世界时经 mod 列表工厂以标题界面为父打开，真正无世界（`player == null`）的路径没有退出世界实测。
-
-阶段 D–E 待做（按 §3 顺序）：
-- D（S7 任务树、S4 箭头）：transform（translate/scale/rotate）与逆变换命中测试；画线命令（`DrawCommand` 加类型，visitor 同步）；`mouseDragged` 转发与检查驱动 `drag(sel, dx, dy)`；S7 界面与检查（约 100 节点）；S4 方向箭头改用 rotate，去掉 8 方向字形。
-- E（S8 指南书、S9 增强 tooltip）：跨 `span` 的行内流式排版与行内链接命中；S8 界面与检查；tooltip 宿主（`RenderTooltipEvent.Pre`，接管原版须由宿主 API 开关开启，#009）；S9 界面与检查。
-- 每阶段末：meta 更新、开 PR、合入。
 
 ### 4. 自动化检查
 

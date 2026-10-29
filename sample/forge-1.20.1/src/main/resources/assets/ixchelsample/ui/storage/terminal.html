@@ -6,8 +6,8 @@
   </div>
   <div class="tools">
     <input class="search" bind:value="query" placeholder="Search, @mod" maxlength="50"/>
-    <div class="button sort" title="Sort by" on:click="cycleSort"><span bind:text="sortLabel"></span></div>
-    <div class="button direction" on:click="flipDirection"><span bind:text="directionLabel"></span></div>
+    <button class="sort" title="Sort by" on:click="cycleSort"><span bind:text="sortLabel"></span></button>
+    <button class="direction" on:click="flipDirection"><span bind:text="directionLabel"></span></button>
   </div>
   <!-- Clicks on the grid store the carried stack (right: one of it); on a cell they take when nothing is carried. -->
   <div class="view" bind:scrolltop="scroll" on:click="store" on:click.right="storeOne">
@@ -15,7 +15,7 @@
       <div class="rows">
         <div class="cell" each="visibleCells" as="c" key="c.id"
              on:click.left="take(c)" on:click.right="takeHalf(c)" on:click.left.shift="toInventory(c)">
-          <item class="icon" bind:item="c.stack"><span class="count" bind:text="c.count"></span></item>
+          <mc-item class="icon" bind:item="c.stack"><span class="count" bind:text="c.count"></span></mc-item>
         </div>
       </div>
     </div>
@@ -23,7 +23,7 @@
   <!-- Three of the four inventory rows in view; the wheel scrolls to the hotbar. Ixchel draws the items, clipped. -->
   <div class="inventory">
     <div class="grid">
-      <item-slot class="slot" each="inventory" as="i" key="i" bind:slot="i"></item-slot>
+      <mc-slot class="slot" each="inventory" as="i" key="i" bind:index="i"></mc-slot>
     </div>
   </div>
 </div>

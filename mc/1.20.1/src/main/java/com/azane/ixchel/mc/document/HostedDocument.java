@@ -147,7 +147,7 @@ public final class HostedDocument implements AutoCloseable {
         return painter.topZ();
     }
 
-    /** Draws the vanilla tooltip of the {@code <item>} or {@code title} under the pointer, above everything the document drew. */
+    /** Draws the vanilla tooltip of the {@code <mc-item>} or {@code title} under the pointer, above everything the document drew. */
     public void drawTooltip(GuiGraphics g, int mouseX, int mouseY) {
         if (document != null) {
             Tooltips.render(g, Minecraft.getInstance().font, document.events().hitTest(mouseX, mouseY), painter.topZ(),

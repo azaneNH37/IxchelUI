@@ -7,24 +7,24 @@
   </div>
   <div class="page equipment" bind:class:shown="onEquipment">
     <div class="column">
-      <item-slot class="slot" slot="5"></item-slot>
-      <item-slot class="slot" slot="6"></item-slot>
-      <item-slot class="slot" slot="7"></item-slot>
-      <item-slot class="slot" slot="8"></item-slot>
+      <mc-slot class="slot" index="5"></mc-slot>
+      <mc-slot class="slot" index="6"></mc-slot>
+      <mc-slot class="slot" index="7"></mc-slot>
+      <mc-slot class="slot" index="8"></mc-slot>
     </div>
-    <entity class="doll" bind:entity="doll" title="You. The doll looks at the pointer."></entity>
+    <mc-entity class="doll" bind:entity="doll" title="You. The doll looks at the pointer."></mc-entity>
     <div class="column offhand">
-      <item-slot class="slot" slot="45"></item-slot>
+      <mc-slot class="slot" index="45"></mc-slot>
     </div>
     <div class="crafting">
       <div class="craft-grid">
-        <item-slot class="slot" slot="1"></item-slot>
-        <item-slot class="slot" slot="2"></item-slot>
-        <item-slot class="slot" slot="3"></item-slot>
-        <item-slot class="slot" slot="4"></item-slot>
+        <mc-slot class="slot" index="1"></mc-slot>
+        <mc-slot class="slot" index="2"></mc-slot>
+        <mc-slot class="slot" index="3"></mc-slot>
+        <mc-slot class="slot" index="4"></mc-slot>
       </div>
       <span class="arrow">↓</span>
-      <item-slot class="slot result" slot="0"></item-slot>
+      <mc-slot class="slot result" index="0"></mc-slot>
     </div>
   </div>
   <div class="page list" bind:class:shown="onAttributes">
@@ -48,9 +48,9 @@
     </div>
   </div>
   <div class="grid">
-    <item-slot class="slot" each="inventory" as="i" key="i" bind:slot="i"></item-slot>
+    <mc-slot class="slot" each="inventory" as="i" key="i" bind:index="i"></mc-slot>
   </div>
   <div class="grid hotbar">
-    <item-slot class="slot" each="hotbar" as="i" key="i" bind:slot="i"></item-slot>
+    <mc-slot class="slot" each="hotbar" as="i" key="i" bind:index="i"></mc-slot>
   </div>
 </div>

@@ -10,16 +10,16 @@ public final class McElements {
     /**
      * {@link TagRegistry#HTML} plus two native elements, sized in CSS:
      * <ul>
-     * <li>{@code <item bind:item="...">}: an item drawn like a vanilla slot item. Bind an
+     * <li>{@code <mc-item bind:item="...">}: an item drawn like a vanilla slot item. Bind an
      * {@code ItemStack} snapshot when bindings must see changes, or a {@code Supplier<ItemStack>}
      * handle read at paint time when only the picture changes; keep the handle instance stable.</li>
-     * <li>{@code <entity bind:entity="...">}: a {@code LivingEntity} (or a {@code Supplier} of one)
+     * <li>{@code <mc-entity bind:entity="...">}: a {@code LivingEntity} (or a {@code Supplier} of one)
      * standing in the box; in a screen it looks at the pointer.</li>
      * </ul>
      */
     public static final TagRegistry TAGS = TagRegistry.HTML.extend()
-            .nativeTag(ItemElement.TAG, ItemElement.TAG)
-            .nativeTag(EntityElement.TAG, EntityElement.TAG)
+            .nativeTag(ItemElement.TAG, ItemElement.PAYLOAD)
+            .nativeTag(EntityElement.TAG, EntityElement.PAYLOAD)
             .build();
 
     /** The painter of each native element of {@link #TAGS}. */

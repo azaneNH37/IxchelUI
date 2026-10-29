@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Vanilla tooltips for the element under the pointer: the item tooltip of an {@code <item>}, or the
+ * Vanilla tooltips for the element under the pointer: the item tooltip of an {@code <mc-item>}, or the
  * text of a {@code title} attribute. The deepest element that has either wins, so a {@code title} on
  * a row does not hide the item tooltip of an icon inside it. A screen draws it after painting its
  * document; a HUD gets no pointer and shows none.
@@ -26,7 +26,7 @@ public final class Tooltips {
 
     /**
      * Draws the tooltip of {@code hovered} or its nearest ancestor that has one, at the pointer. An
-     * {@code <item>} counts while its stack is not empty right now, resolved as it is drawn. A title
+     * {@code <mc-item>} counts while its stack is not empty right now, resolved as it is drawn. A title
      * breaks at {@code \n} and wraps at {@link #TITLE_WIDTH}; an empty title hides the tooltip.
      *
      * @param hovered the deepest element under the pointer ({@link

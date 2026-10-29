@@ -6,16 +6,17 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Tags a template may use and the plain attributes each accepts. Immutable; hosts add native
- * elements with {@link #extend()}.
+ * Tags a template may use and the plain attributes each accepts. Immutable; the mc layer adds its
+ * native elements with {@link #extend()}. Tags outside the HTML subset carry a hyphen, and the
+ * library keeps the prefixes {@code ix-} and {@code mc-} for its own.
  *
  * <p>Every tag except {@code <style>} and {@code <link>} accepts {@link #GLOBAL_ATTRIBUTES};
  * {@code <link>} takes only {@code rel} and {@code href}. {@code bind:*} attributes are accepted on
  * any known element without being registered.
  *
- * <p>A native element is drawn by the host, not the core: it paints as a
- * {@link com.azane.ixchel.core.paint.DrawCommand.Custom} carrying its payload, a host object that
- * only a binding can set ({@code <item bind:item="gun"/>}).
+ * <p>A native element is drawn by the adapter layer, not the core: it paints as a
+ * {@link com.azane.ixchel.core.paint.DrawCommand.Custom} carrying its payload, an adapter object that
+ * only a binding can set ({@code <mc-item bind:item="gun"></mc-item>}).
  */
 public final class TagRegistry {
     /**

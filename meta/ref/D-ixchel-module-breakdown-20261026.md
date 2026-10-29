@@ -58,7 +58,7 @@ flowchart LR
 - 样式脏标记的粒度是子树：元素脏表示它与整棵子树都重算；祖先只记"有脏后代"，供样式阶段跳过干净子树。没有结构伪类与属性选择器，所以增删子节点、改普通属性不标父元素脏；例外：改 `id` 标该元素脏（参与 `#id` 匹配），已算过样式的元素被挂到（新）父节点下时标该元素脏（继承值与组合选择器随祖先变化）。`class`/`style` 不走 `setAttribute`，分别用 `addClass`/`removeClass` 与 `setInlineStyle`。
 - 坐标是文档 GUI 像素，原点在视口左上；`LayoutBox` 存绝对坐标的 border box。模板顶层元素的父节点是尺寸等于视口的隐式根。
 - `font-size` 以 GUI 像素计，`9px` = vanilla 字体 1 倍（行高 9）；`DrawCommand.Text` 的 `(x, y)` 是行框左上角，基线对齐由 `McPainter` 处理。
-- `DrawCommand` 的子类型随实现加入，当前为 `Rect`/`Text`/`Image`/`Custom`/`PushClip`/`PopClip`；计划中的 `RoundRect`、`Border`、`NineSlice` 在对应功能落地时再定字段。物品不单设 `Item`，走 `Custom(kind, payload, x, y, w, h)`：原生元素由 `TagRegistry.Builder.nativeTag(tag, payload)` 注册，payload 只能经 `bind:<payload>` 写入（按引用判断变化），`Painter` 对有 payload 的原生元素输出 `Custom`，内核不解释 `payload`。mc 层 `<item bind:item>` 用 vanilla `renderItem` 按元素尺寸缩放绘制；物品写深度至 z+158，`McPainter` 把其后的命令整体抬高 160，连续物品共用一层。
+- `DrawCommand` 的子类型随实现加入，当前为 `Rect`/`Text`/`Image`/`Custom`/`PushClip`/`PopClip`；计划中的 `RoundRect`、`Border`、`NineSlice` 在对应功能落地时再定字段。物品不单设 `Item`，走 `Custom(kind, payload, x, y, w, h)`：原生元素由 `TagRegistry.Builder.nativeTag(tag, payload)` 注册，payload 只能经 `bind:<payload>` 写入（按引用判断变化），`Painter` 对有 payload 的原生元素输出 `Custom`，内核不解释 `payload`。mc 层 `<mc-item bind:item>` 用 vanilla `renderItem` 按元素尺寸缩放绘制；深度按重叠分层（§4）。
 - `Syntax.parse` 报错后返回 `null`，该声明整条丢弃；简写在解析期展开，`ComputedStyle` 只存长写属性。选择器列表中任一项非法则整条规则丢弃（同 CSS）。
 - 布局只在计算值中 `affectsLayout` 属性变化、文本、字号或子节点列表变化，或视口变化时才跑 taffy；只改颜色、背景等的重算不调用 taffy `setStyle`。
 - 干净帧：上一帧以来无重算、无文本与子节点变化、视口不变、未调用 `invalidateText()` 时，`UiDocument.frame` 跳过布局同步与绘制，沿用上一帧的 `DisplayList`，core 不分配。`DisplayList` 带版本号，只在重绘时递增，`McPainter` 据此复用顶点缓冲。
@@ -83,11 +83,11 @@ M1 已知限制（均为开发期可见行为，后续按场景放开）：
 | `mc`（根） | 宿主 API：把原版的屏幕、容器屏幕、HUD 帧与输入交给文档 | `UiScreen`、`UiContainerScreen`、`UiHud` |
 | `mc.document` | 文档生命周期，所有宿主共用：从宿主资源加载（`<link>` 解析）、开发期热重载与保留上一版、错误叠加层、逐帧绘制与 tooltip；view model 跨重载保留 | `HostedDocument`；`McResources`、`DevResources`、`DevOverlay` 包内私有 |
 | `mc.element` | 原版内容进入文档：每个原生元素一个单元，自带标签、绘制（`NativePainter`）与 tooltip 解析 | `McElements`（`TAGS`、`PAINTERS`）、`Tooltips`；`ItemElement`、`EntityElement` 包内私有 |
-| `mc.container` | 容器槽位接入：GUI 区域、`Slot.x/y` 写回与还原、隐藏规则、hover 判定、`IXCHEL` 逐槽裁剪绘制 | `ContainerLayout`（含 `<item-slot>` 的 `TAGS`）、`ClippedSlotItems`；`SlotPositions` 包内私有 |
+| `mc.container` | 容器槽位接入：GUI 区域、`Slot.x/y` 写回与还原、隐藏规则、hover 判定、`IXCHEL` 逐槽裁剪绘制 | `ContainerLayout`（含 `<mc-slot index>` 的 `TAGS`）、`ClippedSlotItems`；`SlotPositions` 包内私有 |
 | `mc.paint` | core 端口实现：DisplayList 回放（自写顶点合批、scissor、按重叠分层）、文本与图片测量、`sprite:` 图集精灵 | `McPainter`、`NativePainter`、`McTextMeasurer`、`McImageMeasurer`；`Sprites`、`Layers` 包内私有 |
 | `mc.source` | 游戏状态作为数据源 | `ClientSources`、`WorldProjection` |
 
-依赖单向：根 → document/container → element → paint；source 独立。`McPainter` 不认识任何原生元素，按 `DrawCommand.Custom.kind` 查 `NativePainter`，绘制返回写入的深度。每条命令画在之前与它矩形相交的命令所达到的最高深度上（`Layers`，原生元素只按边框盒算），深度只随同一处叠了几层增长；原先"原生绘制后其后命令整体抬高"在约 70 格物品网格时越过 GUI 远平面（Forge 1.20.1 为 z 10000）。1.21.1 为最小集：无 `container`、`<entity>`、`sprite:`，其余包与 1.20.1 同构。
+依赖单向：根 → document/container → element → paint；source 独立。`McPainter` 不认识任何原生元素，按 `DrawCommand.Custom.kind` 查 `NativePainter`，绘制返回写入的深度。每条命令画在之前与它矩形相交的命令所达到的最高深度上（`Layers`，原生元素只按边框盒算），深度只随同一处叠了几层增长；原先"原生绘制后其后命令整体抬高"在约 70 格物品网格时越过 GUI 远平面（Forge 1.20.1 为 z 10000）。1.21.1 为最小集：无 `container`、`<mc-entity>`、`sprite:`，其余包与 1.20.1 同构。
 
 `ixchel-<加载器>-<版本>`：只做注册——`registerHud` 构造 `UiHud`，把它挂到 HUD 层与资源重载监听，安装 `WorldProjection` 的相机捕获；不碰文档加载与开发期设施。
 

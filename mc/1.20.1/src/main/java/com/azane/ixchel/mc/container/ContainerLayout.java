@@ -23,21 +23,21 @@ import java.util.TreeSet;
 
 /**
  * Projects a document onto a vanilla container screen: the GUI area other mods read, and every menu
- * slot written back to {@code Slot.x/y} from its {@code <item-slot>} element (see
+ * slot written back to {@code Slot.x/y} from its {@code <mc-slot>} element (see
  * {@code ref/SDG-ixchel-container-slot-integration} for the rules). Client thread only.
  */
 public final class ContainerLayout {
     /** Tag of the slot element. */
-    public static final String ITEM_SLOT = "item-slot";
+    public static final String SLOT_TAG = "mc-slot";
     /** Attribute holding the menu slot index. */
-    public static final String SLOT_ATTRIBUTE = "slot";
+    public static final String INDEX_ATTRIBUTE = "index";
     /**
-     * {@link McElements#TAGS} plus {@code <item-slot slot="N">}: the projection of menu slot
+     * {@link McElements#TAGS} plus {@code <mc-slot index="N">}: the projection of menu slot
      * {@code N}. The slot's 16×16 item area is centered in the element's border box and written back
      * to {@code Slot.x/y}; vanilla keeps drawing the item and handling clicks, drags and quick moves
-     * there. Use {@code bind:slot} for slots from an {@code each} row.
+     * there. Use {@code bind:index} for slots from an {@code each} row.
      */
-    public static final TagRegistry TAGS = McElements.TAGS.extend().tag(ITEM_SLOT, SLOT_ATTRIBUTE).build();
+    public static final TagRegistry TAGS = McElements.TAGS.extend().tag(SLOT_TAG, INDEX_ATTRIBUTE).build();
 
     static final int ITEM_SIZE = 16;
 
@@ -156,7 +156,7 @@ public final class ContainerLayout {
             }
             Element earlier = placed.putIfAbsent(index, e);
             if (earlier != null) {
-                report(d, e, "slot " + index + " is already placed by the <" + ITEM_SLOT + "> at "
+                report(d, e, "slot " + index + " is already placed by the <" + SLOT_TAG + "> at "
                         + earlier.pos() + "; this one is ignored");
                 continue;
             }
@@ -178,7 +178,7 @@ public final class ContainerLayout {
             }
             LayoutBox b = e.box();
             if (b.width() < ITEM_SIZE || b.height() < ITEM_SIZE) {
-                report(d, e, "<" + ITEM_SLOT + "> for slot " + i + " is " + b.width() + "x" + b.height()
+                report(d, e, "<" + SLOT_TAG + "> for slot " + i + " is " + b.width() + "x" + b.height()
                         + "; it must be at least 16x16");
             }
             int x = Math.round(b.x() + (b.width() - ITEM_SIZE) / 2);
@@ -196,7 +196,7 @@ public final class ContainerLayout {
                     Math.min(placedWidth, (int) Math.ceil(clip[2])), Math.min(placedHeight, (int) Math.ceil(clip[3]))});
         }
         if (!missing.isEmpty()) {
-            report(d, d.root(), "menu slots " + missing + " have no <" + ITEM_SLOT + ">; every slot of "
+            report(d, d.root(), "menu slots " + missing + " have no <" + SLOT_TAG + ">; every slot of "
                     + menu.getClass().getSimpleName() + " must be placed");
         }
     }
@@ -230,7 +230,7 @@ public final class ContainerLayout {
     }
 
     private static void collect(Element e, List<Element> out) {
-        if (e.tag().equals(ITEM_SLOT)) {
+        if (e.tag().equals(SLOT_TAG)) {
             out.add(e);
         }
         for (Node n : e.children()) {
@@ -241,9 +241,9 @@ public final class ContainerLayout {
     }
 
     private Integer index(UiDocument d, Element e, int count) {
-        String raw = e.attribute(SLOT_ATTRIBUTE);
+        String raw = e.attribute(INDEX_ATTRIBUTE);
         if (raw == null) {
-            report(d, e, "<" + ITEM_SLOT + "> needs a slot index: slot=\"N\" or bind:slot");
+            report(d, e, "<" + SLOT_TAG + "> needs a slot index: index=\"N\" or bind:index");
             return null;
         }
         int index;

@@ -169,19 +169,20 @@
   margin-bottom: 4px;
 }
 
-.button {
+button {
   padding: 2px 4px;
   margin-right: 3px;
   background-color: #A0A0A0;
   border: 1px solid #555555;
+  color: #404040;
   transition: background-color 120ms;
 }
 
-.button:hover {
+button:hover {
   background-color: #B8B8B8;
 }
 
-.button.selected {
+button.selected {
   background-color: #E0E0E0;
 }
 

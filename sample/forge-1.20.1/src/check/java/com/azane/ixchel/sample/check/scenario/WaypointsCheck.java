@@ -24,10 +24,10 @@ public final class WaypointsCheck {
             s.waitUntil("empty list shows its message", () -> Script.query(".empty").size() == 1, Script.WAIT);
             s.shot("waypoints-empty");
             // The button's title shows as a vanilla tooltip (screenshot only: nothing to query).
-            s.hover(".button");
+            s.hover("button");
             s.shot("waypoints-title");
             for (int i = 0; i < 8; i++) {
-                s.click(".button");
+                s.click("button");
             }
             s.waitUntil("eight rows, the last one selected", () -> Script.query(".row").size() == 8
                     && Script.query(".row.selected").size() == 1 && selectedName().equals("Waypoint 8"), Script.WAIT);

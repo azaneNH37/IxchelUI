@@ -47,7 +47,7 @@ import java.util.function.Function;
  * <span bind:text="loaded"></span>          <!-- value as text; the element must be empty -->
  * <div bind:class:empty="isEmpty"></div>    <!-- Boolean toggles a class; '!' negates -->
  * <img bind:src="icon"/>                    <!-- value as a plain attribute -->
- * <item bind:item="gun"></item>              <!-- host object as a native element's payload -->
+ * <mc-item bind:item="gun"></mc-item>        <!-- host object as a native element's payload -->
  * <div bind:style:width="xpPercent"></div>  <!-- one longhand: a String in its CSS syntax ("37.5%"),
  *                                                a Number as px or a plain number, null to unset -->
  * <span bind:text="selected.name"></span>   <!-- path: record components, read when the record changes -->

@@ -10,12 +10,14 @@ import net.minecraft.world.entity.LivingEntity;
 import java.util.function.Supplier;
 
 /**
- * {@code <entity>}: a {@link LivingEntity} (or a {@code Supplier} of one, read at paint time)
+ * {@code <mc-entity>}: a {@link LivingEntity} (or a {@code Supplier} of one, read at paint time)
  * standing on the bottom center of the box, scaled to fit, drawn as the vanilla inventory draws the
  * player: lit from the front, head and body turned towards the pointer, or facing forward without one.
  */
 final class EntityElement implements NativePainter {
-    static final String TAG = "entity";
+    static final String TAG = "mc-entity";
+    /** The payload attribute: {@code bind:entity}. */
+    static final String PAYLOAD = "entity";
     static final EntityElement PAINTER = new EntityElement();
     /** Depth the entity model writes above its level, as an item's. */
     private static final float DEPTH = 160f;
@@ -55,9 +57,9 @@ final class EntityElement implements NativePainter {
             if (v == null || v instanceof LivingEntity) {
                 return (LivingEntity) v;
             }
-            throw new IllegalStateException("<entity> needs a LivingEntity or a Supplier of one, got a Supplier of " + v);
+            throw new IllegalStateException("<mc-entity> needs a LivingEntity or a Supplier of one, got a Supplier of " + v);
         }
-        throw new IllegalStateException("<entity> needs a LivingEntity or a Supplier of one, got "
+        throw new IllegalStateException("<mc-entity> needs a LivingEntity or a Supplier of one, got "
                 + payload.getClass().getName());
     }
 }

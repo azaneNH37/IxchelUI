@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 /**
  * A full screen drawn and driven by one document. Mouse and keyboard go to the document first; input
  * it does not take falls back to {@link Screen} (Escape closes). Closing the screen closes the view
- * model, so late replies and subscriptions end with it. An {@code <item>} or a {@code title} under the
+ * model, so late replies and subscriptions end with it. An {@code <mc-item>} or a {@code title} under the
  * pointer shows a vanilla tooltip. Does not pause a single-player game.
  *
  * <pre>{@code

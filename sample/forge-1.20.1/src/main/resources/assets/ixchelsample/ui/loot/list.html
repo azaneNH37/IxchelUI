@@ -14,7 +14,7 @@
       <span class="empty" if="empty">Nothing dropped nearby.</span>
       <div class="row" each="rows" as="r" key="r.id">
         <span class="arrow" bind:text="r.arrow"></span>
-        <item class="icon" bind:item="r.icon"></item>
+        <mc-item class="icon" bind:item="r.icon"></mc-item>
         <span class="name" bind:style:color="r.color" bind:text="r.name"></span>
         <span class="amount" bind:text="r.count"></span>
         <span class="distance" bind:text="r.distance"></span>
