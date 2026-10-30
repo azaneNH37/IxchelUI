@@ -25,22 +25,25 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#016
 
 - 外壳元素上的 `state:` 属于使用方：对该外壳元素的指令与插槽内容可见，对组件体不可见。
 - 名字不遮蔽：新声明（局部状态、行名、参数、事件）与已可见的名字重名，加载期报错（局部状态的现有规则推广到全部来源）。
-- 路径首段按上表解析，其后每段只能是 record 组件或 `List.size`；动作只能 `.pending`/`.error`（现有，`Bindings.java:780-790`）。
+- 路径首段按上表解析，其后每段只能是 record 组件或 `List.size`；动作只能 `.pending`/`.error`（现有）。
+- `$` 开头的名字只属于框架：字段、局部状态、行名、参数、事件都不得以 `$` 开头，加载期报错。
 
 #### 1.2 可达性
 
 模板只能触及 Java 显式暴露的东西：非 `private` 字段、record 结构、声明的 `Action`、类型为可写单元的状态。
 
-- `private` 字段对模板不可见。现状 `Bindings` 收集全部非 static 字段并 `setAccessible`（`Bindings.java:856-861`），这是上下文模型唯一的泄漏，随 L2 修正。
-- `$` 命名空间只属于框架：值为 record 或基本类型，只读或按位置限定作用域，清单固定由框架给出；不放宿主对象（`Minecraft`、`LocalPlayer` 等）。现有 `event`（`Bindings.java:603-606`）改名 `$event`，以后的 i18n 参数同样放在 `$` 下。
+- `private` 字段对模板不可见（L2 起名字表跳过 `private` 与 `static` 字段；字段值为 `null` 时加载期报 `field 'x' of Owner is null`）。
+- `$` 命名空间只属于框架：值为 record 或基本类型，只读或按位置限定作用域，清单固定由框架给出；不放宿主对象（`Minecraft`、`LocalPlayer` 等）。原 `event` 已在 L2 改名 `$event`，以后的 i18n 参数同样放在 `$` 下。
 
 #### 1.3 可写性
 
 | 可写 | 只读 |
 |---|---|
-| ViewModel 的 `state(...)` 字段；局部状态；`<for>` 行里类型为 `Value<T>` 的组件（现有，`Bindings.java:85-87`）；使用方以可写路径传入的组件参数；未传入、取默认值的组件参数 | `source(...)` 字段、`Derived`、表达式结果、字面量传入的参数、以表达式传入的参数 |
+| 声明类型为 `Value<T>` 的：ViewModel 的 `state(...)` 字段、`<for>` 行里的 record 组件；局部状态；使用方以可写路径传入的组件参数；未传入、取默认值的组件参数 | 声明类型为 `Cell<T>`（`source(...)` 字段）或 `Derived<T>` 的；表达式结果；字面量或表达式传入的参数 |
 
-"能不能写"是静态事实：由目标的 Java 类型或使用方传入的形式决定，加载期检查，不存在运行时才发现的写失败。
+"能不能写"是静态事实：由目标的声明类型或使用方传入的形式决定，加载期检查，不存在运行时才发现的写失败。为此 `source(...)` 返回只读的 `Cell<T>`，`Value<T>` 只由 `state(...)` 与 `state:` 产生（L2 拆分；此前两者都是 `Value`，`<for>` 行里 `Value` 组件的写入要到运行时才知道是不是 state）。
+
+写能力随 `Value` 引用传递：使用方把含 `Value<T>` 组件的 record 以只读参数传入，组件体仍可写该组件，因为使用方在 Java 类型里已经给出了写权限。
 
 ### 2. 可分析性的四条不变式
 
@@ -63,15 +66,15 @@ QML 的演进可作旁证：Qt 6 文档承认组件引用外层 id 时 "the engi
 
 | 端口 | 声明 | 组件体内 | 对照根页面 |
 |---|---|---|---|
-| 参数 | `params="open text danger=false"`，`=` 后为默认值表达式 | 裸名读；可写时可赋值 | `Cell` 字段（读）、`state(...)` 字段（读写） |
-| 事件 | `events="confirm"` | 当动作调用：无载荷时不带括号（现有规则，`Expr.java:273`），有载荷时 `confirm(表达式)` | `Action` 字段 |
+| 参数 | `params="open message danger=false"`，`=` 后为默认值表达式 | 裸名读；可写时可赋值 | `Cell` 字段（读）、`state(...)` 字段（读写） |
+| 事件 | `events="confirm"` | 当动作调用：无载荷时不带括号（现有规则），有载荷时 `confirm(表达式)` | `Action` 字段 |
 | 插槽 | `<slot>`、`<slot name>` | 放置使用方内容；`<slot>` 的子元素为后备内容 | — |
 | 局部状态 | 组件体内的 `state:` | 私有，不是端口 | 页面模板的 `state:` |
 
 ```html
-<template name="ui-confirm" params="open text danger=false" events="confirm">
+<template name="ui-confirm" params="open message danger=false" events="confirm">
   <dialog bind:open="open">
-    <span class="text" bind:text="text"></span>
+    <span class="text" bind:text="message"></span>
     <div class="actions">
       <button on:click="open = false">Cancel</button>
       <button bind:class:danger="danger" on:click="confirm; open = false">OK</button>
@@ -79,6 +82,16 @@ QML 的演进可作旁证：Qt 6 文档承认组件引用外层 id 时 "the engi
   </dialog>
 </template>
 ```
+
+- 参数名、事件名不得与 `TagRegistry.GLOBAL_ATTRIBUTES`（`class`、`id`、`style`、`tabindex`、`disabled`、`title`）或 `text`、`scrolltop`、`slot` 重名，加载期报错（`slot` 是外壳元素直接子元素指定插槽的属性）。这些是任何元素上都有含义的目标；`value`、`checked`、`open` 只在表单控件、复选框、`dialog` 上是双向目标，外壳元素不是这些元素，可作参数名。
+- 事件名不得与 DOM 事件名（`click`、`keydown` 等 `on:` 支持的事件）重名，否则使用方无法再监听外壳元素上的同名 DOM 事件。
+- 默认值表达式在组件环境中求值，只能引用写在它前面的参数与 `$` 名字，实例化时求值一次。
+- 事件：组件体中对同一事件的全部调用须一致，要么都不带载荷，要么载荷静态类型相同，否则加载期报错；使用方未监听时调用为空操作；组件事件不冒泡；组件体中不能读事件的 `.pending`/`.error`。
+- 插槽：
+  - `<slot>` 不进元素树，与控制块相同；同名插槽在一个组件中只能出现一次。
+  - 后备内容静态判定：使用方给了该插槽的内容（包括当前未挂载的 `<if>`），就不显示后备内容。
+  - 使用方以 `slot="名"` 把内容放进具名插槽，可写在外壳元素的直接子元素或直接子控制块上；控制块内容中的元素不得写 `slot=`，块内容整体进块所在的插槽。
+  - 组件体内 `<if>` 包住 `<slot>` 时，插槽内容随之挂载与卸载，其中的局部状态随之重建。
 
 #### 3.2 使用处
 
@@ -90,14 +103,16 @@ QML 的演进可作旁证：Qt 6 文档承认组件引用外层 id 时 "the engi
 | 不写，参数有默认值 | 本实例的局部状态，初值为默认值，可写 |
 | 不写，参数无默认值 | 加载期报错（必填） |
 
-- `on:e="语句"`：`e` 为声明的事件时接收组件事件，载荷在语句中为 `$event`，类型取组件体中调用处的参数类型；未声明时是外壳元素上的 DOM 监听器。
-- 声明的参数名、事件名归组件；其它 HTML 属性与指令（全局属性、`bind:class:*`、`bind:style:*`）作用于外壳元素。参数名、事件名与全局属性重名，加载期报错。外壳元素要重复或按条件出现，放进 `<for>`/`<if>` 块（语言文档 §3.5）。
+- `on:e="语句"`：`e` 为声明的事件时接收组件事件，载荷在语句中为 `$event`，类型取组件体中调用处的参数类型；不允许修饰符。`e` 未声明时是外壳元素上的 DOM 监听器。
+- 外壳元素上的 `bind:p`：`p` 为声明的参数时传参（传 `Ref` 本身，是否可写看表达式是否为可写裸路径；不可写时只读，不报错）；否则按外壳元素自身的绑定目标解释（`class:*`、`style:*`、`disabled`、`scrolltop`、全局属性）；`bind:text` 在外壳元素上报错，其内容是组件体。
+- 声明的参数名、事件名归组件；其它 HTML 属性与指令作用于外壳元素。外壳元素要重复或按条件出现，放进 `<for>`/`<if>` 块（语言文档 §3.5）。
+- 组件体不能给自己的外壳元素加 class 或指令（无 `:host` 等价物），按参数变化的外观放在组件体内的元素上（§4）。
 - 由"未传入的参数退化为局部状态"得到升级路径：组件内部状态要改由外部控制时，只把名字从 `state:` 挪到 `params` 并给默认值，组件体与已有使用方都不变。对照 Svelte 5 的 `$bindable(fallback)`（凭记忆）；它消除了 React 受控/非受控两套写法。
 
 ```html
 <div state:confirming="false">
   <button on:click="confirming = true">Remove</button>
-  <ui-confirm bind:open="confirming" text="Delete waypoint?" bind:danger="true" on:confirm="remove"></ui-confirm>
+  <ui-confirm bind:open="confirming" message="Delete waypoint?" bind:danger="true" on:confirm="remove"></ui-confirm>
 </div>
 <for each="entries" as="r" key="r.id">
   <config-entry bind:entry="r" on:reset="reset(r)"></config-entry>
@@ -106,15 +121,16 @@ QML 的演进可作旁证：Qt 6 文档承认组件引用外层 id 时 "the engi
 
 #### 3.3 编译划分
 
-- 组件体以"只有端口"的环境编译：复用现有 `Compiler`，ViewModel 字段表置空，换成参数与事件。【推断：未实现】
+- 名字解析经一张加载期建好的名字表：每个名字对应一个值 `Ref` 或一个可调用项（`Action` 或事件端口）。页面以 ViewModel 字段建表（跳过 `private`），组件体以参数与事件建表，其余编译逻辑相同。
 - 外壳元素上的指令与插槽内容在使用方环境编译。
 - 组件体的 `<for>` 内不得出现 `<slot>`：不做作用域插槽，插槽内容看不到组件的行名。sample 中约 30 个 `each` 行体，页面状态只出现在行根元素上（选中 class、`select(r)`），行体内部读页面状态 0 处；行内动作只有 config 的 `editList(r)`、`reset(r)`、`removeItem(i)`（`config/panel.html:39,41,61`），均可经事件端口表达。
-- 组件名须带连字符，经 `<link rel="component">` 在文件内引入（不做全局注册，#015）；引用成环为加载错误；前缀规则见语言文档 §3.2。
+- 组件名须带连字符，经 `<link rel="component">` 在文件内引入（不做全局注册，#015）。`<link rel="component">` 须写在所有元素之前：解析器读到它时加载组件文件并登记组件名，之后的标签才能识别。组件身份按解析后的资源路径认定：同一文件经两条路径引入只加载一次，其样式表只进一次组件层；不同文件定义同名组件为加载错误；引用成环为加载错误（加载期检查要展开每个块与组件，递归组件会无限展开）。前缀规则见语言文档 §3.2。
+- 没有 ViewModel 的文档以一个空 ViewModel 为根，组件参数与局部状态照常可用。
 
 #### 3.4 类型
 
-- 不写类型注解。每次实例化按使用方传入的真实类型检查组件体，错误同时定位到组件文件与使用处；按（组件，参数类型）缓存编译结果。【推断：未实现】
-- 组件签名由组件体推导（对每个参数用到的路径、运算与写入，行多态式），用于错误信息、文档与资源包覆盖前后的签名差异。
+- 不写类型注解。每次实例化按使用方传入的真实类型检查组件体。组件体中的错误定位到组件文件，消息末尾附使用处（`… (in <ui-confirm> at file:line:col)`），`Diagnostic` 结构不变。
+- 只被引入、从未实例化的组件只做解析与结构检查，组件体中的名字与类型不检查。
 - 以后若需要更强的约束，升级路径是 HTML 中可选的结构声明，不是 Java 侧登记。
 
 #### 3.5 生命周期与 `Scope`
@@ -139,6 +155,9 @@ QML 的演进可作旁证：Qt 6 文档承认组件引用外层 id 时 "the engi
 | 行内嵌动作（`entry.reset`） | 不做：`derive` 重建行时动作状态丢失，且破坏 record 相等截断 |
 | `null` 显式化（`?.`/`??`） | 另议；有默认值的参数已避免"未传入即 `null`" |
 | 可选的结构声明 | 待第一次真实需要 |
+| 组件签名推导（对每个参数用到的路径、运算与写入，行多态式），用于错误信息、文档与资源包覆盖前后的签名差异 | 暂不做，触发条件为 Doc 阶段生成组件参考或资源包覆盖工具 |
+| 按（组件，参数类型）缓存编译结果 | 暂不做：现有编译与实例化一体，每个块实例都重新解析名字，没有可缓存的编译结果；触发条件为 `FrameTimer` 显示实例化超预算 |
+| 组件给自己的外壳元素加指令（`:host` 等价物） | 暂不做，触发条件为第一处组件需要按参数改变外壳元素的 class 或布局；候选：`<template>` 上的指令作用于外壳元素，在组件环境求值，与使用方写同一目标时报错 |
 
 ### 5. 对照
 

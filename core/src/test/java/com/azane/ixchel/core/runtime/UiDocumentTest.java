@@ -77,9 +77,9 @@ class UiDocumentTest {
 
     @Test
     void linkedAndInlineSheetsApplyInDocumentOrder() {
-        Map<String, UiDocument.CssSource> sheets = Map.of(
-                "a.css", new UiDocument.CssSource(".n { width: 10px; height: 8px; background-color: #f00 }", "a.css"),
-                "b.css", new UiDocument.CssSource(".n { background-color: #00f }", "b.css"));
+        Map<String, String> sheets = Map.of(
+                "a.css", ".n { width: 10px; height: 8px; background-color: #f00 }",
+                "b.css", ".n { background-color: #00f }");
         UiDocument doc = UiDocument.load("""
                 <link rel="stylesheet" href="a.css"/>
                 <style>.n { height: 4px; background-color: #0f0 }</style>

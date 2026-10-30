@@ -1,9 +1,9 @@
 package com.azane.ixchel.sample.client.index;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
-import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import net.minecraft.world.item.ItemStack;
 
@@ -17,7 +17,7 @@ final class SampleIndexView extends ViewModel {
 
     private final List<Sample> samples;
     /** Which HUDs are shown, in sample order; settings may change them too, so this is polled. */
-    final Value<List<Boolean>> shown;
+    final Cell<List<Boolean>> shown;
     final Derived<List<Row>> rows;
     final Action<Row> open;
 

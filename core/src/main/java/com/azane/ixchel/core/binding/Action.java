@@ -18,15 +18,15 @@ public final class Action<A> {
     private final Scope scope;
     private final Consumer<A> sync;
     private final Function<A, CompletableFuture<?>> async;
-    private final Value<Boolean> pending;
-    private final Value<Throwable> error;
+    private final Held<Boolean> pending;
+    private final Held<Throwable> error;
 
     Action(ViewModel owner, Consumer<A> sync, Function<A, CompletableFuture<?>> async) {
         this.scope = owner.scope();
         this.sync = sync;
         this.async = async;
-        this.pending = new Value<>(owner, null, false);
-        this.error = new Value<>(owner, null, null);
+        this.pending = new Held<>(owner, false);
+        this.error = new Held<>(owner, null);
     }
 
     /** Whether an asynchronous run is in progress; always false for a synchronous action. */

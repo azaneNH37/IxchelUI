@@ -3,18 +3,18 @@
   <span class="title">Shade A inventory</span>
   <div class="row">
     <div class="column">
-      <mc-slot class="slot" each="armor" as="s" key="s" bind:index="s"></mc-slot>
+      <for each="armor" as="s" key="s"><mc-slot class="slot" bind:index="s"></mc-slot></for>
       <mc-slot class="slot" index="45"></mc-slot>
     </div>
     <div class="grid crafting">
-      <mc-slot class="slot" each="crafting" as="s" key="s" bind:index="s"></mc-slot>
+      <for each="crafting" as="s" key="s"><mc-slot class="slot" bind:index="s"></mc-slot></for>
     </div>
     <mc-slot class="slot result" index="0"></mc-slot>
   </div>
   <div class="grid">
-    <mc-slot class="slot" each="main" as="s" key="s" bind:index="s"></mc-slot>
+    <for each="main" as="s" key="s"><mc-slot class="slot" bind:index="s"></mc-slot></for>
   </div>
   <div class="grid hotbar">
-    <mc-slot class="slot" each="hotbar" as="s" key="s" bind:index="s"></mc-slot>
+    <for each="hotbar" as="s" key="s"><mc-slot class="slot" bind:index="s"></mc-slot></for>
   </div>
 </div>

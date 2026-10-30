@@ -194,6 +194,24 @@ public final class Element extends Node {
         markTreeChanged();
     }
 
+    @Override
+    public Element copyTemplate() {
+        Element e = new Element(tag, pos());
+        e.classes.addAll(classes);
+        e.attributes.putAll(attributes);
+        if (attributes.containsKey("disabled")) {
+            e.stateBits |= DISABLED;
+        }
+        e.inlineStyle = inlineStyle;
+        e.directives.addAll(directives);
+        for (Node n : children) {
+            Node c = n.copyTemplate();
+            e.children.add(c);
+            c.parent = e;
+        }
+        return e;
+    }
+
     public Set<String> classes() {
         return Collections.unmodifiableSet(classes);
     }
@@ -256,7 +274,7 @@ public final class Element extends Node {
         }
     }
 
-    /** The template's directives ({@code bind:*}, {@code on:*}, {@code state:*}, {@code each}…), in source order. */
+    /** The template's directives ({@code bind:*}, {@code on:*}, {@code state:*}, block attributes), in source order. */
     public List<Directive> directives() {
         return Collections.unmodifiableList(directives);
     }

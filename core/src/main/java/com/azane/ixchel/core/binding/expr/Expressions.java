@@ -1,6 +1,7 @@
-package com.azane.ixchel.core.binding;
+package com.azane.ixchel.core.binding.expr;
 
-import com.azane.ixchel.core.binding.Types.Num;
+import com.azane.ixchel.core.binding.Cell;
+import com.azane.ixchel.core.binding.expr.Types.Num;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -11,20 +12,30 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * Type-checks a parsed {@link Expr} and compiles it into one cell. A bare path is the path's own cell;
- * anything else is one {@link Derived} over the distinct paths it reads, evaluating the whole tree.
+ * Type-checks a parsed {@link Expr} and compiles it into a function of the distinct paths it reads.
  * Arithmetic follows Java's numeric promotion; {@code null} (a path through a {@code null} record) makes
  * arithmetic {@code null}, order comparisons and boolean operands false.
  */
-final class Expressions {
+public final class Expressions {
+    /** A resolved path: the cell to read and its declared type. */
+    public interface Operand {
+        Cell<?> cell();
+
+        Type type();
+    }
+
     /** Resolves a path; reports and returns {@code null} on failure. */
-    interface Paths {
-        Ref resolve(Expr.Path path);
+    public interface Paths {
+        Operand resolve(Expr.Path path);
     }
 
     /** Reports a problem at an offset of the directive value. */
-    interface Errors {
+    public interface Errors {
         void error(int at, String message);
+    }
+
+    /** An expression's value as {@code eval} over the current values of {@code inputs}, of type {@code type}. */
+    public record Compiled(Cell<?>[] inputs, Function<Object[], Object> eval, Type type) {
     }
 
     private interface Eval {
@@ -47,18 +58,18 @@ final class Expressions {
         this.errors = errors;
     }
 
-    /** The cell and type of {@code e}; {@code null} after reporting every problem found. */
-    static Ref compile(Expr e, Paths paths, Function<Object, String> textOf, Errors errors) {
-        if (e instanceof Expr.Path p) {
-            return paths.resolve(p);
-        }
+    /**
+     * Compiles {@code e}; {@code null} after reporting every problem found. A bare path compiles to a
+     * function of its own cell; callers that need the path's cell itself resolve it directly.
+     */
+    public static Compiled compile(Expr e, Paths paths, Function<Object, String> textOf, Errors errors) {
         Expressions c = new Expressions(paths, textOf, errors);
         Node n = c.node(e);
         if (n == null) {
             return null;
         }
         Eval eval = n.eval;
-        return new Ref(new Derived<>(c.inputs.toArray(new Cell<?>[0]), eval::eval), n.type);
+        return new Compiled(c.inputs.toArray(new Cell<?>[0]), eval::eval, n.type);
     }
 
     private Node node(Expr e) {
@@ -81,7 +92,7 @@ final class Expressions {
     private Node path(Expr.Path p) {
         String key = p.text();
         Integer index = inputIndex.get(key);
-        Ref ref;
+        Operand ref;
         if (index == null) {
             ref = paths.resolve(p);
             if (ref == null) {

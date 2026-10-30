@@ -1,4 +1,6 @@
+<link rel="stylesheet" href="../common/slot.css"/>
 <link rel="stylesheet" href="panel.css"/>
+<link rel="component" href="../common/player-inventory.html"/>
 <div class="panel" state:sidesOpen="false">
   <div class="header">
     <span class="title">Powered Stonecutter</span>
@@ -27,11 +29,11 @@
         <mc-slot class="slot output" index="3"></mc-slot>
       </div>
       <div class="recipes">
-        <span class="hint" if="recipes.size == 0">Put a block to cut in the left slot.</span>
-        <div class="recipe" each="recipes" as="r" key="r.index" bind:class:selected="r.selected" bind:title="r.name"
+        <if test="recipes.size == 0"><span class="hint">Put a block to cut in the left slot.</span></if>
+        <for each="recipes" as="r" key="r.index"><div class="recipe" bind:class:selected="r.selected" bind:title="r.name"
              on:click="pick(r)">
           <mc-item class="icon" bind:item="r.icon"></mc-item>
-        </div>
+        </div></for>
       </div>
     </div>
   </div>
@@ -39,16 +41,11 @@
     <button class="redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></button>
     <button class="sides-toggle" bind:class:selected="sidesOpen" on:click="sidesOpen = !sidesOpen">Sides</button>
   </div>
-  <div class="grid">
-    <mc-slot class="slot" each="inventory" as="i" key="i" bind:index="i"></mc-slot>
-  </div>
-  <div class="grid hotbar">
-    <mc-slot class="slot" each="hotbar" as="i" key="i" bind:index="i"></mc-slot>
-  </div>
+  <player-inventory bind:inventory="inventory" bind:hotbar="hotbar"></player-inventory>
   <div class="sides" bind:class:open="sidesOpen">
-    <div class="side" each="sideRows" as="s" key="s.side" on:click="cycleSide(s)">
+    <for each="sideRows" as="s" key="s.side"><div class="side" on:click="cycleSide(s)">
       <span class="face" bind:text="s.face"></span>
       <span class="mode" bind:class:input="s.input" bind:class:output="s.output" bind:text="s.mode"></span>
-    </div>
+    </div></for>
   </div>
 </div>

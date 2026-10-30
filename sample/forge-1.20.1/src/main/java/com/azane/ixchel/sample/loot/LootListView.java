@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.loot;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
@@ -34,7 +35,7 @@ final class LootListView extends ViewModel {
     private static final String[] FILTERS = {"All", "Uncommon+", "Rare+", "Epic"};
 
     final Value<Integer> minRarity = state(0);
-    final Value<List<Row>> drops = source(ClientSources.player(LootListView::rows, List.of()));
+    final Cell<List<Row>> drops = source(ClientSources.player(LootListView::rows, List.of()));
     final Derived<List<Row>> rows = derive(drops, minRarity,
             (all, min) -> all.stream().filter(r -> r.rarity() >= min).toList());
     final Value<List<Filter>> filters = state(filters());

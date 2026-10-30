@@ -147,7 +147,7 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 
 阶段 D 结果（2026-10-29）：
 - core：`transform`（`translate`/`translateX|Y`/`scale`/`scaleX|Y`/`rotate`/`none`，百分比相对边框盒）与 `transform-origin`，计算值 `css.property.Transform`，矩阵 `Affine`；只在绘制与命中时生效，布局、滚动不受影响。`Painter` 以 `DrawCommand.PushTransform`/`PopTransform` 包住元素子树；命中测试与指针局部坐标（光标、滑条）沿祖先链逆变换，零缩放不可命中。
-- 事件：`mousemove`（按住键时发给按下的元素，可用 `.left` 等过滤），`on:` 语句里可读 `event.x`/`y`/`movementX`/`movementY`/`delta`（`binding.EventInfo`）。mc 层原有的 `mouseMoved` 转发已覆盖拖拽，`mouseDragged` 未接。
+- 事件：`mousemove`（按住键时发给按下的元素，可用 `.left` 等过滤），`on:` 语句里可读 `$event.x`/`y`/`movementX`/`movementY`/`delta`（`binding.EventInfo`）。mc 层原有的 `mouseMoved` 转发已覆盖拖拽，`mouseDragged` 未接。
 - mc：两个版本的 `McPainter` 把变换写进 pose；scissor 与重叠分层用变换后矩形的包围盒，旋转内容的裁剪因此偏宽。
 - S7 为 `quests`（索引入口）：数据 `data/ixchelsample/quests.json`，3 章 99 个任务；已领取集合经快照 kind `Network.QUESTS` 复制，`ClaimQuestPacket` 由服务端校验前置与物品。画布拖拽平移、滚轮缩放 0.5–2、连线为旋转细 `div`、详情侧栏不随画布变换。检查 `quests` 21 项。
 - S4：`Drops.heading` 给出整数角度，HUD 边缘与列表的箭头为 `minecraft:textures/item/arrow.png` 加 `rotate`，删去 8 方向字形；检查读 `transform` 计算值换算为扇区。

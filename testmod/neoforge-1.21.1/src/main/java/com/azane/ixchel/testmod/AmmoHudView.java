@@ -1,5 +1,6 @@
 package com.azane.ixchel.testmod;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
@@ -18,8 +19,8 @@ import java.util.function.Supplier;
  */
 public final class AmmoHudView extends ViewModel {
     final Value<Supplier<ItemStack>> gunIcon = state(AmmoHudView::mainHand);
-    final Value<ItemStack> gun = source(ClientSources.mainHand());
-    final Value<List<ItemStack>> inventory = source(ClientSources.inventory());
+    final Cell<ItemStack> gun = source(ClientSources.mainHand());
+    final Cell<List<ItemStack>> inventory = source(ClientSources.inventory());
     final Derived<Integer> loaded = derive(gun, ItemStack::getCount);
     final Derived<String> loadedText = derive(loaded, n -> String.format("%03d", n));
     final Derived<Boolean> isEmpty = derive(loaded, n -> n == 0);

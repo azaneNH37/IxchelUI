@@ -9,7 +9,18 @@ import java.util.Locale;
 
 /**
  * CSS Syntax Level 3 §5 parser restricted to what IxchelUI supports: qualified rules whose blocks hold
- * declarations. At-rules and nested rules are reported as errors and skipped.
+ * declarations and nested rules (CSS Nesting). At-rules are reported as errors and skipped.
+ *
+ * <p>Nested rules are expanded here into plain rules, each after the rule it is nested in:
+ *
+ * <pre>{@code
+ * .row { color: red; &:hover { … } &.on { … } .name { … } > .icon { … } }
+ * // .row { color: red }  .row:hover { … }  .row.on { … }  .row .name { … }  .row > .icon { … }
+ * }</pre>
+ *
+ * {@code &} is replaced by the parent selector, once per selector of a parent list, rather than
+ * standing for {@code :is(parent)}; so each expanded selector has its own specificity, not the
+ * highest of the parent list's.
  */
 public final class CssParser {
     private final List<Token> tokens;
@@ -39,7 +50,7 @@ public final class CssParser {
         while (!p.peek().is(Token.Kind.EOF)) {
             values.add(p.componentValue());
         }
-        return p.declarationList(values);
+        return p.declarationList(values, null, null);
     }
 
     /**
@@ -83,10 +94,7 @@ public final class CssParser {
                     skipAtRule();
                     break;
                 default:
-                    Rule r = qualifiedRule();
-                    if (r != null) {
-                        rules.add(r);
-                    }
+                    qualifiedRule(rules);
             }
         }
     }
@@ -110,21 +118,87 @@ public final class CssParser {
         }
     }
 
-    private Rule qualifiedRule() {
+    private void qualifiedRule(List<Rule> out) {
         SourcePos start = peek().pos();
         List<ComponentValue> prelude = new ArrayList<>();
         while (true) {
             Token t = peek();
             if (t.is(Token.Kind.EOF)) {
                 diag.error(start, "expected '{' after selector");
-                return null;
+                return;
             }
             if (t.is(Token.Kind.LBRACE)) {
                 ComponentValue.Block block = simpleBlock();
-                return new Rule(List.copyOf(trim(prelude)), declarationList(block.contents()), start);
+                rule(List.copyOf(trim(prelude)), block.contents(), start, out);
+                return;
             }
             prelude.add(componentValue());
         }
+    }
+
+    /** Adds the rule {@code selector { body }}, then the rules nested in it. */
+    private void rule(List<ComponentValue> selector, List<ComponentValue> body, SourcePos start, List<Rule> out) {
+        List<Rule> nested = new ArrayList<>();
+        List<Rule.Declaration> declarations = declarationList(body, selector, nested);
+        out.add(new Rule(selector, declarations, start));
+        out.addAll(nested);
+    }
+
+    /** The selector list of a rule nested with {@code child} (not empty) in a rule with {@code parent}. */
+    private static List<ComponentValue> nest(List<ComponentValue> parent, List<ComponentValue> child) {
+        SourcePos at = child.get(0).pos();
+        List<ComponentValue> out = new ArrayList<>();
+        for (List<ComponentValue> c : splitCommas(child)) {
+            for (List<ComponentValue> p : splitCommas(parent)) {
+                if (!out.isEmpty()) {
+                    out.add(new Token(Token.Kind.COMMA, ",", 0, "", at));
+                }
+                if (hasAmpersand(c)) {
+                    out.addAll(replaceAmpersand(c, p));
+                } else {
+                    out.addAll(p);
+                    out.add(new Token(Token.Kind.WHITESPACE, " ", 0, "", at));
+                    out.addAll(c);
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    private static List<List<ComponentValue>> splitCommas(List<ComponentValue> values) {
+        List<List<ComponentValue>> out = new ArrayList<>();
+        int from = 0;
+        for (int k = 0; k <= values.size(); k++) {
+            if (k == values.size() || isToken(values.get(k), Token.Kind.COMMA)) {
+                out.add(trim(values.subList(from, k)));
+                from = k + 1;
+            }
+        }
+        return out;
+    }
+
+    private static boolean hasAmpersand(List<ComponentValue> values) {
+        for (ComponentValue v : values) {
+            if (v instanceof Token t && t.isDelim('&')
+                    || v instanceof ComponentValue.Function f && hasAmpersand(f.args())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<ComponentValue> replaceAmpersand(List<ComponentValue> values, List<ComponentValue> parent) {
+        List<ComponentValue> out = new ArrayList<>();
+        for (ComponentValue v : values) {
+            if (v instanceof Token t && t.isDelim('&')) {
+                out.addAll(parent);
+            } else if (v instanceof ComponentValue.Function f && hasAmpersand(f.args())) {
+                out.add(new ComponentValue.Function(f.name(), replaceAmpersand(f.args(), parent), f.pos()));
+            } else {
+                out.add(v);
+            }
+        }
+        return out;
     }
 
     private ComponentValue componentValue() {
@@ -178,7 +252,13 @@ public final class CssParser {
         }
     }
 
-    private List<Rule.Declaration> declarationList(List<ComponentValue> values) {
+    /**
+     * The declarations of a block; a statement ending in a {@code {}} block is a nested rule, added
+     * to {@code nested} with {@code parent} as its parent selector, or an error when {@code parent}
+     * is {@code null}.
+     */
+    private List<Rule.Declaration> declarationList(List<ComponentValue> values, List<ComponentValue> parent,
+                                                   List<Rule> nested) {
         List<Rule.Declaration> decls = new ArrayList<>();
         int k = 0;
         int n = values.size();
@@ -189,12 +269,25 @@ public final class CssParser {
                 continue;
             }
             int end = k;
+            boolean isRule = false;
             while (end < n && !isToken(values.get(end), Token.Kind.SEMICOLON)) {
+                if (values.get(end) instanceof ComponentValue.Block b && b.open() == Token.Kind.LBRACE) {
+                    isRule = true;
+                    break;
+                }
                 end++;
             }
             if (isToken(v, Token.Kind.AT_KEYWORD)) {
                 diag.error(v.pos(), "unsupported at-rule @" + ((Token) v).value());
                 k = skipStatement(values, k);
+            } else if (isRule) {
+                if (parent == null) {
+                    diag.error(v.pos(), "nested rules are only allowed in a stylesheet");
+                } else {
+                    ComponentValue.Block block = (ComponentValue.Block) values.get(end);
+                    rule(nest(parent, trim(values.subList(k, end))), block.contents(), v.pos(), nested);
+                }
+                k = end + 1;
             } else if (isToken(v, Token.Kind.IDENT)) {
                 Rule.Declaration d = declaration(values.subList(k, end));
                 if (d != null) {

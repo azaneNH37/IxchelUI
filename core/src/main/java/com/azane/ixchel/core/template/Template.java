@@ -7,9 +7,10 @@ import java.util.List;
 
 /**
  * A parsed template: top-level nodes plus its stylesheets, {@code <link rel="stylesheet">} references
- * and inline {@code <style>} bodies, in document order.
+ * and inline {@code <style>} bodies, in document order. A component file has no roots; its
+ * {@code <template>} is described by {@code component}, {@code null} for a page.
  */
-public record Template(List<Node> roots, List<StyleSource> styles) {
+public record Template(List<Node> roots, List<StyleSource> styles, ComponentDef component) {
     public Template {
         roots = List.copyOf(roots);
         styles = List.copyOf(styles);

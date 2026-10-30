@@ -1,6 +1,6 @@
 package com.azane.ixchel.sample.loot;
 
-import com.azane.ixchel.core.binding.Value;
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
 import com.azane.ixchel.mc.source.WorldProjection;
@@ -35,9 +35,9 @@ final class LootView extends ViewModel {
 
     private final PickupToasts log = new PickupToasts();
 
-    final Value<List<Label>> labels = source(ClientSources.player(LootView::labels, List.of()));
-    final Value<List<Edge>> edges = source(ClientSources.player(LootView::edges, List.of()));
-    final Value<List<PickupToasts.Toast>> toasts = source(ClientSources.player(log::read, List.of()));
+    final Cell<List<Label>> labels = source(ClientSources.player(LootView::labels, List.of()));
+    final Cell<List<Edge>> edges = source(ClientSources.player(LootView::edges, List.of()));
+    final Cell<List<PickupToasts.Toast>> toasts = source(ClientSources.player(log::read, List.of()));
 
     private static List<Label> labels(LocalPlayer p) {
         List<Label> out = new ArrayList<>();

@@ -35,14 +35,16 @@ flowchart LR
 | `css.syntax` | CSS Syntax L3 分词、组件值 | diag |
 | `css.selector` | 选择器解析、优先级、匹配 | css.syntax, dom |
 | `css.property` | 属性注册表：名称、语法、初值、是否继承、是否影响布局、是否可过渡 | css.syntax |
-| `dom` / `template` | `Element` 树、类名与状态位；严格模板解析器 | diag, css.property（计算值）, css.syntax（`style` 属性的声明） |
+| `dom` / `template` | `Element` 树、类名与状态位；严格模板解析器；`TemplateLoader`（链接图：相对路径、递归加载、去重、环检测、热重载文件表，mc 层只按 id 读取文本）与 `ComponentDef` | diag, css.property（计算值）, css.syntax（`style` 属性的声明） |
 | `style` | 规则索引、匹配、层叠、`var()`、计算值 | dom, css.* |
 | `anim` | transition、`@keyframes` | style |
 | `text` | 文本测量接口与结果缓存、换行 | — |
 | `layout` | `Element` ↔ taffy 节点同步、布局结果查询（mc 层据此写回 `Slot.x/y`） | dom, css.property, text |
 | `paint` | DisplayList 生成、裁剪栈 | dom, css.property, layout, text |
 | `event` | 命中测试、三阶段派发、焦点（`tabindex`、Tab 切换）、hover/active/focus 状态位、`Keys` 键名表、`<input>` 的默认编辑行为（`TextEditing`，编辑状态 `dom.TextField`）与剪贴板端口 `Clipboard`（宿主提供，mc 层接原版 `keyboardHandler`）；`UiEvent` 与监听器存放在 `dom`（`Element` 持有监听器） | dom, layout, css.property |
-| `binding` | Value / Derived / Action / Scope，模板绑定（含双向 `bind:value`、`bind:scrolltop`）；`on:keydown.<key>` 过滤查 `event.Keys`，鼠标与修饰键过滤（`.left`/`.right`/`.shift`…）精确匹配（#012） | dom, template, event |
+| `binding` | ViewModel 作者 API：ViewModel / Cell / Value / Derived / Source / Action / Scope / EventInfo；包内 Polled / Held / Flat；`ModelAccess` 是只发给 `binding.compile` 的内部接缝（#017） | — |
+| `binding.expr` | 表达式语言：`Expr` 语法树、`Parser`、`Expressions`（类型检查与编译为输入加求值函数）、`Types` 类型规则 | binding |
+| `binding.compile` | 模板绑定：`Bindings` 入口、`Compiler`（按名字表解析）、`Name`/`Ref`/`Part`/`Anchor`、`Block`/`IfBlock`/`EachBlock`、`Binding`/`StyleBinding`；双向 `bind:value`、`bind:scrolltop`；`on:keydown.<key>` 过滤查 `event.Keys`，鼠标与修饰键过滤（`.left`/`.right`/`.shift`…）精确匹配（#012） | binding, binding.expr, dom, template, event |
 | `runtime` | `UiDocument`：组装上述阶段、帧驱动、热重载入口 | 全部 |
 
 `css.property` 是**唯一的支持清单**：解析、校验、开发期报错、特性文档与 VS Code `css.customData` 都由它生成，不另维护列表。
@@ -62,7 +64,7 @@ flowchart LR
 - `Syntax.parse` 报错后返回 `null`，该声明整条丢弃；简写在解析期展开，`ComputedStyle` 只存长写属性。选择器列表中任一项非法则整条规则丢弃（同 CSS）。
 - 布局只在计算值中 `affectsLayout` 属性变化、文本、字号或子节点列表变化，或视口变化时才跑 taffy；只改颜色、背景等的重算不调用 taffy `setStyle`。
 - 干净帧：上一帧以来无重算、无文本与子节点变化、视口不变、未调用 `invalidateText()` 时，`UiDocument.frame` 跳过布局同步与绘制，沿用上一帧的 `DisplayList`，core 不分配。`DisplayList` 带版本号，只在重绘时递增，`McPainter` 据此复用顶点缓冲。
-- 模板属性分三类：普通属性（按 `TagRegistry` 校验）、`bind:*`（连同名字与值的源位置原样保存在 `Element` 上，交给 binding 层校验）、尚未支持的 `on:*`/`each`/`as`/`key`/`if`/`t`（开发期报错）。`TagRegistry` 是实例：core 提供 HTML 子集，mc 层追加原生元素后传入加载。
+- 模板属性分两类：普通属性（按 `TagRegistry` 校验）与指令（`bind:*`、`on:*`、`state:*`，连同名字与值的源位置原样保存在 `Element` 上，交给 binding 层校验）。`t` 为保留属性（开发期报错）。`TagRegistry` 是实例：core 提供 HTML 子集，mc 层追加原生元素后传入加载。
 - 文本在 M2 是纯字符串：`Component` 由 mc 层 `getString()` 拍平，颜色、字重只由 CSS 给出。富文本以后以不透明宿主文本对象加入，测量与换行交给 mc 层（vanilla `StringSplitter`），core 不建模样式。字体或资源重载后宿主调用 `UiDocument.invalidateText()`。
 - 加载的 `Diagnostics` 留在 `UiDocument` 上：成功加载的警告与加载后才出现的错误（如延迟编译的内联样式）宿主都能读到，供开发期叠加层显示。
 

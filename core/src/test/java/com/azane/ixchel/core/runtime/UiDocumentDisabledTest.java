@@ -1,7 +1,7 @@
 package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.binding.Action;
-import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.dom.Element;

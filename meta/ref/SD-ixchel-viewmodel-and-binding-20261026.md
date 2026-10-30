@@ -80,8 +80,8 @@ related: [DECISIONS.md#003, DECISIONS.md#004, ref/SD-ixchel-ui-positioning-and-a
 
 ```java
 final class GunModView extends ViewModel {
-    final Value<ItemStack>   gun          = source(ClientSources.mainHand());
-    final Value<Inventory>   inv          = source(ClientSources.inventory());
+    final Cell<ItemStack>    gun          = source(ClientSources.mainHand());
+    final Cell<Inventory>    inv          = source(ClientSources.inventory());
     final Value<String>      selectedType = state(null);
     final Derived<Integer>   loaded       = derive(gun, GunData::loadedAmmo);
     final Derived<Integer>   reserve      = derive(gun, inv, Ammo::reserve);
@@ -100,7 +100,7 @@ final class GunModView extends ViewModel {
 |---|---|---|
 | 表达式 | L1 起为语言文档 §3.6 的表达式（字面量、路径、`List.size`、算术、比较、`&& \|\|`、`?:`），整条编译为一个 `Derived`；需要函数或 Java 常量的逻辑仍写 `Derived` | ✅ |
 | 绑定目标 | `text`、任意属性、`class:<名字>`（M2）；`if`、`each`（M3，`each` 必须带 `as` 与 `key`，`key` 是从行名出发的路径；`each` 与 `if` 不能在同一元素上；L2 改为 `<for>`/`<if>` 控制块，见语言文档 §3.5）；`style:<属性>` 接受 CSS 语法的 String，长度类属性也接受数值（按 `px`）；双向：`value`（输入框、`<select>`）、`checked`、`open`（`<dialog>`）、`scrolltop`，目标须是 state `Value` 字段或 `each` 行里类型为 `Value<T>` 的组件 | ✅ |
-| 动作与语句 | `on:x` 的值是语句：`act`、`act(表达式)`、赋值 `目标 = 表达式`，以 `;` 分隔，从左到右执行；加载期按 `Action<A>` 的 `A` 与赋值目标类型检查。事件名为 `click`、`mousedown`、`mouseup`、`mousemove`、`wheel`、`keydown`、`keyup`；语句可读 `event.x`/`y`/`movementX`/`movementY`/`delta`。键事件可过滤：`on:keydown.<键名>[.shift\|.ctrl\|.alt]`（键名见 `event.Keys`），只在匹配时运行并消费；顶层元素上的键处理器注册到文档根，不需焦点即触发（`each`/`if` 块内的顶层元素除外）。局部状态 `state:名="初值"` 见语言文档 §3.6 | ✅ |
+| 动作与语句 | `on:x` 的值是语句：`act`、`act(表达式)`、赋值 `目标 = 表达式`，以 `;` 分隔，从左到右执行；加载期按 `Action<A>` 的 `A` 与赋值目标类型检查。事件名为 `click`、`mousedown`、`mouseup`、`mousemove`、`wheel`、`keydown`、`keyup`；语句可读 `$event.x`/`y`/`movementX`/`movementY`/`delta`。键事件可过滤：`on:keydown.<键名>[.shift\|.ctrl\|.alt]`（键名见 `event.Keys`），只在匹配时运行并消费；顶层元素上的键处理器注册到文档根，不需焦点即触发（`<for>`/`<if>` 块内的顶层元素除外）。局部状态 `state:名="初值"` 见语言文档 §3.6 | ✅ |
 | i18n | `t="语言键"`；字面文本开发期警告 | 🟡 |
 | 值转文本 | `String.valueOf`；格式化（如补零）写进 `Derived`。`Component` 在 mc 层以 `getString()` 拍平为纯文本，颜色、字重只由 CSS 给出；富文本（保留 Component 内联样式）以后作为不透明宿主文本对象加入，测量与换行交给 mc 层的 vanilla `StringSplitter`，core 不建模样式 | ✅ |
 | 交互状态 | `:hover` / `:active` / `:focus` 由 event 包写状态位，`:checked` / `:open` / `:disabled` 由控件与顶层写，均不经 ViewModel | ✅ |
@@ -127,12 +127,14 @@ M2 已实现的最小集（`core/.../binding`）：节点基类命名为 `Cell`�
 
 M3 补齐（`core/.../binding`）：`action(Runnable|Consumer)` 为同步动作；`task(Supplier|Function)` 返回 `CompletableFuture`，有 `pending`/`error`（同名无法区分同参数个数的 lambda，故异步另起名 `task`）。`Scope` 只有 ViewModel 一级：收件箱（任意线程 `post`，帧开始执行）与所拥有的订阅，`close()` 后丢弃；`subscribe(cell, listener)` 放在 ViewModel 上（订阅归它的 `Scope`），在帧开始、单元格版本变化时回调。`each` 行与 `if` 块没有子 `Scope`：动作与订阅都属于 ViewModel，行里只有绑定与 DOM 监听器，随节点一起丢弃。路径经 record 组件逐级取值，每级一个 `Derived`（相等截断）；`each` 行值存在不通知模型的行单元格里。块内容在加载期用一份不挂载的副本校验，未挂载时出错也在加载期报告。
 
+设计期草图（实现中基类为 `Cell`、无 `markDirty`，见上两段）：
+
 ```java
 abstract sealed class Node<T> permits Value, Derived {
     final List<Node<?>> dependents; final List<Binding<?>> observers;
     long version;                                  // 值真正变化时 +1
 }
-final class Value<T> extends Node<T> {             // source 与 state 都产出 Value
+final class Value<T> extends Node<T> {             // 只表示 state；L2 起 source 产出只读的 Cell
     void set(T v) { if (same.test(value, v)) return; value = v; version++; scope.markDirty(this); }
 }
 final class Derived<T> extends Node<T> {
@@ -150,7 +152,7 @@ final class Derived<T> extends Node<T> {
 | `state` | 对外公开 `set` 的 `Value`；仅客户端线程，开发期断言 |
 | `derive` | 1~3 个参数（`Function` / `BiFunction` / 自定义 `Fn3`），更多先合成 record；惰性：无人读取则不计算；函数抛异常时开发期显示叠加层，发布版保留旧值并记一次日志 |
 | `action` | 处理器返回 `CompletableFuture` 时置 `pending`，完成后经 `scope.post` 回客户端线程清 `pending`、写 `error`；进行中再次触发默认丢弃；同步处理器没有 `pending` |
-| `Scope` | 拥有节点、轮询来源、订阅句柄、收件箱、脏队列；`each` 每行与每个 `if` 块各持子 `Scope`。不变式：**绑定挂上时立即刷新一次**（未被读取过的节点可能停在"可能脏"而不再向下传播） |
+| `Scope` | 拥有节点、轮询来源、订阅句柄、收件箱、脏队列；只有 ViewModel 一级，`<for>` 行、`<if>` 块与模板组件实例都没有子 `Scope`（上下文模型文档 §3.5）。不变式：**绑定挂上时立即刷新一次**（未被读取过的节点可能停在"可能脏"而不再向下传播） |
 
 可变对象的比较语义属于 mc 层：`ItemStack` 不覆写 `equals` 且会原地修改，因此来源必须提供快照与内容比较。
 

@@ -1,7 +1,7 @@
 package com.azane.shadetest.b;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Derived;
-import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.forge.IxchelForge;
 import com.azane.ixchel.mc.source.ClientSources;
@@ -26,7 +26,7 @@ public final class ShadeTestB {
     }
 
     static final class HudView extends ViewModel {
-        final Value<ItemStack> held = source(ClientSources.mainHand());
+        final Cell<ItemStack> held = source(ClientSources.mainHand());
         final Derived<String> count = derive(held, s -> "B x" + s.getCount());
     }
 }

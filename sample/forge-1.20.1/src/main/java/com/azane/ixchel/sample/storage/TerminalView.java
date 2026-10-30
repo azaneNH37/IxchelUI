@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.storage;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
@@ -38,7 +39,7 @@ final class TerminalView extends ViewModel {
         }
     }
 
-    record Cell(int id, StoredItem item, ItemStack stack, String count) {
+    record Tile(int id, StoredItem item, ItemStack stack, String count) {
     }
 
     private final TerminalMenu menu;
@@ -47,20 +48,20 @@ final class TerminalView extends ViewModel {
     final Value<SortKey> sortKey = state(SortKey.NAME);
     final Value<Boolean> descending = state(false);
     final Value<Integer> scroll = state(0);
-    final Value<Boolean> carrying;
-    final Value<List<Entry<StoredItem, Long>>> contents;
+    final Cell<Boolean> carrying;
+    final Cell<List<Entry<StoredItem, Long>>> contents;
 
     final Derived<List<Entry<StoredItem, Long>>> shown;
-    final Derived<List<Cell>> visibleCells;
+    final Derived<List<Tile>> visibleCells;
     final Derived<Integer> contentHeight;
     final Derived<Integer> padTop;
     final Derived<String> sortLabel;
     final Value<List<Integer>> inventory = state(range(TerminalMenu.INVENTORY_START, TerminalMenu.SLOT_COUNT));
 
     final Action<Void> cycleSort = action(() -> sortKey.set(SortKey.values()[(sortKey.get().ordinal() + 1) % SortKey.values().length]));
-    final Action<Cell> take = action((Cell c) -> take(c, TakePacket.Mode.STACK));
-    final Action<Cell> takeHalf = action((Cell c) -> take(c, TakePacket.Mode.HALF));
-    final Action<Cell> toInventory = action((Cell c) -> take(c, TakePacket.Mode.TO_INVENTORY));
+    final Action<Tile> take = action((Tile c) -> take(c, TakePacket.Mode.STACK));
+    final Action<Tile> takeHalf = action((Tile c) -> take(c, TakePacket.Mode.HALF));
+    final Action<Tile> toInventory = action((Tile c) -> take(c, TakePacket.Mode.TO_INVENTORY));
     final Action<Void> store = action(() -> store(false));
     final Action<Void> storeOne = action(() -> store(true));
 
@@ -79,7 +80,7 @@ final class TerminalView extends ViewModel {
         subscribe(query, () -> scroll.set(0));
     }
 
-    private void take(Cell c, TakePacket.Mode mode) {
+    private void take(Tile c, TakePacket.Mode mode) {
         // With a stack on the cursor the click stores it instead; see store.
         if (!carrying.get()) {
             Network.sendToServer(new TakePacket(menu.containerId, c.item(), mode));
@@ -125,12 +126,12 @@ final class TerminalView extends ViewModel {
         return out;
     }
 
-    private static List<Cell> visible(List<Entry<StoredItem, Long>> shown, int scroll) {
+    private static List<Tile> visible(List<Entry<StoredItem, Long>> shown, int scroll) {
         int from = Math.min(shown.size(), scroll / CELL * COLUMNS);
         int to = Math.min(shown.size(), from + (VISIBLE_ROWS + SPARE_ROWS) * COLUMNS);
-        List<Cell> out = new ArrayList<>(to - from);
+        List<Tile> out = new ArrayList<>(to - from);
         for (Entry<StoredItem, Long> e : shown.subList(from, to)) {
-            out.add(new Cell(e.id(), e.identity(), e.identity().stack(), abbreviate(e.value())));
+            out.add(new Tile(e.id(), e.identity(), e.identity().stack(), abbreviate(e.value())));
         }
         return out;
     }

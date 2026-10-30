@@ -1,0 +1,9 @@
+.grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 162px;
+}
+
+.hotbar {
+  margin-top: 4px;
+}

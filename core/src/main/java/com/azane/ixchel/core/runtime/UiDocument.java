@@ -1,13 +1,12 @@
 package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.anim.Transitions;
-import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.selector.Selector;
 import com.azane.ixchel.core.css.selector.SelectorParser;
 import com.azane.ixchel.core.css.syntax.CssParser;
-import com.azane.ixchel.core.css.syntax.Rule;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.diag.UiLoadException;
@@ -22,8 +21,7 @@ import com.azane.ixchel.core.paint.Painter;
 import com.azane.ixchel.core.style.StyleEngine;
 import com.azane.ixchel.core.style.StyleSheet;
 import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.core.template.Template;
-import com.azane.ixchel.core.template.TemplateParser;
+import com.azane.ixchel.core.template.TemplateLoader;
 import com.azane.ixchel.core.text.TextMeasurer;
 import com.azane.ixchel.core.text.TextShaper;
 
@@ -45,18 +43,16 @@ import java.util.function.LongSupplier;
  * style or layout. The caret of a focused {@code <input>} blinks every {@value #BLINK_MS} ms,
  * restarting visible on each edit or move.
  *
- * <p>Below the template's stylesheets sits a user-agent stylesheet with the defaults of the form
- * controls and {@code <dialog>} ({@code user-agent.css} next to this class). Open selects and dialogs
- * live in the document's {@link TopLayer}, which layout, paint and input share.
+ * <p>Below the template's stylesheets sit the component layer, the stylesheets component files link,
+ * and a user-agent stylesheet with the defaults of the form controls and {@code <dialog>}
+ * ({@code user-agent.css} next to this class). Open selects and dialogs live in the document's
+ * {@link TopLayer}, which layout, paint and input share.
  */
 public final class UiDocument {
     static final long BLINK_MS = 500;
 
-    /** A stylesheet file; {@code file} is used in error positions. */
-    public record CssSource(String css, String file) {
-    }
-
     private final Element root;
+    private final List<String> files;
     private final Diagnostics diagnostics;
     private final StyleEngine style;
     private final LayoutEngine layout;
@@ -78,9 +74,11 @@ public final class UiDocument {
     /** Frames that ran style and layout; observed by tests. */
     int pipelineRuns;
 
-    private UiDocument(Element root, Diagnostics diagnostics, StyleEngine style, LayoutEngine layout, Bindings bindings,
-                       TagRegistry tags, ImageMeasurer images, Transitions transitions, TopLayer topLayer) {
+    private UiDocument(Element root, List<String> files, Diagnostics diagnostics, StyleEngine style,
+                       LayoutEngine layout, Bindings bindings, TagRegistry tags, ImageMeasurer images,
+                       Transitions transitions, TopLayer topLayer) {
         this.root = root;
+        this.files = files;
         this.diagnostics = diagnostics;
         this.style = style;
         this.layout = layout;
@@ -91,63 +89,64 @@ public final class UiDocument {
         this.transitions = transitions;
     }
 
-    /** Loads a document without a view model; any {@code bind:*} attribute is an error. */
-    public static UiDocument load(String template, String templateFile, Function<String, CssSource> linked,
+    /** Loads a document without a view model; it sees only its local states. */
+    public static UiDocument load(String template, String templateFile, Function<String, String> files,
                                   TagRegistry tags, TextMeasurer measurer, ImageMeasurer images) {
-        return load(template, templateFile, linked, tags, measurer, images, null, Bindings.PLAIN_TEXT);
+        return load(template, templateFile, files, tags, measurer, images, null, Bindings.PLAIN_TEXT);
     }
 
     /**
-     * Parses and validates everything up front; stylesheets apply in document order, {@code <link
-     * rel="stylesheet">} and {@code <style>} interleaved. Every error found is reported in one
-     * {@link UiLoadException}; warnings stay readable through {@link #diagnostics()}. Bindings are
-     * resolved and their initial values written here.
+     * Parses and validates everything up front, with every file the template links directly or
+     * through components; stylesheets apply in document order, {@code <link rel="stylesheet">} and
+     * {@code <style>} interleaved. Every error found is reported in one {@link UiLoadException};
+     * warnings stay readable through {@link #diagnostics()}. Bindings are resolved and their initial
+     * values written here.
      *
-     * @param linked resolves the raw {@code href} of a {@code <link>} to its sheet; {@code null} or a
-     *               {@link RuntimeException} is reported as a load error at the link
-     * @param images natural image sizes, for {@code background-size: auto}
-     * @param model  the view model {@code bind:*} attributes refer to, or {@code null}
-     * @param textOf converts bound values to text (the mc layer flattens components)
+     * @param templateFile the template's id, {@code namespace:path} or a bare path; links resolve against it
+     * @param files        the text of a file id, {@code null} if there is none; a {@link RuntimeException}
+     *                     is reported as a load error at the link
+     * @param images       natural image sizes, for {@code background-size: auto}
+     * @param model        the view model {@code bind:*} attributes refer to, or {@code null}
+     * @param textOf       converts bound values to text (the mc layer flattens components)
      */
-    public static UiDocument load(String template, String templateFile, Function<String, CssSource> linked,
+    public static UiDocument load(String template, String templateFile, Function<String, String> files,
                                   TagRegistry tags, TextMeasurer measurer, ImageMeasurer images, ViewModel model,
                                   Function<Object, String> textOf) {
         Diagnostics diag = new Diagnostics();
-        Template t = TemplateParser.parse(template, templateFile, tags, diag);
-        List<StyleSheet> compiled = new ArrayList<>();
-        for (Template.StyleSource s : t.styles()) {
-            List<Rule> rules;
-            if (s instanceof Template.Inline inline) {
-                rules = CssParser.parseStylesheet(inline.css(), inline.start(), diag);
-            } else {
-                Template.Link link = (Template.Link) s;
-                CssSource sheet;
-                try {
-                    sheet = linked.apply(link.href());
-                } catch (RuntimeException ex) {
-                    diag.error(link.pos(), "cannot load stylesheet '" + link.href() + "': " + ex.getMessage());
-                    continue;
-                }
-                if (sheet == null) {
-                    diag.error(link.pos(), "stylesheet '" + link.href() + "' not found");
-                    continue;
-                }
-                rules = CssParser.parseStylesheet(sheet.css(), sheet.file(), diag);
-            }
-            compiled.add(StyleSheet.compile(rules, CssProperties.REGISTRY, diag));
-        }
+        TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, tags, diag);
+        List<StyleSheet> components = sheets(loaded.componentSheets(), diag);
+        List<StyleSheet> author = sheets(loaded.pageSheets(), diag);
         Element root = new Element("#root", new SourcePos(templateFile, 1, 1));
-        for (Node n : t.roots()) {
+        for (Node n : loaded.page().roots()) {
             root.appendChild(n);
         }
         TopLayer topLayer = new TopLayer();
-        Bindings bindings = Bindings.compile(root, model, textOf, tags, CssProperties.REGISTRY, topLayer, diag);
+        Bindings bindings = Bindings.compile(root, model, loaded.components(), textOf, tags, CssProperties.REGISTRY,
+                topLayer, diag);
         Transitions transitions = new Transitions(CssProperties.REGISTRY, root);
-        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(UserAgent.SHEET), compiled, diag, transitions);
+        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(UserAgent.SHEET), components, author,
+                diag, transitions);
         style.restyle(root);
         diag.throwIfErrors();
         LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY);
-        return new UiDocument(root, diag, style, layout, bindings, tags, images, transitions, topLayer);
+        return new UiDocument(root, loaded.files(), diag, style, layout, bindings, tags, images, transitions,
+                topLayer);
+    }
+
+    private static List<StyleSheet> sheets(List<TemplateLoader.Sheet> sources, Diagnostics diag) {
+        List<StyleSheet> out = new ArrayList<>(sources.size());
+        for (TemplateLoader.Sheet s : sources) {
+            out.add(StyleSheet.compile(CssParser.parseStylesheet(s.css(), s.start(), diag), CssProperties.REGISTRY, diag));
+        }
+        return out;
+    }
+
+    /**
+     * The ids of the template and every file it linked, directly or through components, including
+     * links that failed to load; a host reloads the document when one of them changes.
+     */
+    public List<String> files() {
+        return files;
     }
 
     /** The user-agent stylesheet, compiled once; a problem in it is a bug in the library. */

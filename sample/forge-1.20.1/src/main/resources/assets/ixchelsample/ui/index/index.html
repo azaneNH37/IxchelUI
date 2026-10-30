@@ -4,14 +4,14 @@
     <span class="title">Ixchel UI samples</span>
     <span class="hint">Click a screen to open it, a HUD to show or hide it. Esc closes.</span>
     <div class="list">
-      <div class="row" each="rows" as="r" key="r.id" tabindex="0" on:click="open(r)" bind:class:on="r.on">
+      <for each="rows" as="r" key="r.id"><div class="row" tabindex="0" on:click="open(r)" bind:class:on="r.on">
         <mc-item class="icon" bind:item="r.icon"></mc-item>
         <div class="text">
           <span class="name" bind:text="r.title"></span>
           <span class="description" bind:text="r.description"></span>
         </div>
         <span class="state" bind:text="r.state"></span>
-      </div>
+      </div></for>
     </div>
   </div>
 </div>

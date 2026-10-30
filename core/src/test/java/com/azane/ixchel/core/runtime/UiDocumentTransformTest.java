@@ -1,6 +1,6 @@
 package com.azane.ixchel.core.runtime;
 
-import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
@@ -68,7 +68,7 @@ class UiDocumentTransformTest {
     @Test
     void aHeldButtonKeepsMovesAtItsPressTargetAndStatementsReadTheMovement() {
         Pan m = new Pan();
-        UiDocument doc = load("<div class=\"pad\" on:mousemove.left=\"x = x + event.movementX\"></div>",
+        UiDocument doc = load("<div class=\"pad\" on:mousemove.left=\"x = x + $event.movementX\"></div>",
                 ".pad { width: 20px; height: 20px }", m);
         doc.frame(100, 100);
         doc.events().mouseMoved(5, 5);

@@ -2,16 +2,14 @@ package com.azane.ixchel.core.binding;
 
 import java.util.Objects;
 
-/** A stored value: either polled from a {@link Source} or local state set by host code. */
+/** Local state: set by host code, and by the view where a template binds it two-way. */
 public final class Value<T> extends Cell<T> {
     private final ViewModel owner;
-    private final Source<T> source;
     private T value;
     private long version;
 
-    Value(ViewModel owner, Source<T> source, T initial) {
+    Value(ViewModel owner, T initial) {
         this.owner = owner;
-        this.source = source;
         this.value = initial;
     }
 
@@ -25,15 +23,8 @@ public final class Value<T> extends Cell<T> {
         return version;
     }
 
-    /**
-     * Sets local state; bindings see it on the next frame. Setting an equal value does nothing.
-     *
-     * @throws IllegalStateException on a value backed by a source
-     */
+    /** Sets the value; bindings see it on the next frame. Setting an equal value does nothing. */
     public void set(T v) {
-        if (source != null) {
-            throw new IllegalStateException("a source-backed value cannot be set");
-        }
         if (!Objects.equals(value, v)) {
             value = v;
             version++;
@@ -47,21 +38,5 @@ public final class Value<T> extends Cell<T> {
             value = v;
             version++;
         }
-    }
-
-    /** Local state the view can write back: not polled from a source. */
-    boolean isState() {
-        return source == null;
-    }
-
-    /** Reads the source; returns whether the value changed. */
-    boolean poll() {
-        T live = source.live.get();
-        if (version > 0 && source.same.test(value, live)) {
-            return false;
-        }
-        value = source.snapshot.apply(live);
-        version++;
-        return true;
     }
 }

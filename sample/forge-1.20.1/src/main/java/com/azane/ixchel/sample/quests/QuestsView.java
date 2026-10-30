@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.quests;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.EventInfo;
@@ -60,9 +61,9 @@ final class QuestsView extends ViewModel {
     final Value<Float> panX = state(0f);
     final Value<Float> panY = state(0f);
     final Value<Float> zoom = state(1f);
-    final Value<Claimed> claimed;
+    final Cell<Claimed> claimed;
     /** How many of each quest item the player holds. */
-    final Value<Map<Item, Integer>> held;
+    final Cell<Map<Item, Integer>> held;
     final Derived<List<Node>> nodes;
     final Derived<List<Edge>> edges;
     /** The selected quest, {@code null} when none. */

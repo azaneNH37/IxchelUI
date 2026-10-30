@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.env;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
@@ -76,17 +77,17 @@ final class EnvView extends ViewModel {
     private static final int MARK_WIDTH = 20;
     private static final int MARKER_WIDTH = 80;
 
-    final Value<BlockInfo> block = source(ClientSources.player(EnvView::block, BlockInfo.NONE));
-    final Value<EntityInfo> entity = source(ClientSources.player(EnvView::entity, EntityInfo.NONE));
-    final Value<World> world = source(ClientSources.player(EnvView::world, World.NONE));
-    final Value<Float> health = source(ClientSources.player(LocalPlayer::getHealth, 0f));
-    final Value<Float> maxHealth = source(ClientSources.player(LocalPlayer::getMaxHealth, 20f));
-    final Value<Integer> armor = source(ClientSources.player(LocalPlayer::getArmorValue, 0));
-    final Value<Integer> food = source(ClientSources.player(p -> p.getFoodData().getFoodLevel(), 0));
-    final Value<Integer> level = source(ClientSources.player(p -> p.experienceLevel, 0));
-    final Value<Float> progress = source(ClientSources.player(p -> p.experienceProgress, 0f));
-    final Value<Integer> heading = source(ClientSources.player(EnvView::heading, 0));
-    final Value<List<Marker>> markers = source(ClientSources.player(EnvView::markers, List.of()));
+    final Cell<BlockInfo> block = source(ClientSources.player(EnvView::block, BlockInfo.NONE));
+    final Cell<EntityInfo> entity = source(ClientSources.player(EnvView::entity, EntityInfo.NONE));
+    final Cell<World> world = source(ClientSources.player(EnvView::world, World.NONE));
+    final Cell<Float> health = source(ClientSources.player(LocalPlayer::getHealth, 0f));
+    final Cell<Float> maxHealth = source(ClientSources.player(LocalPlayer::getMaxHealth, 20f));
+    final Cell<Integer> armor = source(ClientSources.player(LocalPlayer::getArmorValue, 0));
+    final Cell<Integer> food = source(ClientSources.player(p -> p.getFoodData().getFoodLevel(), 0));
+    final Cell<Integer> level = source(ClientSources.player(p -> p.experienceLevel, 0));
+    final Cell<Float> progress = source(ClientSources.player(p -> p.experienceProgress, 0f));
+    final Cell<Integer> heading = source(ClientSources.player(EnvView::heading, 0));
+    final Cell<List<Marker>> markers = source(ClientSources.player(EnvView::markers, List.of()));
     final Value<List<Mark>> marks = state(marks());
 
     final Derived<Boolean> hasBlock = derive(block, b -> !b.equals(BlockInfo.NONE));

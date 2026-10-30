@@ -1,7 +1,7 @@
 package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.binding.Action;
-import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
@@ -210,8 +210,8 @@ class UiDocumentFormTest {
     void rowValuesInEachAreTwoWayAndRowCellsAreFollowedWithoutTheListChanging() {
         Rows m = new Rows();
         UiDocument doc = load("""
-                <div each="rows" as="r" key="r.id" class="row" bind:class:big="r.big">
-                <input class="t" bind:value="r.text"/><span bind:text="r.text"></span></div>
+                <for each="rows" as="r" key="r.id"><div class="row" bind:class:big="r.big">
+                <input class="t" bind:value="r.text"/><span bind:text="r.text"></span></div></for>
                 """, ".t { padding: 0; border-style: none; width: 60px; height: 9px }", m);
         doc.frame(100, 100);
         EventDispatcher ev = doc.events();

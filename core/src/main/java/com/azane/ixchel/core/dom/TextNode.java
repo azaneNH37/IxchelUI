@@ -23,4 +23,9 @@ public final class TextNode extends Node {
             }
         }
     }
+
+    @Override
+    public TextNode copyTemplate() {
+        return new TextNode(text, pos());
+    }
 }

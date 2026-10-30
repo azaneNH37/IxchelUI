@@ -146,19 +146,6 @@
   height: 16px;
 }
 
-/* Vanilla's slot bevel: dark top and left, white bottom and right, around a 16x16 well. */
-.slot {
-  width: 18px;
-  height: 18px;
-  background-color: #8B8B8B;
-  border-width: 1px;
-  border-style: solid;
-  border-top-color: #373737;
-  border-left-color: #373737;
-  border-bottom-color: #FFFFFF;
-  border-right-color: #FFFFFF;
-}
-
 .output {
   width: 26px;
   height: 26px;
@@ -184,16 +171,6 @@ button:hover {
 
 button.selected {
   background-color: #E0E0E0;
-}
-
-.grid {
-  flex-direction: row;
-  flex-wrap: wrap;
-  width: 162px;
-}
-
-.hotbar {
-  margin-top: 4px;
 }
 
 /* Slides out to the right: the width animates from 0, the rows inside are clipped meanwhile. */

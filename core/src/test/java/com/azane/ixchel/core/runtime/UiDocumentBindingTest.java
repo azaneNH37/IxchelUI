@@ -1,7 +1,8 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
-import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.Value;
@@ -32,7 +33,7 @@ class UiDocumentBindingTest {
     static final class Ammo extends ViewModel {
         int live = 30;
         int textComputations;
-        final Value<Integer> loaded = source(Source.polled(() -> live));
+        final Cell<Integer> loaded = source(Source.polled(() -> live));
         final Derived<String> text = derive(loaded, n -> {
             textComputations++;
             return String.format("%03d", n);
@@ -60,7 +61,7 @@ class UiDocumentBindingTest {
     static final class Mutable extends ViewModel {
         final int[] live = {2};
         int downstream;
-        final Value<int[]> counts = source(Source.polled(() -> live, int[]::clone, Arrays::equals));
+        final Cell<int[]> counts = source(Source.polled(() -> live, int[]::clone, Arrays::equals));
         final Derived<Boolean> even = derive(counts, c -> c[0] % 2 == 0);
         final Derived<String> label = derive(even, e -> {
             downstream++;
@@ -90,7 +91,7 @@ class UiDocumentBindingTest {
 
     static final class Failing extends ViewModel {
         int live = 1;
-        final Value<Integer> n = source(Source.polled(() -> live));
+        final Cell<Integer> n = source(Source.polled(() -> live));
         final Derived<Integer> inverse = derive(n, x -> {
             if (x <= 0) {
                 throw new IllegalStateException("no ammo");
@@ -136,12 +137,13 @@ class UiDocumentBindingTest {
         UiLoadException none = assertThrows(UiLoadException.class,
                 () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML,
                         GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertTrue(none.getMessage().contains("needs a view model"), none.getMessage());
+        assertTrue(none.getMessage().contains("'x' is not a field of the view model (this document has none)"),
+                none.getMessage());
     }
 
     static final class Held extends ViewModel {
         Object live = "sword";
-        final Value<Object> stack = source(Source.polled(() -> live, v -> v, (a, b) -> a == b));
+        final Cell<Object> stack = source(Source.polled(() -> live, v -> v, (a, b) -> a == b));
     }
 
     @Test
@@ -359,7 +361,7 @@ class UiDocumentBindingTest {
     void eachKeepsRowNodesByKeyAndPlacesRowsInListOrderBetweenStaticSiblings() {
         Picker m = new Picker();
         UiDocument doc = load("""
-                <span>[</span><span each="rows" as="r" key="r.name" class="r" on:click="select(r)" bind:text="r.count"></span><span>]</span>
+                <span>[</span><for each="rows" as="r" key="r.name"><span class="r" on:click="select(r)" bind:text="r.count"></span></for><span>]</span>
                 """, ".r { width: 10px; height: 10px }", m);
         assertEquals("""
                 text 0 0 9 #FFFFFFFF "["
@@ -388,7 +390,7 @@ class UiDocumentBindingTest {
     void ifMountsWhileTrueAndUnmountedContentIsNotRead() {
         Picker m = new Picker();
         UiDocument doc = load("""
-                <div if="show"><span bind:text="detail"></span></div><div if="!show"><span>none</span></div>
+                <if test="show"><div><span bind:text="detail"></span></div></if><if test="!show"><div><span>none</span></div></if>
                 """, "", m);
         assertEquals("text 0 0 9 #FFFFFFFF \"none\"", GoldenTest.print(doc.frame(100, 100)));
         m.selected.set("x");
@@ -407,25 +409,25 @@ class UiDocumentBindingTest {
     @Test
     void loadReportsBadBlocksAndBadBindingsInsideUnmountedContent() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
-                <div each="rows"></div>
-                <div each="row" as="r" key="r"></div>
-                <div if="selected"></div>
-                <div each="rows" as="r" key="row.name"></div>
-                <div as="r"></div>
-                <div each="rows" as="r" key="r" if="show"></div>
-                <div if="show"><span bind:text="nope"></span></div>
-                <div each="rows" as="r" key="r.name"><span bind:text="r.missing"></span></div>
+                <for each="rows"></for>
+                <for each="row" as="r" key="r"></for>
+                <if test="selected"></if>
+                <for each="rows" as="r" key="row.name"></for>
+                <if test="show" class="x"></if>
+                <if test="show"><span bind:text="nope"></span></if>
+                <for each="rows" as="r" key="r.name"><span bind:text="r.missing"></span></for>
+                <for each="rows" as="rows" key="rows"></for>
                 """, "", new Picker()));
         String m = e.getMessage();
-        assertTrue(m.startsWith("8 errors"), m);
-        assertTrue(m.contains("t.html:2:6:") && m.contains("needs 'as'"), m);
+        assertTrue(m.startsWith("9 errors"), m);
+        assertTrue(m.contains("t.html:2:1:") && m.contains("<for> requires 'as'") && m.contains("<for> requires 'key'"), m);
         assertTrue(m.contains("t.html:3:12:") && m.contains("'each' needs a List"), m);
-        assertTrue(m.contains("t.html:4:10:") && m.contains("'if' needs a Boolean"), m);
+        assertTrue(m.contains("t.html:4:11:") && m.contains("<if> needs a Boolean"), m);
         assertTrue(m.contains("t.html:5:30:") && m.contains("'key' is a path from the row 'r'"), m);
-        assertTrue(m.contains("t.html:6:6:") && m.contains("'as' only goes with 'each'"), m);
-        assertTrue(m.contains("t.html:7:33:") && m.contains("cannot share an element"), m);
-        assertTrue(m.contains("t.html:8:33:") && m.contains("'nope' is not a field"), m);
-        assertTrue(m.contains("t.html:9:57:") && m.contains("Row has no component 'missing'"), m);
+        assertTrue(m.contains("t.html:6:17:") && m.contains("<if> takes only test, slot"), m);
+        assertTrue(m.contains("t.html:7:34:") && m.contains("'nope' is not a field"), m);
+        assertTrue(m.contains("t.html:8:57:") && m.contains("Row has no component 'missing'"), m);
+        assertTrue(m.contains("t.html:9:22:") && m.contains("row 'rows' would hide"), m);
     }
 
     @Test
@@ -435,7 +437,7 @@ class UiDocumentBindingTest {
                 <div state:n="rows.size * 10">
                   <div class="b" on:click="n = n + 1; selected = 'n' + n"></div>
                   <span bind:text="row.name + ': ' + (row.count == 1 ? 'one' : row.count + ' items') + ' ' + n / 4"></span>
-                  <span if="n > 20 && !show">big</span>
+                  <if test="n > 20 && !show"><span>big</span></if>
                 </div>
                 """, ".b { width: 10px; height: 10px }", m);
         assertEquals("text 0 10 9 #FFFFFFFF \"ammo: one 5\"", GoldenTest.print(doc.frame(100, 100)),
@@ -452,8 +454,8 @@ class UiDocumentBindingTest {
     void eachRowHasItsOwnLocalState() {
         Picker m = new Picker();
         UiDocument doc = load("""
-                <span each="rows" as="r" key="r.name" state:open="false" class="r"
-                      on:click="open = !open" bind:text="r.name + (open ? '+' : '-')"></span>
+                <for each="rows" as="r" key="r.name"><span state:open="false" class="r"
+                      on:click="open = !open" bind:text="r.name + (open ? '+' : '-')"></span></for>
                 """, ".r { width: 10px; height: 10px }", m);
         doc.frame(100, 100);
         click(doc);
@@ -477,7 +479,7 @@ class UiDocumentBindingTest {
         assertTrue(m.contains("t.html:3:30:") && m.contains("'&&' needs Booleans, got int and java.lang.Boolean"), m);
         assertTrue(m.contains("t.html:4:16:") && m.contains("'detail' cannot be assigned"), m);
         assertTrue(m.contains("t.html:5:23:") && m.contains("'show' is java.lang.Boolean, but the value is java.lang.Integer"), m);
-        assertTrue(m.contains("t.html:6:6:") && m.contains("state 'show' would hide the field of Picker"), m);
+        assertTrue(m.contains("t.html:6:6:") && m.contains("state 'show' would hide a field, row or state of Picker"), m);
         assertTrue(m.contains("t.html:7:26:") && m.contains("'<' needs numbers"), m);
         assertTrue(m.contains("t.html:8:20:") && m.contains("'bind:value' writes back"), m);
     }

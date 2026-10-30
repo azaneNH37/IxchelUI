@@ -1,14 +1,14 @@
 <link rel="stylesheet" href="hud.css"/>
 <div class="radar">
-  <span class="label" each="labels" as="l" key="l.id" bind:style:left="l.left" bind:style:top="l.top" bind:style:color="l.color" bind:text="l.text"></span>
-  <div class="edge" each="edges" as="e" key="e.sector" bind:style:left="e.left" bind:style:top="e.top">
+  <for each="labels" as="l" key="l.id"><span class="label" bind:style:left="l.left" bind:style:top="l.top" bind:style:color="l.color" bind:text="l.text"></span></for>
+  <for each="edges" as="e" key="e.sector"><div class="edge" bind:style:left="e.left" bind:style:top="e.top">
     <div class="arrow" bind:style:transform="'rotate(' + (e.sector * 45 - 45) + 'deg)'"></div>
     <span class="count" bind:text="e.count"></span>
-  </div>
+  </div></for>
   <div class="toasts">
-    <div class="toast" each="toasts" as="t" key="t.id" bind:class:fading="t.fading">
+    <for each="toasts" as="t" key="t.id"><div class="toast" bind:class:fading="t.fading">
       <mc-item class="icon" bind:item="t.stack"></mc-item>
       <span class="text" bind:text="t.text"></span>
-    </div>
+    </div></for>
   </div>
 </div>

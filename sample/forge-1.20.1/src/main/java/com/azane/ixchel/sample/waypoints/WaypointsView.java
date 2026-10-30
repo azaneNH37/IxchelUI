@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.waypoints;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
@@ -22,9 +23,9 @@ final class WaypointsView extends ViewModel {
     record Row(int id, String name, int x, int y, int z, long distance) {
     }
 
-    final Value<List<Waypoint>> waypoints = source(Source.polled(Waypoints::all));
+    final Cell<List<Waypoint>> waypoints = source(Source.polled(Waypoints::all));
     final Value<Integer> selectedId = state(-1);
-    final Value<BlockPos> playerPos = source(ClientSources.player(LocalPlayer::blockPosition, BlockPos.ZERO));
+    final Cell<BlockPos> playerPos = source(ClientSources.player(LocalPlayer::blockPosition, BlockPos.ZERO));
     final Derived<List<Row>> rows = derive(waypoints, playerPos, WaypointsView::rows);
 
     final Action<Void> add = action(() -> {

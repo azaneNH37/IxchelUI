@@ -17,14 +17,20 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Selector matching, cascade and inheritance. Precedence, lowest first: user-agent rule declarations
- * by (specificity, rule order), author rule declarations by (specificity, sheet order, rule order),
- * inline style, then the author and inline groups again for {@code !important} (user-agent
- * declarations are never important). An element's {@linkplain Element#boundStyle() bound values} are
- * inline declarations that replace the {@code style} attribute's declarations of the same properties.
+ * Selector matching, cascade and inheritance. Precedence, lowest first: user-agent rules, then the
+ * author origin's component layer, then unlayered author rules, each by (specificity, sheet order,
+ * rule order); then inline style. {@code !important} declarations come after all of these, the
+ * order of origins and layers reversed: unlayered author, component layer, user agent; then inline.
+ * Layers are not compared by specificity. An element's {@linkplain Element#boundStyle() bound
+ * values} are inline declarations that replace the {@code style} attribute's declarations of the
+ * same properties.
  */
 public final class StyleEngine {
-    /** {@code origin}: 0 user agent, 1 author. */
+    private static final int USER_AGENT = 0;
+    private static final int COMPONENT = 1;
+    private static final int AUTHOR = 2;
+
+    /** {@code origin}: {@link #USER_AGENT}, {@link #COMPONENT} or {@link #AUTHOR}, the normal declarations' order. */
     private record Entry(Selector selector, List<Declarations.Compiled> declarations, int origin, int specificity, int order) {
     }
 
@@ -63,17 +69,21 @@ public final class StyleEngine {
     }
 
     public StyleEngine(PropertyRegistry registry, List<StyleSheet> sheets, Diagnostics diag, Hook hook) {
-        this(registry, List.of(), sheets, diag, hook);
+        this(registry, List.of(), List.of(), sheets, diag, hook);
     }
 
-    /** {@code userAgent}: sheets below every author rule, such as the form controls' defaults. */
-    public StyleEngine(PropertyRegistry registry, List<StyleSheet> userAgent, List<StyleSheet> sheets, Diagnostics diag,
-                       Hook hook) {
+    /**
+     * @param userAgent  sheets below every author rule, such as the form controls' defaults
+     * @param components the author origin's component layer, below every unlayered author rule
+     */
+    public StyleEngine(PropertyRegistry registry, List<StyleSheet> userAgent, List<StyleSheet> components,
+                       List<StyleSheet> sheets, Diagnostics diag, Hook hook) {
         this.registry = registry;
         this.hook = hook;
         this.diag = diag;
-        index(userAgent, 0);
-        index(sheets, 1);
+        index(userAgent, USER_AGENT);
+        index(components, COMPONENT);
+        index(sheets, AUTHOR);
     }
 
     private void index(List<StyleSheet> sheets, int origin) {
@@ -150,8 +160,18 @@ public final class StyleEngine {
         ComputedStyle cs = ComputedStyle.inheriting(registry, parent);
         for (int pass = 0; pass < 2; pass++) {
             boolean important = pass == 1;
-            for (Entry m : matched) {
-                apply(m.declarations, important, cs, parent);
+            if (important) {
+                for (int origin = AUTHOR; origin >= USER_AGENT; origin--) {
+                    for (Entry m : matched) {
+                        if (m.origin == origin) {
+                            apply(m.declarations, true, cs, parent);
+                        }
+                    }
+                }
+            } else {
+                for (Entry m : matched) {
+                    apply(m.declarations, false, cs, parent);
+                }
             }
             for (Declarations.Compiled d : inline) {
                 if (d.important() == important && !(anyBound && bound.containsKey(d.property()))) {

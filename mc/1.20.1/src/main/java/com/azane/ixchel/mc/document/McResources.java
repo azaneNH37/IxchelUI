@@ -1,6 +1,6 @@
 package com.azane.ixchel.mc.document;
 
-import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -15,9 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 
 /**
@@ -37,72 +35,39 @@ final class McResources {
     /**
      * A loaded document and the files it was read from.
      *
-     * @param files the template and every linked stylesheet under the host namespace, as paths
-     *              under {@code assets/<hostModId>/} in load order; what a development watcher
-     *              should watch
+     * @param files the template and every file it links, directly or through components, under the
+     *              host namespace, as paths under {@code assets/<hostModId>/} in load order; what a
+     *              development watcher should watch
      */
     public record Loaded(UiDocument document, List<String> files) {
     }
 
     /**
-     * Loads a document from a template and the stylesheets it links, measured with the vanilla
-     * font; images for {@code background-size: auto} are measured from {@code resources}. A
-     * {@code <link>} href of the form {@code ns:path} names that resource (the host namespace reads
-     * through the development source when present, other namespaces read packed resources); any
-     * other href is relative to the template's directory ({@code ../common.css} allowed). Error
-     * positions name files as {@code modid:path}. Bound {@link Component}s are flattened with
+     * Loads a document from a template and the files it links, measured with the vanilla font;
+     * images for {@code background-size: auto} are measured from {@code resources}. A {@code <link>}
+     * href of the form {@code ns:path} names that resource (the host namespace reads through the
+     * development source when present, other namespaces read packed resources); any other href is
+     * relative to the linking file's directory ({@code ../common.css} allowed). Error positions name
+     * files as {@code modid:path}. Bound {@link Component}s are flattened with
      * {@link Component#getString()}; their colors and styles are dropped, CSS styles the text.
      *
      * @param model the view model {@code bind:*} attributes refer to, or {@code null}
      */
     public Loaded load(ResourceManager resources, String templatePath, TagRegistry tags, ViewModel model) {
-        List<String> files = new ArrayList<>();
-        files.add(templatePath);
-        int slash = templatePath.lastIndexOf('/');
-        String dir = slash < 0 ? "" : templatePath.substring(0, slash);
-        UiDocument document = UiDocument.load(read(resources, templatePath), name(templatePath), href -> {
-            int colon = href.indexOf(':');
-            if (colon >= 0) {
-                String ns = href.substring(0, colon);
-                String path = href.substring(colon + 1);
-                if (!ns.equals(hostModId)) {
-                    return new UiDocument.CssSource(readPacked(resources, new ResourceLocation(ns, path)), href);
-                }
-                return sheet(resources, files, path);
-            }
-            return sheet(resources, files, resolve(dir, href));
+        UiDocument document = UiDocument.load(read(resources, templatePath), name(templatePath), id -> {
+            int colon = id.indexOf(':');
+            String ns = id.substring(0, colon);
+            String path = id.substring(colon + 1);
+            return ns.equals(hostModId) ? read(resources, path) : readPacked(resources, new ResourceLocation(ns, path));
         }, tags, new McTextMeasurer(Minecraft.getInstance().font), new McImageMeasurer(resources), model, McResources::text);
+        String host = name("");
+        List<String> files = new ArrayList<>();
+        for (String id : document.files()) {
+            if (id.startsWith(host)) {
+                files.add(id.substring(host.length()));
+            }
+        }
         return new Loaded(document, List.copyOf(files));
-    }
-
-    private UiDocument.CssSource sheet(ResourceManager resources, List<String> files, String path) {
-        String css = read(resources, path);
-        files.add(path);
-        return new UiDocument.CssSource(css, name(path));
-    }
-
-    /** Resolves {@code href} against the directory {@code dir} (no trailing slash; empty for the root), normalising {@code .} and {@code ..}. */
-    static String resolve(String dir, String href) {
-        Deque<String> parts = new ArrayDeque<>();
-        if (!dir.isEmpty()) {
-            for (String p : dir.split("/")) {
-                parts.addLast(p);
-            }
-        }
-        for (String p : href.split("/")) {
-            if (p.isEmpty() || p.equals(".")) {
-                continue;
-            }
-            if (p.equals("..")) {
-                if (parts.isEmpty()) {
-                    throw new IllegalArgumentException("href leaves the resource root: " + href);
-                }
-                parts.removeLast();
-            } else {
-                parts.addLast(p);
-            }
-        }
-        return String.join("/", parts);
     }
 
     public String read(ResourceManager resources, String path) {

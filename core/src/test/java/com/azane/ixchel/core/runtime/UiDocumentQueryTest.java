@@ -1,6 +1,6 @@
 package com.azane.ixchel.core.runtime;
 
-import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.dom.Element;
@@ -31,9 +31,9 @@ class UiDocumentQueryTest {
         Model m = new Model();
         UiDocument doc = UiDocument.load("""
                 <div id="list" class="list">
-                  <span class="row" each="rows" as="r" key="r" bind:text="r"></span>
+                  <for each="rows" as="r" key="r"><span class="row" bind:text="r"></span></for>
                 </div>
-                <div id="panel" if="open"><span id="inner" class="row"></span></div>
+                <if test="open"><div id="panel"><span id="inner" class="row"></span></div></if>
                 <span id="last" class="row"></span>
                 """, "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         doc.frame(100, 100);

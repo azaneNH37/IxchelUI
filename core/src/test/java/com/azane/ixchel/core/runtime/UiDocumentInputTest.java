@@ -1,6 +1,7 @@
 package com.azane.ixchel.core.runtime;
 
-import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.Cell;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
@@ -148,7 +149,7 @@ class UiDocumentInputTest {
                 <div bind:scrolltop="query"></div>
                 """, "", new ViewModel() {
             final Value<String> query = state("");
-            final Value<String> frozen = source(com.azane.ixchel.core.binding.Source.polled(() -> "f"));
+            final Cell<String> frozen = source(com.azane.ixchel.core.binding.Source.polled(() -> "f"));
             final Value<Integer> count = state(0);
         }));
         String msg = e.getMessage();

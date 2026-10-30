@@ -15,7 +15,7 @@ import java.util.function.Supplier;
  *
  * <pre>{@code
  * final class AmmoView extends ViewModel {
- *     final Value<Integer> loaded = source(Source.polled(Gun::loaded));
+ *     final Cell<Integer> loaded = source(Source.polled(Gun::loaded));
  *     final Derived<Boolean> empty = derive(loaded, n -> n == 0);
  *     final Action<Void> reload = task(() -> Net.request(new Reload()));   // CompletableFuture
  * }
@@ -32,18 +32,18 @@ public abstract class ViewModel implements AutoCloseable {
     }
 
     private final Scope scope = new Scope();
-    private final List<Value<?>> sources = new ArrayList<>();
+    private final List<Polled<?>> sources = new ArrayList<>();
     private final List<Subscription> subscriptions = new ArrayList<>();
     private boolean stateChanged = true;
 
-    protected final <T> Value<T> source(Source<T> source) {
-        Value<T> v = new Value<>(this, source, null);
-        sources.add(v);
-        return v;
+    protected final <T> Cell<T> source(Source<T> source) {
+        Polled<T> p = new Polled<>(source);
+        sources.add(p);
+        return p;
     }
 
     protected final <T> Value<T> state(T initial) {
-        return new Value<>(this, null, initial);
+        return new Value<>(this, initial);
     }
 
     @SuppressWarnings("unchecked")

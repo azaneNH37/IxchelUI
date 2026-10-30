@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.machine;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
@@ -39,9 +40,9 @@ final class MachineView extends ViewModel {
 
     private final MachineMenu menu;
 
-    final Value<MachineState> machine;
-    final Value<Item> input;
-    final Value<String> waterColor;
+    final Cell<MachineState> machine;
+    final Cell<Item> input;
+    final Cell<String> waterColor;
 
     final Derived<String> statusText;
     final Derived<Boolean> statusBad;

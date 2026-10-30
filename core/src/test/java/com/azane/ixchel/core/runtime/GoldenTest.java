@@ -44,13 +44,13 @@ class GoldenTest {
         return "<link rel=\"stylesheet\" href=\"t.css\"/>\n" + html;
     }
 
-    /** Serves {@code css} as {@code t.css}, the only linked sheet. */
-    static Function<String, UiDocument.CssSource> sheet(String css) {
-        return Map.of("t.css", new UiDocument.CssSource(css, "t.css"))::get;
+    /** Serves {@code css} as {@code t.css}, the only linked file. */
+    static Function<String, String> sheet(String css) {
+        return Map.of("t.css", css)::get;
     }
 
-    /** For templates without {@code <link>}: resolving any href fails. */
-    static final Function<String, UiDocument.CssSource> NO_SHEETS = href -> {
+    /** For templates without {@code <link>}: reading any file fails. */
+    static final Function<String, String> NO_SHEETS = href -> {
         throw new IllegalArgumentException("no stylesheet " + href);
     };
 
@@ -59,7 +59,7 @@ class GoldenTest {
     void displayListMatchesExpectation(String name) throws IOException {
         String dir = "golden/" + name + "/";
         UiDocument doc = UiDocument.load(resource(dir + "hud.html"), "hud.html",
-                Map.of("hud.css", new UiDocument.CssSource(resource(dir + "hud.css"), "hud.css"))::get,
+                Map.of("hud.css", resource(dir + "hud.css"))::get,
                 TagRegistry.HTML, MONO, NO_IMAGES);
         DisplayList out = doc.frame(480, 270);
 

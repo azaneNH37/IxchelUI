@@ -74,7 +74,7 @@ public final class ClientSources {
      *
      * <pre>{@code
      * record Row(ItemStack icon, int count) {}
-     * final Value<List<Row>> rows = source(ClientSources.polled(() -> rowsOf(container)));
+     * final Cell<List<Row>> rows = source(ClientSources.polled(() -> rowsOf(container)));
      * }</pre>
      */
     public static <T> Source<T> polled(Supplier<T> live) {
@@ -87,7 +87,7 @@ public final class ClientSources {
      * a live stack must store {@code stack.copy()}.
      *
      * <pre>{@code
-     * final Value<Float> health = source(ClientSources.player(LocalPlayer::getHealth, 0f));
+     * final Cell<Float> health = source(ClientSources.player(LocalPlayer::getHealth, 0f));
      * }</pre>
      */
     public static <T> Source<T> player(Function<? super LocalPlayer, ? extends T> read, T absent) {

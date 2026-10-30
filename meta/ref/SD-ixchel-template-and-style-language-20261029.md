@@ -79,9 +79,9 @@ assets/ixchelsample/ui/
 ```html
 <!-- common/confirm.html -->
 <link rel="stylesheet" href="confirm.css"/>
-<template name="ui-confirm" params="open text label" events="confirm">
+<template name="ui-confirm" params="open message label" events="confirm">
   <dialog bind:open="open">
-    <span class="text" bind:text="text"></span>
+    <span class="text" bind:text="message"></span>
     <div class="actions">
       <button on:click="open = false">Cancel</button>
       <button class="danger" on:click="confirm; open = false" bind:text="label"></button>
@@ -133,7 +133,7 @@ assets/ixchelsample/ui/
     </div>
   </ui-panel>
 
-  <ui-confirm bind:open="confirming" text="Remove this waypoint?" label="Remove" on:confirm="remove"></ui-confirm>
+  <ui-confirm bind:open="confirming" message="Remove this waypoint?" label="Remove" on:confirm="remove"></ui-confirm>
 </div>
 ```
 
@@ -205,9 +205,9 @@ div.screen
 final class WaypointsView extends ViewModel {
     record Row(int id, String name, int x, int y, int z, long distance) {}
 
-    final Value<List<Waypoint>> waypoints = source(Source.polled(Waypoints::all));
+    final Cell<List<Waypoint>> waypoints = source(Source.polled(Waypoints::all));
     final Value<Integer> selectedId = state(-1);
-    final Value<BlockPos> playerPos = source(ClientSources.player(LocalPlayer::blockPosition, BlockPos.ZERO));
+    final Cell<BlockPos> playerPos = source(ClientSources.player(LocalPlayer::blockPosition, BlockPos.ZERO));
     final Derived<List<Row>> rows = derive(waypoints, playerPos, WaypointsView::rows);
     final Derived<Integer> count = derive(waypoints, List::size);
     // add、select、remove、selectPrevious、selectNext 不变
@@ -254,7 +254,7 @@ final class WaypointsView extends ViewModel {
 
 - 前缀按领域划分，不按实现划分：组件改为原生元素或反之，标签名不变。`mc-fluid` 即使由加载器层实现也用 `mc-`。
 - 新增元素前先查 HTML 是否有标准元素（进度条用 `progress`，折叠用 `details`/`summary`），依次再考虑 `ix-`、`mc-`。
-- 组件 `name` 与宿主登记的原生元素不得以 `ix-`、`mc-` 开头，加载期报错。
+- 组件 `name` 不得以 `ix-`、`mc-` 开头，加载期报错。校验只针对组件名：原生元素只由 mc 层登记（宿主没有登记入口，见路线文档 D0 结果），`mc-slot` 等不受此限。
 - 不含连字符的模板保留标签：`template`、`slot`（HTML 标准元素，按 §3.4 的组件语义）与控制块 `for`、`if`（非 HTML，§3.5）。
 - 撞名只可能发生在一个宿主内部：库按宿主 shade（#001），文档可用的标签只来自 HTML、库与该宿主。同一文档中两个组件同名，加载期报错。
 
@@ -282,8 +282,8 @@ final class WaypointsView extends ViewModel {
 
 | 指令 | 指令参数 | 值 | 现状 |
 |---|---|---|---|
-| `bind:` | 目标：HTML 属性名、`text`、`class:<名>`、`style:<CSS 属性>`、双向目标 `value`/`checked`/`open`/`scrolltop`、组件参数 | 表达式（双向目标只接受可写的裸路径） | 已实现（L1），组件参数待 L2 |
-| `on:` | 事件名或组件事件名；修饰符为键名与 `shift`/`ctrl`/`alt`、鼠标键（#012） | 语句 | 已实现（L1），组件事件待 L2 |
+| `bind:` | 目标：HTML 属性名、`text`、`class:<名>`、`style:<CSS 属性>`、双向目标、组件参数。双向与否由目标与元素种类共同决定：`value`（复选框以外的表单控件）、`checked`（复选框）、`open`（`dialog`）、`scrolltop`（任意元素）；其余为单向，`value` 在其它元素上是普通属性 | 表达式（双向目标只接受可写的裸路径） | 已实现（L1），组件参数已实现（L2） |
+| `on:` | 事件名或组件事件名；修饰符为键名与 `shift`/`ctrl`/`alt`、鼠标键（#012） | 语句 | 已实现（L1），组件事件已实现（L2） |
 | `state:` | 状态名 | 初值表达式（只求值一次） | 已实现（L1） |
 
 控制块（L2 起，取代元素上的 `each`/`if`/`as`/`key` 属性，一次切换、不留兼容；元素上出现这些属性在加载期报错）：
@@ -295,13 +295,13 @@ final class WaypointsView extends ViewModel {
 
 - 不渲染节点：内容按位置成为父元素的子节点；CSS 选择器、`Script` 选择器与诊断看到的树中没有 `for`/`if`。
 - 内容可以是任意多个元素与文本；`<for>` 每行、`<if>` 每次挂载各实例化一份。行或挂载的局部状态写在内容中的元素上。
-- 块上只允许自己的属性（`for`：`each`、`as`、`key`；`if`：`test`），其它属性与指令加载期报错。`as` 行名只对块内容可见，`key` 是从行名出发的路径（规则同现有 `each`）。
+- 块上只允许自己的属性（`for`：`each`、`as`、`key`；`if`：`test`），另可带 `slot`（作为外壳元素的直接子块时，见上下文模型文档 §3.1）；其它属性与指令加载期报错。`as` 行名只对块内容可见，`key` 是从行名出发的路径（规则同现有 `each`）。
 - 顶层键处理器的规则不变：块内的元素不注册到文档根（绑定文档 §3）。
 - `test` 沿用 XSLT/JSTL 的 `<if test>`。块的挂载机制沿用现有 `Block`（以前一兄弟定位，`Bindings.java:977-1013`，本就不需要占位节点）；需要改的是一份实例由单个根变为多个根（`Instance.root`）。
 
 `t="语言键"`（保留，未实现；阶段 I）。
 
-`state:` 可写在任何元素上，作用于该元素的子树；在组件模板中则属于组件实例，写在外壳元素上的属于使用方（上下文模型文档 §1.1）。
+`state:` 可写在任何元素上，作用于该元素的子树；在组件模板中则属于组件实例，写在外壳元素上的属于使用方（上下文模型文档 §1.1）。`state:x` 声明新名字 x，与 ViewModel 的 `state(...)` 字段同类（可写 `Value`），不能与已可见的名字重名；区别只在作用范围（元素子树）与存活时间（每个挂载副本各自初始化）。
 
 #### 3.6 表达式与语句
 
@@ -329,7 +329,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
   - `! && ||` 与 `?:` 的条件只接受 `Boolean`；`?:` 两支类型相同、同为数值（提升）或一方可赋给另一方。
   - `null`（路径途经的 record 为 `null` 时产生）：算术结果为 `null`，大小比较为 `false`，布尔运算按 `false`。整数除以零在运行时抛出，与抛异常的 `Derived` 一样报一次、保留上次的值。
 - 编译：裸路径仍是原来的单元（双向绑定只接受裸路径）；其余表达式编译为一个 `Derived`，输入是表达式里出现的路径单元，计算时求值整棵树，`&& || ?:` 短路。
-- 语句只在 `on:` 值中，从左到右执行，后面的语句读得到前面的赋值；一条抛异常则报告并停止其余。调用：动作字段，参数是一个表达式，类型须可赋给动作参数。赋值目标：局部状态、ViewModel 的 `state(...)` 字段、`each` 行里由 `state(...)` 创建的 `Value` 组件；`source(...)` 字段与 `Derived` 只读。值类型须可赋给目标，允许数值放宽（`Integer` → `Long`/`Float`/`Double` 等）。
+- 语句只在 `on:` 值中，从左到右执行，后面的语句读得到前面的赋值；一条抛异常则报告并停止其余。调用：动作字段，参数是一个表达式，类型须可赋给动作参数。赋值目标：声明类型为 `Value<T>` 的单元，即局部状态、ViewModel 的 `state(...)` 字段、`<for>` 行里的 `Value` 组件；`Cell<T>`（`source(...)` 字段）与 `Derived` 只读。值类型须可赋给目标，允许数值放宽（`Integer` → `Long`/`Float`/`Double` 等）。
 - 局部状态 `state:名="初值表达式"`：类型取初值的静态类型；作用于该元素自己的指令与子树；名字不得与已可见的局部状态、`as` 行名、ViewModel 字段重名。初值在元素实例化时求值一次：文档加载时，`if` 块每次挂载、`each` 每行新建时；块卸载即丢弃。需要 ViewModel（与其它指令相同）。
 - 属性值里的 `&`：按 HTML 规范，`&` 后不是字母或 `#` 时是字面字符，`a && b` 无需写成 `&amp;&amp;`。
 

@@ -1,5 +1,6 @@
 package com.azane.ixchel.testmod.refit;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Value;
@@ -29,8 +30,8 @@ final class RefitView extends ViewModel {
     record Swatch(String id, Component name, ItemStack icon, boolean draft, boolean current) {
     }
 
-    final Value<ItemStack> target;
-    final Value<List<ItemStack>> inventory = source(ClientSources.inventory());
+    final Cell<ItemStack> target;
+    final Cell<List<ItemStack>> inventory = source(ClientSources.inventory());
     final Derived<Boolean> valid;
     final Derived<Component> gunName;
     final Value<String> selectedType = state(null);

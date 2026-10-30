@@ -8,10 +8,14 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
+import com.azane.ixchel.core.dom.UiEvent;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -20,24 +24,45 @@ import java.util.Set;
  *
  * <p>Stylesheets come from top-level {@code <link rel="stylesheet" href="…"/>} (self-closing, no other
  * attributes) and {@code <style>} elements; neither appears in the tree, both are collected in document
- * order as {@link Template#styles()}.
+ * order as {@link Template#styles()}. A top-level {@code <link rel="component" href="…"/>} before the
+ * first element makes the component of that file usable as a tag.
+ *
+ * <p>The reserved tags {@code <for each as key>}, {@code <if test>}, {@code <slot name>} and
+ * {@code <template name params events>} stay in the tree with their attributes as
+ * {@linkplain Element#directives() directives}; the binding layer interprets them.
  */
 public final class TemplateParser {
     private static final Set<String> RESERVED = Set.of("t");
-    private static final Set<String> STRUCTURAL = Set.of("each", "as", "key", "if");
+    /** Element attributes replaced by the {@code <for>} and {@code <if>} blocks. */
+    private static final Set<String> MOVED = Set.of("each", "as", "key", "if");
+    /** Names a parameter or event cannot take: they are attributes or targets of the component's element. */
+    private static final Set<String> SHELL_NAMES = Set.of("class", "id", "style", "tabindex", "disabled", "title",
+            "text", "scrolltop", "slot", "t");
+
+    /** Loads the component of a {@code <link rel="component">}. */
+    interface Linker {
+        /** The component of the file {@code href} names, or {@code null} once the failure is reported. */
+        ComponentDef link(String href, SourcePos at);
+    }
 
     private final String src;
     private final String file;
     private final TagRegistry tags;
+    private final Linker linker;
     private final Diagnostics diag;
     private final int[] lineStarts;
     private final List<Template.StyleSource> styles = new ArrayList<>();
+    private final Map<String, ComponentDef> components = new HashMap<>();
+    private boolean sawElement;
+    private int templateDepth;
+    private int forInTemplateDepth;
     private int i;
 
-    private TemplateParser(String source, String file, TagRegistry tags, Diagnostics diag) {
+    private TemplateParser(String source, String file, TagRegistry tags, Linker linker, Diagnostics diag) {
         this.src = source.replace("\r\n", "\n").replace('\r', '\n').replace('\f', '\n');
         this.file = file;
         this.tags = tags;
+        this.linker = linker;
         this.diag = diag;
         List<Integer> starts = new ArrayList<>();
         starts.add(0);
@@ -49,11 +74,21 @@ public final class TemplateParser {
         lineStarts = starts.stream().mapToInt(Integer::intValue).toArray();
     }
 
+    /** Parses a page that links no components. */
     public static Template parse(String source, String file, TagRegistry tags, Diagnostics diag) {
-        TemplateParser p = new TemplateParser(source, file, tags, diag);
+        return parse(source, file, tags, null, false, diag);
+    }
+
+    /**
+     * @param linker        loads linked components; {@code null} when the source may not link any
+     * @param componentFile the source is a component file: {@code <link>}s and one {@code <template>}
+     */
+    static Template parse(String source, String file, TagRegistry tags, Linker linker, boolean componentFile,
+                          Diagnostics diag) {
+        TemplateParser p = new TemplateParser(source, file, tags, linker, diag);
         List<Node> roots = new ArrayList<>();
         while (true) {
-            p.parseNodes(roots, true);
+            p.parseNodes(roots, true, componentFile);
             if (p.i >= p.src.length()) {
                 break;
             }
@@ -61,11 +96,27 @@ public final class TemplateParser {
             String name = p.readClosingTag();
             p.diag.error(at, "closing tag </" + name + "> has no matching opening tag");
         }
-        return new Template(roots, p.styles);
+        p.checkSlotPlacement(roots, null);
+        if (!componentFile) {
+            return new Template(roots, p.styles, null);
+        }
+        Element template = null;
+        for (Node n : roots) {
+            if (template == null && n instanceof Element e && e.tag().equals("template")) {
+                template = e;
+            } else {
+                diag.error(n.pos(), "a component file holds only <link> declarations and one <template>");
+            }
+        }
+        if (template == null) {
+            diag.error(new SourcePos(file, 1, 1), "a component file needs a <template name=\"…\">");
+            return new Template(List.of(), p.styles, null);
+        }
+        return new Template(List.of(), p.styles, p.define(template));
     }
 
     /** Parses nodes into {@code out} until EOF or a closing tag, which is left unconsumed. */
-    private void parseNodes(List<Node> out, boolean topLevel) {
+    private void parseNodes(List<Node> out, boolean topLevel, boolean componentFile) {
         while (i < src.length()) {
             if (src.charAt(i) != '<') {
                 int start = i;
@@ -87,7 +138,7 @@ public final class TemplateParser {
                     i = end + 3;
                 }
             } else if (i + 1 < src.length() && isAsciiLetter(src.charAt(i + 1))) {
-                Element e = parseElement(topLevel);
+                Element e = parseElement(topLevel, componentFile);
                 if (e != null) {
                     out.add(e);
                 }
@@ -101,12 +152,15 @@ public final class TemplateParser {
     }
 
     /** Returns null for elements that must not appear in the tree (unknown, {@code <style>}, {@code <link>}). */
-    private Element parseElement(boolean topLevel) {
+    private Element parseElement(boolean topLevel, boolean componentFile) {
         int open = i;
         SourcePos openPos = pos(open);
         i++;
         String tag = readName(false);
-        boolean known = tags.isKnownTag(tag);
+        ComponentDef component = components.get(tag);
+        boolean block = tag.equals("for") || tag.equals("if");
+        boolean reserved = block || tag.equals("slot") || tag.equals("template");
+        boolean known = reserved || component != null || tags.isKnownTag(tag);
         if (!known) {
             diag.error(openPos, "unknown tag <" + tag + ">");
         }
@@ -114,6 +168,18 @@ public final class TemplateParser {
         boolean isLink = tag.equals("link");
         if ((isStyle || isLink) && !topLevel) {
             diag.error(openPos, "<" + tag + "> is only allowed at the top level");
+        }
+        if (!isStyle && !isLink) {
+            sawElement = true;
+        }
+        if (tag.equals("template") && !(componentFile && topLevel)) {
+            diag.error(openPos, "<template> only appears at the top level of a component file");
+            known = false;
+        } else if (tag.equals("slot") && templateDepth == 0) {
+            diag.error(openPos, "<slot> only appears inside a component's <template>");
+            known = false;
+        } else if (tag.equals("slot") && forInTemplateDepth > 0) {
+            diag.error(openPos, "<slot> cannot be inside <for>: each slot is filled once");
         }
         Element element = new Element(tag, openPos);
         Set<String> seen = new HashSet<>();
@@ -139,7 +205,10 @@ public final class TemplateParser {
                 i++;
                 continue;
             }
-            parseAttribute(element, known, seen);
+            parseAttribute(element, known, reserved, component, seen);
+        }
+        if (known && reserved) {
+            checkReservedAttributes(element);
         }
         if (known && tag.equals("img") && element.attribute("src") == null
                 && element.directives().stream().noneMatch(b -> b.name().equals("bind:src"))) {
@@ -160,9 +229,10 @@ public final class TemplateParser {
             if (!selfClosing) {
                 diag.error(openPos, "<link> must be self-closing: <link rel=\"stylesheet\" href=\"…\"/>");
             }
+            String rel = element.attribute("rel");
             boolean valid = topLevel;
-            if (!"stylesheet".equals(element.attribute("rel"))) {
-                diag.error(openPos, "<link> requires rel=\"stylesheet\"");
+            if (!"stylesheet".equals(rel) && !"component".equals(rel)) {
+                diag.error(openPos, "<link> requires rel=\"stylesheet\" or rel=\"component\"");
                 valid = false;
             }
             String href = element.attribute("href");
@@ -170,14 +240,31 @@ public final class TemplateParser {
                 diag.error(openPos, "<link> requires an 'href' attribute");
                 valid = false;
             }
-            if (valid) {
+            if (valid && "component".equals(rel)) {
+                if (sawElement) {
+                    diag.error(openPos, "<link rel=\"component\"> must come before the first element");
+                } else if (linker == null) {
+                    diag.error(openPos, "components can only be linked from a loaded document");
+                } else {
+                    ComponentDef def = linker.link(href, openPos);
+                    if (def != null) {
+                        components.put(def.name(), def);
+                    }
+                }
+            } else if (valid) {
                 styles.add(new Template.Link(href, openPos));
             }
             return null;
         }
         if (!selfClosing) {
             List<Node> children = new ArrayList<>();
-            parseNodes(children, false);
+            boolean inTemplate = tag.equals("template");
+            boolean forInTemplate = tag.equals("for") && templateDepth > 0;
+            templateDepth += inTemplate ? 1 : 0;
+            forInTemplateDepth += forInTemplate ? 1 : 0;
+            parseNodes(children, false, false);
+            templateDepth -= inTemplate ? 1 : 0;
+            forInTemplateDepth -= forInTemplate ? 1 : 0;
             if (i >= src.length()) {
                 diag.error(openPos, "<" + tag + "> is never closed");
             } else {
@@ -190,12 +277,12 @@ public final class TemplateParser {
             }
             if (known && (tag.equals("img") || tag.equals("input")) && !children.isEmpty()) {
                 diag.error(children.get(0).pos(), "<" + tag + "> must not have children");
-            } else if (known && tag.equals("select") && children.stream().anyMatch(
-                    n -> !(n instanceof Element c && c.tag().equals("option")))) {
-                diag.error(openPos, "<select> may only contain <option> elements");
+            } else if (known && tag.equals("select") && !onlyOptions(children)) {
+                diag.error(openPos, "<select> may only contain <option> elements, directly or in <for> and <if>");
             } else if (known && tag.equals("option") && children.stream().anyMatch(n -> !(n instanceof TextNode))) {
                 diag.error(openPos, "<option> may only contain text");
             } else {
+                checkSlotPlacement(children, component);
                 for (Node child : children) {
                     element.appendChild(child);
                 }
@@ -204,7 +291,208 @@ public final class TemplateParser {
         return known ? element : null;
     }
 
-    private void parseAttribute(Element element, boolean tagKnown, Set<String> seen) {
+    private static boolean onlyOptions(List<Node> children) {
+        for (Node n : children) {
+            if (!(n instanceof Element c) || !(c.tag().equals("option")
+                    || ((c.tag().equals("for") || c.tag().equals("if")) && onlyOptions(c.children())))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** {@code slot=} only goes on a direct child, element or block, of a component's element. */
+    private void checkSlotPlacement(List<Node> children, ComponentDef parent) {
+        if (parent != null) {
+            return;
+        }
+        for (Node n : children) {
+            if (n instanceof Element c && slotOf(c) != null) {
+                diag.error(c.pos(), "slot=\"" + slotOf(c) + "\" only goes on a direct child of a component's element");
+            }
+        }
+    }
+
+    /** The {@code slot} an element or block fills, or {@code null}. */
+    public static String slotOf(Element e) {
+        if (e.tag().equals("for") || e.tag().equals("if")) {
+            for (Directive d : e.directives()) {
+                if (d.name().equals("slot")) {
+                    return d.value();
+                }
+            }
+            return null;
+        }
+        return e.attribute("slot");
+    }
+
+    private void checkReservedAttributes(Element e) {
+        List<String> allowed = switch (e.tag()) {
+            case "for" -> List.of("each", "as", "key", "slot");
+            case "if" -> List.of("test", "slot");
+            case "slot" -> List.of("name");
+            default -> List.of("name", "params", "events");
+        };
+        List<String> required = switch (e.tag()) {
+            case "for" -> List.of("each", "as", "key");
+            case "if" -> List.of("test");
+            case "slot" -> List.of();
+            default -> List.of("name");
+        };
+        Set<String> present = new HashSet<>();
+        for (Directive d : e.directives()) {
+            present.add(d.name());
+            if (!allowed.contains(d.name())) {
+                diag.error(d.namePos(), "<" + e.tag() + "> takes only " + String.join(", ", allowed));
+            }
+        }
+        for (String r : required) {
+            if (!present.contains(r)) {
+                diag.error(e.pos(), "<" + e.tag() + "> requires '" + r + "'");
+            }
+        }
+    }
+
+    /** Checks a component file's {@code <template>} and describes its component. */
+    private ComponentDef define(Element template) {
+        String name = "";
+        Directive params = null;
+        Directive events = null;
+        for (Directive d : template.directives()) {
+            switch (d.name()) {
+                case "name" -> name = d.value();
+                case "params" -> params = d;
+                case "events" -> events = d;
+                default -> {
+                }
+            }
+        }
+        if (!name.contains("-") || name.startsWith("ix-") || name.startsWith("mc-") || !isTagName(name)) {
+            diag.error(template.pos(), "component name '" + name
+                    + "' must be a tag name with a '-' that does not start with 'ix-' or 'mc-'");
+        } else if (tags.isKnownTag(name)) {
+            diag.error(template.pos(), "component name '" + name + "' is a registered tag");
+        }
+        Set<String> names = new HashSet<>();
+        List<ComponentDef.Param> paramList = new ArrayList<>();
+        if (params != null) {
+            for (Word w : words(params)) {
+                int eq = w.text.indexOf('=');
+                String p = eq < 0 ? w.text : w.text.substring(0, eq);
+                if (checkMemberName(p, w.pos, "parameter", names)) {
+                    Directive fallback = eq < 0 ? null
+                            : new Directive(p, w.text.substring(eq + 1), w.pos, advance(w.pos, w.text, eq + 1));
+                    paramList.add(new ComponentDef.Param(p, w.pos, fallback));
+                }
+            }
+        }
+        List<String> eventList = new ArrayList<>();
+        if (events != null) {
+            for (Word w : words(events)) {
+                if (checkMemberName(w.text, w.pos, "event", names)) {
+                    if (UiEvent.Type.byTemplateName(w.text) != null) {
+                        diag.error(w.pos, "event '" + w.text + "' has the name of a DOM event");
+                    } else {
+                        eventList.add(w.text);
+                    }
+                }
+            }
+        }
+        Set<String> slots = new LinkedHashSet<>();
+        collectSlots(template.children(), slots);
+        return new ComponentDef(name, template.pos(), paramList, eventList, template.children(), slots);
+    }
+
+    private void collectSlots(List<Node> nodes, Set<String> slots) {
+        for (Node n : nodes) {
+            if (n instanceof Element e) {
+                if (e.tag().equals("slot")) {
+                    String slot = "";
+                    for (Directive d : e.directives()) {
+                        slot = d.name().equals("name") ? d.value() : slot;
+                    }
+                    if (!slots.add(slot)) {
+                        diag.error(e.pos(), slot.isEmpty() ? "the default <slot> appears twice"
+                                : "<slot name=\"" + slot + "\"> appears twice");
+                    }
+                }
+                collectSlots(e.children(), slots);
+            }
+        }
+    }
+
+    private boolean checkMemberName(String name, SourcePos at, String what, Set<String> names) {
+        boolean ok = !name.isEmpty() && isAsciiLetter(name.charAt(0));
+        for (int k = 1; k < name.length() && ok; k++) {
+            ok = isAsciiLetter(name.charAt(k)) || isDigit(name.charAt(k));
+        }
+        if (!ok) {
+            diag.error(at, what + " name '" + name + "' must be a letter followed by letters or digits");
+        } else if (SHELL_NAMES.contains(name)) {
+            diag.error(at, what + " name '" + name + "' is taken by the component's element");
+        } else if (!names.add(name)) {
+            diag.error(at, "'" + name + "' is declared twice");
+        } else {
+            return true;
+        }
+        return false;
+    }
+
+    private record Word(String text, SourcePos pos) {
+    }
+
+    /** Splits a directive's value at whitespace outside quotes, keeping each word's position. */
+    private static List<Word> words(Directive d) {
+        List<Word> out = new ArrayList<>();
+        String v = d.value();
+        int k = 0;
+        while (k < v.length()) {
+            if (isSpace(v.charAt(k))) {
+                k++;
+                continue;
+            }
+            int start = k;
+            char quote = 0;
+            while (k < v.length() && (quote != 0 || !isSpace(v.charAt(k)))) {
+                char c = v.charAt(k);
+                quote = quote == 0 && (c == '\'' || c == '"') ? c : (c == quote ? 0 : quote);
+                k++;
+            }
+            out.add(new Word(v.substring(start, k), advance(d.valuePos(), v, start)));
+        }
+        return out;
+    }
+
+    /** The position {@code offset} characters into {@code text}, which starts at {@code start}. */
+    private static SourcePos advance(SourcePos start, String text, int offset) {
+        int line = start.line();
+        int column = start.column();
+        for (int k = 0; k < offset; k++) {
+            if (text.charAt(k) == '\n') {
+                line++;
+                column = 1;
+            } else {
+                column++;
+            }
+        }
+        return new SourcePos(start.file(), line, column);
+    }
+
+    private static boolean isTagName(String s) {
+        if (s.isEmpty() || !isAsciiLetter(s.charAt(0))) {
+            return false;
+        }
+        for (int k = 1; k < s.length(); k++) {
+            char c = s.charAt(k);
+            if (!isAsciiLetter(c) && !isDigit(c) && c != '-') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void parseAttribute(Element element, boolean tagKnown, boolean reserved, ComponentDef component,
+                                Set<String> seen) {
         String tag = element.tag();
         SourcePos namePos = pos(i);
         String name = readName(true);
@@ -239,7 +527,7 @@ public final class TemplateParser {
         if (!tagKnown) {
             return;
         }
-        if (isDirective(name)) {
+        if (reserved || isDirective(name)) {
             if (tag.equals("style") || tag.equals("link")) {
                 diag.error(namePos, "<" + tag + "> takes no " + (tag.equals("style") ? "attributes" : "bindings"));
             } else {
@@ -247,11 +535,20 @@ public final class TemplateParser {
             }
             return;
         }
+        if (MOVED.contains(name)) {
+            diag.error(namePos, name.equals("if")
+                    ? "'if' is a block now: wrap the element in <if test=\"…\">"
+                    : "'" + name + "' is a block attribute now: wrap the element in <for each=\"…\" as=\"…\" key=\"…\">");
+            return;
+        }
         if (isReserved(name)) {
             diag.error(namePos, "attribute '" + name + "' is not supported yet");
             return;
         }
-        if (!tags.isAllowedAttribute(tag, name)) {
+        boolean allowed = name.equals("slot") && !tag.equals("style") && !tag.equals("link")
+                || (component != null ? TagRegistry.GLOBAL_ATTRIBUTES.contains(name) || component.hasParam(name)
+                : tags.isAllowedAttribute(tag, name));
+        if (!allowed) {
             diag.error(namePos, "unknown attribute '" + name + "' on <" + tag + ">");
             return;
         }
@@ -269,10 +566,9 @@ public final class TemplateParser {
         }
     }
 
-    /** Attributes interpreted by the binding layer: {@code bind:*}, {@code on:*}, {@code state:*}, {@code each/as/key/if}. */
+    /** Attributes interpreted by the binding layer: {@code bind:*}, {@code on:*}, {@code state:*}. */
     static boolean isDirective(String attribute) {
-        return attribute.startsWith("bind:") || attribute.startsWith("on:") || attribute.startsWith("state:")
-                || STRUCTURAL.contains(attribute);
+        return attribute.startsWith("bind:") || attribute.startsWith("on:") || attribute.startsWith("state:");
     }
 
     /** Template attributes with planned meaning that are not implemented yet (i18n). */

@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="../common/slot.css"/>
 <link rel="stylesheet" href="terminal.css"/>
 <div class="panel">
   <div class="header">
@@ -13,17 +14,17 @@
   <div class="view" bind:scrolltop="scroll" on:click="store" on:click.right="storeOne">
     <div class="content" bind:style:height="contentHeight" bind:style:padding-top="padTop">
       <div class="rows">
-        <div class="cell" each="visibleCells" as="c" key="c.id"
+        <for each="visibleCells" as="c" key="c.id"><div class="cell"
              on:click.left="take(c)" on:click.right="takeHalf(c)" on:click.left.shift="toInventory(c)">
           <mc-item class="icon" bind:item="c.stack"><span class="count" bind:text="c.count"></span></mc-item>
-        </div>
+        </div></for>
       </div>
     </div>
   </div>
   <!-- Three of the four inventory rows in view; the wheel scrolls to the hotbar. Ixchel draws the items, clipped. -->
   <div class="inventory">
     <div class="grid">
-      <mc-slot class="slot" each="inventory" as="i" key="i" bind:index="i"></mc-slot>
+      <for each="inventory" as="i" key="i"><mc-slot class="slot" bind:index="i"></mc-slot></for>
     </div>
   </div>
 </div>

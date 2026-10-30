@@ -1,7 +1,7 @@
 package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.binding.Action;
-import com.azane.ixchel.core.binding.Bindings;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.syntax.CssParser;
@@ -218,7 +218,7 @@ class UiDocumentScrollTest {
     private static UiDocument loadRows(Rows m) {
         UiDocument doc = UiDocument.load("""
                 <link rel="stylesheet" href="t.css"/>
-                <div id="list" on:wheel="swallow"><div each="rows" as="r" key="r" bind:text="r"></div></div><div id="free"></div>
+                <div id="list" on:wheel="swallow"><for each="rows" as="r" key="r"><div bind:text="r"></div></for></div><div id="free"></div>
                 """, "t.html", GoldenTest.sheet(LIST_CSS + "#free { height: 10px }"),
                 TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         doc.frame(100, 100);
@@ -290,7 +290,7 @@ class UiDocumentScrollTest {
     void bindScrolltopFollowsBothWaysAndWritesBackTheClampedOffset() {
         Scrolled m = new Scrolled();
         UiDocument doc = UiDocument.load(GoldenTest.linked("""
-                <div id="list" bind:scrolltop="scroll"><div each="rows" as="r" key="r" bind:text="r"></div></div>
+                <div id="list" bind:scrolltop="scroll"><for each="rows" as="r" key="r"><div bind:text="r"></div></for></div>
                 """), "t.html", GoldenTest.sheet(LIST_CSS), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES,
                 m, Bindings.PLAIN_TEXT);
         doc.frame(100, 100);

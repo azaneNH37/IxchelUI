@@ -48,6 +48,40 @@ class CssParserTest {
         assertEquals(new SourcePos("t.css", 2, 1), diag.entries().get(1).pos());
     }
 
+    private static String text(List<ComponentValue> values) {
+        StringBuilder out = new StringBuilder();
+        for (ComponentValue v : values) {
+            if (v instanceof ComponentValue.Function f) {
+                out.append(f.name()).append('(').append(text(f.args())).append(')');
+            } else {
+                out.append(((Token) v).value());
+            }
+        }
+        return out.toString();
+    }
+
+    @Test
+    void nestedRulesExpandAfterTheirParentWithAmpersandOrADescendantDefault() {
+        Diagnostics diag = new Diagnostics();
+        List<Rule> rules = CssParser.parseStylesheet("""
+                .a, .b { color: red; &:hover { x: 1 } > .c { x: 2 } .d { x: 3; :not(&.e) { x: 4 } } x: 5 }
+                """, "t.css", diag);
+        StringBuilder out = new StringBuilder();
+        for (Rule r : rules) {
+            out.append(text(r.prelude())).append(" {").append(r.declarations().size()).append("}\n");
+        }
+        assertEquals("""
+                .a, .b {2}
+                .a:hover,.b:hover {1}
+                .a > .c,.b > .c {1}
+                .a .d,.b .d {1}
+                :not(.a .d.e),:not(.b .d.e) {1}
+                """, out.toString());
+        assertFalse(diag.hasErrors());
+        CssParser.parseDeclarations("color: red; .x { y: 1 }", new SourcePos("t.html", 1, 1), diag);
+        assertEquals("nested rules are only allowed in a stylesheet", diag.entries().get(0).message());
+    }
+
     @Test
     void selectorListPreludeIsPreservedAndTrimmed() {
         List<Rule> rules = CssParser.parseStylesheet("  .a > .b, #c  {}", "t.css", new Diagnostics());

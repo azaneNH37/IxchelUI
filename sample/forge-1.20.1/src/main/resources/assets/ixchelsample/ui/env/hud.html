@@ -3,21 +3,21 @@
   <div class="vitals">
     <div class="line">
       <div class="icons">
-        <div class="icon heart" each="hearts" as="h" key="h.index">
+        <for each="hearts" as="h" key="h.index"><div class="icon heart">
           <div class="fill" bind:class:full="h.full" bind:class:half="h.half"></div>
-        </div>
+        </div></for>
       </div>
     </div>
-    <div class="line" if="armor > 0">
+    <if test="armor > 0"><div class="line">
       <div class="icons">
-        <div class="icon armor" each="armorIcons" as="a" key="a.index" bind:class:full="a.full" bind:class:half="a.half"></div>
+        <for each="armorIcons" as="a" key="a.index"><div class="icon armor" bind:class:full="a.full" bind:class:half="a.half"></div></for>
       </div>
-    </div>
+    </div></if>
     <div class="line">
       <div class="icons">
-        <div class="icon food" each="foodIcons" as="f" key="f.index">
+        <for each="foodIcons" as="f" key="f.index"><div class="icon food">
           <div class="fill" bind:class:full="f.full" bind:class:half="f.half"></div>
-        </div>
+        </div></for>
       </div>
     </div>
     <div class="xp">
@@ -29,43 +29,43 @@
     <div class="compass">
       <div class="bar">
         <div class="strip" bind:style:left="-heading">
-          <div class="mark" each="marks" as="m" key="m.id" bind:style:left="m.left" bind:class:major="m.major">
+          <for each="marks" as="m" key="m.id"><div class="mark" bind:style:left="m.left" bind:class:major="m.major">
             <div class="tick"></div>
             <span class="mark-label" bind:text="m.label"></span>
-          </div>
+          </div></for>
         </div>
         <div class="needle"></div>
       </div>
-      <div class="waypoint" each="markers" as="w" key="w.id" bind:style:left="w.left" bind:class:near="w.near" bind:class:edge="w.edge">
+      <for each="markers" as="w" key="w.id"><div class="waypoint" bind:style:left="w.left" bind:class:near="w.near" bind:class:edge="w.edge">
         <div class="pip"></div>
         <span class="waypoint-label" bind:text="w.label"></span>
-      </div>
+      </div></for>
     </div>
-    <div class="target" if="hasBlock || hasEntity">
-      <div class="block" if="hasBlock">
+    <if test="hasBlock || hasEntity"><div class="target">
+      <if test="hasBlock"><div class="block">
         <mc-item class="block-icon" bind:item="blockIcon"></mc-item>
         <div class="lines">
           <span class="name" bind:text="block.name"></span>
           <span class="tool" bind:class:bad="!block.harvestable" bind:text="block.tool"></span>
-          <div class="property" each="block.properties" as="p" key="p.name">
+          <for each="block.properties" as="p" key="p.name"><div class="property">
             <span class="key" bind:text="p.name"></span>
             <span class="value" bind:text="p.value"></span>
-          </div>
+          </div></for>
           <span class="mod" bind:text="block.mod"></span>
         </div>
-      </div>
-      <div class="entity" if="hasEntity">
+      </div></if>
+      <if test="hasEntity"><div class="entity">
         <span class="name" bind:text="entity.name"></span>
-        <div class="health" if="entity.living">
+        <if test="entity.living"><div class="health">
           <div class="health-bar">
             <div class="health-fill" bind:style:width="entityHealthWidth"></div>
           </div>
           <span class="health-text" bind:text="entityHealth"></span>
-        </div>
-        <span class="armor-text" if="entity.armor > 0" bind:text="entity.armor + ' armor'"></span>
+        </div></if>
+        <if test="entity.armor > 0"><span class="armor-text" bind:text="entity.armor + ' armor'"></span></if>
         <span class="mod" bind:text="entity.mod"></span>
-      </div>
-    </div>
+      </div></if>
+    </div></if>
   </div>
   <div class="world">
     <span class="biome" bind:text="world.biome"></span>

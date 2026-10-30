@@ -1,19 +1,19 @@
-package com.azane.ixchel.core.binding;
+package com.azane.ixchel.core.binding.expr;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 /** The reflective type questions of binding checks. */
-final class Types {
+public final class Types {
     private Types() {
     }
 
     /** The first type argument of a parameterized type, or {@code null}. */
-    static Type typeArgument(Type t) {
+    public static Type typeArgument(Type t) {
         return t instanceof ParameterizedType p ? p.getActualTypeArguments()[0] : null;
     }
 
-    static Class<?> rawClass(Type t) {
+    public static Class<?> rawClass(Type t) {
         if (t instanceof Class<?> c) {
             return c;
         }
@@ -41,11 +41,11 @@ final class Types {
     }
 
     /** The boxed raw class of {@code t}. */
-    static Class<?> boxed(Type t) {
+    public static Class<?> boxed(Type t) {
         return box(rawClass(t));
     }
 
-    static boolean isBoolean(Type t) {
+    public static boolean isBoolean(Type t) {
         return boxed(t) == Boolean.class;
     }
 
@@ -85,7 +85,7 @@ final class Types {
     }
 
     /** Whether a value of type {@code from} can be stored as {@code to}, widening numbers as Java does. */
-    static boolean assignable(Type from, Type to) {
+    public static boolean assignable(Type from, Type to) {
         if (boxed(to).isAssignableFrom(boxed(from))) {
             return true;
         }
@@ -95,7 +95,7 @@ final class Types {
     }
 
     /** {@code value} as {@code to}, after {@link #assignable} said yes. */
-    static Object convert(Object value, Type to) {
+    public static Object convert(Object value, Type to) {
         Num t = Num.of(to);
         return t != null && value instanceof Number n ? t.convert(n) : value;
     }

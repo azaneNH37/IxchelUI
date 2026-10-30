@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.character;
 
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
@@ -75,9 +76,9 @@ final class CharacterView extends ViewModel {
 
     /** A stable handle: the painter reads the player at paint time, so the binding never changes. */
     final Value<Supplier<LivingEntity>> doll = state(() -> Minecraft.getInstance().player);
-    final Value<List<AttributeRow>> attributes = source(ClientSources.player(CharacterView::attributes, List.of()));
-    final Value<List<EffectRow>> effects = source(ClientSources.player(CharacterView::effects, List.of()));
-    final Value<List<StatRow>> stats = source(ClientSources.player(CharacterView::stats, List.of()));
+    final Cell<List<AttributeRow>> attributes = source(ClientSources.player(CharacterView::attributes, List.of()));
+    final Cell<List<EffectRow>> effects = source(ClientSources.player(CharacterView::effects, List.of()));
+    final Cell<List<StatRow>> stats = source(ClientSources.player(CharacterView::stats, List.of()));
 
     final Action<Tab> select = action(t -> {
         tab.set(t.id());

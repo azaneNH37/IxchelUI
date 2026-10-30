@@ -98,5 +98,11 @@
 ## #016 模板上下文模型与控制块
 - **decided**: 2026-10-30
 - **context**: L2 组件需要确定闭包边界、写权限与类型检查方式；属性形式的 `each`/`if` 让同一元素上的指令分属行内外两个作用域，且一行只能是一个元素
-- **decision**: 模板中每个名字来源唯一、加载期确定，模板只触及 Java 显式暴露的东西（ViewModel `private` 字段不可见，`$` 只放框架值，`event` 改名 `$event`）；组件体只见自己的参数、事件与局部状态，写权限由使用方传入可写路径授予，未传入的参数取默认值成为实例的局部状态、无默认值即必填；不写类型注解，按每次实例化的真实类型检查、由组件体推导签名；模板组件不引入子 Scope；`each`/`if` 改为不渲染节点的 `<for each as key>`/`<if test>` 控制块，一次切换不留兼容。四条可分析性不变式与细节见 `ref/SD-ixchel-context-model-and-components-20261030.md`
-- **rejected**: 隐式继承外层上下文（WPF DataContext）——组件暗中依赖外层名字，无法加载期解析；参数声明 `bindable`——写权限应由使用方在自己的文本中给出；Java 侧登记组件类型——破坏纯 HTML 定制与资源包覆盖；保留属性形式的 `each`/`if` 作兼容——两套写法并存，作用域规则仍要为旧写法保留
+- **decision**: 模板中每个名字来源唯一、加载期确定，模板只触及 Java 显式暴露的东西（ViewModel `private` 字段不可见，`$` 只放框架值，`event` 改名 `$event`）；可写性只由声明类型决定：`source(...)` 声明为只读的 `Cell<T>`，`Value<T>` 只表示 state；组件体只见自己的参数、事件与局部状态，写权限由使用方传入可写路径授予，未传入的参数取默认值成为实例的局部状态、无默认值即必填；不写类型注解，按每次实例化的真实类型检查（签名推导与编译缓存暂不做）；模板组件不引入子 Scope；`each`/`if` 改为不渲染节点的 `<for each as key>`/`<if test>` 控制块，一次切换不留兼容。四条可分析性不变式与细节见 `ref/SD-ixchel-context-model-and-components-20261030.md`
+- **rejected**: 隐式继承外层上下文（WPF DataContext）——组件暗中依赖外层名字，无法加载期解析；参数声明 `bindable`——写权限应由使用方在自己的文本中给出；Java 侧登记组件类型——破坏纯 HTML 定制与资源包覆盖；保留属性形式的 `each`/`if` 作兼容——两套写法并存，作用域规则仍要为旧写法保留；`Value` 兼任 source 与 state、写入时运行时检查——可写性不能由类型决定；组件给外壳元素加指令（`:host` 等价物）——暂无真实需要，以后可纯增量加入
+
+## #017 包间内部接缝用一次性领取的访问接口
+- **decided**: 2026-10-30
+- **context**: binding 的模型与模板编译器共享内部不变式（不标脏的写入、每帧 poll、框架持有的单元格），Java 没有 internal，shade 时排除 `module-info` 使 JPMS 不可用，按契约拆包就得把这些成员交到另一个包
+- **decision**: 模型内部经 `binding.ModelAccess` 交给 `binding.compile`：实例由 `ModelAccess.claim()` 只发一次（`Bindings` 加载时领取），实现类 `Bridge` 与它触及的成员保持包内可见，依赖方向为 compile → binding；以后别的包需要模型内部时同样扩充这个接口，不公开成员
+- **rejected**: 公开成员并标 `@ApiStatus.Internal`、以 ArchUnit 限制调用方——宿主仍可绕过脏标记、改写 `Action` 的 pending；由 binding 调用 compile 的 `install`——两包循环依赖，违反 #006；保持单包——模型 API、表达式语言、模板绑定三份契约混在 25 个类中

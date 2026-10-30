@@ -7,47 +7,47 @@
     </div>
     <div class="body">
       <div class="categories">
-        <div class="category" each="categories" as="c" key="c.id" tabindex="0"
+        <for each="categories" as="c" key="c.id"><div class="category" tabindex="0"
              bind:class:active="c.active" on:click="select(c)" on:keydown.enter="select(c)">
           <span bind:text="c.label"></span>
-        </div>
+        </div></for>
       </div>
       <div class="entries">
-        <span class="none" if="rows.size == 0">No setting matches the search</span>
-        <div class="entry" each="rows" as="r" key="r.id" bind:title="r.comment"
+        <if test="rows.size == 0"><span class="none">No setting matches the search</span></if>
+        <for each="rows" as="r" key="r.id"><div class="entry" bind:title="r.comment"
              bind:class:modified="r.modified" bind:class:invalid="r.invalid">
           <div class="line">
             <div class="marker"></div>
             <span class="name" bind:text="r.label"></span>
-            <span class="restart" if="r.restart">restart</span>
+            <if test="r.restart"><span class="restart">restart</span></if>
             <div class="control">
-              <input if="r.bool" type="checkbox" class="check" bind:checked="r.on"/>
-              <div if="r.number" class="number">
+              <if test="r.bool"><input type="checkbox" class="check" bind:checked="r.on"/></if>
+              <if test="r.number"><div class="number">
                 <input type="range" class="slider" bind:min="r.min" bind:max="r.max" bind:step="r.step" bind:value="r.value"/>
                 <input type="number" class="num" bind:min="r.min" bind:max="r.max" bind:step="r.step" bind:value="r.value"/>
-              </div>
-              <select if="r.choice" class="choice" bind:value="r.value">
-                <option each="r.choices" as="o" key="o" bind:value="o" bind:text="o"></option>
-              </select>
-              <input if="r.text" class="text" bind:value="r.value"/>
-              <div if="r.color" class="color">
+              </div></if>
+              <if test="r.choice"><select class="choice" bind:value="r.value">
+                <for each="r.choices" as="o" key="o"><option bind:value="o" bind:text="o"></option></for>
+              </select></if>
+              <if test="r.text"><input class="text" bind:value="r.value"/></if>
+              <if test="r.color"><div class="color">
                 <div class="swatch" bind:style:background-color="r.swatch"></div>
                 <input class="hex" maxlength="7" bind:value="r.value"/>
-              </div>
-              <div if="r.list" class="list">
+              </div></if>
+              <if test="r.list"><div class="list">
                 <span class="summary" bind:text="r.value"></span>
                 <button class="edit" on:click="editList(r)">Edit</button>
-              </div>
+              </div></if>
               <button class="reset" bind:disabled="r.atDefault" on:click="reset(r)">Reset</button>
             </div>
           </div>
-          <span class="error" if="r.invalid" bind:text="r.error"></span>
-        </div>
+          <if test="r.invalid"><span class="error" bind:text="r.error"></span></if>
+        </div></for>
       </div>
     </div>
     <div class="footer">
       <span class="status" bind:text="status"></span>
-      <span class="note" if="restartPending">Some changes apply after rejoining a world</span>
+      <if test="restartPending"><span class="note">Some changes apply after rejoining a world</span></if>
       <button class="undo" bind:disabled="!canUndo" on:click="undo">Undo</button>
       <button class="cancel" on:click="cancel">Cancel</button>
       <button class="save" bind:disabled="!canSave" on:click="save">Save</button>
@@ -56,10 +56,10 @@
   <dialog class="list-dialog" bind:open="listOpen">
     <span class="dialog-title" bind:text="listTitle"></span>
     <div class="items">
-      <div class="item" each="items" as="i" key="i.id">
+      <for each="items" as="i" key="i.id"><div class="item">
         <input class="item-text" bind:value="i.text"/>
         <button class="remove" on:click="removeItem(i)">Remove</button>
-      </div>
+      </div></for>
     </div>
     <div class="dialog-row">
       <button class="add" on:click="addItem">Add</button>
