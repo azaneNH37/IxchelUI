@@ -3,6 +3,7 @@ package com.azane.ixchel.sample.client.index;
 import com.azane.ixchel.sample.character.CharacterScreen;
 import com.azane.ixchel.sample.config.ConfigScreen;
 import com.azane.ixchel.sample.env.EnvHud;
+import com.azane.ixchel.sample.guide.Guide;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
 import com.azane.ixchel.sample.registry.ModItems;
@@ -53,6 +54,10 @@ public final class Samples {
                 Sample.screen("quests", "Quest tree", "99 quests in three chapters on a canvas you drag and zoom; "
                         + "a quest unlocks when the ones before it are claimed, asks you to hold some items, and the "
                         + "server checks the claim before it gives the reward.", new ItemStack(Items.WRITABLE_BOOK),
-                        QuestsScreen::open));
+                        QuestsScreen::open),
+                Sample.screen("guide", "Guidebook", "A two-page book: contents built from the entry templates, "
+                        + "links with Back, page turns by arrow or key, styled paragraphs with items in the line, "
+                        + "Chinese text, and crafting grids that cycle through the accepted ingredients.",
+                        new ItemStack(Items.BOOK), Guide::open));
     }
 }

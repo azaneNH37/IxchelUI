@@ -1,0 +1,11 @@
+<link rel="stylesheet" href="recipe.css"/>
+<!-- A crafting grid of nine slots, an arrow and the result. -->
+<template name="guide-recipe" params="grid result">
+  <div class="recipe">
+    <div class="grid">
+      <for each="grid" as="s" key="s.index"><div class="cell"><mc-item class="item" bind:item="s.stack"></mc-item></div></for>
+    </div>
+    <div class="arrow"></div>
+    <div class="cell"><mc-item class="item" bind:item="result"></mc-item></div>
+  </div>
+</template>

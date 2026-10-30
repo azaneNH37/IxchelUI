@@ -12,12 +12,12 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
+import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.dom.TextField;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.core.text.TextShaper;
 
 import java.util.HashSet;
 import java.util.List;
@@ -302,7 +302,7 @@ public final class Painter {
     private void text(DisplayList out, float x, float y, float size, int color, String text) {
         int c = fade(color);
         if (c >>> 24 != 0) {
-            out.add(new DrawCommand.Text(x, y, size, c, text));
+            out.add(new DrawCommand.Text(x, y, size, c, text, 0));
         }
     }
 
@@ -462,39 +462,50 @@ public final class Painter {
         }
     }
 
+    /**
+     * Draws a text node's fragments as layout placed them, in its parent's color unless a styled span
+     * has its own; bold and italic come from the parent, decorations from every element up to and
+     * including the box holding the paragraph, and a span adds its own.
+     */
     private void paintText(TextNode t, ComputedStyle parent, float dy, DisplayList out) {
-        float size = parent.get(CssProperties.FONT_SIZE).value();
-        int color = fade(parent.get(CssProperties.COLOR));
-        if (color >>> 24 == 0) {
+        List<LayoutEngine.TextFragment> fragments = layout.fragments(t);
+        if (fragments.isEmpty()) {
             return;
         }
-        float lh = layout.lineHeight(size);
-        List<TextShaper.Line> lines = layout.lines(t);
-        LayoutBox b = t.box();
-        float align = switch (parent.get(CssProperties.TEXT_ALIGN)) {
-            case START, LEFT -> 0;
-            case CENTER -> 0.5f;
-            case END, RIGHT -> 1;
-        };
-        // text-overflow is the text's element's own: with a clip, lines past its padding box are cut.
-        Element owner = t.parent();
-        float limit = Float.POSITIVE_INFINITY;
-        if (parent.get(CssProperties.TEXT_OVERFLOW) == Keywords.TextOverflow.ELLIPSIS
-                && parent.get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE) {
-            limit = owner.box().x() + owner.box().width() - owner.box().borderRight() - b.x();
+        int flags = 0;
+        if (parent.get(CssProperties.FONT_WEIGHT) == Keywords.FontWeight.BOLD) {
+            flags |= StyledText.BOLD;
         }
-        for (int i = 0; i < lines.size(); i++) {
-            TextShaper.Line line = lines.get(i);
-            String text = line.text();
-            float x = b.x();
-            if (line.width() > limit) {
-                text = layout.ellipsize(text, size, limit);
-            } else {
-                // Whole pixels: a glyph at a fractional position is resampled and blurs. A line wider
-                // than the box starts at its start edge, as in CSS.
-                x += Math.max(0, Math.round((b.width() - line.width()) * align));
+        if (parent.get(CssProperties.FONT_STYLE) == Keywords.FontStyle.ITALIC) {
+            flags |= StyledText.ITALIC;
+        }
+        for (Element a = t.parent(); a != null; a = a.parent()) {
+            flags |= switch (a.computed().get(CssProperties.TEXT_DECORATION)) {
+                case NONE -> 0;
+                case UNDERLINE -> StyledText.UNDERLINE;
+                case LINE_THROUGH -> StyledText.STRIKETHROUGH;
+            };
+            if (a.box().fragments() == null) {
+                break; // the box holding the paragraph; inline elements have line fragments
             }
-            out.add(new DrawCommand.Text(x, b.y() - dy + i * lh, size, color, text));
+        }
+        int base = parent.get(CssProperties.COLOR);
+        StyledText styled = t.styled();
+        for (int i = 0; i < fragments.size(); i++) {
+            LayoutEngine.TextFragment f = fragments.get(i);
+            int color = base;
+            int own = flags;
+            if (f.span() >= 0) {
+                StyledText.Span s = styled.spans().get(f.span());
+                if (s.color() != 0) {
+                    color = s.color();
+                }
+                own |= s.flags();
+            }
+            color = fade(color);
+            if (color >>> 24 != 0) {
+                out.add(new DrawCommand.Text(f.x(), f.y() - dy, f.size(), color, f.text(), own));
+            }
         }
     }
 }

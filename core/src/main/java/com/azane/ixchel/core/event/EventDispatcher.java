@@ -600,7 +600,8 @@ public final class EventDispatcher {
             y = inverse.y(x, y);
             x = lx;
         }
-        boolean inside = x >= b.x() && y >= b.y() && x < b.x() + b.width() && y < b.y() + b.height();
+        // An inline element is hit on its line rectangles only, not across its bounding box.
+        boolean inside = b.contains(x, y);
         if (e.tag().equals("select")) {
             return inside ? e : null;
         }

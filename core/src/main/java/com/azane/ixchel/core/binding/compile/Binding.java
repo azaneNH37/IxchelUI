@@ -4,6 +4,7 @@ import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
 
@@ -42,21 +43,29 @@ abstract class Binding implements Part {
 
     abstract boolean write(Object value);
 
-    /** {@code bind:text}: the element's only child, a text node. */
+    /** {@code bind:text}: the element's only child, a text node; styled when the converter gives styles. */
     static final class Text extends Binding {
-        private final Function<Object, String> textOf;
+        private final Bindings.TextConverter converter;
         private final TextNode text;
 
-        Text(Cell<?> cell, Directive a, Diagnostics diag, Function<Object, String> textOf, TextNode text) {
+        Text(Cell<?> cell, Directive a, Diagnostics diag, Bindings.TextConverter converter, TextNode text) {
             super(cell, a, diag);
-            this.textOf = textOf;
+            this.converter = converter;
             this.text = text;
         }
 
         @Override
         boolean write(Object value) {
-            String s = textOf.apply(value);
-            if (s.equals(text.text())) {
+            StyledText styled = converter.styled(value);
+            if (styled != null) {
+                if (styled.equals(text.styled())) {
+                    return false;
+                }
+                text.setStyled(styled);
+                return true;
+            }
+            String s = converter.plain(value);
+            if (text.styled() == null && s.equals(text.text())) {
                 return false;
             }
             text.setText(s);

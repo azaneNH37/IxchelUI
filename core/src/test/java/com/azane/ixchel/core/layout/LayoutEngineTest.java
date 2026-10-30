@@ -23,13 +23,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class LayoutEngineTest {
     private static final TextMeasurer MONO = new TextMeasurer() {
         @Override
-        public float width(String text, float size) {
+        public float width(String text, float size, boolean bold) {
             return text.length() * 6;
         }
 
         @Override
         public float lineHeight(float size) {
             return size;
+        }
+
+        @Override
+        public float baseline(float size) {
+            return size * 7 / 9;
         }
     };
 
@@ -43,7 +48,7 @@ class LayoutEngineTest {
         StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(
                 ".a { width: 10px } .hot { color: #f00 } .wide { width: 20px }", "t.css", diag), CssProperties.REGISTRY, diag);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
-        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, TagRegistry.HTML, diag);
         style.restyle(root);
         layout.layout(root, 100, 100, new TopLayer());
         assertEquals(1, layout.computeCount);
@@ -73,7 +78,7 @@ class LayoutEngineTest {
                 ".row { flex-direction: row; align-items: flex-start } .mark { width: 2px; height: 2px }",
                 "t.css", diag), CssProperties.REGISTRY, diag);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
-        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, TagRegistry.HTML, diag);
         style.restyle(root);
         layout.layout(root, 100, 100, new TopLayer());
         Element row = (Element) root.children().get(0);
@@ -86,13 +91,13 @@ class LayoutEngineTest {
         style.restyle(root);
         layout.layout(root, 100, 100, new TopLayer());
         assertEquals(1, layout.computeCount);
-        assertEquals("x6", layout.lines(text).get(0).text());
+        assertEquals("x6", layout.fragments(text).get(0).text());
 
         text.setText("x10");
         style.restyle(root);
         layout.layout(root, 100, 100, new TopLayer());
         assertEquals(2, layout.computeCount);
         assertEquals(18, mark.box().x());
-        assertEquals("x10", layout.lines(text).get(0).text());
+        assertEquals("x10", layout.fragments(text).get(0).text());
     }
 }

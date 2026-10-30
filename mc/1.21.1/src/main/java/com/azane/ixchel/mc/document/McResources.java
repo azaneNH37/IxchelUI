@@ -2,12 +2,15 @@ package com.azane.ixchel.mc.document;
 
 import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.ViewModel;
+import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.mc.paint.McImageMeasurer;
 import com.azane.ixchel.mc.paint.McTextMeasurer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 
@@ -17,6 +20,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Reads UI files from the host mod's resources ({@code assets/<hostModId>/<path>}), or from its
@@ -60,7 +64,7 @@ final class McResources {
             String ns = id.substring(0, colon);
             String path = id.substring(colon + 1);
             return ns.equals(hostModId) ? read(resources, path) : readPacked(resources, ResourceLocation.fromNamespaceAndPath(ns, path));
-        }, tags, new McTextMeasurer(Minecraft.getInstance().font), new McImageMeasurer(resources), model, McResources::text);
+        }, tags, new McTextMeasurer(Minecraft.getInstance().font), new McImageMeasurer(resources), model, TEXT);
         String host = name("");
         List<String> files = new ArrayList<>();
         for (String id : document.files()) {
@@ -86,8 +90,38 @@ final class McResources {
         }
     }
 
-    private static String text(Object value) {
-        return value instanceof Component c ? c.getString() : Bindings.PLAIN_TEXT.apply(value);
+    /** A {@link Component} keeps its colors and formatting in {@code bind:text}; elsewhere it is its plain string. */
+    private static final Bindings.TextConverter TEXT = new Bindings.TextConverter() {
+        @Override
+        public String plain(Object value) {
+            return value instanceof Component c ? c.getString() : Bindings.PLAIN_TEXT.plain(value);
+        }
+
+        @Override
+        public StyledText styled(Object value) {
+            if (!(value instanceof Component c)) {
+                return null;
+            }
+            List<StyledText.Span> spans = new ArrayList<>();
+            c.visit((style, text) -> {
+                if (!text.isEmpty()) {
+                    spans.add(new StyledText.Span(text, color(style), flags(style)));
+                }
+                return Optional.empty();
+            }, Style.EMPTY);
+            return new StyledText(spans);
+        }
+    };
+
+    private static int color(Style style) {
+        TextColor c = style.getColor();
+        return c == null ? 0 : 0xFF000000 | c.getValue();
+    }
+
+    private static int flags(Style style) {
+        return (style.isBold() ? StyledText.BOLD : 0) | (style.isItalic() ? StyledText.ITALIC : 0)
+                | (style.isUnderlined() ? StyledText.UNDERLINE : 0) | (style.isStrikethrough() ? StyledText.STRIKETHROUGH : 0)
+                | (style.isObfuscated() ? StyledText.OBFUSCATED : 0);
     }
 
     private String name(String path) {

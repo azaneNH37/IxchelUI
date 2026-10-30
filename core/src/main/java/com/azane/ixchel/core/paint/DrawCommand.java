@@ -1,6 +1,7 @@
 package com.azane.ixchel.core.paint;
 
 import com.azane.ixchel.core.css.property.Affine;
+import com.azane.ixchel.core.dom.StyledText;
 
 /**
  * The contract between the core and the mc painter. Coordinates are document GUI pixels; colors are
@@ -49,8 +50,11 @@ public sealed interface DrawCommand
         }
     }
 
-    /** {@code (x, y)} is the top-left of the line box; {@code size} is the font size in GUI pixels. */
-    record Text(float x, float y, float size, int color, String text) implements DrawCommand {
+    /**
+     * {@code (x, y)} is the top-left of a line of the text's font; {@code size} is the font size in GUI
+     * pixels. {@code flags} are {@link StyledText}'s: bold, italic, underline, strikethrough, obfuscated.
+     */
+    record Text(float x, float y, float size, int color, String text, int flags) implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitText(this);

@@ -8,10 +8,13 @@ import com.azane.ixchel.core.css.property.Keywords.BorderStyle;
 import com.azane.ixchel.core.css.property.Keywords.Display;
 import com.azane.ixchel.core.css.property.Keywords.FlexDirection;
 import com.azane.ixchel.core.css.property.Keywords.FlexWrap;
+import com.azane.ixchel.core.css.property.Keywords.FontStyle;
+import com.azane.ixchel.core.css.property.Keywords.FontWeight;
 import com.azane.ixchel.core.css.property.Keywords.JustifyContent;
 import com.azane.ixchel.core.css.property.Keywords.Overflow;
 import com.azane.ixchel.core.css.property.Keywords.Position;
 import com.azane.ixchel.core.css.property.Keywords.TextAlign;
+import com.azane.ixchel.core.css.property.Keywords.TextDecoration;
 import com.azane.ixchel.core.css.property.Keywords.TextOverflow;
 import com.azane.ixchel.core.css.property.Keywords.WhiteSpace;
 
@@ -32,7 +35,8 @@ import static com.azane.ixchel.core.css.property.Syntaxes.transitionProperty;
 
 /**
  * The supported property set. Departures from CSS initial values: {@code display} is {@code flex}
- * and {@code flex-direction} is {@code column} (no document flow), {@code color} is white, and sizes
+ * and {@code flex-direction} is {@code column} (no block flow: a {@code block} holds only inline content,
+ * see {@link Display}), {@code color} is white, and sizes
  * ({@code width}, {@code min-height}, ...) are border-box sizes, as with {@code box-sizing: border-box}.
  * Animatable properties are those whose values {@code anim} may interpolate; the
  * {@code transition-*} lists are cycled per property as in CSS.
@@ -125,11 +129,16 @@ public final class CssProperties {
     public static final PropertyDef<Integer> COLOR = R.register("color", color(), 0xFFFFFFFF, true, false, true);
     /** The check mark of a checked checkbox and the filled track and thumb of a range input; no {@code auto}. */
     public static final PropertyDef<Integer> ACCENT_COLOR = R.register("accent-color", color(), 0xFF3C78D8, true, false, true);
-    /** Aligns each line of a text node inside the text's box, which spans its container's width unless the flex layout shrinks it. */
+    /** Aligns each line inside the box holding the text: a {@code block}, or a flex container's own text, whose box spans the container unless the flex layout shrinks it. */
     public static final PropertyDef<TextAlign> TEXT_ALIGN = R.register("text-align", keyword(TextAlign.class), TextAlign.START, true, false, false);
     public static final PropertyDef<WhiteSpace> WHITE_SPACE = R.register("white-space", keyword(WhiteSpace.class), WhiteSpace.NORMAL, true, true, false);
     public static final PropertyDef<TextOverflow> TEXT_OVERFLOW = R.register("text-overflow", keyword(TextOverflow.class), TextOverflow.CLIP, false, false, false);
     public static final PropertyDef<Length> FONT_SIZE = R.register("font-size", length(false, false, false), Length.px(9), true, true, true);
+    /** Bold text is wider in the vanilla font, so the weight affects layout. */
+    public static final PropertyDef<FontWeight> FONT_WEIGHT = R.register("font-weight", keyword(FontWeight.class), FontWeight.NORMAL, true, true, false);
+    public static final PropertyDef<FontStyle> FONT_STYLE = R.register("font-style", keyword(FontStyle.class), FontStyle.NORMAL, true, false, false);
+    public static final PropertyDef<TextDecoration> TEXT_DECORATION =
+            R.register("text-decoration", keyword(TextDecoration.class), TextDecoration.NONE, false, false, false);
 
     public static final PropertyDef<List<String>> TRANSITION_PROPERTY =
             R.register("transition-property", transitionProperty(R), List.of("all"), false, false, false);

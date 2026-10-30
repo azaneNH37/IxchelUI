@@ -1,6 +1,7 @@
 package com.azane.ixchel.mc.paint;
 
 import com.azane.ixchel.core.css.property.Affine;
+import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -13,7 +14,9 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import org.joml.Matrix4f;
 
 import java.util.ArrayDeque;
@@ -36,6 +39,16 @@ import java.util.Map;
  */
 public final class McPainter implements DrawCommand.Visitor<Void> {
     private static final float VANILLA_SIZE = 9f;
+    /** The font style of each {@link StyledText} flag combination. */
+    private static final Style[] STYLES = new Style[32];
+
+    static {
+        for (int f = 0; f < STYLES.length; f++) {
+            STYLES[f] = Style.EMPTY.withBold((f & StyledText.BOLD) != 0).withItalic((f & StyledText.ITALIC) != 0)
+                    .withUnderlined((f & StyledText.UNDERLINE) != 0).withStrikethrough((f & StyledText.STRIKETHROUGH) != 0)
+                    .withObfuscated((f & StyledText.OBFUSCATED) != 0);
+        }
+    }
 
     private enum Batch { NONE, COLOR, TEXTURE, TEXT }
 
@@ -140,14 +153,15 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
             return null;
         }
         float scale = c.size() / VANILLA_SIZE;
+        FormattedCharSequence text = FormattedCharSequence.forward(c.text(), STYLES[c.flags()]);
         float z = 0;
         // Measuring is only needed once something is raised.
         if (!layers.isEmpty()) {
-            z = level(c.x(), c.y(), c.x() + font.width(c.text()) * scale, c.y() + c.size());
+            z = level(c.x(), c.y(), c.x() + font.width(text) * scale, c.y() + c.size());
         }
         begin(Batch.TEXT, null);
         textMatrix.set(pose).translate(c.x(), c.y(), z).scale(scale, scale, 1);
-        font.drawInBatch(c.text(), 0, 0, c.color(), false, textMatrix, graphics.bufferSource(),
+        font.drawInBatch(text, 0, 0, c.color(), false, textMatrix, graphics.bufferSource(),
                 Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
         return null;
     }

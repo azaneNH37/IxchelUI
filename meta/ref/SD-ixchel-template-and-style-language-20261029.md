@@ -437,7 +437,9 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 6. 宿主原生元素的登记入口（与 §3.4 的 Java 组件登记是否合并）。
 7. ~~代码命名~~ 已做（L1）：`BindAttribute` → `Directive`，`isBindingAttribute` → `isDirective`，`Element.bindings()` → `directives()`。
 8. `null` 是否显式化（`?.`、`??`）。现行规则（§3.6）是隐式的：路径途经 `null` 时算术得 `null`、大小比较为 `false`、布尔运算按 `false`，可能掩盖本该报出的错误；尚未观察到实际问题，组件参数的默认值已消除"未传入即 `null`"。等出现第一处被吞掉的错误再定。
+9. ~~tooltip 的写法~~ 已定（E2 前）：库元素 `<ix-tooltip>`，不用 `popover="hint"` + `interestfor` + anchor positioning，理由与语义见路线图 E2。
+10. ~~链接~~ 已定（E1 前）：标准 `<a>`，库不解释 `href`，导航由 ViewModel 动作完成。
 
 ### 7. 实现顺序
 
-见 `ref/D-ixchel-roadmap-20261029.md`（阶段 D0、L1、L2、L3、I）。
+见 `ref/D-ixchel-roadmap-20261029.md`（阶段 D0、L1、L2、L3、E1、E2、I）。

@@ -154,6 +154,13 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 检查驱动：`Script.drag(sel, dx, dy)`；`paintedCenter` 取经变换与滚动后的绘制中心，`click`/`hover` 均改用它。
 - 帧耗时：S7 静止中位数 / p95 约 2.2–2.6 / 2.8–4.1 ms，每 tick 平移约 2.1–2.3 / 3.1–3.8 ms，预算均 8 ms。
 
+阶段 E1 结果（2026-10-31）：
+- S8 为 `guide`（索引入口 `Guide.open`）。页面类型是 `ui/guide/` 下三个组件：`guide-book`（两张书页并排、按 spread 平移页带、目录 / 返回 / 翻页导航）、`guide-page`（参数 `heading`，正文是 `display: block` 的 `.text` 段落）、`guide-recipe`（3×3 网格、箭头、成品）；条目在 `ui/guide/entries/`，目录由 `ResourceManager.listResources` 生成并排序，标题取自文件名。分页由作者写一个个 `<guide-page>`，`GuideScreen` 渲染后按 `.page` 数回写页数。
+- 返回历史放在静态 `Guide`（记录条目与 spread）：`HostedDocument.close()` 会关闭 view model，换条目即换屏，每屏新建 `GuideView`。配方由 `RecipeManager` 取 `ShapedRecipe`，各格按 `Source.polled(nanoTime)` 轮换 `Ingredient.getItems()`。
+- 检查 `guide` 17 项：目录列出全部条目、段内链接、翻页按钮与 Left/Right、第二个 spread 上的链接、配方格轮换、Back 回到链接所在 spread、Backspace 回目录且历史清空、中文页、加载无诊断、帧耗时。
+- 帧耗时（6 页长条目）：静止 p95 约 0.9–1.3 ms，逐 tick 翻页约 1.1–1.6 ms，预算 3 / 3.5 ms。
+- 外观：超长单词在 `.text` 上 `overflow: hidden` 裁在文字区内；原版 `book.png` 只有左侧书脊，两页并排时右页同样在左侧有书脊（不支持镜像）。
+
 ### 4. 自动化检查
 
 #### 4.1 现状

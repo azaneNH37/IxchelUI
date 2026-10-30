@@ -1,0 +1,9 @@
+<link rel="stylesheet" href="page.css"/>
+<!-- One page of a <guide-book>; its paragraphs are <div class="text"> (display: block: an inline
+     formatting context). -->
+<template name="guide-page" params="heading=''">
+  <div class="page">
+    <if test="heading != ''"><span class="heading" bind:text="heading"></span></if>
+    <slot></slot>
+  </div>
+</template>

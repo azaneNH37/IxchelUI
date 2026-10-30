@@ -1,0 +1,39 @@
+<link rel="stylesheet" href="@ixchel/dark.css"/>
+<link rel="component" href="../book.html"/>
+<link rel="component" href="../page.html"/>
+<guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
+            on:prev="prev" on:next="next" on:back="back" on:contents="contents"
+            on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
+  <guide-page heading="Circuits">
+    <div class="text">
+      <mc-item class="icon" bind:item="icons.redstone"></mc-item> <span class="b red">Redstone dust</span>
+      carries a signal up to <span class="b">15 blocks</span>; each block it crosses weakens it by one.
+    </div>
+    <div class="text">
+      A <mc-item class="icon" bind:item="icons.torch"></mc-item> <span class="b">redstone torch</span>
+      is a power source that turns <span class="i">off</span> when the block it stands on is powered.
+    </div>
+    <div class="text">
+      A <a on:click="open('pistons')">piston</a> pushes up to twelve blocks when powered.
+    </div>
+  </guide-page>
+  <guide-page heading="Lamps">
+    <img class="picture" src="minecraft:textures/block/redstone_lamp_on.png"/>
+    <div class="text">
+      A <mc-item class="icon" bind:item="icons.lamp"></mc-item> <span class="b">redstone lamp</span>
+      lights up while powered and goes dark <span class="green">two ticks</span> after the signal ends.
+    </div>
+  </guide-page>
+  <guide-page heading="Repeaters">
+    <div class="text">
+      A <mc-item class="icon" bind:item="icons.repeater"></mc-item> <span class="b">repeater</span>
+      restores a signal to full strength and delays it by one to four ticks; right-click it to
+      change the delay.
+    </div>
+    <div class="text">
+      <span class="muted">Signals do not pass through a</span>
+      <span class="s">repeater</span> <span class="muted">backwards: it is a diode.</span>
+      Keep the parts of a build in <a on:click="open('storage')">storage</a> nearby.
+    </div>
+  </guide-page>
+</guide-book>

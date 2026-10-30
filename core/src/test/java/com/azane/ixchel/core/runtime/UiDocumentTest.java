@@ -153,13 +153,18 @@ class UiDocumentTest {
         float[] advance = {6};
         TextMeasurer font = new TextMeasurer() {
             @Override
-            public float width(String text, float size) {
+            public float width(String text, float size, boolean bold) {
                 return text.length() * advance[0];
             }
 
             @Override
             public float lineHeight(float size) {
                 return size;
+            }
+
+            @Override
+            public float baseline(float size) {
+                return size * 7 / 9;
             }
         };
         UiDocument doc = load("""

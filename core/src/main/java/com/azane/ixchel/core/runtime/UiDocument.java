@@ -43,8 +43,9 @@ import java.util.function.LongSupplier;
  *
  * <p>Below the template's stylesheets sit the theme layer, the library stylesheets the page links
  * as {@code @ixchel/<name>}, the component layer, the stylesheets component files link, and a
- * user-agent stylesheet with the defaults of the form controls and {@code <dialog>} (see
- * {@link LibrarySheets}). Open selects and dialogs live in the document's {@link TopLayer}, which
+ * user-agent stylesheet with the defaults of the inline elements, the native elements, the form
+ * controls and {@code <dialog>} (see {@link LibrarySheets}). Open selects and dialogs live in the
+ * document's {@link TopLayer}, which
  * layout, paint and input share.
  */
 public final class UiDocument {
@@ -106,11 +107,11 @@ public final class UiDocument {
      *                     is reported as a load error at the link
      * @param images       natural image sizes, for {@code background-size: auto}
      * @param model        the view model {@code bind:*} attributes refer to, or {@code null}
-     * @param textOf       converts bound values to text (the mc layer flattens components)
+     * @param text         converts bound values to text (the mc layer keeps a component's styles)
      */
     public static UiDocument load(String template, String templateFile, Function<String, String> files,
                                   TagRegistry tags, TextMeasurer measurer, ImageMeasurer images, ViewModel model,
-                                  Function<Object, String> textOf) {
+                                  Bindings.TextConverter text) {
         Diagnostics diag = new Diagnostics();
         TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, tags, diag);
         List<StyleSheet> components = sheets(loaded.componentSheets(), diag);
@@ -121,14 +122,16 @@ public final class UiDocument {
             root.appendChild(n);
         }
         TopLayer topLayer = new TopLayer();
-        Bindings bindings = Bindings.compile(root, model, loaded.components(), textOf, tags, CssProperties.REGISTRY,
+        Bindings bindings = Bindings.compile(root, model, loaded.components(), text, tags, CssProperties.REGISTRY,
                 topLayer, diag);
         Transitions transitions = new Transitions(CssProperties.REGISTRY, root);
-        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(LibrarySheets.USER_AGENT), components, themes, author,
+        List<StyleSheet> userAgent = new ArrayList<>(List.of(LibrarySheets.USER_AGENT));
+        userAgent.addAll(LibrarySheets.nativeElements(tags));
+        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, userAgent, components, themes, author,
                 diag, transitions);
         style.restyle(root);
         diag.throwIfErrors();
-        LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY, tags, diag);
         return new UiDocument(root, loaded.files(), diag, style, layout, bindings, tags, images, transitions,
                 topLayer);
     }

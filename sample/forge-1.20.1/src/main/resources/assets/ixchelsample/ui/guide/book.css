@@ -1,0 +1,79 @@
+guide-book {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The page of textures/gui/book.png is 146×180 at (20, 1). */
+.book {
+  position: relative;
+  width: 292px;
+  height: 180px;
+}
+
+.leaf {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 146px;
+  height: 180px;
+  background-image: url("minecraft:textures/gui/book.png");
+  background-size: 256px 256px;
+  background-position: -20px -1px;
+  background-repeat: no-repeat;
+}
+
+.leaf.right {
+  left: 146px;
+}
+
+.window {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 292px;
+  height: 180px;
+  overflow: hidden;
+}
+
+.strip {
+  flex-direction: row;
+}
+
+.nav {
+  flex-direction: row;
+  align-items: center;
+  width: 292px;
+  margin-top: 4px;
+}
+
+.nav button {
+  padding: 3px 6px;
+  margin-right: 4px;
+}
+
+.turns {
+  flex-direction: row;
+  flex-grow: 1;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.folio {
+  margin: 0 6px;
+}
+
+/* The page arrows of book.png: 23×13, forward at (0, 192), back at (0, 205), hovered 23 to the right. */
+.turn {
+  width: 23px;
+  height: 13px;
+  background-image: url("minecraft:textures/gui/book.png");
+  background-size: 256px 256px;
+  background-repeat: no-repeat;
+}
+
+.next { background-position: 0 -192px; }
+.next:hover { background-position: -23px -192px; }
+.prev { background-position: 0 -205px; }
+.prev:hover { background-position: -23px -205px; }

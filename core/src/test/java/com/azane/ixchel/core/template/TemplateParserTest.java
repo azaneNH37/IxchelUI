@@ -27,6 +27,11 @@ class TemplateParserTest {
         return ((TextNode) n).text();
     }
 
+    /** {@code e}'s element children, without the whitespace between them. */
+    private static List<Element> elements(Node e) {
+        return el(e).children().stream().filter(n -> n instanceof Element).map(n -> (Element) n).toList();
+    }
+
     @Test
     void goldenHudParsesIntoExpectedTree() throws IOException {
         String source;
@@ -40,18 +45,19 @@ class TemplateParserTest {
         Element hand = el(t.roots().get(0));
         assertEquals("div", hand.tag());
         assertTrue(hand.hasClass("hand"));
-        assertEquals(3, hand.children().size());
-        Element gun = el(hand.children().get(0));
+        List<Element> parts = elements(hand);
+        assertEquals(3, parts.size());
+        Element gun = parts.get(0);
         assertEquals("img", gun.tag());
         assertEquals("tacz:textures/hud/gun.png", gun.attribute("src"));
-        assertTrue(el(hand.children().get(1)).children().isEmpty());
-        Element info = el(hand.children().get(2));
-        Element counts = el(info.children().get(0));
-        assertEquals("030", text(el(counts.children().get(0)).children().get(0)));
-        Element side = el(counts.children().get(1));
-        assertEquals("0120", text(el(side.children().get(0)).children().get(0)));
-        assertEquals("tacz:textures/hud/fire_mode_auto.png", el(side.children().get(1)).attribute("src"));
-        Element version = el(info.children().get(1));
+        assertTrue(parts.get(1).children().isEmpty());
+        Element info = parts.get(2);
+        Element counts = elements(info).get(0);
+        assertEquals("030", text(elements(counts).get(0).children().get(0)));
+        Element side = elements(counts).get(1);
+        assertEquals("0120", text(elements(side).get(0).children().get(0)));
+        assertEquals("tacz:textures/hud/fire_mode_auto.png", elements(side).get(1).attribute("src"));
+        Element version = elements(info).get(1);
         assertTrue(version.hasClass("version"));
         assertEquals("v1.1.4", text(version.children().get(0)));
     }
@@ -135,14 +141,17 @@ class TemplateParserTest {
     }
 
     @Test
-    void whitespaceOnlyTextDroppedAndInnerWhitespaceCollapsed() {
+    void whitespaceCollapsesAndIsKeptOnlyBetweenSiblings() {
         Diagnostics diag = new Diagnostics();
-        Template t = TemplateParser.parse("<div>\n  <span>  a \n\t b  </span>\n</div>", "t.html", TagRegistry.HTML, diag);
+        Template t = TemplateParser.parse("<div>\n  <span>  a \n\t b  </span>\n  <span>c</span>\n</div>\n<div></div>",
+                "t.html", TagRegistry.HTML, diag);
+        assertEquals(2, t.roots().size(), "whitespace between top-level nodes is dropped");
         Element div = el(t.roots().get(0));
-        assertEquals(1, div.children().size());
+        assertEquals(3, div.children().size(), "leading and trailing whitespace is dropped, the gap stays");
+        assertEquals(" ", text(div.children().get(1)));
         Node text = el(div.children().get(0)).children().get(0);
-        assertEquals("a b", text(text));
-        assertEquals(new SourcePos("t.html", 2, 11), text.pos());
+        assertEquals(" a b ", text(text), "the ends stay for layout to drop at line edges");
+        assertEquals(new SourcePos("t.html", 2, 9), text.pos());
     }
 
     @Test

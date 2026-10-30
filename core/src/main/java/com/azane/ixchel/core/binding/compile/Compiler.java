@@ -43,7 +43,6 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 import static com.azane.ixchel.core.binding.compile.Bindings.MODEL;
-import java.util.function.Function;
 
 /**
  * Resolves a document's directives, blocks and component instances into {@link Part}s. Every block
@@ -73,18 +72,18 @@ final class Compiler {
     /** The implicit document root; unfocused key events target it. */
     private final Element documentRoot;
     private final ViewModel model;
-    private final Function<Object, String> textOf;
+    private final Bindings.TextConverter text;
     private final TagRegistry tags;
     private final PropertyRegistry properties;
     private final TopLayer topLayer;
     private final Map<String, ComponentDef> components;
     private Env env;
 
-    Compiler(Element documentRoot, ViewModel model, String owner, Function<Object, String> textOf, TagRegistry tags,
+    Compiler(Element documentRoot, ViewModel model, String owner, Bindings.TextConverter text, TagRegistry tags,
              PropertyRegistry properties, TopLayer topLayer, Map<String, ComponentDef> components, Diagnostics diag) {
         this.documentRoot = documentRoot;
         this.model = model;
-        this.textOf = textOf;
+        this.text = text;
         this.tags = tags;
         this.properties = properties;
         this.topLayer = topLayer;
@@ -521,13 +520,18 @@ final class Compiler {
             return null;
         }
         if (target.equals("text")) {
-            if (!e.children().isEmpty()) {
-                diag().error(a.namePos(), "bind:text replaces the content of <" + e.tag() + ">; leave it empty");
-                return null;
+            for (Node c : e.children()) {
+                if (!(c instanceof TextNode t) || !t.text().isBlank()) {
+                    diag().error(a.namePos(), "bind:text replaces the content of <" + e.tag() + ">; leave it empty");
+                    return null;
+                }
             }
-            TextNode text = new TextNode("", a.valuePos());
-            e.appendChild(text);
-            return new Binding.Text(ref.cell(), a, diag(), textOf, text);
+            while (!e.children().isEmpty()) {
+                e.removeChild(e.children().get(0));
+            }
+            TextNode node = new TextNode("", a.valuePos());
+            e.appendChild(node);
+            return new Binding.Text(ref.cell(), a, diag(), text, node);
         }
         if (!shell && target.equals(tags.payloadAttribute(e.tag()))) {
             return new Binding.Payload(ref.cell(), a, diag(), e);
@@ -556,7 +560,7 @@ final class Compiler {
                 if (target.indexOf(':') >= 0 || !allowed) {
                     diag().error(a.namePos(), "unknown binding target '" + a.name() + "' on <" + e.tag() + ">");
                 } else {
-                    return new Binding.Attribute(ref.cell(), a, diag(), textOf, e, target);
+                    return new Binding.Attribute(ref.cell(), a, diag(), text::plain, e, target);
                 }
             }
         }
@@ -849,7 +853,7 @@ final class Compiler {
         if (e instanceof Expr.Path p) {
             return resolve(a, p);
         }
-        Expressions.Compiled c = Expressions.compile(e, p -> resolve(a, p), textOf,
+        Expressions.Compiled c = Expressions.compile(e, p -> resolve(a, p), text::plain,
                 (offset, message) -> diag().error(at(a, offset), message));
         return c == null ? null : new Ref(MODEL.derived(c.inputs(), c.eval()), c.type());
     }

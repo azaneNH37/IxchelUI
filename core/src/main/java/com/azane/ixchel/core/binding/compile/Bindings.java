@@ -5,12 +5,12 @@ import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.template.ComponentDef;
 import com.azane.ixchel.core.template.TagRegistry;
 
 import java.util.Map;
-import java.util.function.Function;
 
 /**
  * The directives, blocks and component instances of one document, resolved against its view model.
@@ -73,8 +73,23 @@ import java.util.function.Function;
  * An invalid value keeps the last valid one and is reported once until a valid value arrives.
  */
 public final class Bindings {
-    /** Converts a bound value to text: {@code null} is empty, everything else {@link String#valueOf}. */
-    public static final Function<Object, String> PLAIN_TEXT = v -> v == null ? "" : String.valueOf(v);
+    /**
+     * Converts bound values to text: {@link #plain} for expressions and attributes, {@link #styled} first
+     * for {@code bind:text}, so a host text object (a Minecraft {@code Component}) keeps its colors and
+     * formatting there.
+     */
+    @FunctionalInterface
+    public interface TextConverter {
+        String plain(Object value);
+
+        /** The value as styled text, or {@code null} to show {@link #plain} text. */
+        default StyledText styled(Object value) {
+            return null;
+        }
+    }
+
+    /** {@code null} is empty, everything else {@link String#valueOf}; nothing is styled. */
+    public static final TextConverter PLAIN_TEXT = v -> v == null ? "" : String.valueOf(v);
 
     /** The model internals this package uses; taken once, when the first document compiles. */
     static final ModelAccess MODEL = ModelAccess.claim();
@@ -94,17 +109,17 @@ public final class Bindings {
      *
      * @param model      the view model, or {@code null}: the document then sees only its local states
      * @param components the components the document's tags name
-     * @param textOf     converts bound values for {@code bind:text} and attribute bindings
+     * @param text       converts bound values for {@code bind:text}, attribute bindings and string concatenation
      * @param properties the properties {@code bind:style:*} may set
      * @param topLayer   where {@code bind:open} opens and closes dialogs
      */
     public static Bindings compile(Element root, ViewModel model, Map<String, ComponentDef> components,
-                                   Function<Object, String> textOf, TagRegistry tags, PropertyRegistry properties,
+                                   TextConverter text, TagRegistry tags, PropertyRegistry properties,
                                    TopLayer topLayer, Diagnostics diag) {
         ViewModel m = model != null ? model : new ViewModel() {
         };
         String owner = model != null ? model.getClass().getSimpleName() : "the view model (this document has none)";
-        Compiler c = new Compiler(root, m, owner, textOf, tags, properties, topLayer, components, diag);
+        Compiler c = new Compiler(root, m, owner, text, tags, properties, topLayer, components, diag);
         Part.Group group = new Part.Group();
         c.compileRoot(group);
         Bindings b = new Bindings(m, group);

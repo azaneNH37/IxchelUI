@@ -65,13 +65,13 @@ flowchart LR
 - 布局只在计算值中 `affectsLayout` 属性变化、文本、字号或子节点列表变化，或视口变化时才跑 taffy；只改颜色、背景等的重算不调用 taffy `setStyle`。
 - 干净帧：上一帧以来无重算、无文本与子节点变化、视口不变、未调用 `invalidateText()` 时，`UiDocument.frame` 跳过布局同步与绘制，沿用上一帧的 `DisplayList`，core 不分配。`DisplayList` 带版本号，只在重绘时递增，`McPainter` 据此复用顶点缓冲。
 - 模板属性分两类：普通属性（按 `TagRegistry` 校验）与指令（`bind:*`、`on:*`、`state:*`，连同名字与值的源位置原样保存在 `Element` 上，交给 binding 层校验）。`t` 为保留属性（开发期报错）。`TagRegistry` 是实例：core 提供 HTML 子集，mc 层追加原生元素后传入加载。
-- 文本在 M2 是纯字符串：`Component` 由 mc 层 `getString()` 拍平，颜色、字重只由 CSS 给出。富文本以后以不透明宿主文本对象加入，测量与换行交给 mc 层（vanilla `StringSplitter`），core 不建模样式。字体或资源重载后宿主调用 `UiDocument.invalidateText()`。
+- 文本是样式片段（`dom.StyledText`）：模板中的文字与 `<span>`/`<a>` 按 CSS 取样式，绑定值经宿主的 `Bindings.TextConverter` 转换，mc 层把 `Component` 拆成带颜色与格式的片段，二者走同一套 core 行内排版（#019）；`TextMeasurer` 按样式测量，`DrawCommand.Text` 带粗体、斜体、下划线、删除线、混淆标志。行内格式化上下文只由 `display: block` 建立，flex 中的行内子元素按 CSS blockify；`inline` 元素不支持盒属性（开发期报错），`inline-block`、`<img>`、原生元素与表单控件是原子行内盒。字体或资源重载后宿主调用 `UiDocument.invalidateText()`。
 - 加载的 `Diagnostics` 留在 `UiDocument` 上：成功加载的警告与加载后才出现的错误（如延迟编译的内联样式）宿主都能读到，供开发期叠加层显示。
 
 M1 已知限制（均为开发期可见行为，后续按场景放开）：
 
 - 单位只有 `px`、`%`；所有 at-rule（含 `@media`、`@keyframes`）报错。
-- 文本两端空白被裁掉，`<span>a</span> / <span>b</span>` 中间得到 `"/"`。换行只在空格处断开，无空格的 CJK 文本不会换行。
+- 文本两端空白：flex 容器中纯空白文本节点被丢弃、两端裁掉；行内上下文（`display: block`）按 `white-space: normal` 折叠，`<span>a</span> / <span>b</span>` 要写在 `display: block` 的元素里才保留空格。
 - `<img>` 没有固有尺寸，必须在样式里给出 `width`/`height`，否则为 0；固有尺寸要等 mc 层能查询纹理大小。
 
 黄金测试夹具在 `core/src/test/resources/golden/<场景>/`：`hud.html`、`hud.css`、`expected.txt`（DisplayList 的逐行文本形式，首行注明视口尺寸与测试用测量器）。期望坐标已用 taffy 1.1.5 按同样式手工搭树核对。

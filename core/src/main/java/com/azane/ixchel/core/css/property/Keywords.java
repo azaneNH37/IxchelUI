@@ -5,7 +5,17 @@ public final class Keywords {
     private Keywords() {
     }
 
-    public enum Display { FLEX, NONE }
+    /**
+     * {@code display}. A flex item treats {@code inline} and {@code inline-block} as {@code block}, as CSS
+     * blockifies flex items; inside an inline formatting context an {@code inline-block} is an atomic box
+     * whose own content is laid out as a {@code block}'s, at its max-content width. {@code block}
+     * holds an inline formatting context: its children must be text, {@code inline} or
+     * {@code inline-block} elements, or {@code none}. {@code flex} is the initial value, so an element
+     * without a {@code display} is a flex container; {@code <span>}, {@code <a>}, {@code <img>} and native
+     * elements default to {@code inline}. {@code <img>} and native elements are replaced: their own
+     * children, if any, are laid out as in a flex container whatever their {@code display}.
+     */
+    public enum Display { FLEX, NONE, BLOCK, INLINE, INLINE_BLOCK }
 
     public enum Position { RELATIVE, ABSOLUTE }
 
@@ -52,8 +62,21 @@ public final class Keywords {
     public enum WhiteSpace { NORMAL, NOWRAP }
 
     /**
-     * {@code text-overflow} on the element whose text it is: with {@code overflow} other than
-     * {@code visible}, a line that runs past the element's padding box ends in an ellipsis.
+     * {@code text-overflow} on a box holding text (a {@code block}, or a flex container for its own text
+     * children): with {@code overflow} other than {@code visible}, a line that runs past the box's padding
+     * box ends in an ellipsis.
      */
     public enum TextOverflow { CLIP, ELLIPSIS }
+
+    /** {@code font-weight}; numeric weights are not supported. */
+    public enum FontWeight { NORMAL, BOLD }
+
+    /** {@code font-style}; {@code oblique} is not supported. */
+    public enum FontStyle { NORMAL, ITALIC }
+
+    /**
+     * {@code text-decoration}, one line keyword; color, style and thickness are not supported. As in
+     * CSS it is not inherited but drawn through the text of the element's inline descendants.
+     */
+    public enum TextDecoration { NONE, UNDERLINE, LINE_THROUGH }
 }

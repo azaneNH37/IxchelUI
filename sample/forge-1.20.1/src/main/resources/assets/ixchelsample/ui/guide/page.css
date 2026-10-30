@@ -1,0 +1,61 @@
+/* The page of textures/gui/book.png is 146×180; vanilla's text area is 114 wide, clear of the binding
+   on the left. */
+.page {
+  flex-shrink: 0;
+  width: 146px;
+  height: 180px;
+  padding: 14px 14px 12px 18px;
+  overflow: hidden;
+  color: #000000;
+}
+
+.heading {
+  align-self: center;
+  margin-bottom: 6px;
+  font-weight: bold;
+  color: #5A3A10;
+}
+
+/* overflow clips a word longer than the line at the text's edge rather than the leaf's. */
+.text {
+  display: block;
+  flex-shrink: 0;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+
+a {
+  color: #1F4FB0;
+}
+
+a:hover {
+  color: #5A88E8;
+}
+
+.b { font-weight: bold; }
+.i { font-style: italic; }
+.s { text-decoration: line-through; }
+.red { color: #A01818; }
+.green { color: #1E7A1E; }
+.muted { color: #6B5A45; }
+
+/* An item in the line: an atomic inline box on the baseline. */
+.icon {
+  width: 10px;
+  height: 10px;
+}
+
+/* A key cap: inline-block, so it may have a background and padding. */
+.key {
+  display: inline-block;
+  padding: 0 2px;
+  background-color: #D8C8A8;
+  color: #3A2A10;
+}
+
+.picture {
+  align-self: center;
+  width: 48px;
+  height: 48px;
+  margin: 2px 0 6px 0;
+}

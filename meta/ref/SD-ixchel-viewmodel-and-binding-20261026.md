@@ -102,7 +102,7 @@ final class GunModView extends ViewModel {
 | 绑定目标 | `text`、任意属性、`class:<名字>`（M2）；`if`、`each`（M3，`each` 必须带 `as` 与 `key`，`key` 是从行名出发的路径；`each` 与 `if` 不能在同一元素上；L2 改为 `<for>`/`<if>` 控制块，见语言文档 §3.5）；`style:<属性>` 接受 CSS 语法的 String，长度类属性也接受数值（按 `px`）；双向：`value`（输入框、`<select>`）、`checked`、`open`（`<dialog>`）、`scrolltop`，目标须是 state `Value` 字段或 `each` 行里类型为 `Value<T>` 的组件 | ✅ |
 | 动作与语句 | `on:x` 的值是语句：`act`、`act(表达式)`、赋值 `目标 = 表达式`，以 `;` 分隔，从左到右执行；加载期按 `Action<A>` 的 `A` 与赋值目标类型检查。事件名为 `click`、`mousedown`、`mouseup`、`mousemove`、`wheel`、`keydown`、`keyup`；语句可读 `$event.x`/`y`/`movementX`/`movementY`/`delta`。键事件可过滤：`on:keydown.<键名>[.shift\|.ctrl\|.alt]`（键名见 `event.Keys`），只在匹配时运行并消费；顶层元素上的键处理器注册到文档根，不需焦点即触发（`<for>`/`<if>` 块内的顶层元素除外）。局部状态 `state:名="初值"` 见语言文档 §3.6 | ✅ |
 | i18n | `t="语言键"`；字面文本开发期警告 | 🟡 |
-| 值转文本 | `String.valueOf`；格式化（如补零）写进 `Derived`。`Component` 在 mc 层以 `getString()` 拍平为纯文本，颜色、字重只由 CSS 给出；富文本（保留 Component 内联样式）以后作为不透明宿主文本对象加入，测量与换行交给 mc 层的 vanilla `StringSplitter`，core 不建模样式 | ✅ |
+| 值转文本 | `String.valueOf`；格式化（如补零）写进 `Derived` 或模板表达式。`Component` 由 mc 层 `TextConverter` 拆成带颜色与格式的样式片段，与周围文字进入同一套 core 行内排版（#019）；CSS 未设的部分继承，混淆只能来自 `Component` | ✅ |
 | 交互状态 | `:hover` / `:active` / `:focus` 由 event 包写状态位，`:checked` / `:open` / `:disabled` 由控件与顶层写，均不经 ViewModel | ✅ |
 | 校验 | 未声明的名字、record 上不存在的组件、不支持的 CSS 属性 → 开发期报错带文件:行:列 | ✅ |
 

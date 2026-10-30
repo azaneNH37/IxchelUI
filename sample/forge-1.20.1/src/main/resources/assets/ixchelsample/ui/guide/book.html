@@ -1,0 +1,21 @@
+<link rel="stylesheet" href="book.css"/>
+<!-- The open book: two leaves side by side, the pages in a strip that slides two pages per spread,
+     and the navigation under it. Give it one <guide-page> per page. -->
+<template name="guide-book" params="spread spreads history" events="prev next back contents">
+  <div class="book">
+    <div class="leaf"></div>
+    <div class="leaf right"></div>
+    <div class="window">
+      <div class="strip" bind:style:transform="'translateX(' + (-spread * 292) + 'px)'"><slot></slot></div>
+    </div>
+  </div>
+  <div class="nav">
+    <button class="contents" on:click="contents">Contents</button>
+    <button class="back" bind:disabled="!history" on:click="back">Back</button>
+    <div class="turns">
+      <if test="spread > 0"><div class="turn prev" on:click="prev"></div></if>
+      <span class="folio" bind:text="(spread + 1) + ' / ' + spreads"></span>
+      <if test="spread < spreads - 1"><div class="turn next" on:click="next"></div></if>
+    </div>
+  </div>
+</template>

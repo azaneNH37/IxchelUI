@@ -30,7 +30,8 @@ public final class TagRegistry {
     public static final Set<String> LINK_ATTRIBUTES = Set.of("rel", "href");
 
     /**
-     * The HTML subset core understands: {@code div}, {@code span}, {@code img src}, {@code input type
+     * The HTML subset core understands: {@code div}, {@code span}, {@code a} (no {@code href}: a link is
+     * an {@code on:click} handler), {@code img src}, {@code input type
      * placeholder maxlength min max step} (type {@code text}, {@code number}, {@code checkbox} or
      * {@code range}; its value is {@code bind:value}, a checkbox's state {@code bind:checked}),
      * {@code select} of {@code option value} (its value is {@code bind:value}), {@code button},
@@ -39,6 +40,7 @@ public final class TagRegistry {
     public static final TagRegistry HTML = new Builder(Map.of(), Map.of())
             .tag("div")
             .tag("span")
+            .tag("a")
             .tag("img", "src")
             .tag("input", "type", "placeholder", "maxlength", "min", "max", "step")
             .tag("select")

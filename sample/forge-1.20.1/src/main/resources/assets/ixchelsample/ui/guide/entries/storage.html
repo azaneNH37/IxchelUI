@@ -1,0 +1,21 @@
+<link rel="stylesheet" href="@ixchel/dark.css"/>
+<link rel="component" href="../book.html"/>
+<link rel="component" href="../page.html"/>
+<link rel="component" href="../recipe.html"/>
+<guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
+            on:prev="prev" on:next="next" on:back="back" on:contents="contents"
+            on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
+  <guide-page heading="Storage">
+    <guide-recipe bind:grid="recipes.chest" bind:result="icons.chest"></guide-recipe>
+    <div class="text">
+      A <mc-item class="icon" bind:item="icons.chest"></mc-item> <span class="b">chest</span> holds
+      27 stacks; two side by side make a double chest of 54.
+    </div>
+  </guide-page>
+  <guide-page>
+    <div class="text">
+      Hoppers move items in and out of a chest; a comparator reads how full it is as a
+      <a on:click="open('circuits')">redstone signal</a>.
+    </div>
+  </guide-page>
+</guide-book>

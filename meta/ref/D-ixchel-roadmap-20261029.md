@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3；接下来是 E（S8、S9）、I（i18n）、Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1；接下来是 E2–E3（文档内 tooltip、S9）、I（i18n）、Doc（用户文档），工具 T1 可并行。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
 
 ## Detail
 
@@ -34,11 +34,14 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | D | 完成 | S7、S4 箭头 | transform、拖拽 |
 | L2 | 完成 | — | 组件、组件层、CSS 嵌套 |
 | L3 | 完成 | — | 主题层与主题、`var()` |
-| E | 待做 | S8、S9 | 行内流式排版、tooltip 宿主、`Component` 富文本 |
+| E1 | 完成 | S8 | 文字排版补完：行内流式排版、CJK 断行、`Component` 富文本、行内链接 |
+| E2 | 待做 | S1、S6、S7 的 tooltip | 文档内富 tooltip `<ix-tooltip>` |
+| E3 | 待做 | S9 | 全局物品 tooltip 宿主 |
 | I | 待做 | — | i18n：`t` 语言键与参数 |
 | Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
+| T1 | 待做 | — | 工具 `tools/cli`：lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
 
-依赖：D0 → L1 → D → L2 → E；L3、I、Doc 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐。0–C 的结果见场景文档 §3。
+依赖：D0 → L1 → D → L2 → E1 → E2 → E3；L3、I、Doc、T1 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐。0–C 的结果见场景文档 §3。
 
 #### D0 改名与清理
 
@@ -80,11 +83,45 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 验收：作者 CSS 只剩布局与场景特有外观；`-Pcheck=all` 截图人工核对。
 - 结果（2026-10-30）：§6-1 定为 `@ixchel/<名>.css`，只能由页面链接（组件文件链接即报错，未知名字在 link 处报错）。L2 已把链接图移进 core，href 由 `TemplateLoader` 识别、`runtime.LibrarySheets`（接替 `UiDocument.UserAgent`）读取，两个 mc 层只改 javadoc。主题 = 共用规则 `themes/theme.css`（`.panel`、`.title`、`button` 各状态，全部写成 `var(--ix-*)`）加只设 `:root { --ix-* }` 的配色表 `vanilla.css`、`dark.css`（#018）。`var()` 带回退、可继承；自定义属性按普通层叠、总是继承，`bind:style:--x` 可写；`:root` 匹配模板顶层元素。sample 3 个场景用 vanilla、5 个页面（config、index、loot 列表、quests、waypoints）用 dark，env 与 loot HUD 不加主题；CSS 增 69 删 144 行，check 不改。接受的外观变化：按钮获焦时显示悬停底色；machine 选中按钮字色 `#404040`→`#202020`；index 行悬停 `#FFFFFF30`→`#FFFFFF20`、说明字色 `#A0A0A0`→`#AAAAAA`；config 条目悬停 `#FFFFFF10`→`#FFFFFF20`。已知偏差：成环的自定义属性带回退时可能取到回退值（规范要求环上一律无效），尚无场景触及。`-Pcheck=all` 143 项通过；testmod 1.21.1 只经 `build` 编译，未进游戏。
 
-#### E S8 指南书、S9 增强 tooltip
+#### E1 文字排版补完（S8 指南书）
 
-- 引擎：跨 `span` 的行内流式排版与行内链接命中；tooltip 宿主（`RenderTooltipEvent.Pre`，接管原版由宿主 API 开关开启，#009）；`Component` 富文本（S9 的 tooltip 行与物品名带颜色与格式，现被 `getString()` 拍平；建模按 GROUND 的"不透明宿主文本对象"方向）。
-- sample：S8 页面类型用组件写；S9。
-- 验收：场景文档 §2 S8、S9 的交互即检查清单。
+范围：M1 只做了单个文本节点、空格处断行的最小集（模块拆解 §3 "M1 已知限制"），本阶段补完多段样式文字的排版。
+
+- 已定（2026-10-31）：
+  - `Component` 由 mc 层拆成带样式的文字片段（颜色、粗体、斜体、下划线、删除线），与模板中的 `<span>` 进入 core 的同一套行内排版。取代模块拆解 §3、绑定文档 §3 的"不透明宿主文本对象，由 mc 层测量与换行"：那样 `Component` 与周围文字不能同行续排，且有两套换行。阶段末改写这两处。
+  - 链接用标准 `<a>`；库不解释 `href`、不做导航，跳转、目录与返回历史由 ViewModel 的动作完成（`on:click`）。
+  - 行内格式化上下文由标准 `display: block` 建立，首版只允许子节点全为行内内容，块级子节点开发期报错；不按"子节点全是行内"隐式切换（`display` 初值为 `flex`，`<div>` 里的每个 `<span>` 现在各是一个 flex 项）。
+  - 空白：行内上下文中按 CSS `white-space: normal` 折叠，保留元素间的单个空格；flex 容器中仍丢弃纯空白文本节点（现为 `TemplateParser.text` 一律 trim）。
+  - 断行：在空格处之外，CJK 字符之间可断，带基本避头尾（句读与右括号不在行首、左括号不在行尾）；现为只在空格处断，无空格的中文不换行。
+  - 行内元素与字体属性：`<span>`、`<a>` 默认 `inline`；`<mc-item>`、`<img>` 为原子行内盒（`inline-block`）；`font-weight` 只收 `normal`/`bold`，`font-style` 只收 `normal`/`italic`，`text-decoration` 只收 `none`/`underline`/`line-through`（MC 字体只有这些开关）；`Component` 自带的样式相当于内层 span 的样式，未设的部分继承 CSS，混淆（`§k`）无 CSS 对应，只能来自 `Component`；超出子集开发期报错（#003）。
+  - 行内元素上的盒属性（背景、边框、内边距、外边距；跨行时 CSS 要按片段切开）不支持，`inline` 元素上写即开发期报错；需要带底色或边框的小块（按键提示、标签）用 `inline-block`，它是原子盒、不跨行。跨行高亮出现真实需要时按标准 slice 语义补。
+- 引擎：Taffy 无行内格式化上下文，子节点全为行内内容的元素作为带测量函数的叶子，由 core 按样式片段与原子盒排行，绘制与命中测试按行内片段；`TextMeasurer` 按样式测量；绑定的 `Component` 保留样式进入排版（现为两版 `McResources.text` 的 `getString()`）。
+- sample：S8 页面类型用组件写；目录由 sample 枚举资源生成，库不提供资源列表；配方轮换用现有时间源（`System::nanoTime`，tick 时间域仍见 §4）。
+- 验收：场景文档 §2 S8 的交互逐项写成检查；S8 长页进 `FrameTimer` 预算；`-Pcheck=all`。
+- 结果（2026-10-31）：按已定完成，sample 结果见场景文档"阶段 E1 结果"。core 新增 `dom.StyledText`（样式片段），`binding.compile.Bindings.TextConverter` 把绑定值转为片段，`UiDocument.load` 接收宿主的转换器；两版 `McResources` 把 `Component` 拆成片段，`McTextMeasurer` 按样式测量，`DrawCommand.Text` 带粗体、斜体、下划线、删除线、混淆标志。偏差：`<mc-item>`、`<img>` 及所有带载荷的原生元素默认 `display: inline`，按替换元素作原子行内盒（`LibrarySheets.nativeElements` 按标签表生成），而非写成 `inline-block`；flex 容器中的行内子元素按 CSS blockify。sample 中暴露的现有规则（未改）：组件文件只能有一个 `<template>`、不能链接主题，S8 每个条目页各自链接主题与 2–3 个组件；`title` 是全局属性，不能作组件参数名；主题层在组件层之上，组件 CSS 中与主题同名的类（如 `.title`）被主题覆盖，组件内类名应避开主题类名；`<mc-item>` 载荷只能 `bind:item`，正文图标经 ViewModel 的 record 传入。三轮加载错误都要进游戏才暴露，引出工具 T1。`-Pcheck=all` 160 项通过；testmod 1.21.1 只经 `build` 编译，未进游戏。
+
+#### E2 文档内 tooltip
+
+- 已定（2026-10-31）：库元素 `<ix-tooltip>`，不走 Web 标准的 `popover="hint"` + `interestfor` + anchor positioning。标准只能锚定元素、不能跟随光标；`interestfor` 只能写在 `<a>`/`<button>` 上，在 Ixchel 中会使触发者可获焦并进入 Tab 顺序；以 `id` 关联在 `<for>` 行中须拼唯一 id，违反上下文模型不变式 1。语义：
+  - 作为任意元素的子元素，平时不参与布局与绘制；悬停目标沿 `Tooltips.render` 的最深者优先规则，取第一个带 `<ix-tooltip>`、`<mc-item>` 或 `title` 的元素。
+  - 生效时进入 `TopLayer`（#014 "第二个场景需要时再加"的落地），按内容定尺寸，贴光标，碰屏幕边缘翻转，不参与命中测试；HUD 无指针不显示。
+  - 内容在使用方环境编译，绑定、控制块、组件照常可用，组件体内可把 `<slot>` 放进 `<ix-tooltip>`；外观全由 CSS，主题加 `--ix-tooltip-*`。
+  - `<mc-item>` 不带 `<ix-tooltip>` 时仍走原版 `renderTooltip(stack)`，其它 mod 的 tooltip 增强照常生效；带时用作者内容。`title` 保留为原版样式的纯文本。
+- 已定（2026-10-31）：作者在自定义 tooltip 里沿用原版物品行（`Screen.getTooltipFromItem`，含其它 mod 经 `ItemTooltipEvent` 加的行），用 mc 层原生元素 `<mc-tooltip-lines bind:item="…">`，按 E1 的富文本绘制；放在 `<ix-tooltip>` 内时只在显示时参与布局、取行。物品显式传入而非取祖先 `<mc-item>`：E3 的 S9 文档没有 `<mc-item>`，tooltip 外（物品详情）也要能用，且与 `<mc-item bind:item>` 一致。命名：不叫 `mc-tooltip`——与 `<ix-tooltip>` 同后缀会被读成另一种 tooltip 容器，且暗示原版外框；`-lines` 对应 `ItemStack.getTooltipLines`，也表明只有文字行（收纳袋预览、Forge `GatherComponents` 的图像组件不在其中）。未选 ViewModel 字段（S3 的 1300 格网格要为每格预先算好）与 `$` 框架值（要在 `<ix-tooltip>` 内引入新的作用域名字）。
+- 引擎：`TopLayer` 接纳 `<ix-tooltip>` 与按内容定尺寸、定位；两版 mc 层 `Tooltips` 的选取规则。
+- sample：S1 属性说明、S6 配置注释、S7 节点 tooltip 由 `title` 改为 `<ix-tooltip>`，接受的外观变化记入结果。
+- 验收：检查覆盖滚动容器内元素的 tooltip 不被裁剪、贴边翻转、`<mc-item>` 的两种模式；`-Pcheck=all`。
+
+#### E3 S9 增强 tooltip
+
+- 已定（2026-10-31）：事件监听（`RenderTooltipEvent.Pre`）在加载器层，文档在 mc 层运行，复用 E2 的定尺寸与定位；接管原版由宿主 API 开关开启（#009）。
+- 先定：
+  - 1.21.1 是否提供：#005 的对齐范围只到 HUD + 一个 Screen。倾向只做 Forge 1.20.1，1.21.1 记为缺项。
+  - 嵌套绘制：Ixchel 界面内的 `<mc-item>` 默认走原版调用，宿主开启接管后经事件画 S9 文档，`McPainter` 的合批与分层深度须可重入。
+  - 宿主 API 形态：文档复用，换物品只换 ViewModel 数据。
+  - 按住 Shift 的修饰键来源。倾向 `ClientSources.polled`。
+- sample：S9。
+- 验收：场景文档 §2 S9 的交互逐项写成检查；鼠标扫过 S3 网格时的 `FrameTimer` 预算。
 
 #### I i18n
 
@@ -100,12 +137,21 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 工程：VuePress 源码放 `docs/`；生成参考页的 Gradle 任务；`vuepress build` 进 `check`（CI 文档 §7 的触发条件即 `docs/` 建立）。部署 Pages 仍按 CI 文档等仓库转公开与 `release` 落地。
 - 验收：`check` 通过；按教程从零写出一个带组件的界面。
 
+#### T1 工具：lint 与 schema
+
+- 设计依据：`ref/SD-ixchel-tooling-and-editor-20261031.md`（技术栈、仓库位置与分发、T2–T4）。
+- 先定：该文档 §8 的绑定名检查方式（本阶段只做无模型结构检查，不受其阻塞）。
+- 引擎：原生元素声明数据化，mc 层与工具共读；无模型编译模式。
+- 工具：`tools/cli`（`:ixchel-tools`，只依赖 core）的 `lint`、`schema`；sample 与 testmod 各加一个挂在 `check` 上的 lint 任务。
+- 验收：E1 中出现的三类错误（多个 `<template>`、组件文件链接主题、参数名与外壳属性冲突）由 lint 报出且带位置；现有模板 lint 无错误；`build` 通过。
+
 ### 3. 风险
 
 | 风险 | 阶段 | 对策 |
 |---|---|---|
 | 表达式类型检查与路径解析（record 组件、泛型）耦合 | L1 | 只在现有路径解析上加运算符，不另写解析 |
 | 组件编译改动绑定核心 | L2 | 模板组件不引入子 Scope，组件体复用 `Compiler` 以端口为环境编译（上下文模型文档 §3.3、§3.5） |
+| 行内排版在 Taffy 之外自写 | E1 | 只在子节点全为行内内容的元素上启用，作为带测量函数的叶子，Taffy 树其余部分不变 |
 | 外壳元素改变树结构，check 选择器失效 | L2 | 迁移与选择器同提交，断言不改 |
 | 1.21.1 落后 | D0、L3 | 两版同改，testmod 冒烟 |
 

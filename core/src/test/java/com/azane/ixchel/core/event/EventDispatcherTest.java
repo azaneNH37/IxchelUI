@@ -24,13 +24,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EventDispatcherTest {
     private static final TextMeasurer MONO = new TextMeasurer() {
         @Override
-        public float width(String text, float size) {
+        public float width(String text, float size, boolean bold) {
             return text.length() * 6 * size / 9;
         }
 
         @Override
         public float lineHeight(float size) {
             return size;
+        }
+
+        @Override
+        public float baseline(float size) {
+            return size * 7 / 9;
         }
     };
 

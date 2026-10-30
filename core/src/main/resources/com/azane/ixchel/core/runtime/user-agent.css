@@ -1,7 +1,16 @@
 /*
- * User-agent defaults of the form controls and <dialog>, below every author rule (see StyleEngine).
+ * User-agent defaults, below every author rule (see StyleEngine): the inline elements, the form
+ * controls and <dialog>. Native elements get display: inline from a rule UiDocument adds per tag registry.
  * Vanilla-like: black fields with a gray border that turns white on focus, gray buttons.
  */
+span, a, img {
+    display: inline;
+}
+
+a {
+    text-decoration: underline;
+}
+
 input, select {
     flex-shrink: 0;
     padding: 2px 3px;

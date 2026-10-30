@@ -117,16 +117,25 @@ public final class TemplateParser {
 
     /** Parses nodes into {@code out} until EOF or a closing tag, which is left unconsumed. */
     private void parseNodes(List<Node> out, boolean topLevel, boolean componentFile) {
+        int from = out.size();
+        parseNodesRaw(out, topLevel, componentFile);
+        // Whitespace-only text at the start or end of an element, or between top-level nodes, never renders.
+        for (int k = out.size() - 1; k >= from; k--) {
+            if (out.get(k) instanceof TextNode t && t.text().isBlank()
+                    && (topLevel || k == from || k == out.size() - 1)) {
+                out.remove(k);
+            }
+        }
+    }
+
+    private void parseNodesRaw(List<Node> out, boolean topLevel, boolean componentFile) {
         while (i < src.length()) {
             if (src.charAt(i) != '<') {
                 int start = i;
                 while (i < src.length() && src.charAt(i) != '<') {
                     i++;
                 }
-                TextNode text = text(start, i);
-                if (text != null) {
-                    out.add(text);
-                }
+                out.add(text(start, i));
             } else if (src.startsWith("</", i)) {
                 return;
             } else if (src.startsWith("<!--", i)) {
@@ -293,6 +302,9 @@ public final class TemplateParser {
 
     private static boolean onlyOptions(List<Node> children) {
         for (Node n : children) {
+            if (n instanceof TextNode t && t.text().isBlank()) {
+                continue;
+            }
             if (!(n instanceof Element c) || !(c.tag().equals("option")
                     || ((c.tag().equals("for") || c.tag().equals("if")) && onlyOptions(c.children())))) {
                 return false;
@@ -636,15 +648,13 @@ public final class TemplateParser {
         return src.substring(start, i);
     }
 
+    /**
+     * Text with whitespace runs collapsed to one space, as {@code white-space: normal} renders it; the
+     * spaces at a line's start and end are dropped by layout, not here, so {@code a <b>b</b>} keeps its
+     * space. Whitespace-only text is {@code " "} and kept only between two siblings; see {@link #parseNodes}.
+     */
     private TextNode text(int start, int end) {
-        int first = start;
-        while (first < end && isSpace(src.charAt(first))) {
-            first++;
-        }
-        if (first == end) {
-            return null;
-        }
-        return new TextNode(decode(first, end, true).trim(), pos(first));
+        return new TextNode(decode(start, end, true), pos(start));
     }
 
     /** Decodes entities in {@code [start, end)}; with {@code collapse}, whitespace runs become one space. */

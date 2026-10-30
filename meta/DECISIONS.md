@@ -112,3 +112,15 @@
 - **context**: sample 的两族外观（原版灰、暗色浮层）结构相同、配色不同；库内样式表不开放 `@import`（语言文档 §4.4），两份主题若各写一套完整规则会逐字重复
 - **decision**: 主题由共用规则 `themes/theme.css`（值全部为 `var(--ix-*)`）加只在 `:root` 上设 `--ix-*` 的配色表组成，`LibrarySheets` 按名字展开为这两份，共用规则只进一次；`--ix-*` 是对页面与组件公开的接口；`:root` 匹配模板的顶层元素；替换后无效的普通属性按 unset 处理并报告一次，无效的自定义属性视为未定义
 - **rejected**: 每份主题各写完整规则——结构逐字重复；开放 `@import` 组合——与 §4.4 的暂缓冲突；`:root` 选中隐式根节点——给它加底色、边框会影响布局与绘制
+
+## #019 富文本：`Component` 拆为样式片段，进入 core 行内排版
+- **decided**: 2026-10-31
+- **context**: S8 正文要跨 `span` 续排，S9 要保留 `Component` 的颜色与格式；原定方向是把 `Component` 作为不透明宿主文本对象，由 mc 层 `StringSplitter` 测量与换行
+- **decision**: mc 层把绑定的 `Component` 拆成带样式的文字片段（颜色、粗体、斜体、下划线、删除线、混淆），与模板中的 `<span>` 走同一套 core 行内排版；`TextMeasurer` 按样式测量。行内上下文由 `display: block` 建立，行内元素不支持盒属性。细节见 `ref/D-ixchel-roadmap-20261029.md` E1
+- **rejected**: 不透明宿主文本对象——`Component` 不能与周围文字同行续排，且 core、mc 两套换行
+
+## #020 tooltip 用库元素 `<ix-tooltip>`，不走 Web 标准
+- **decided**: 2026-10-31
+- **context**: 文档内 tooltip 只有 `title` 纯文本；S1、S6、S7 要富内容，滚动容器中的 tooltip 不能被裁剪；MC tooltip 跟随光标、立即出现、鼠标穿透
+- **decision**: 任意元素的 `<ix-tooltip>` 子元素，悬停时进入顶层，按内容定尺寸、贴光标、贴边翻转；`<mc-item>` 不带它时走原版 tooltip；原版物品行由 `<mc-tooltip-lines bind:item>` 提供。细节见 `ref/D-ixchel-roadmap-20261029.md` E2
+- **rejected**: `popover="hint"` + `interestfor` + anchor positioning——只能锚定元素、不能跟随光标，触发者限于 `<a>`/`<button>`，以 `id` 关联违反上下文模型不变式 1；标准写法加私有扩展——写法像标准、行为不同，违反 #003

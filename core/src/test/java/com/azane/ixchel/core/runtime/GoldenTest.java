@@ -23,16 +23,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * display list; {@code //} lines in the expectation are comments.
  */
 class GoldenTest {
-    /** Monospace stand-in for the vanilla font: 6px advance and 9px line at size 9. */
+    /** Monospace stand-in for the vanilla font: 6px advance (7px bold), 9px line, baseline 7 at size 9. */
     static final TextMeasurer MONO = new TextMeasurer() {
         @Override
-        public float width(String text, float size) {
-            return text.length() * 6 * size / 9;
+        public float width(String text, float size, boolean bold) {
+            return text.length() * (bold ? 7 : 6) * size / 9;
         }
 
         @Override
         public float lineHeight(float size) {
             return size;
+        }
+
+        @Override
+        public float baseline(float size) {
+            return size * 7 / 9;
         }
     };
 
@@ -79,7 +84,8 @@ class GoldenTest {
 
             @Override
             public String visitText(DrawCommand.Text c) {
-                return "text " + n(c.x()) + " " + n(c.y()) + " " + n(c.size()) + " " + argb(c.color()) + " \"" + c.text() + "\"";
+                return "text " + n(c.x()) + " " + n(c.y()) + " " + n(c.size()) + " " + argb(c.color()) + " \"" + c.text() + "\""
+                        + (c.flags() != 0 ? " flags " + c.flags() : "");
             }
 
             @Override

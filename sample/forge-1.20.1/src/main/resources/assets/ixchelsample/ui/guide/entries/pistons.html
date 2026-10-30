@@ -1,0 +1,24 @@
+<link rel="stylesheet" href="@ixchel/dark.css"/>
+<link rel="component" href="../book.html"/>
+<link rel="component" href="../page.html"/>
+<link rel="component" href="../recipe.html"/>
+<guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
+            on:prev="prev" on:next="next" on:back="back" on:contents="contents"
+            on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
+  <guide-page heading="Pistons">
+    <guide-recipe bind:grid="recipes.piston" bind:result="icons.piston"></guide-recipe>
+    <div class="text">
+      Any <mc-item class="icon" bind:item="icons.planks"></mc-item> <span class="b">planks</span> will
+      do for the top row: the grid shows each kind in turn.
+    </div>
+  </guide-page>
+  <guide-page>
+    <div class="text">
+      Power a piston with <a on:click="open('circuits')">redstone</a> and it pushes the blocks in
+      front of it; a sticky piston pulls the first one back when the power ends.
+    </div>
+    <div class="text">
+      <span class="red b">Obsidian</span>, bedrock and blocks holding items cannot be moved.
+    </div>
+  </guide-page>
+</guide-book>
