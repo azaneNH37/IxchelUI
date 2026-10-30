@@ -11,7 +11,6 @@
   height: 100%;
   max-height: 260px;
   padding: 6px;
-  background-color: #101418E0;
 }
 
 .header {
@@ -19,10 +18,6 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 4px;
-}
-
-.title {
-  color: #FFFF55;
 }
 
 .search {
@@ -44,16 +39,16 @@
 
 .category {
   padding: 3px;
-  color: #AAAAAA;
+  color: var(--ix-text-muted);
 }
 
 .category:hover {
-  background-color: #FFFFFF20;
+  background-color: var(--ix-hover);
 }
 
 .category.active {
-  background-color: #FFFFFF30;
-  color: #FFFFFF;
+  background-color: var(--ix-button);
+  color: var(--ix-text);
 }
 
 /* The entry list scrolls; an open select list must leave this clip. */
@@ -61,12 +56,12 @@
   flex-grow: 1;
   flex-shrink: 1;
   overflow: auto;
-  background-color: #00000060;
+  background-color: var(--ix-well);
 }
 
 .none {
   margin: 4px;
-  color: #777777;
+  color: var(--ix-text-dim);
 }
 
 .entry {
@@ -75,7 +70,7 @@
 }
 
 .entry:hover {
-  background-color: #FFFFFF10;
+  background-color: var(--ix-hover);
 }
 
 .line {
@@ -92,11 +87,11 @@
 }
 
 .entry.modified .marker {
-  background-color: #FFFF55;
+  background-color: var(--ix-accent);
 }
 
 .entry.invalid .marker {
-  background-color: #FF5555;
+  background-color: var(--ix-negative);
 }
 
 .name {
@@ -110,7 +105,7 @@
 
 .restart {
   margin: 0 3px;
-  color: #FFAA00;
+  color: var(--ix-warning);
 }
 
 .control {
@@ -157,13 +152,13 @@
   flex-shrink: 0;
   overflow: hidden;
   margin-right: 3px;
-  color: #AAAAAA;
+  color: var(--ix-text-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .entry.invalid input {
-  border-color: #FF5555;
+  border-color: var(--ix-negative);
   color: #FF8080;
 }
 
@@ -173,7 +168,7 @@
 
 .error {
   margin-left: 5px;
-  color: #FF5555;
+  color: var(--ix-negative);
 }
 
 .footer {
@@ -186,11 +181,11 @@
 
 .status {
   flex-grow: 1;
-  color: #AAAAAA;
+  color: var(--ix-text-muted);
 }
 
 .note {
-  color: #FFAA00;
+  color: var(--ix-warning);
 }
 
 dialog {
@@ -199,7 +194,7 @@ dialog {
 }
 
 .dialog-title {
-  color: #FFFF55;
+  color: var(--ix-title);
 }
 
 .items {

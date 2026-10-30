@@ -197,4 +197,41 @@ class StyleEngineTest {
         assertEquals(Length.px(4), b.computed().get(CssProperties.HEIGHT));
         assertEquals(2, engine.inlineCacheSize());
     }
+
+    @Test
+    void customPropertiesInheritSubstituteAndAnUnresolvableValueFallsBackToUnsetReportedOnce() {
+        Diagnostics diag = new Diagnostics();
+        StyleEngine engine = engine("""
+                :root { --fg: #00f; --edge: 2px solid var(--fg); --w: var(--loop); --loop: var(--w) }
+                .row { --fg: #f00; color: var(--fg); border: var(--edge) }
+                .fb { width: var(--missing, 5px); background-color: var(--loop, #0f0) }
+                .bad { color: var(--missing); width: var(--fg) }
+                """, diag);
+        Element root = new Element("#root", POS);
+        Element top = el(root, "div");
+        top.setInlineStyle(CssParser.parseDeclarations("color: #0f0", POS, diag));
+        Element row = el(top, "div", "row");
+        Element fb = el(top, "div", "fb");
+        Element bad = el(top, "div", "bad");
+        Element bad2 = el(top, "div", "bad");
+        Element nested = el(row, "div", "row");
+        engine.restyle(root);
+
+        assertEquals(0xFFFF0000, row.computed().get(CssProperties.COLOR));
+        assertEquals(Length.px(2), row.computed().get(CssProperties.BORDER_TOP_WIDTH));
+        assertEquals(0xFF0000FF, row.computed().get(CssProperties.BORDER_TOP_COLOR),
+                "--edge was substituted where it was declared, with :root's --fg");
+        assertEquals(0xFFFF0000, nested.computed().get(CssProperties.COLOR));
+        assertFalse(row.computed().custom().containsKey("--w"), "a cycle leaves both properties undefined");
+        assertEquals(Length.px(5), fb.computed().get(CssProperties.WIDTH));
+        assertEquals(0xFF00FF00, fb.computed().get(CssProperties.BACKGROUND_COLOR));
+        assertEquals(0xFF00FF00, bad.computed().get(CssProperties.COLOR), "an inherited property inherits");
+        assertEquals(Length.AUTO, bad.computed().get(CssProperties.WIDTH), "others take their initial value");
+        assertEquals(Length.AUTO, bad2.computed().get(CssProperties.WIDTH));
+        assertEquals(2, diag.entries().size(), diag.entries().toString());
+
+        bad.setBoundCustom("--missing", CssParser.parseValue("#fff", POS, diag));
+        engine.restyle(root);
+        assertEquals(0xFFFFFFFF, bad.computed().get(CssProperties.COLOR));
+    }
 }

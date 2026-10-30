@@ -106,3 +106,9 @@
 - **context**: binding 的模型与模板编译器共享内部不变式（不标脏的写入、每帧 poll、框架持有的单元格），Java 没有 internal，shade 时排除 `module-info` 使 JPMS 不可用，按契约拆包就得把这些成员交到另一个包
 - **decision**: 模型内部经 `binding.ModelAccess` 交给 `binding.compile`：实例由 `ModelAccess.claim()` 只发一次（`Bindings` 加载时领取），实现类 `Bridge` 与它触及的成员保持包内可见，依赖方向为 compile → binding；以后别的包需要模型内部时同样扩充这个接口，不公开成员
 - **rejected**: 公开成员并标 `@ApiStatus.Internal`、以 ArchUnit 限制调用方——宿主仍可绕过脏标记、改写 `Action` 的 pending；由 binding 调用 compile 的 `install`——两包循环依赖，违反 #006；保持单包——模型 API、表达式语言、模板绑定三份契约混在 25 个类中
+
+## #018 库内主题 = 共用规则 + 配色变量
+- **decided**: 2026-10-30
+- **context**: sample 的两族外观（原版灰、暗色浮层）结构相同、配色不同；库内样式表不开放 `@import`（语言文档 §4.4），两份主题若各写一套完整规则会逐字重复
+- **decision**: 主题由共用规则 `themes/theme.css`（值全部为 `var(--ix-*)`）加只在 `:root` 上设 `--ix-*` 的配色表组成，`LibrarySheets` 按名字展开为这两份，共用规则只进一次；`--ix-*` 是对页面与组件公开的接口；`:root` 匹配模板的顶层元素；替换后无效的普通属性按 unset 处理并报告一次，无效的自定义属性视为未定义
+- **rejected**: 每份主题各写完整规则——结构逐字重复；开放 `@import` 组合——与 §4.4 的暂缓冲突；`:root` 选中隐式根节点——给它加底色、边框会影响布局与绘制

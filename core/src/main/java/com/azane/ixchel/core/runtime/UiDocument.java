@@ -25,12 +25,10 @@ import com.azane.ixchel.core.template.TemplateLoader;
 import com.azane.ixchel.core.text.TextMeasurer;
 import com.azane.ixchel.core.text.TextShaper;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 
@@ -43,10 +41,11 @@ import java.util.function.LongSupplier;
  * style or layout. The caret of a focused {@code <input>} blinks every {@value #BLINK_MS} ms,
  * restarting visible on each edit or move.
  *
- * <p>Below the template's stylesheets sit the component layer, the stylesheets component files link,
- * and a user-agent stylesheet with the defaults of the form controls and {@code <dialog>}
- * ({@code user-agent.css} next to this class). Open selects and dialogs live in the document's
- * {@link TopLayer}, which layout, paint and input share.
+ * <p>Below the template's stylesheets sit the theme layer, the library stylesheets the page links
+ * as {@code @ixchel/<name>}, the component layer, the stylesheets component files link, and a
+ * user-agent stylesheet with the defaults of the form controls and {@code <dialog>} (see
+ * {@link LibrarySheets}). Open selects and dialogs live in the document's {@link TopLayer}, which
+ * layout, paint and input share.
  */
 public final class UiDocument {
     static final long BLINK_MS = 500;
@@ -115,6 +114,7 @@ public final class UiDocument {
         Diagnostics diag = new Diagnostics();
         TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, tags, diag);
         List<StyleSheet> components = sheets(loaded.componentSheets(), diag);
+        List<StyleSheet> themes = library(loaded.library(), diag);
         List<StyleSheet> author = sheets(loaded.pageSheets(), diag);
         Element root = new Element("#root", new SourcePos(templateFile, 1, 1));
         for (Node n : loaded.page().roots()) {
@@ -124,7 +124,7 @@ public final class UiDocument {
         Bindings bindings = Bindings.compile(root, model, loaded.components(), textOf, tags, CssProperties.REGISTRY,
                 topLayer, diag);
         Transitions transitions = new Transitions(CssProperties.REGISTRY, root);
-        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(UserAgent.SHEET), components, author,
+        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(LibrarySheets.USER_AGENT), components, themes, author,
                 diag, transitions);
         style.restyle(root);
         diag.throwIfErrors();
@@ -141,35 +141,31 @@ public final class UiDocument {
         return out;
     }
 
+    /** The library stylesheets' files in cascade order, each once; an unknown name is reported at its link. */
+    private static List<StyleSheet> library(List<TemplateLoader.Library> links, Diagnostics diag) {
+        Set<String> files = new LinkedHashSet<>();
+        for (TemplateLoader.Library l : links) {
+            List<String> f = LibrarySheets.files(l.name());
+            if (f == null) {
+                diag.error(l.pos(), "no library stylesheet '" + TemplateLoader.LIBRARY + l.name() + "'; there are "
+                        + String.join(", ", LibrarySheets.names()));
+            } else {
+                files.addAll(f);
+            }
+        }
+        List<StyleSheet> out = new ArrayList<>(files.size());
+        for (String f : files) {
+            out.add(LibrarySheets.sheet(f));
+        }
+        return out;
+    }
+
     /**
      * The ids of the template and every file it linked, directly or through components, including
      * links that failed to load; a host reloads the document when one of them changes.
      */
     public List<String> files() {
         return files;
-    }
-
-    /** The user-agent stylesheet, compiled once; a problem in it is a bug in the library. */
-    private static final class UserAgent {
-        static final StyleSheet SHEET = load();
-
-        private static StyleSheet load() {
-            String file = "user-agent.css";
-            try (InputStream in = UiDocument.class.getResourceAsStream(file)) {
-                if (in == null) {
-                    throw new IllegalStateException("missing " + file);
-                }
-                Diagnostics diag = new Diagnostics();
-                String css = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-                StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(css, file, diag), CssProperties.REGISTRY, diag);
-                if (diag.hasErrors()) {
-                    throw new IllegalStateException("invalid " + file + ": " + diag.entries());
-                }
-                return sheet;
-            } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
-            }
-        }
     }
 
     /** Open selects and dialogs, bottom first. */

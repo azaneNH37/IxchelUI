@@ -563,11 +563,12 @@ final class Compiler {
         return null;
     }
 
-    /** {@code bind:style:<longhand>} with a String, Number or Object value. */
+    /** {@code bind:style:<longhand>} or {@code bind:style:--<name>} with a String, Number or Object value. */
     private Binding styleBinding(Element e, Directive a, Ref ref) {
         String name = a.name().substring("bind:style:".length()).toLowerCase(Locale.ROOT);
-        PropertyDef<?> property = properties.byName(name);
-        if (property == null) {
+        boolean custom = name.startsWith("--");
+        PropertyDef<?> property = custom ? null : properties.byName(name);
+        if (!custom && property == null) {
             Shorthand shorthand = properties.shorthand(name);
             if (shorthand == null) {
                 diag().error(a.namePos(), "unsupported property '" + name + "' in '" + a.name() + "'");
@@ -587,6 +588,9 @@ final class Compiler {
             diag().error(a.valuePos(), "'" + a.name() + "' takes a String or a Number, but '" + a.value().trim()
                     + "' is " + ref.type().getTypeName());
             return null;
+        }
+        if (custom) {
+            return new CustomPropertyBinding(ref.cell(), a, diag(), e, name);
         }
         if (number && property.syntax().numberUnit() == null) {
             diag().error(a.valuePos(), "'" + name + "' takes no plain numbers; bind a String with its CSS value");

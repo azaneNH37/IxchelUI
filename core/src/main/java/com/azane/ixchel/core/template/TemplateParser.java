@@ -608,7 +608,8 @@ public final class TemplateParser {
 
     /**
      * Tag or attribute name. Attribute names may continue with {@code :} before a letter ({@code bind:text})
-     * and {@code .} before a letter or digit ({@code on:keydown.f1}, the key filters of {@code on:*}).
+     * or {@code --} ({@code bind:style:--accent}), and {@code .} before a letter or digit
+     * ({@code on:keydown.f1}, the key filters of {@code on:*}).
      */
     private String readName(boolean attribute) {
         int start = i;
@@ -618,7 +619,8 @@ public final class TemplateParser {
                 char c = src.charAt(i);
                 if (isAsciiLetter(c) || isDigit(c) || c == '-') {
                     i++;
-                } else if (attribute && c == ':' && i + 1 < src.length() && isAsciiLetter(src.charAt(i + 1))) {
+                } else if (attribute && c == ':' && i + 1 < src.length() && (isAsciiLetter(src.charAt(i + 1))
+                        || src.startsWith("--", i + 1))) {
                     i++;
                 } else if (attribute && c == '.' && i + 1 < src.length()
                         && (isAsciiLetter(src.charAt(i + 1)) || isDigit(src.charAt(i + 1)))) {

@@ -46,8 +46,9 @@ final class McResources {
      * Loads a document from a template and the files it links, measured with the vanilla font;
      * images for {@code background-size: auto} are measured from {@code resources}. A {@code <link>}
      * href of the form {@code ns:path} names that resource (the host namespace reads through the
-     * development source when present, other namespaces read packed resources); any other href is
-     * relative to the linking file's directory ({@code ../common.css} allowed). Error positions name
+     * development source when present, other namespaces read packed resources); an href starting
+     * with {@code @ixchel/} names a stylesheet of the library, such as {@code @ixchel/vanilla.css}; any
+     * other href is relative to the linking file's directory ({@code ../common.css} allowed). Error positions name
      * files as {@code modid:path}. Bound {@link Component}s are flattened with
      * {@link Component#getString()}; their colors and styles are dropped, CSS styles the text.
      *

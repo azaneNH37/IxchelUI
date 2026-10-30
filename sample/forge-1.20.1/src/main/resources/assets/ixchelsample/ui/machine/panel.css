@@ -4,9 +4,6 @@
   margin: auto;
   width: 178px;
   padding: 7px;
-  background-color: #C6C6C6;
-  border: 1px solid #555555;
-  color: #404040;
 }
 
 /* Title and status on their own lines: side by side they need more than the 162px inside the panel. */
@@ -16,11 +13,11 @@
 
 .status {
   margin-top: 1px;
-  color: #3F7F3F;
+  color: var(--ix-positive);
 }
 
 .status.bad {
-  color: #AA2020;
+  color: var(--ix-negative);
 }
 
 .body {
@@ -120,14 +117,14 @@
 }
 
 .hint {
-  color: #606060;
+  color: var(--ix-text-muted);
 }
 
 .recipe {
   width: 18px;
   height: 18px;
   padding: 1px;
-  background-color: #8B8B8B;
+  background-color: var(--ix-well);
   transition: background-color 120ms;
 }
 
@@ -136,8 +133,8 @@
 }
 
 .recipe.selected {
-  background-color: #E0E0E0;
-  border: 1px solid #3F7F3F;
+  background-color: var(--ix-selected);
+  border: 1px solid var(--ix-positive);
   padding: 0px;
 }
 
@@ -159,18 +156,6 @@
 button {
   padding: 2px 4px;
   margin-right: 3px;
-  background-color: #A0A0A0;
-  border: 1px solid #555555;
-  color: #404040;
-  transition: background-color 120ms;
-}
-
-button:hover {
-  background-color: #B8B8B8;
-}
-
-button.selected {
-  background-color: #E0E0E0;
 }
 
 /* Slides out to the right: the width animates from 0, the rows inside are clipped meanwhile. */
@@ -180,13 +165,13 @@ button.selected {
   top: 20px;
   width: 0px;
   overflow: hidden;
-  background-color: #C6C6C6;
+  background-color: var(--ix-surface);
   transition: width 200ms;
 }
 
 .sides.open {
   width: 80px;
-  border: 1px solid #555555;
+  border: var(--ix-frame);
 }
 
 .side {
@@ -199,7 +184,7 @@ button.selected {
 }
 
 .side:hover {
-  background-color: #FFFFFF40;
+  background-color: var(--ix-hover);
 }
 
 .face {
@@ -208,7 +193,7 @@ button.selected {
 
 .mode {
   white-space: nowrap;
-  color: #606060;
+  color: var(--ix-text-muted);
 }
 
 .mode.input {
@@ -216,5 +201,5 @@ button.selected {
 }
 
 .mode.output {
-  color: #C07020;
+  color: var(--ix-warning);
 }

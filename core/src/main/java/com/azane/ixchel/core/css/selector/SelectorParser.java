@@ -89,6 +89,7 @@ public final class SelectorParser {
         List<String> classes = new ArrayList<>();
         List<Selector.AttributeMatch> attributes = new ArrayList<>();
         int state = 0;
+        boolean root = false;
         int start = i;
         if (i < in.size() && in.get(i) instanceof Token t) {
             if (t.is(Token.Kind.IDENT)) {
@@ -133,6 +134,11 @@ public final class SelectorParser {
                 i += 2;
             } else if (t.is(Token.Kind.COLON)) {
                 ComponentValue after = i + 1 < in.size() ? in.get(i + 1) : null;
+                if (after instanceof Token n && n.isIdent("root")) {
+                    root = true;
+                    i += 2;
+                    continue;
+                }
                 int bit = after instanceof Token n && n.is(Token.Kind.IDENT) ? stateBit(n.value()) : 0;
                 if (bit == 0) {
                     diag.error(after != null ? after.pos() : t.pos(), describePseudo(after));
@@ -148,7 +154,7 @@ public final class SelectorParser {
             diag.error(i < in.size() ? in.get(i).pos() : endPos(), "expected a selector");
             return null;
         }
-        return new Selector.Compound(tag, id, List.copyOf(classes), List.copyOf(attributes), state);
+        return new Selector.Compound(tag, id, List.copyOf(classes), List.copyOf(attributes), state, root);
     }
 
     /** {@code [name]} or {@code [name=value]} with an identifier or string value; other operators are errors. */

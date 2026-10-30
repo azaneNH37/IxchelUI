@@ -70,7 +70,7 @@ flowchart LR
 
 M1 已知限制（均为开发期可见行为，后续按场景放开）：
 
-- 单位只有 `px`、`%`；所有 at-rule（含 `@media`、`@keyframes`）报错；`var()` 与自定义属性报错。
+- 单位只有 `px`、`%`；所有 at-rule（含 `@media`、`@keyframes`）报错。
 - 文本两端空白被裁掉，`<span>a</span> / <span>b</span>` 中间得到 `"/"`。换行只在空格处断开，无空格的 CJK 文本不会换行。
 - `<img>` 没有固有尺寸，必须在样式里给出 `width`/`height`，否则为 0；固有尺寸要等 mc 层能查询纹理大小。
 

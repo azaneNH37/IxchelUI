@@ -7,7 +7,6 @@
 
 .panel {
   padding: 6px;
-  background-color: #101418E0;
 }
 
 .header {
@@ -17,12 +16,8 @@
   margin-bottom: 4px;
 }
 
-.title {
-  color: #FFFF55;
-}
-
 .hint {
-  color: #777777;
+  color: var(--ix-text-dim);
 }
 
 .body {
@@ -39,11 +34,6 @@
   justify-content: flex-start;
   column-gap: 3px;
   padding: 2px 3px;
-}
-
-.chapter.selected {
-  background-color: #E0E0E0;
-  color: #202020;
 }
 
 .icon {
@@ -140,7 +130,7 @@
 
 .name {
   flex-shrink: 1;
-  color: #FFFF55;
+  color: var(--ix-title);
 }
 
 .line {
@@ -148,7 +138,7 @@
 }
 
 .state {
-  color: #AAAAAA;
+  color: var(--ix-text-muted);
 }
 
 .actions {

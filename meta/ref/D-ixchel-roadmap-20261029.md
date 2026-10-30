@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2；接下来是 L3（主题）、E（S8、S9）、I（i18n）、Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3；接下来是 E（S8、S9）、I（i18n）、Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
 
 ## Detail
 
@@ -33,7 +33,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | L1 | 完成 | — | 表达式、`on:` 语句、`state:` |
 | D | 完成 | S7、S4 箭头 | transform、拖拽 |
 | L2 | 完成 | — | 组件、组件层、CSS 嵌套 |
-| L3 | 待做 | — | 主题层与主题、`var()` |
+| L3 | 完成 | — | 主题层与主题、`var()` |
 | E | 待做 | S8、S9 | 行内流式排版、tooltip 宿主、`Component` 富文本 |
 | I | 待做 | — | i18n：`t` 语言键与参数 |
 | Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
@@ -78,6 +78,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 引擎：主题层；core 提供按名字读取库内样式表的入口（classpath，相对 core 类，同 `UiDocument.UserAgent`），两个 mc 层的 href 解析各加一个分支；`var()` 自定义属性（两份主题是同一结构的两套配色，满足语言文档 §4.4 的条件；也是页面状态影响组件外观的通道，上下文模型文档 §3.6）；`vanilla`、`dark` 两份主题。
 - sample：7 个场景按两族外观引入主题，删去重复配色。
 - 验收：作者 CSS 只剩布局与场景特有外观；`-Pcheck=all` 截图人工核对。
+- 结果（2026-10-30）：§6-1 定为 `@ixchel/<名>.css`，只能由页面链接（组件文件链接即报错，未知名字在 link 处报错）。L2 已把链接图移进 core，href 由 `TemplateLoader` 识别、`runtime.LibrarySheets`（接替 `UiDocument.UserAgent`）读取，两个 mc 层只改 javadoc。主题 = 共用规则 `themes/theme.css`（`.panel`、`.title`、`button` 各状态，全部写成 `var(--ix-*)`）加只设 `:root { --ix-* }` 的配色表 `vanilla.css`、`dark.css`（#018）。`var()` 带回退、可继承；自定义属性按普通层叠、总是继承，`bind:style:--x` 可写；`:root` 匹配模板顶层元素。sample 3 个场景用 vanilla、5 个页面（config、index、loot 列表、quests、waypoints）用 dark，env 与 loot HUD 不加主题；CSS 增 69 删 144 行，check 不改。接受的外观变化：按钮获焦时显示悬停底色；machine 选中按钮字色 `#404040`→`#202020`；index 行悬停 `#FFFFFF30`→`#FFFFFF20`、说明字色 `#A0A0A0`→`#AAAAAA`；config 条目悬停 `#FFFFFF10`→`#FFFFFF20`。已知偏差：成环的自定义属性带回退时可能取到回退值（规范要求环上一律无效），尚无场景触及。`-Pcheck=all` 143 项通过；testmod 1.21.1 只经 `build` 编译，未进游戏。
 
 #### E S8 指南书、S9 增强 tooltip
 

@@ -3,6 +3,7 @@ package com.azane.ixchel.core.runtime;
 import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
+import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
@@ -190,5 +191,42 @@ class UiDocumentComponentTest {
                 text 0 9 9 #FF00FF00 "b"
                 text 0 18 9 #FF0000FF "c"
                 """.strip(), GoldenTest.print(doc.frame(100, 100)).strip());
+    }
+
+    static final class Themed extends ViewModel {
+        final Value<String> accent = state("#00f");
+    }
+
+    @Test
+    void themeLayerSitsBetweenComponentsAndAuthorAndItsPropertiesReachEveryElement() {
+        Themed m = new Themed();
+        UiDocument doc = load("""
+                <link rel="component" href="btn.html"/><link rel="stylesheet" href="@ixchel/dark.css"/>
+                <style>.title { color: #0f0 } .muted { color: var(--ix-text-muted) } .accent { color: var(--accent) }</style>
+                <div class="panel" bind:style:--accent="accent"><span class="title">t</span><span class="muted">m</span>
+                <ui-btn class="accent"></ui-btn></div>
+                """, Map.of("btn.html", """
+                <style>ui-btn button.b { background-color: #f00; color: var(--ix-accent) }</style>
+                <template name="ui-btn"><button class="b">b</button></template>
+                """), m);
+        doc.frame(100, 100);
+        assertEquals(0xE0101418, doc.querySelectorAll(".panel").get(0).computed().get(CssProperties.BACKGROUND_COLOR));
+        assertEquals(0xFF00FF00, doc.querySelectorAll(".title").get(0).computed().get(CssProperties.COLOR));
+        assertEquals(0xFFAAAAAA, doc.querySelectorAll(".muted").get(0).computed().get(CssProperties.COLOR));
+        Element b = doc.querySelectorAll("button").get(0);
+        assertEquals(0x30FFFFFF, b.computed().get(CssProperties.BACKGROUND_COLOR), "the theme beats a more specific component rule");
+        assertEquals(0xFFFFFFFF, b.computed().get(CssProperties.COLOR));
+        assertEquals(0xFF0000FF, doc.querySelectorAll("ui-btn").get(0).computed().get(CssProperties.COLOR));
+
+        m.accent.set("#ff0");
+        doc.frame(100, 100);
+        assertEquals(0xFFFFFF00, doc.querySelectorAll("ui-btn").get(0).computed().get(CssProperties.COLOR));
+
+        String msg = assertThrows(UiLoadException.class, () -> load("""
+                <link rel="component" href="c.html"/><link rel="stylesheet" href="@ixchel/nope.css"/><ui-c></ui-c>
+                """, Map.of("c.html", "<link rel=\"stylesheet\" href=\"@ixchel/dark.css\"/><template name=\"ui-c\"></template>"),
+                new Styled())).getMessage();
+        assertTrue(msg.contains("t.html:1:") && msg.contains("no library stylesheet '@ixchel/nope.css'; there are dark.css, vanilla.css"), msg);
+        assertTrue(msg.contains("c.html:1:1:") && msg.contains("only the page can link the library stylesheet"), msg);
     }
 }

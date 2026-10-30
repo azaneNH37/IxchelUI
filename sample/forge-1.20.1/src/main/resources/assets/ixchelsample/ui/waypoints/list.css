@@ -8,7 +8,6 @@
 .panel {
   width: 240px;
   padding: 6px;
-  background-color: #101418E0;
 }
 
 .header {
@@ -18,29 +17,25 @@
   margin-bottom: 2px;
 }
 
-.title {
-  color: #FFFF55;
-}
-
 .count {
-  color: #AAAAAA;
+  color: var(--ix-text-muted);
 }
 
 .hint {
   margin-bottom: 4px;
-  color: #777777;
+  color: var(--ix-text-dim);
 }
 
 /* Six rows tall; the wheel scrolls the rest. */
 .list {
   height: 90px;
   overflow: auto;
-  background-color: #00000060;
+  background-color: var(--ix-well);
 }
 
 .empty {
   margin: 4px;
-  color: #777777;
+  color: var(--ix-text-dim);
 }
 
 .row {
@@ -51,7 +46,7 @@
 }
 
 .row:hover {
-  background-color: #FFFFFF20;
+  background-color: var(--ix-hover);
 }
 
 .row:focus {
@@ -64,17 +59,16 @@
 
 .name {
   width: 80px;
-  color: #FFFFFF;
 }
 
 .coords {
   width: 100px;
-  color: #AAAAAA;
+  color: var(--ix-text-muted);
 }
 
 .distance {
   flex-grow: 1;
-  color: #55FF55;
+  color: var(--ix-positive);
 }
 
 .buttons {
@@ -85,12 +79,4 @@
 button {
   padding: 3px 6px;
   margin-right: 4px;
-  border-style: none;
-  background-color: #FFFFFF30;
-  color: #FFFFFF;
-  transition: background-color 120ms;
-}
-
-button:hover {
-  background-color: #FFFFFF60;
 }

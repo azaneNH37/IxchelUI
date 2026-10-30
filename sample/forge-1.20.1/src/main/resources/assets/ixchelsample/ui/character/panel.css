@@ -4,9 +4,6 @@
   margin: auto;
   width: 178px;
   padding: 7px;
-  background-color: #C6C6C6;
-  border: 1px solid #555555;
-  color: #404040;
 }
 
 .tabs {
@@ -17,20 +14,20 @@
 .tab {
   padding: 2px 4px;
   margin-right: 2px;
-  background-color: #A0A0A0;
+  background-color: var(--ix-button);
   border-bottom: 1px solid #555555;
-  color: #404040;
+  color: var(--ix-button-text);
   transition: background-color 120ms;
 }
 
 .tab:hover {
-  background-color: #B8B8B8;
+  background-color: var(--ix-button-hover);
 }
 
 .tab.selected {
-  background-color: #E0E0E0;
-  border-bottom-color: #E0E0E0;
-  color: #202020;
+  background-color: var(--ix-selected);
+  border-bottom-color: var(--ix-selected);
+  color: var(--ix-selected-text);
 }
 
 .page {
@@ -76,10 +73,6 @@
   width: 36px;
 }
 
-.arrow {
-  color: #404040;
-}
-
 .result {
   width: 22px;
   height: 22px;
@@ -88,7 +81,7 @@
 .list {
   flex-direction: column;
   overflow: auto;
-  background-color: #8B8B8B;
+  background-color: var(--ix-well);
   padding: 2px;
 }
 
@@ -101,7 +94,7 @@
 }
 
 .row:hover {
-  background-color: #FFFFFF40;
+  background-color: var(--ix-hover);
 }
 
 .name {
@@ -113,7 +106,7 @@
 }
 
 .value {
-  color: #FFFF55;
+  color: var(--ix-accent);
 }
 
 .empty {

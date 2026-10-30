@@ -2,11 +2,13 @@ package com.azane.ixchel.core.dom;
 
 import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.PropertyDef;
+import com.azane.ixchel.core.css.syntax.ComponentValue;
 import com.azane.ixchel.core.css.syntax.Rule;
 import com.azane.ixchel.core.diag.SourcePos;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -74,6 +76,8 @@ public final class Element extends Node {
     private float scrollRequest = -1;
     private Map<PropertyDef<?>, Object> boundStyle;
     private Map<PropertyDef<?>, Object> boundStyleView = Map.of();
+    private Map<String, List<ComponentValue>> boundCustom;
+    private Map<String, List<ComponentValue>> boundCustomView = Map.of();
     private List<Registration> listeners;
     /** Created on first use, once the template has set {@code type}. */
     private FormControl control;
@@ -370,6 +374,29 @@ public final class Element extends Node {
             boundStyleView = Collections.unmodifiableMap(boundStyle);
         }
         Object old = value == null ? boundStyle.remove(property) : boundStyle.put(property, value);
+        if (!Objects.equals(old, value)) {
+            markStyleDirty();
+        }
+    }
+
+    /**
+     * Custom property values written by {@code bind:style:--name}, as {@link #boundStyle()} is for
+     * longhands; unmodifiable live view.
+     */
+    public Map<String, List<ComponentValue>> boundCustom() {
+        return boundCustomView;
+    }
+
+    /** Sets the bound value of the custom property {@code name}; {@code null} removes it. A change marks the element style-dirty. */
+    public void setBoundCustom(String name, List<ComponentValue> value) {
+        if (boundCustom == null) {
+            if (value == null) {
+                return;
+            }
+            boundCustom = new HashMap<>(4);
+            boundCustomView = Collections.unmodifiableMap(boundCustom);
+        }
+        Object old = value == null ? boundCustom.remove(name) : boundCustom.put(name, List.copyOf(value));
         if (!Objects.equals(old, value)) {
             markStyleDirty();
         }

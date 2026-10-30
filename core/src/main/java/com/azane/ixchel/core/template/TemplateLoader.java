@@ -22,20 +22,32 @@ import java.util.function.Function;
  * <p>A component file is loaded once however many files link it, and its stylesheets go into the
  * component layer once, dependencies before dependents. A file linking itself through components and
  * two files declaring the same component name are errors.
+ *
+ * <p>A stylesheet {@code href} starting with {@value #LIBRARY} names a stylesheet of the library,
+ * such as a theme; it is not read through the host. Only the page may link one, since it styles the
+ * whole document.
  */
 public final class TemplateLoader {
     /** CSS text to parse; {@code start} is the position of its first character. */
     public record Sheet(String css, SourcePos start) {
     }
 
+    /** The prefix of a library stylesheet's {@code href}. */
+    public static final String LIBRARY = "@ixchel/";
+
+    /** A library stylesheet the page links: {@code name} follows {@link #LIBRARY} in the {@code href}. */
+    public record Library(String name, SourcePos pos) {
+    }
+
     /**
      * @param components every component reachable from the page, by name
      * @param componentSheets the component layer, in load order
      * @param pageSheets the author layer, in document order
+     * @param library the library stylesheets the page links, each once, in document order
      * @param files the ids of the page and every file read for it, in first-read order
      */
     public record Loaded(Template page, Map<String, ComponentDef> components, List<Sheet> componentSheets,
-                         List<Sheet> pageSheets, List<String> files) {
+                         List<Sheet> pageSheets, List<Library> library, List<String> files) {
     }
 
     private final Function<String, String> read;
@@ -46,6 +58,7 @@ public final class TemplateLoader {
     private final Map<String, ComponentDef> components = new LinkedHashMap<>();
     private final Deque<String> loading = new ArrayDeque<>();
     private final List<Sheet> componentSheets = new ArrayList<>();
+    private final Map<String, Library> library = new LinkedHashMap<>();
     private final Set<String> files = new LinkedHashSet<>();
 
     private TemplateLoader(Function<String, String> read, TagRegistry tags, Diagnostics diag) {
@@ -64,9 +77,9 @@ public final class TemplateLoader {
         l.files.add(id);
         l.loading.push(id);
         Template page = TemplateParser.parse(template, id, tags, (href, at) -> l.link(id, href, at), false, diag);
-        List<Sheet> sheets = l.sheets(id, page);
+        List<Sheet> sheets = l.sheets(id, page, true);
         return new Loaded(page, Map.copyOf(l.components), List.copyOf(l.componentSheets), sheets,
-                List.copyOf(l.files));
+                List.copyOf(l.library.values()), List.copyOf(l.files));
     }
 
     private ComponentDef link(String from, String href, SourcePos at) {
@@ -92,7 +105,7 @@ public final class TemplateLoader {
         loading.push(id);
         Template t = TemplateParser.parse(text, id, tags, (h, p) -> link(id, h, p), true, diag);
         loading.pop();
-        componentSheets.addAll(sheets(id, t));
+        componentSheets.addAll(sheets(id, t, false));
         ComponentDef def = t.component();
         if (def == null) {
             return null;
@@ -107,11 +120,18 @@ public final class TemplateLoader {
         return def;
     }
 
-    private List<Sheet> sheets(String from, Template t) {
+    private List<Sheet> sheets(String from, Template t, boolean page) {
         List<Sheet> out = new ArrayList<>();
         for (Template.StyleSource s : t.styles()) {
             if (s instanceof Template.Inline inline) {
                 out.add(new Sheet(inline.css(), inline.start()));
+            } else if (s instanceof Template.Link link && link.href().startsWith(LIBRARY)) {
+                if (page) {
+                    String name = link.href().substring(LIBRARY.length());
+                    library.putIfAbsent(name, new Library(name, link.pos()));
+                } else {
+                    diag.error(link.pos(), "only the page can link the library stylesheet '" + link.href() + "'");
+                }
             } else if (s instanceof Template.Link link) {
                 String id;
                 try {

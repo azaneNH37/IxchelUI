@@ -8,17 +8,12 @@
 .panel {
   width: 300px;
   padding: 6px;
-  background-color: #101418E0;
-}
-
-.title {
-  color: #FFFF55;
 }
 
 .hint {
   margin-top: 2px;
   margin-bottom: 4px;
-  color: #AAAAAA;
+  color: var(--ix-text-muted);
 }
 
 .list {
@@ -35,7 +30,7 @@
 }
 
 .row:hover {
-  background-color: #FFFFFF30;
+  background-color: var(--ix-hover);
 }
 
 .icon {
@@ -48,19 +43,15 @@
   width: 230px;
 }
 
-.name {
-  color: #FFFFFF;
-}
-
 .description {
-  color: #A0A0A0;
+  color: var(--ix-text-muted);
 }
 
 .state {
   margin-left: 4px;
-  color: #777777;
+  color: var(--ix-text-dim);
 }
 
 .row.on .state {
-  color: #55FF55;
+  color: var(--ix-positive);
 }

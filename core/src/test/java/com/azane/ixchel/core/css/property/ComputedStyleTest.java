@@ -17,7 +17,7 @@ class ComputedStyleTest {
         parent.set(color, 0xFFAAAAAA);
         parent.set(width, 40f);
 
-        ComputedStyle child = ComputedStyle.inheriting(reg, parent);
+        ComputedStyle child = ComputedStyle.inheriting(reg, parent, parent.custom());
         assertEquals(0xFFAAAAAA, child.get(color));
         assertEquals(0f, child.get(width));
     }

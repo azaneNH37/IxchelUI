@@ -12,7 +12,7 @@ import java.util.List;
 /** Parsed rules with validated declarations; one entry per selector of a selector list. */
 public final class StyleSheet {
     /** {@code order} is the rule's position within this sheet. */
-    public record StyleRule(Selector selector, List<Declarations.Compiled> declarations, int order) {
+    public record StyleRule(Selector selector, Declarations.Compiled declarations, int order) {
     }
 
     private final List<StyleRule> rules;
@@ -26,7 +26,7 @@ public final class StyleSheet {
         int order = 0;
         for (Rule r : rules) {
             List<Selector> selectors = SelectorParser.parseList(r.prelude(), r.pos(), diag);
-            List<Declarations.Compiled> decls = Declarations.compile(r.declarations(), registry, diag);
+            Declarations.Compiled decls = Declarations.compile(r.declarations(), registry, diag);
             for (Selector s : selectors) {
                 out.add(new StyleRule(s, decls, order));
             }

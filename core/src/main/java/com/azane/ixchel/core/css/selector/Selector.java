@@ -21,10 +21,17 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, i
         }
     }
 
-    /** {@code tag} and {@code id} are {@code null} when absent; {@code stateMask} uses {@link Element} state bits. */
-    public record Compound(String tag, String id, List<String> classes, List<AttributeMatch> attributes, int stateMask) {
+    /**
+     * {@code tag} and {@code id} are {@code null} when absent; {@code stateMask} uses {@link Element} state bits;
+     * {@code root} is {@code :root}, a top-level element of the template (a child of the implicit root).
+     */
+    public record Compound(String tag, String id, List<String> classes, List<AttributeMatch> attributes, int stateMask,
+                           boolean root) {
         public boolean matches(Element e) {
             if (e.tag().startsWith("#")) {
+                return false;
+            }
+            if (root && (e.parent() == null || !e.parent().tag().startsWith("#"))) {
                 return false;
             }
             if (tag != null && !tag.equals(e.tag())) {
@@ -86,7 +93,7 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, i
             if (c.id != null) {
                 ids++;
             }
-            classes += c.classes.size() + c.attributes.size() + Integer.bitCount(c.stateMask);
+            classes += c.classes.size() + c.attributes.size() + Integer.bitCount(c.stateMask) + (c.root ? 1 : 0);
             if (c.tag != null) {
                 tags++;
             }

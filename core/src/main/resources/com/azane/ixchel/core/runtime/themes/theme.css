@@ -1,0 +1,35 @@
+/*
+ * Rules every theme shares, in the theme layer above the user agent and the components. A theme's own
+ * sheet sets the --ix-* properties on :root; pages and components may use them too. Visual only:
+ * no sizes, margins or padding.
+ */
+.panel {
+    background-color: var(--ix-surface);
+    border: var(--ix-frame);
+    color: var(--ix-text);
+}
+
+.title {
+    color: var(--ix-title);
+}
+
+button {
+    border: var(--ix-button-frame);
+    background-color: var(--ix-button);
+    color: var(--ix-button-text);
+    transition: background-color 120ms;
+}
+
+button:hover, button:focus {
+    background-color: var(--ix-button-hover);
+}
+
+button.selected {
+    background-color: var(--ix-selected);
+    color: var(--ix-selected-text);
+}
+
+button:disabled {
+    background-color: var(--ix-button-disabled);
+    color: var(--ix-button-disabled-text);
+}

@@ -341,7 +341,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 |---|---|---|
 | 1 | user-agent 来源 | `user-agent.css`（现有） |
 | 2 | 作者来源·组件层 | 组件文件中 link 的样式表 |
-| 3 | 作者来源·主题层 | `@ixchel/…` 样式表 |
+| 3 | 作者来源·主题层 | 页面 link 的 `@ixchel/<名>.css` 库内样式表（现有） |
 | 4 | 作者来源·不分层 | 页面模板中 link 的样式表、`<style>`、`style` 属性与 `bind:style:*`（现有顺序） |
 
 - 层间按层的顺序决定，不比较优先级；同层内按优先级与书写顺序（现有 `StyleEngine.CASCADE_ORDER`）。
@@ -354,6 +354,19 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 - 首批 `vanilla`（原版容器灰：`#C6C6C6` 底、`#555555` 边、`#404040` 字）与 `dark`（暗色浮层：`#101418E0` 底、`#FFFF55` 标题），来源为 sample 现有两族外观。
 - 按 #001 放 classpath，以相对 core 类的路径读取（同 `UiDocument.UserAgent`），relocate 后可用；不随资源重载热更新。
 - UA 样式表保持为不引入主题时的兜底外观。
+- 构成（L3 实现，#018）：每份主题 = 共用规则 `themes/theme.css`（`.panel`、`.title`、`button` 及 `:hover`/`:focus`、`.selected`、`:disabled`，值全部为 `var(--ix-*)`）加只在 `:root` 上设变量的配色表；同时链接多份时共用规则只进一次。
+- `--ix-*` 变量是对页面与组件公开的接口，作者 CSS 用它们表达角色色：
+
+| 变量 | 角色 | vanilla | dark |
+|---|---|---|---|
+| `--ix-surface` / `--ix-frame` | 面板底色 / 边框（完整 `border` 值） | `#C6C6C6` / `1px solid #555555` | `#101418E0` / `none` |
+| `--ix-text` / `--ix-title` | 正文 / 标题 | `#404040` / `#404040` | `#FFFFFF` / `#FFFF55` |
+| `--ix-text-muted` / `--ix-text-dim` | 次要文字 / 提示与空状态 | `#606060` / `#707070` | `#AAAAAA` / `#777777` |
+| `--ix-well` / `--ix-hover` | 内凹区底色 / 行悬停叠加 | `#8B8B8B` / `#FFFFFF40` | `#00000060` / `#FFFFFF20` |
+| `--ix-selected` / `--ix-selected-text` | 选中底色 / 字色 | `#E0E0E0` / `#202020` | 同左 |
+| `--ix-button` / `--ix-button-hover` / `--ix-button-text` / `--ix-button-frame` | 按钮 | `#A0A0A0` / `#B8B8B8` / `#404040` / `1px solid #555555` | `#FFFFFF30` / `#FFFFFF60` / `#FFFFFF` / `none` |
+| `--ix-button-disabled` / `--ix-button-disabled-text` | 禁用按钮 | `#A0A0A0` / `#707070` | `#FFFFFF10` / `#777777` |
+| `--ix-accent` / `--ix-positive` / `--ix-negative` / `--ix-warning` | 强调 / 正向 / 错误 / 警告 | `#FFFF55` / `#3F7F3F` / `#AA2020` / `#C07020` | `#FFFF55` / `#55FF55` / `#FF5555` / `#FFAA00` |
 
 #### 4.3 组件样式
 
@@ -367,7 +380,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 | 一个元素带多个 class、选择器列表 | 支持 | — |
 | 多个样式表 | 支持，经模板中的多个 `<link>` | — |
 | 嵌套（CSS Nesting） | 报错（`CssParser`："At-rules and nested rules are reported as errors"） | 随组件实现；解析期展开，不改样式引擎 |
-| `var()` 自定义属性 | 报错（`Declarations`："custom properties are not supported yet"） | L3：`vanilla`、`dark` 是同一结构的两套配色；也用作页面状态进入组件外观的通道（上下文模型文档 §3.6） |
+| `var()` 自定义属性 | 支持（L3）：带回退，自定义属性按普通层叠且总是继承，`bind:style:--x` 可写；替换后无效的属性取继承值或初值并报告一次 | — |
 | `@import` | 报错（不支持任何 at-rule） | 暂缓：文件组合已由模板侧 `<link>` 完成 |
 | `@layer` 语法 | 不支持 | 不开放，层由 link 位置决定 |
 | `@extend`、`@mixin` | — | 不做：不是 CSS 标准（#003），多 class 组合已覆盖 |
@@ -416,7 +429,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 
 ### 6. 待定
 
-1. 库内样式表 href 的保留写法（`@ixchel/…` 为暂定）。
+1. ~~库内样式表 href 的保留写法~~ 已定（L3）：`@ixchel/<名>.css`，只能由页面链接；首批 `vanilla.css`、`dark.css`。
 2. ~~格式化：内置函数还是一律写 `Derived`。~~ 已定（L1）：不提供内置函数。sample 中只做格式化的 `Derived` 绝大多数是拼接与算术；需要函数的只有 `EnvView` 的血量取整与宽度上限，`MachineView` 等引用 Java 常量（容量）的也不能搬进模板。格式化函数等出现第二处真实需要再加。
 3. ~~插槽的后备内容~~ 已定：支持，`<slot>` 的子元素即后备内容（上下文模型文档 §3.1）。
 4. ~~热重载时局部状态是否保留。~~ 已定（L1）：不保留，重载后按初值重建。模板结构可变，没有可靠的身份去匹配旧状态；需要跨重载保留的状态放在 ViewModel（它跨重载保留）。
