@@ -1,9 +1,10 @@
 package com.azane.ixchel.sample.check.scenario;
 
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.FrameTimer;
-import com.azane.ixchel.sample.check.Script;
+import com.azane.ixchel.core.event.EventDispatcher;
+import com.azane.ixchel.mc.FrameTimer;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.network.Network;
 import com.azane.ixchel.sample.quests.ClaimQuestPacket;
 import com.azane.ixchel.sample.quests.Claimed;
@@ -29,8 +30,8 @@ public final class QuestsCheck {
     private QuestsCheck() {
     }
 
-    public static void register() {
-        Checks.register("quests", s -> {
+    public static void register(Checks checks) {
+        checks.register("quests", s -> {
             Quests.Chapter first = Quests.chapters().get(0);
             int lines = first.quests().stream().mapToInt(q -> q.deps().size()).sum();
             s.server(Claimed::clear);
@@ -42,7 +43,7 @@ public final class QuestsCheck {
             s.shot("quests-start");
 
             // Fails if the canvas does not follow the drag, or a quest is not hit where it now paints.
-            s.run(() -> before = Script.paintedCenter(node(0)));
+            s.run(() -> before = EventDispatcher.paintedCenter(node(0)));
             s.drag(".node", 40, 24);
             s.waitUntil("a drag moves the canvas with the pointer", () -> moved(node(0), before, 40, 24), Script.WAIT);
             s.expect("the moved quest is hit where it paints", () -> hitsItself(node(0)));
@@ -73,7 +74,7 @@ public final class QuestsCheck {
                     && Script.text(".detail .name").equals(first.quests().get(0).title()), Script.WAIT);
             s.expect("the detail panel does not move with the canvas", () -> {
                 Element detail = Script.query(".detail").get(0);
-                float[] p = Script.paintedCenter(detail);
+                float[] p = EventDispatcher.paintedCenter(detail);
                 return near(p[0], detail.box().x() + detail.box().width() / 2) && hitsInside(detail, p);
             });
             s.expect("claim is disabled without the items", () -> Script.query(".claim:disabled").size() == 1);
@@ -122,17 +123,17 @@ public final class QuestsCheck {
     }
 
     private static boolean moved(Element e, float[] from, float dx, float dy) {
-        float[] p = Script.paintedCenter(e);
+        float[] p = EventDispatcher.paintedCenter(e);
         return near(p[0] - from[0], dx) && near(p[1] - from[1], dy);
     }
 
     /** The painted distance between the first two quests of a column, 38px apart on the canvas. */
     private static float gap() {
-        return Script.paintedCenter(node(1))[1] - Script.paintedCenter(node(0))[1];
+        return EventDispatcher.paintedCenter(node(1))[1] - EventDispatcher.paintedCenter(node(0))[1];
     }
 
     private static boolean hitsItself(Element e) {
-        return hitsInside(e, Script.paintedCenter(e));
+        return hitsInside(e, EventDispatcher.paintedCenter(e));
     }
 
     private static boolean hitsInside(Element e, float[] p) {

@@ -1,7 +1,7 @@
 package com.azane.ixchel.sample.check.scenario;
 
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.Script;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.machine.MachineMenu;
 import com.azane.ixchel.sample.machine.MachineScreen;
 import net.minecraft.client.Minecraft;
@@ -31,8 +31,8 @@ public final class MachineCheck {
     private MachineCheck() {
     }
 
-    public static void register() {
-        Checks.register("machine", s -> s
+    public static void register(Checks checks) {
+        checks.register("machine", s -> s
                 .server(p -> {
                     p.getInventory().setItem(0, new ItemStack(Items.COAL, 4));
                     p.getInventory().setItem(1, new ItemStack(Items.WATER_BUCKET));

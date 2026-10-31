@@ -1,10 +1,10 @@
 package com.azane.ixchel.sample.check.scenario;
 
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.mc.FrameTimer;
 import com.azane.ixchel.mc.UiHud;
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.FrameTimer;
-import com.azane.ixchel.sample.check.Script;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.waypoints.Waypoints;
 import net.minecraft.client.Minecraft;
@@ -42,8 +42,8 @@ public final class EnvCheck {
     private EnvCheck() {
     }
 
-    public static void register() {
-        Checks.register("env", s -> {
+    public static void register(Checks checks) {
+        checks.register("env", s -> {
             UiHud hud = EnvHud.hud();
             float[] stairsHeight = {0};
             Pig[] pig = {null};
@@ -137,13 +137,13 @@ public final class EnvCheck {
             s.shot("env-world");
             // Standing still only the clock changes, about every 17 ticks: most frames replay the last
             // layout. Fails if an unchanged frame costs more than the budget at p95.
-            s.run(() -> FrameTimer.overlay(EnvHud.LAYER, 4096));
+            s.run(() -> FrameTimer.hud(hud, 4096));
             s.pause(100);
             s.run(() -> FrameTimer.report(s, "standing still", STILL_BUDGET_US));
             // Every tick the coordinates, the facing, the compass and the targeted block's position
             // change: the layer lays out and paints every tick. Fails if that costs more than the budget
             // at p95.
-            s.run(() -> FrameTimer.overlay(EnvHud.LAYER, 4096));
+            s.run(() -> FrameTimer.hud(hud, 4096));
             for (int i = 0; i < TIMED_TICKS; i++) {
                 int tick = i;
                 s.run(() -> {

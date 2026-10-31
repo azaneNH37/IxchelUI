@@ -2,9 +2,9 @@ package com.azane.ixchel.sample.check.scenario;
 
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.event.Keys;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.IxchelSampleMod;
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.Script;
 import com.azane.ixchel.sample.config.ConfigEntries;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -29,8 +29,8 @@ public final class ConfigCheck {
     private ConfigCheck() {
     }
 
-    public static void register() {
-        Checks.register("config", s -> {
+    public static void register(Checks checks) {
+        checks.register("config", s -> {
             s.run(() -> {
                 resetConfig();
                 Minecraft mc = Minecraft.getInstance();

@@ -112,8 +112,10 @@ public final class UiHud {
         if (!shown || doc == null) {
             return;
         }
+        FrameTimer.start(this);
         doc.frame(g.guiWidth(), g.guiHeight());
         doc.paint(g, Float.NaN, Float.NaN);
         doc.drawOverlay(g);
+        FrameTimer.stop(this);
     }
 }

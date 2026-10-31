@@ -1,9 +1,9 @@
 package com.azane.ixchel.sample.check.scenario;
 
 import com.azane.ixchel.core.dom.LayoutBox;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.character.CharacterScreen;
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.Script;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.inventory.InventoryMenu;
@@ -23,8 +23,8 @@ public final class CharacterCheck {
     private CharacterCheck() {
     }
 
-    public static void register() {
-        Checks.register("character", s -> s
+    public static void register(Checks checks) {
+        checks.register("character", s -> s
                 .server(p -> p.getInventory().setItem(0, new ItemStack(Items.DIAMOND_HELMET)))
                 .run(CharacterScreen::open)
                 .waitUntil("panel open, every slot placed without errors", () -> isOpen()

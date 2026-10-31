@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1；接下来是 E2–E3（文档内 tooltip、S9）、I（i18n）、Doc（用户文档），工具 T2（游戏内检查提取）可并行。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2；接下来是 E2–E3（文档内 tooltip、S9）、I（i18n）、Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
 
 ## Detail
 
@@ -40,7 +40,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | I | 待做 | — | i18n：`t` 语言键与参数 |
 | Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
 | T1 | 完成 | 2026-10-31 | 静态检查：`@UiTemplate`、成员表编译、原生元素声明数据、错误码、`ixchel-kit` 的 lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
-| T2 | 待做 | — | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
+| T2 | 完成 | 2026-10-31 | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
 
 依赖：D0 → L1 → D → L2 → E1 → E2 → E3；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
@@ -161,6 +161,13 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - core 新包放 `Driver`、运行器、`InputPort`/`Pump` 端口与帧统计，`paintedCenter` 公开到 `hitTest` 旁；1.20.1 mc 层实现输入、截图、服务端步骤、槽位、开发世界、失败转储与非 0 退出；forge-1.20.1 提供 `Pump`；`-Dixchel.check.<modid>` 开启。
 - sample 的 `Script`、`Checks`、`BenchWorld`、`FrameTimer` 删除，场景改用库内框架，只做等价重构。1.21.1 不适配，记为缺项。
 - 验收：`-Pcheck=all` 160 项结果不变；人为制造失败时进程非 0 退出并产出转储；`build` 通过。
+- 结果（2026-10-31）：按已定完成。core `check`：`Driver<S>`（自类型泛型，宿主子类的步骤可与库内步骤链式混用；宿主经 `then(Step)` 加步骤）、`Runner`、`InputPort`、`Pump`、`FrameStats`、`Dump`；mc `check`：`Checks`、`Script`、包内 `ScreenInput`；`IxchelForge.installChecks`。场景只改 import、`register(Checks)` 签名与 `FrameTimer.hud`，断言不改；`-Pcheck=all` 160 项通过；把 index 检查的期望行数加一后 `runClient` 以退出值 1 失败（存档先保存完），`run/checks/ixchelsample/dumps/index-1.txt` 含失败项、当时界面与文档树。偏差：
+  - 帧计时不再挂 Forge 的屏幕与 HUD 渲染事件，改在 mc 根包 `FrameTimer`，由 `UiScreen`、`UiContainerScreen`、`UiHud` 的 `render` 首尾记录，计时范围仍是整个 `render`；HUD 按 `UiHud` 实例选定（`FrameTimer.hud(hud, n)`），sample 的 `EnvHud.LAYER` 随之删除。
+  - 开发世界不再挂标题界面的 init 事件：`Pump` 首次在无玩家且显示标题界面时打开存档，加载器层只提供 `Pump`。
+  - 光标（`MouseHandler.xpos/ypos`）与槽位所需的 GUI 原点（`leftPos/topPos`）按 Mojang 名反射：Forge 的 `getGuiLeft` 不在 mc 层 classpath 上；检查只在开发期运行。
+  - 非 0 退出靠关机钩子里 `Runtime.halt(1)`：`mc.stop()` 正常退出码恒为 0，钩子在存档保存、窗口关闭之后执行。
+  - 报告改为 `run/checks/<modid>/report.txt`，转储在同目录 `dumps/<检查>-<序号>.txt`；PASS/FAIL 日志行格式不变，汇总行加了 modid。
+  - 只做失败时自动转储；按键或命令手动转储（工具文档 §8）未做，待有需要时由加载器层加。shade-a 的 `ContainerCheck` 仍是自己的步骤队列，未迁移。
 
 ### 3. 风险
 

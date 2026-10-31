@@ -2,6 +2,7 @@ package com.azane.ixchel.forge;
 
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.UiHud;
+import com.azane.ixchel.mc.check.Checks;
 import com.azane.ixchel.mc.source.WorldProjection;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
@@ -10,11 +11,13 @@ import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Forge 1.20.1 glue for host mods: registers the mc layer's hosts with Forge. */
+/** Forge 1.20.1 glue for host mods: registers the mc layer's hosts with Forge and drives its checks. */
 public final class IxchelForge {
     private static boolean worldProjectionInstalled;
 
@@ -77,6 +80,35 @@ public final class IxchelForge {
                 (IGuiOverlay) (gui, g, partialTick, width, height) -> hud.render(g)));
         installWorldProjection();
         return hud;
+    }
+
+    /**
+     * Installs the host's in-game checks ({@link Checks}): with {@code -Dixchel.check.<modid>=<name>[,…]|all}
+     * a development client runs them unattended and quits; without it, nothing is registered. Call
+     * once from the client side of the host's constructor, typically in a development-only mod.
+     *
+     * <pre>{@code
+     * IxchelForge.installChecks("examplemod", checks -> checks.resetPlayer().register("panel", PanelCheck::run));
+     * }</pre>
+     */
+    public static void installChecks(String modid, Consumer<Checks> scenarios) {
+        Checks.install(modid, IxchelForge::pump, scenarios);
+    }
+
+    /** Calls {@code frame} at the end of each client tick that follows a drawn frame. */
+    private static void pump(Runnable frame) {
+        boolean[] drawn = {false};
+        MinecraftForge.EVENT_BUS.addListener((TickEvent.RenderTickEvent e) -> {
+            if (e.phase == TickEvent.Phase.END) {
+                drawn[0] = true;
+            }
+        });
+        MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e) -> {
+            if (e.phase == TickEvent.Phase.END && drawn[0]) {
+                drawn[0] = false;
+                frame.run();
+            }
+        });
     }
 
     static String layerId(String templatePath) {

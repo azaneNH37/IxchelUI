@@ -78,20 +78,21 @@ M1 已知限制（均为开发期可见行为，后续按场景放开）：
 
 ### 4. mc 层与加载器层
 
-`ixchel-mc-<时代>` 按对外承担的契约分包（2026-10-28 重组，原则见项目 `AGENTS.md`「分包」）。宿主只 import 根包与 `source`；加载器层用根包，外加 `WorldProjection.capture` 喂相机：
+`ixchel-mc-<时代>` 按对外承担的契约分包（2026-10-28 重组，原则见项目 `AGENTS.md`「分包」）。宿主只 import 根包与 `source`（开发期检查另 import `check`）；加载器层用根包，外加 `WorldProjection.capture` 喂相机：
 
 | 包 | 契约 | 主要类 |
 |---|---|---|
-| `mc`（根） | 宿主 API：把原版的屏幕、容器屏幕、HUD 帧与输入交给文档 | `UiScreen`、`UiContainerScreen`、`UiHud` |
+| `mc`（根） | 宿主 API：把原版的屏幕、容器屏幕、HUD 帧与输入交给文档；宿主 `render` 的帧计时 | `UiScreen`、`UiContainerScreen`、`UiHud`、`FrameTimer` |
 | `mc.document` | 文档生命周期，所有宿主共用：从宿主资源加载（`<link>` 解析）、开发期热重载与保留上一版、错误叠加层、逐帧绘制与 tooltip；view model 跨重载保留 | `HostedDocument`；`McResources`、`DevResources`、`DevOverlay` 包内私有 |
 | `mc.element` | 原版内容进入文档：每个原生元素一个单元，自带标签、绘制（`NativePainter`）与 tooltip 解析 | `McElements`（`TAGS`、`PAINTERS`）、`Tooltips`；`ItemElement`、`EntityElement` 包内私有 |
 | `mc.container` | 容器槽位接入：GUI 区域、`Slot.x/y` 写回与还原、隐藏规则、hover 判定、`IXCHEL` 逐槽裁剪绘制 | `ContainerLayout`（含 `<mc-slot index>` 的 `TAGS`）、`ClippedSlotItems`；`SlotPositions` 包内私有 |
 | `mc.paint` | core 端口实现：DisplayList 回放（自写顶点合批、scissor、按重叠分层）、文本与图片测量、`sprite:` 图集精灵 | `McPainter`、`NativePainter`、`McTextMeasurer`、`McImageMeasurer`；`Sprites`、`Layers` 包内私有 |
 | `mc.source` | 游戏状态作为数据源 | `ClientSources`、`WorldProjection` |
+| `mc.check` | 游戏内检查（仅开发期，T2）：按 `-Dixchel.check.<modid>` 运行、进开发世界、经原版 `Screen` 驱动 core `Driver`、服务端步骤、截图、槽位、失败转储与退出码 | `Checks`、`Script`；`ScreenInput` 包内私有 |
 
-依赖单向：根 → document/container → element → paint；source 独立。`McPainter` 不认识任何原生元素，按 `DrawCommand.Custom.kind` 查 `NativePainter`，绘制返回写入的深度。每条命令画在之前与它矩形相交的命令所达到的最高深度上（`Layers`，原生元素只按边框盒算），深度只随同一处叠了几层增长；原先"原生绘制后其后命令整体抬高"在约 70 格物品网格时越过 GUI 远平面（Forge 1.20.1 为 z 10000）。1.21.1 为最小集：无 `container`、`<mc-entity>`、`sprite:`，其余包与 1.20.1 同构。
+依赖单向：根 → document/container → element → paint；check → 根；source 独立。`McPainter` 不认识任何原生元素，按 `DrawCommand.Custom.kind` 查 `NativePainter`，绘制返回写入的深度。每条命令画在之前与它矩形相交的命令所达到的最高深度上（`Layers`，原生元素只按边框盒算），深度只随同一处叠了几层增长；原先"原生绘制后其后命令整体抬高"在约 70 格物品网格时越过 GUI 远平面（Forge 1.20.1 为 z 10000）。1.21.1 为最小集：无 `container`、`check`、`<mc-entity>`、`sprite:`，其余包与 1.20.1 同构。
 
-`ixchel-<加载器>-<版本>`：只做注册——`registerHud` 构造 `UiHud`，把它挂到 HUD 层与资源重载监听，安装 `WorldProjection` 的相机捕获；不碰文档加载与开发期设施。
+`ixchel-<加载器>-<版本>`：只做注册——`registerHud` 构造 `UiHud`，把它挂到 HUD 层与资源重载监听，安装 `WorldProjection` 的相机捕获；1.20.1 另有 `installChecks`，以 tick 事件实现检查的 `Pump`；不碰文档加载与开发期设施。
 
 ### 5. 模板解析器（#007）
 

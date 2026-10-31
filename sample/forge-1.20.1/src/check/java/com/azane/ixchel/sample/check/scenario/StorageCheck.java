@@ -2,9 +2,9 @@ package com.azane.ixchel.sample.check.scenario;
 
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.event.Keys;
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.FrameTimer;
-import com.azane.ixchel.sample.check.Script;
+import com.azane.ixchel.mc.FrameTimer;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.registry.ModItems;
 import com.azane.ixchel.sample.storage.TerminalMenu;
 import net.minecraft.client.Minecraft;
@@ -52,8 +52,8 @@ public final class StorageCheck {
     private StorageCheck() {
     }
 
-    public static void register() {
-        Checks.register("storage", s -> {
+    public static void register(Checks checks) {
+        checks.register("storage", s -> {
             s.server(StorageCheck::fill);
             s.server(p -> p.getInventory().setItem(0, new ItemStack(ModItems.STORAGE_TERMINAL.get())));
             s.waitUntil("terminal in the hand", () -> {

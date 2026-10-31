@@ -127,6 +127,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        FrameTimer.start(this);
         layout();
         if (clippedItems != null) {
             clippedItems.hideVanillaLoop(this);
@@ -141,6 +142,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         }
         doc.drawOverlay(g);
         g.pose().popPose();
+        FrameTimer.stop(this);
     }
 
     /**

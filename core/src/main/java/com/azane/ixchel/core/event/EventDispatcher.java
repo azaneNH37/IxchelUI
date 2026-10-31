@@ -163,6 +163,33 @@ public final class EventDispatcher {
         return hit == null ? root : hit;
     }
 
+    /**
+     * Where the center of {@code e}'s border box paints, the point {@link #hitTest} maps back to it:
+     * through the transforms and scroll offsets on it and above it, up to placed top-layer content
+     * ({@link Element#isPlaced()}), which paints alone.
+     *
+     * @return {@code {x, y}} in document coordinates
+     */
+    public static float[] paintedCenter(Element e) {
+        LayoutBox b = e.box();
+        float x = b.x() + b.width() / 2;
+        float y = b.y() + b.height() / 2;
+        for (Element a = e; a != null; a = a.parent()) {
+            LayoutBox ab = a.box();
+            Affine m = a.computed() == null ? null : Transform.of(a.computed(), ab.x(), ab.y(), ab.width(), ab.height());
+            if (m != null) {
+                float mx = m.x(x, y);
+                y = m.y(x, y);
+                x = mx;
+            }
+            if (a.isPlaced() || a.parent() == null) {
+                break;
+            }
+            y -= a.parent().scrollTop();
+        }
+        return new float[]{x, y};
+    }
+
     public boolean mouseMoved(float x, float y) {
         float movementX = Float.isNaN(mouseX) ? 0 : x - mouseX;
         float movementY = Float.isNaN(mouseY) ? 0 : y - mouseY;

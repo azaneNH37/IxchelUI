@@ -1,7 +1,7 @@
 package com.azane.ixchel.sample.check.scenario;
 
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.Script;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.waypoints.Waypoints;
 import com.azane.ixchel.sample.waypoints.WaypointsScreen;
 import net.minecraft.client.Minecraft;
@@ -15,8 +15,8 @@ public final class WaypointsCheck {
     private WaypointsCheck() {
     }
 
-    public static void register() {
-        Checks.register("waypoints", s -> {
+    public static void register(Checks checks) {
+        checks.register("waypoints", s -> {
             s.run(() -> {
                 Waypoints.clear();
                 WaypointsScreen.open();

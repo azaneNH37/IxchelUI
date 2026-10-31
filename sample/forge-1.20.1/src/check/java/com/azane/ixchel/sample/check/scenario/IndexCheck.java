@@ -1,7 +1,7 @@
 package com.azane.ixchel.sample.check.scenario;
 
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.Script;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.client.index.SampleIndex;
 import com.azane.ixchel.sample.client.index.Samples;
 
@@ -10,8 +10,8 @@ public final class IndexCheck {
     private IndexCheck() {
     }
 
-    public static void register() {
-        Checks.register("index", s -> s
+    public static void register(Checks checks) {
+        checks.register("index", s -> s
                 .run(SampleIndex::open)
                 .waitUntil("index lists every sample", () -> Script.isOpen()
                         && Script.query(".row").size() == Samples.all().size(), Script.WAIT)

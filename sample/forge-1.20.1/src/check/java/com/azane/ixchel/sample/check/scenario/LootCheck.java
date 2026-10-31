@@ -3,10 +3,10 @@ package com.azane.ixchel.sample.check.scenario;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.mc.FrameTimer;
 import com.azane.ixchel.mc.UiHud;
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.FrameTimer;
-import com.azane.ixchel.sample.check.Script;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.loot.PickUpDropPacket;
 import com.azane.ixchel.sample.network.Network;
@@ -41,8 +41,8 @@ public final class LootCheck {
     private LootCheck() {
     }
 
-    public static void register() {
-        Checks.register("loot", s -> {
+    public static void register(Checks checks) {
+        checks.register("loot", s -> {
             UiHud hud = LootScreens.hud();
             s.server(p -> {
                 ServerLevel l = p.serverLevel();

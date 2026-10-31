@@ -2,9 +2,10 @@ package com.azane.ixchel.sample.check.scenario;
 
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
-import com.azane.ixchel.sample.check.Checks;
-import com.azane.ixchel.sample.check.FrameTimer;
-import com.azane.ixchel.sample.check.Script;
+import com.azane.ixchel.core.event.EventDispatcher;
+import com.azane.ixchel.mc.FrameTimer;
+import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.check.Script;
 import com.azane.ixchel.sample.guide.Guide;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
@@ -28,8 +29,8 @@ public final class GuideCheck {
     private GuideCheck() {
     }
 
-    public static void register() {
-        Checks.register("guide", s -> {
+    public static void register(Checks checks) {
+        checks.register("guide", s -> {
             s.run(Guide::open);
             s.waitUntil("the contents list every entry template, sorted", () -> Script.isOpen()
                     && Script.texts(".toc a").equals(List.of("Circuits", "Pistons", "Storage", "Typesetting"))
@@ -103,7 +104,7 @@ public final class GuideCheck {
 
     /** Whether page {@code index} is drawn inside the book's window. */
     private static boolean inView(int index) {
-        float[] p = Script.paintedCenter(Script.query(".page").get(index));
+        float[] p = EventDispatcher.paintedCenter(Script.query(".page").get(index));
         LayoutBox w = Script.box(".window");
         return p[0] >= w.x() && p[0] < w.x() + w.width() && p[1] >= w.y() && p[1] < w.y() + w.height();
     }

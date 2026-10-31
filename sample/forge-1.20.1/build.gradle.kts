@@ -3,10 +3,12 @@
 // Two source sets, two mods:
 // - `main` is `ixchelsample`, laid out as a normal mod (registry/, network/, client/ and one package
 //   per sample, templates under assets/ixchelsample/ui/<package>/<stem>.{html,css}).
-// - `check` is `ixchelsamplecheck`, the unattended functional checks (package `sample.check`). It sees
-//   `main` and is loaded only with `-Pcheck=<name>[,<name>…]|all` (no value: `all`): the run then starts
-//   in the dev world (BenchWorld creates it if missing), runs the selected checks in order through the
-//   samples' public entry classes, writes `run/checks/report.txt` and screenshots, and quits.
+// - `check` is `ixchelsamplecheck`, the unattended functional checks (package `sample.check`) on the
+//   library's check runner (`IxchelForge.installChecks`). It sees `main` and is loaded only with
+//   `-Pcheck=<name>[,<name>…]|all` (no value: `all`): the run then enters the dev world (created if
+//   missing), runs the selected checks in order through the samples' public entry classes, writes
+//   `run/checks/ixchelsample/report.txt`, a dump per failure and screenshots, and quits, failing on a
+//   failed check.
 plugins {
     id("ixchel.java-conventions")
     id("net.neoforged.moddev.legacyforge")
@@ -36,9 +38,9 @@ legacyForge {
             // Hot reload of UI templates and stylesheets straight from the source tree (L1).
             systemProperty("ixchel.devResources.ixchelsample", file("src/main/resources").absolutePath)
             if (checkSelection.isPresent) {
-                // The check mod's classpath contains main's; the checks read the selection from this property.
+                // The check mod's classpath contains main's; the runner reads the selection from this property.
                 sourceSet = checkSourceSet
-                systemProperty("ixchelsample.check", checkSelection.get().ifEmpty { "all" })
+                systemProperty("ixchel.check.ixchelsample", checkSelection.get().ifEmpty { "all" })
             }
         }
     }
