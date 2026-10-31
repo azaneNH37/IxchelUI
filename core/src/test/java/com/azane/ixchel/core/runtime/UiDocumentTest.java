@@ -1,5 +1,9 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.binding.ModelShape;
+import com.azane.ixchel.core.binding.Value;
+import com.azane.ixchel.core.binding.ViewModel;
+import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.TextNode;
@@ -7,6 +11,7 @@ import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.text.TextMeasurer;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,11 +73,8 @@ class UiDocumentTest {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load(
                 "<div class=\"a\" style=\"colr: red\"><blink></blink></div>",
                 ".a { width: 10 }"));
-        String m = e.getMessage();
-        assertTrue(m.startsWith("3 errors"), m);
-        assertTrue(m.contains("t.html:2:34:") && m.contains("unknown tag"), m);
-        assertTrue(m.contains("t.html:2:23:") && m.contains("unsupported property 'colr'"), m);
-        assertTrue(m.contains("t.css:1:13:"), m);
+        assertEquals(List.of("template/unknown-tag@t.html:2:34", "css/missing-unit@t.css:1:13",
+                "css/unknown-property@t.html:2:23"), DiagCodes.of(e));
     }
 
     @Test
@@ -99,22 +101,18 @@ class UiDocumentTest {
                 <link rel="stylesheet"/>
                 <link rel="stylesheet" href="t.css" class="x" bind:href="t"></link>
                 """, "t.html", GoldenTest.sheet(""), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        String m = thrown.getMessage();
-        assertTrue(m.startsWith("8 errors"), m);
-        assertTrue(m.contains("t.html:2:1:") && m.contains("stylesheet 'nope.css' not found"), m);
-        assertTrue(m.contains("t.html:3:6:") && m.contains("<link> is only allowed at the top level"), m);
-        assertTrue(m.contains("t.html:4:1:") && m.contains("<link> requires rel=\"stylesheet\""), m);
-        assertTrue(m.contains("t.html:5:1:") && m.contains("<link> requires an 'href' attribute"), m);
-        assertTrue(m.contains("t.html:6:37:") && m.contains("unknown attribute 'class' on <link>"), m);
-        assertTrue(m.contains("t.html:6:47:") && m.contains("<link> takes no bindings"), m);
-        assertTrue(m.contains("t.html:6:1:") && m.contains("<link> must be self-closing"), m);
-        assertTrue(m.contains("t.html:6:61:") && m.contains("closing tag </link> has no matching opening tag"), m);
+        assertEquals(List.of("template/misplaced-element@t.html:3:6", "template/invalid-link@t.html:4:1",
+                "template/invalid-link@t.html:5:1", "template/unknown-attribute@t.html:6:37",
+                "template/unknown-attribute@t.html:6:47", "template/invalid-link@t.html:6:1",
+                "template/mismatched-closing-tag@t.html:6:61", "load/file-not-found@t.html:2:1"), DiagCodes.of(thrown));
+    }
 
+    @Test
+    void aStylesheetTheHostCannotReadFailsTheLoadAtItsLink() {
         UiLoadException failed = assertThrows(UiLoadException.class, () -> UiDocument.load(
                 "<link rel=\"stylesheet\" href=\"nope.css\"/>", "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML,
                 GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertTrue(failed.getMessage().contains("t.html:1:1:")
-                && failed.getMessage().contains("cannot load stylesheet 'nope.css': no stylesheet nope.css"), failed.getMessage());
+        assertEquals(List.of("load/unreadable-file@t.html:1:1"), DiagCodes.of(failed));
     }
 
     @Test
@@ -177,5 +175,46 @@ class UiDocumentTest {
         advance[0] = 8;
         doc.invalidateText();
         assertTrue(frame(doc, 100, 100).endsWith("rect 16 0 1 1 #FFFFFFFF"));
+    }
+
+    static final class Counter extends ViewModel {
+        final Value<Integer> count = state(0);
+    }
+
+    private static List<String> check(String html, String css, ModelShape shape) {
+        return DiagCodes.of(UiDocument.check(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML, shape));
+    }
+
+    private static List<String> loadFailure(String html, ViewModel model) {
+        return DiagCodes.of(assertThrows(UiLoadException.class, () -> UiDocument.load(GoldenTest.linked(html), "t.html",
+                GoldenTest.sheet(""), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, model, Bindings.PLAIN_TEXT)));
+    }
+
+    @Test
+    void checkReportsAnUnknownNameAsLoadDoes() {
+        String html = "<span bind:text=\"missing\"></span>";
+        List<String> checked = check(html, "", ModelShape.of(Counter.class));
+        assertEquals(List.of("binding/unknown-name@t.html:2:18"), checked);
+        assertEquals(loadFailure(html, new Counter()), checked);
+    }
+
+    @Test
+    void checkReportsATypeErrorAsLoadDoes() {
+        String html = "<div bind:class:x=\"count\"></div>";
+        List<String> checked = check(html, "", ModelShape.of(Counter.class));
+        assertEquals(List.of("binding/value-type@t.html:2:20"), checked);
+        assertEquals(loadFailure(html, new Counter()), checked);
+    }
+
+    @Test
+    void checkWithoutAShapeSeesOnlyLocalStates() {
+        assertEquals(List.of("binding/unknown-name@t.html:2:62"),
+                check("<div state:n=\"1\"><span bind:text=\"n\"></span><span bind:text=\"count\"></span></div>", "", null));
+    }
+
+    @Test
+    void checkDoesNoLayoutSoAnInlineBoxPropertyIsNotReported() {
+        assertEquals(List.of(), check("<div>a <span class=\"p\">b</span></div>", "div { display: block } .p { padding: 2px }",
+                null));
     }
 }

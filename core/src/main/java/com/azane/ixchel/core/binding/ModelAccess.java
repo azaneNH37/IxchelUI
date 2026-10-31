@@ -31,6 +31,12 @@ public interface ModelAccess {
     /** The inner cell a {@link #flat} cell currently reads. */
     <T> Cell<T> current(Cell<T> flat);
 
+    /** The current value of {@code member}'s field in {@code model}, whose class has that shape. */
+    Object read(ViewModel model, ModelShape.Member member);
+
+    /** An action of {@code owner} that does nothing, standing in for a member when no model instance exists. */
+    <A> Action<A> idle(ViewModel owner);
+
     /**
      * Runs posted work, polls every source once and notifies subscribers; returns whether any source
      * or local state changed since the last call.

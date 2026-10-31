@@ -46,8 +46,8 @@ final class StyleBinding extends Binding {
             if (parsed == null) {
                 if (!invalid) {
                     invalid = true;
-                    diag.error(attribute.valuePos(), "'" + attribute.value() + "' gave " + describe(value)
-                            + " for '" + property.name() + "': " + firstError(problems));
+                    diag.report(BindingCode.INVALID_STYLE_VALUE, attribute.valuePos(), "'" + attribute.value() + "' gave "
+                            + describe(value) + " for '" + property.name() + "': " + firstError(problems));
                 }
                 return false;
             }
@@ -71,18 +71,19 @@ final class StyleBinding extends Binding {
             String unit = property.syntax().numberUnit();
             double d = n.doubleValue();
             if (unit == null) {
-                problems.error(pos, "this property takes no plain numbers; give a String with its CSS value");
+                problems.report(BindingCode.INVALID_STYLE_VALUE, pos,
+                        "this property takes no plain numbers; give a String with its CSS value");
                 return null;
             }
             if (!Double.isFinite(d)) {
-                problems.error(pos, "not a finite number");
+                problems.report(BindingCode.INVALID_STYLE_VALUE, pos, "not a finite number");
                 return null;
             }
             Token t = unit.isEmpty() ? new Token(Token.Kind.NUMBER, "", d, "", pos)
                     : new Token(Token.Kind.DIMENSION, "", d, unit, pos);
             return property.syntax().parse(List.of(t), pos, problems);
         }
-        problems.error(pos, "expected a String or a Number");
+        problems.report(BindingCode.INVALID_STYLE_VALUE, pos, "expected a String or a Number");
         return null;
     }
 

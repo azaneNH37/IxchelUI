@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.style;
 
+import com.azane.ixchel.core.css.property.PropertyCode;
 import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.css.property.Shorthand;
@@ -79,7 +80,8 @@ public final class Declarations {
         Object[] resolve(Map<String, List<ComponentValue>> custom, Diagnostics diag) {
             List<ComponentValue> substituted = Vars.substitute(value, custom::get);
             if (substituted == null) {
-                report(diag, "'" + name + "' uses a custom property that is not defined here, without a fallback");
+                report(diag, StyleCode.UNDEFINED_VAR,
+                        "'" + name + "' uses a custom property that is not defined here, without a fallback");
                 return null;
             }
             if (Objects.equals(substituted, lastInput)) {
@@ -100,17 +102,18 @@ public final class Declarations {
                 }
             }
             if (out == null) {
-                report(diag, "'" + name + "' is invalid after var() substitution: " + firstError(problems));
+                report(diag, StyleCode.INVALID_AFTER_VAR,
+                        "'" + name + "' is invalid after var() substitution: " + firstError(problems));
             }
             lastInput = substituted;
             lastOutput = out;
             return out;
         }
 
-        private void report(Diagnostics diag, String message) {
+        private void report(Diagnostics diag, StyleCode code, String message) {
             if (!reported) {
                 reported = true;
-                diag.error(pos, message);
+                diag.report(code, pos, message);
             }
         }
 
@@ -141,7 +144,7 @@ public final class Declarations {
      */
     public static Object value(PropertyDef<?> property, List<ComponentValue> value, SourcePos pos, Diagnostics diag) {
         if (value.isEmpty()) {
-            diag.error(pos, "missing value for '" + property.name() + "'");
+            diag.report(PropertyCode.MISSING_VALUE, pos, "missing value for '" + property.name() + "'");
             return null;
         }
         Wide wide = wideKeyword(value);
@@ -159,7 +162,7 @@ public final class Declarations {
         PropertyDef<?> def = registry.byName(d.name());
         Shorthand shorthand = def == null ? registry.shorthand(d.name()) : null;
         if (def == null && shorthand == null) {
-            diag.error(d.pos(), "unsupported property '" + d.name() + "'");
+            diag.report(PropertyCode.UNKNOWN_PROPERTY, d.pos(), "unsupported property '" + d.name() + "'");
             return;
         }
         if (Vars.contains(d.value())) {
@@ -180,7 +183,7 @@ public final class Declarations {
             return;
         }
         if (d.value().isEmpty()) {
-            diag.error(d.pos(), "missing value for '" + d.name() + "'");
+            diag.report(PropertyCode.MISSING_VALUE, d.pos(), "missing value for '" + d.name() + "'");
             return;
         }
         Wide wide = wideKeyword(d.value());

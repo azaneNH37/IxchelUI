@@ -168,7 +168,7 @@ final class CssTokenizer {
                 if (isValidEscape(c, peek(1))) {
                     return identLike(p);
                 }
-                diag.error(p, "invalid escape");
+                diag.report(CssSyntaxCode.INVALID_ESCAPE, p, "invalid escape");
                 break;
             default:
                 if (isDigit(c)) {
@@ -188,7 +188,7 @@ final class CssTokenizer {
             i += 2;
             while (true) {
                 if (peek(0) == EOF) {
-                    diag.warning(p, "unclosed comment");
+                    diag.report(CssSyntaxCode.UNCLOSED_COMMENT, p, "unclosed comment");
                     return;
                 }
                 if (peek(0) == '*' && peek(1) == '/') {
@@ -205,7 +205,7 @@ final class CssTokenizer {
         while (true) {
             int c = peek(0);
             if (c == EOF) {
-                diag.warning(p, "unclosed string");
+                diag.report(CssSyntaxCode.UNCLOSED_STRING, p, "unclosed string");
                 return token(Token.Kind.STRING, sb.toString(), p);
             }
             if (c == ending) {
@@ -213,7 +213,7 @@ final class CssTokenizer {
                 return token(Token.Kind.STRING, sb.toString(), p);
             }
             if (c == '\n') {
-                diag.error(p, "unterminated string");
+                diag.report(CssSyntaxCode.NEWLINE_IN_STRING, p, "unterminated string");
                 return token(Token.Kind.BAD_STRING, sb.toString(), p);
             }
             if (c == '\\') {
@@ -303,7 +303,7 @@ final class CssTokenizer {
                 return token(Token.Kind.URL, sb.toString(), p);
             }
             if (c == EOF) {
-                diag.warning(p, "unclosed url");
+                diag.report(CssSyntaxCode.UNCLOSED_URL, p, "unclosed url");
                 return token(Token.Kind.URL, sb.toString(), p);
             }
             if (isWhitespace(c)) {
@@ -332,7 +332,7 @@ final class CssTokenizer {
     }
 
     private Token badUrl(SourcePos p, StringBuilder sb) {
-        diag.error(p, "invalid url");
+        diag.report(CssSyntaxCode.INVALID_URL, p, "invalid url");
         while (true) {
             int c = peek(0);
             if (c == EOF) {

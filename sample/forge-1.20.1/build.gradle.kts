@@ -68,6 +68,29 @@ tasks.named("check") {
     dependsOn(tasks.named(checkSourceSet.classesTaskName))
 }
 
+// UI lint: checks every template under src/main/resources against the @UiTemplate view models, offline.
+// This is the recipe for mods using Ixchel, copied verbatim except the dependency line.
+val ixchelKit by configurations.creating
+dependencies { ixchelKit(project(":ixchel-kit")) } // external mods: ixchelKit("com.azane.ixchel:ixchel-kit:<version>")
+val lintUi by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks the UI templates against their view models."
+    val resources = file("src/main/resources")
+    val classesDirs = sourceSets.main.get().output.classesDirs
+    // The mod's view models, Minecraft (for their field types) and the Ixchel mc layer's native
+    // element declarations. The kit reads them through its own loader instead of running on this
+    // classpath: the development Minecraft jar is patched but keeps signature files the JVM rejects.
+    val runtime = sourceSets.main.get().runtimeClasspath
+    classpath = ixchelKit
+    mainClass.set("com.azane.ixchel.kit.Main")
+    inputs.files(runtime)
+    argumentProviders.add(CommandLineArgumentProvider {
+        listOf("lint", "--resources", resources.path, "--classes") + classesDirs.files.map { it.path } +
+                listOf("--classpath", runtime.asPath)
+    })
+}
+tasks.check { dependsOn(lintUi) }
+
 // Slot compatibility (L2): `-Pslotcompat=jei` loads JEI and Mouse Tweaks, `-Pslotcompat=emi` loads EMI
 // and Mouse Tweaks, next to the machine panel (`-Pcheck=machine`).
 val slotCompat = providers.gradleProperty("slotcompat")

@@ -1,6 +1,6 @@
 package com.azane.ixchel.core.template;
 
-import com.azane.ixchel.core.diag.Diagnostic;
+import com.azane.ixchel.core.runtime.DiagCodes;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
@@ -63,31 +63,24 @@ class TemplateParserTest {
     }
 
     @Test
-    void mismatchedCloseTagReportsBothTagsAndPositions() {
+    void mismatchedCloseTagIsReportedAtTheClosingTag() {
         Diagnostics diag = new Diagnostics();
         TemplateParser.parse("<div>\n  <span>x</div>\n</div>", "t.html", TagRegistry.HTML, diag);
-        Diagnostic d = diag.entries().get(0);
-        assertEquals(new SourcePos("t.html", 2, 10), d.pos());
-        assertTrue(d.message().contains("</div>") && d.message().contains("<span>")
-                && d.message().contains("t.html:2:3"), d.message());
+        assertEquals("template/mismatched-closing-tag@t.html:2:10", DiagCodes.of(diag.entries().get(0)));
     }
 
     @Test
     void unquotedAttributeValueIsAnError() {
         Diagnostics diag = new Diagnostics();
         TemplateParser.parse("<div class=hand></div>", "t.html", TagRegistry.HTML, diag);
-        assertEquals(1, diag.entries().size(), diag.entries().toString());
-        assertEquals(new SourcePos("t.html", 1, 6), diag.entries().get(0).pos());
+        assertEquals(List.of("template/unquoted-attribute@t.html:1:6"), DiagCodes.of(diag));
     }
 
     @Test
     void unknownTagAndUnknownAttributeAreBothReported() {
         Diagnostics diag = new Diagnostics();
         Template t = TemplateParser.parse("<div onclick=\"x\"><marquee>go</marquee></div>", "t.html", TagRegistry.HTML, diag);
-        List<Diagnostic> errors = diag.entries();
-        assertEquals(2, errors.size(), errors.toString());
-        assertTrue(errors.get(0).message().contains("unknown attribute 'onclick' on <div>"));
-        assertTrue(errors.get(1).message().contains("unknown tag <marquee>"));
+        assertEquals(List.of("template/unknown-attribute@t.html:1:6", "template/unknown-tag@t.html:1:18"), DiagCodes.of(diag));
         assertTrue(el(t.roots().get(0)).children().isEmpty());
     }
 
@@ -102,7 +95,7 @@ class TemplateParserTest {
 
         Diagnostics bad = new Diagnostics();
         TemplateParser.parse("<span>a &nbsp; b</span>", "t.html", TagRegistry.HTML, bad);
-        assertEquals(new SourcePos("t.html", 1, 9), bad.entries().get(0).pos());
+        assertEquals(List.of("template/invalid-character-reference@t.html:1:9"), DiagCodes.of(bad));
     }
 
     @Test
@@ -133,9 +126,7 @@ class TemplateParserTest {
 
         Diagnostics nested = new Diagnostics();
         Template n = TemplateParser.parse("<div><link rel=\"stylesheet\" href=\"a.css\"/></div>", "t.html", TagRegistry.HTML, nested);
-        assertEquals(1, nested.entries().size(), nested.entries().toString());
-        assertEquals(new SourcePos("t.html", 1, 6), nested.entries().get(0).pos());
-        assertTrue(nested.entries().get(0).message().contains("<link> is only allowed at the top level"));
+        assertEquals(List.of("template/misplaced-element@t.html:1:6"), DiagCodes.of(nested));
         assertTrue(n.styles().isEmpty());
         assertTrue(el(n.roots().get(0)).children().isEmpty());
     }
@@ -171,19 +162,17 @@ class TemplateParserTest {
         Diagnostics diag = new Diagnostics();
         Template t = TemplateParser.parse("<item count=\"3\"/><item stack=\"x\"/>", "t.html", tags, diag);
         assertEquals("3", el(t.roots().get(0)).attribute("count"));
-        assertEquals(1, diag.entries().size(), diag.entries().toString());
-        assertTrue(diag.entries().get(0).message().contains("unknown attribute 'stack' on <item>"));
+        assertEquals(List.of("template/unknown-attribute@t.html:1:24"), DiagCodes.of(diag));
 
         Diagnostics plain = new Diagnostics();
         TemplateParser.parse("<item/>", "t.html", TagRegistry.HTML, plain);
-        assertTrue(plain.entries().get(0).message().contains("unknown tag <item>"));
+        assertEquals(List.of("template/unknown-tag@t.html:1:1"), DiagCodes.of(plain));
     }
 
     @Test
     void plannedAttributesAreRejectedAsNotYetSupported() {
         Diagnostics diag = new Diagnostics();
         TemplateParser.parse("<div t=\"go\"></div>", "t.html", TagRegistry.HTML, diag);
-        assertEquals(1, diag.entries().size(), diag.entries().toString());
-        assertTrue(diag.entries().stream().allMatch(d -> d.message().contains("not supported yet")));
+        assertEquals(List.of("template/unsupported-attribute@t.html:1:6"), DiagCodes.of(diag));
     }
 }

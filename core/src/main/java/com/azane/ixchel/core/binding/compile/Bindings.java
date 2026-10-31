@@ -1,15 +1,21 @@
 package com.azane.ixchel.core.binding.compile;
 
+import com.azane.ixchel.core.binding.Action;
+import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.ModelAccess;
+import com.azane.ixchel.core.binding.ModelShape;
+import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.diag.Diagnostics;
+import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.template.ComponentDef;
 import com.azane.ixchel.core.template.TagRegistry;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -118,8 +124,9 @@ public final class Bindings {
                                    TopLayer topLayer, Diagnostics diag) {
         ViewModel m = model != null ? model : new ViewModel() {
         };
-        String owner = model != null ? model.getClass().getSimpleName() : "the view model (this document has none)";
-        Compiler c = new Compiler(root, m, owner, text, tags, properties, topLayer, components, diag);
+        String owner = model != null ? model.getClass().getSimpleName() : NO_MODEL;
+        Map<String, Name> names = names(ModelShape.of(m.getClass()), m, false, root.pos(), diag);
+        Compiler c = new Compiler(root, m, names, owner, text, tags, properties, topLayer, components, diag);
         Part.Group group = new Part.Group();
         c.compileRoot(group);
         Bindings b = new Bindings(m, group);
@@ -129,6 +136,68 @@ public final class Bindings {
             group.update();
         }
         return b;
+    }
+
+    /**
+     * Checks every binding under {@code root} as {@link #compile} does, against a view model class
+     * instead of an instance: each member stands for a value of its declared type. Nothing is read
+     * and no value is written into the DOM, so problems that depend on values are not found.
+     *
+     * @param shape the view model's shape, or {@code null} for a document without one
+     */
+    public static void check(Element root, ModelShape shape, Map<String, ComponentDef> components,
+                             TextConverter text, TagRegistry tags, PropertyRegistry properties,
+                             TopLayer topLayer, Diagnostics diag) {
+        ViewModel stub = new ViewModel() {
+        };
+        String owner = shape != null ? shape.type().getSimpleName() : NO_MODEL;
+        Map<String, Name> names = shape != null ? names(shape, stub, true, root.pos(), diag) : Map.of();
+        new Compiler(root, stub, names, owner, text, tags, properties, topLayer, components, diag)
+                .compileRoot(new Part.Group());
+    }
+
+    private static final String NO_MODEL = "the view model (this document has none)";
+
+    /**
+     * The names of a page: {@code shape}'s members, holding {@code model}'s field values, or, as
+     * {@code placeholders}, stand-ins owned by {@code model} (a writable state for a {@code Value},
+     * an empty cell for another cell, an idle action). Names starting with {@code $} belong to the
+     * framework.
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Name> names(ModelShape shape, ViewModel model, boolean placeholders, SourcePos at,
+                                           Diagnostics diag) {
+        Map<String, Name> out = new HashMap<>();
+        for (ModelShape.Member m : shape.members().values()) {
+            if (m.name().startsWith("$")) {
+                diag.report(BindingCode.MODEL_RESERVED_NAME, at, "field '" + m.name() + "' of "
+                        + m.owner().getSimpleName() + ": names starting with '$' belong to the framework");
+                continue;
+            }
+            Object value;
+            if (!placeholders) {
+                value = MODEL.read(model, m);
+            } else if (m.kind() == ModelShape.Kind.ACTION) {
+                value = MODEL.idle(model);
+            } else {
+                value = m.writable() ? MODEL.state(model) : MODEL.held(null);
+            }
+            Name name;
+            if (value == null) {
+                name = new Name.Unset(m.name());
+            } else if (m.kind() == ModelShape.Kind.ACTION) {
+                name = new Name.Act((Action<Object>) value, m.type());
+            } else {
+                if (!m.writable() && value instanceof Value<?>) {
+                    diag.report(BindingCode.MODEL_UNDECLARED_WRITABLE, at, "field '" + m.name() + "' of "
+                                    + m.owner().getSimpleName() + " holds a Value but is declared read-only",
+                            "declare it as Value<...> to bind it two-way");
+                }
+                name = new Ref((Cell<?>) value, m.type(), m.writable() ? Ref.Write.VALUE : Ref.Write.NONE);
+            }
+            out.put(m.name(), name);
+        }
+        return out;
     }
 
     /**

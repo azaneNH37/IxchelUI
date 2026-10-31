@@ -2,6 +2,7 @@ package com.azane.ixchel.core.template;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -37,7 +38,7 @@ public final class TagRegistry {
      * {@code select} of {@code option value} (its value is {@code bind:value}), {@code button},
      * {@code dialog} (open while {@code bind:open}), {@code style}, {@code link rel href}.
      */
-    public static final TagRegistry HTML = new Builder(Map.of(), Map.of())
+    public static final TagRegistry HTML = new Builder(Map.of(), Map.of(), Map.of())
             .tag("div")
             .tag("span")
             .tag("a")
@@ -53,15 +54,18 @@ public final class TagRegistry {
 
     private final Map<String, Set<String>> attributes;
     private final Map<String, String> payloads;
+    private final Map<String, List<String>> payloadTypes;
 
-    private TagRegistry(Map<String, Set<String>> attributes, Map<String, String> payloads) {
+    private TagRegistry(Map<String, Set<String>> attributes, Map<String, String> payloads,
+                        Map<String, List<String>> payloadTypes) {
         this.attributes = attributes;
         this.payloads = payloads;
+        this.payloadTypes = payloadTypes;
     }
 
     /** A builder starting from this registry's tags and attributes. */
     public Builder extend() {
-        return new Builder(attributes, payloads);
+        return new Builder(attributes, payloads, payloadTypes);
     }
 
     public boolean isKnownTag(String tag) {
@@ -84,19 +88,32 @@ public final class TagRegistry {
         return payloads.get(tag);
     }
 
+    /** The types a native element's payload may have, as declared; empty when unchecked or for an ordinary tag. */
+    public List<String> payloadTypes(String tag) {
+        return payloadTypes.getOrDefault(tag, List.of());
+    }
+
     /** The registered tags. */
     public Set<String> tags() {
         return attributes.keySet();
+    }
+
+    /** The extra plain attributes registered for the known tag {@code tag}, without the global ones. */
+    public Set<String> attributes(String tag) {
+        return attributes.get(tag);
     }
 
     /** Collects tags; {@link #build()} produces an immutable registry. */
     public static final class Builder {
         private final Map<String, Set<String>> attributes = new LinkedHashMap<>();
         private final Map<String, String> payloads = new LinkedHashMap<>();
+        private final Map<String, List<String>> payloadTypes = new LinkedHashMap<>();
 
-        private Builder(Map<String, Set<String>> from, Map<String, String> fromPayloads) {
+        private Builder(Map<String, Set<String>> from, Map<String, String> fromPayloads,
+                        Map<String, List<String>> fromPayloadTypes) {
             from.forEach((tag, attrs) -> attributes.put(tag, new LinkedHashSet<>(attrs)));
             payloads.putAll(fromPayloads);
+            payloadTypes.putAll(fromPayloadTypes);
         }
 
         /**
@@ -148,10 +165,65 @@ public final class TagRegistry {
             return this;
         }
 
+        /**
+         * Registers the tags of a declaration file, one per line; blank lines and lines starting with
+         * {@code #} are skipped. A line is a tag followed by {@code key=value} fields:
+         *
+         * <pre>{@code
+         * # payload: the attribute bind:<payload> sets; accepts: the payload's types (binary names,
+         * # one type argument allowed); attrs: extra plain attributes
+         * mc-item payload=item accepts=net.minecraft.world.item.ItemStack,java.util.function.Supplier<net.minecraft.world.item.ItemStack>
+         * mc-slot attrs=index
+         * }</pre>
+         *
+         * A line with {@code payload} registers a native element as {@link #nativeTag} does.
+         *
+         * @param file names the file in messages
+         * @throws IllegalArgumentException for an unknown field or as {@link #tag} and {@link #nativeTag}
+         */
+        public Builder declare(String text, String file) {
+            String[] lines = text.split("\r?\n");
+            for (int n = 0; n < lines.length; n++) {
+                String line = lines[n].strip();
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
+                String[] fields = line.split("\\s+");
+                String payload = null;
+                List<String> accepts = List.of();
+                String[] attrs = new String[0];
+                for (int k = 1; k < fields.length; k++) {
+                    int eq = fields[k].indexOf('=');
+                    String key = eq < 0 ? fields[k] : fields[k].substring(0, eq);
+                    String value = eq < 0 ? "" : fields[k].substring(eq + 1);
+                    switch (key) {
+                        case "payload" -> payload = value;
+                        case "accepts" -> accepts = List.of(value.split(","));
+                        case "attrs" -> attrs = value.split(",");
+                        default -> throw new IllegalArgumentException(
+                                file + ":" + (n + 1) + ": unknown field '" + key + "'");
+                    }
+                }
+                try {
+                    if (payload != null) {
+                        nativeTag(fields[0], payload, attrs);
+                        payloadTypes.put(fields[0], accepts);
+                    } else if (!accepts.isEmpty()) {
+                        throw new IllegalArgumentException("'accepts' needs a payload");
+                    } else {
+                        tag(fields[0], attrs);
+                    }
+                } catch (IllegalArgumentException ex) {
+                    throw new IllegalArgumentException(file + ":" + (n + 1) + ": " + ex.getMessage(), ex);
+                }
+            }
+            return this;
+        }
+
         public TagRegistry build() {
             Map<String, Set<String>> copy = new LinkedHashMap<>();
             attributes.forEach((tag, attrs) -> copy.put(tag, Set.copyOf(attrs)));
-            return new TagRegistry(Map.copyOf(copy), Map.copyOf(payloads));
+            return new TagRegistry(Map.copyOf(copy), Map.copyOf(payloads), Map.copyOf(payloadTypes));
         }
 
         /** Same grammar as the template parser: ASCII letter first, then letters, digits or '-'. */

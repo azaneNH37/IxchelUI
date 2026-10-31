@@ -2,6 +2,7 @@ package com.azane.ixchel.sample.env;
 
 import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Derived;
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
@@ -38,6 +39,7 @@ import java.util.Map;
  * (hearts, armor, food, experience). Every section is one source read per frame into a record, so a
  * frame where nothing changed compares equal and does no layout.
  */
+@UiTemplate("ixchelsample:ui/env/hud.html")
 final class EnvView extends ViewModel {
     /** One icon of a row of ten (hearts, armor, food), each standing for two points. */
     record Icon(int index, boolean full, boolean half) {

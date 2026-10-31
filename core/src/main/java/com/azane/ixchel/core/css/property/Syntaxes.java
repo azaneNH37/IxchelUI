@@ -40,7 +40,7 @@ public final class Syntaxes {
                     }
                 }
             }
-            diag.error(v.pos(), "expected one of " + keywordList(type));
+            diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected one of " + keywordList(type));
             return null;
         };
     }
@@ -71,12 +71,12 @@ public final class Syntaxes {
             }
             if (v instanceof Token t && t.is(Token.Kind.NUMBER)) {
                 if (!negative && t.number() < 0) {
-                    diag.error(t.pos(), "negative value not allowed");
+                    diag.report(PropertyCode.NEGATIVE_VALUE, t.pos(), "negative value not allowed");
                     return null;
                 }
                 return (float) t.number();
             }
-            diag.error(v.pos(), "expected a number");
+            diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a number");
             return null;
         }, (a, b, p) -> {
             float v = mix(a, b, p);
@@ -149,7 +149,7 @@ public final class Syntaxes {
                 }
                 if (name.equals("none")) {
                     if (items.size() > 1) {
-                        diag.error(v.pos(), "'none' must be the only value");
+                        diag.report(PropertyCode.NONE_NOT_ALONE, v.pos(), "'none' must be the only value");
                         return null;
                     }
                     return List.of();
@@ -170,7 +170,7 @@ public final class Syntaxes {
         return (value, pos, diag) -> {
             for (ComponentValue v : value) {
                 if (v instanceof Token t && t.is(Token.Kind.COMMA)) {
-                    diag.error(t.pos(), "multiple background layers are not supported");
+                    diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "multiple background layers are not supported");
                     return null;
                 }
             }
@@ -193,10 +193,10 @@ public final class Syntaxes {
                 if (args.size() == 1 && args.get(0) instanceof Token s && s.is(Token.Kind.STRING)) {
                     return resourceLocation(s.value(), s.pos(), diag);
                 }
-                diag.error(f.pos(), "url() takes one string");
+                diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), "url() takes one string");
                 return null;
             }
-            diag.error(v.pos(), "expected none or url()");
+            diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected none or url()");
             return null;
         };
     }
@@ -209,12 +209,13 @@ public final class Syntaxes {
         return (value, pos, diag) -> {
             List<ComponentValue> parts = significant(value);
             if (parts.size() > 2) {
-                diag.error(parts.get(2).pos(), "expected 1 or 2 values");
+                diag.report(PropertyCode.VALUE_COUNT, parts.get(2).pos(), "expected 1 or 2 values");
                 return null;
             }
             ComponentValue first = parts.get(0);
             if (first instanceof Token t && (t.isIdent("cover") || t.isIdent("contain"))) {
-                diag.error(t.pos(), "'" + t.value() + "' is not supported; give the size in px or %");
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "'" + t.value() + "' is not supported",
+                        "give the size in px or %");
                 return null;
             }
             Length width = lengthOf(first, true, true, false, diag);
@@ -244,7 +245,7 @@ public final class Syntaxes {
             List<Transform.Fn> out = new ArrayList<>(parts.size());
             for (ComponentValue v : parts) {
                 if (!(v instanceof ComponentValue.Function f)) {
-                    diag.error(v.pos(), "expected none or transform functions");
+                    diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected none or transform functions");
                     return null;
                 }
                 Transform.Fn fn = transformFn(f, diag);
@@ -267,7 +268,7 @@ public final class Syntaxes {
         }
         int max = name.equals("translate") || name.equals("scale") ? 2 : 1;
         if (args.isEmpty() || args.size() > max) {
-            diag.error(f.pos(), name + "() takes " + (max == 2 ? "1 or 2 values" : "1 value"));
+            diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), name + "() takes " + (max == 2 ? "1 or 2 values" : "1 value"));
             return null;
         }
         switch (name) {
@@ -295,8 +296,8 @@ public final class Syntaxes {
                 return deg == null ? null : new Transform.Fn(Transform.Kind.ROTATE, Length.px(deg), Length.ZERO);
             }
             default -> {
-                diag.error(f.pos(), "unsupported transform function '" + f.name()
-                        + "' (translate, translateX, translateY, scale, scaleX, scaleY, rotate)");
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "unsupported transform function '" + f.name() + "'",
+                        "use translate, translateX, translateY, scale, scaleX, scaleY or rotate");
                 return null;
             }
         }
@@ -309,7 +310,7 @@ public final class Syntaxes {
         if (v instanceof Token t && t.is(Token.Kind.PERCENTAGE)) {
             return (float) t.number() / 100;
         }
-        diag.error(v.pos(), "expected a number or percentage");
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a number or percentage");
         return null;
     }
 
@@ -335,7 +336,7 @@ public final class Syntaxes {
                 }
             }
         }
-        diag.error(v.pos(), "expected an angle (deg, rad, grad or turn)");
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected an angle (deg, rad, grad or turn)");
         return null;
     }
 
@@ -368,7 +369,7 @@ public final class Syntaxes {
         return (value, pos, diag) -> {
             List<ComponentValue> parts = significant(value);
             if (parts.size() > 2) {
-                diag.error(parts.get(2).pos(), "expected 1 or 2 values");
+                diag.report(PropertyCode.VALUE_COUNT, parts.get(2).pos(), "expected 1 or 2 values");
                 return null;
             }
             Length center = Length.percent(50);
@@ -393,7 +394,7 @@ public final class Syntaxes {
             if (t.isIdent(end)) {
                 return Length.percent(100);
             }
-            diag.error(t.pos(), "expected a length, a percentage, " + start + ", center or " + end);
+            diag.report(PropertyCode.INVALID_VALUE, t.pos(), "expected a length, a percentage, " + start + ", center or " + end);
             return null;
         }
         return lengthOf(v, true, false, true, diag);
@@ -409,7 +410,8 @@ public final class Syntaxes {
         String namespace = colon < 0 ? "minecraft" : s.substring(0, colon);
         String path = s.substring(colon + 1);
         if (namespace.isEmpty() || path.isEmpty() || !allowed(namespace, "_-.") || !allowed(path, "_-./")) {
-            diag.error(pos, "invalid resource location '" + src + "' (namespace:path, lower-case a-z, 0-9 and _ - . with / in the path)");
+            diag.report(PropertyCode.INVALID_RESOURCE_LOCATION, pos, "invalid resource location '" + src + "'",
+                    "write namespace:path, lower-case a-z, 0-9 and _ - . with / in the path");
             return null;
         }
         return src;
@@ -479,7 +481,7 @@ public final class Syntaxes {
         for (ComponentValue v : significant(value)) {
             if (v instanceof Token t && t.is(Token.Kind.COMMA)) {
                 if (current.isEmpty()) {
-                    diag.error(t.pos(), "empty item before ','");
+                    diag.report(PropertyCode.EMPTY_LIST_ITEM, t.pos(), "empty item before ','");
                     return null;
                 }
                 items.add(current);
@@ -490,7 +492,7 @@ public final class Syntaxes {
             }
         }
         if (current.isEmpty()) {
-            diag.error(last, "empty item after ','");
+            diag.report(PropertyCode.EMPTY_LIST_ITEM, last, "empty item after ','");
             return null;
         }
         items.add(current);
@@ -505,20 +507,20 @@ public final class Syntaxes {
             } else if (t.unit().equalsIgnoreCase("ms")) {
                 seconds = t.number() / 1000;
             } else {
-                diag.error(t.pos(), "expected a time in s or ms");
+                diag.report(PropertyCode.INVALID_VALUE, t.pos(), "expected a time in s or ms");
                 return null;
             }
             if (!negative && seconds < 0) {
-                diag.error(t.pos(), "negative time not allowed");
+                diag.report(PropertyCode.NEGATIVE_VALUE, t.pos(), "negative time not allowed");
                 return null;
             }
             return (float) seconds;
         }
         if (v instanceof Token t && t.is(Token.Kind.NUMBER) && t.number() == 0) {
-            diag.error(t.pos(), "time needs a unit: 0s");
+            diag.report(PropertyCode.MISSING_UNIT, t.pos(), "time needs a unit: 0s");
             return null;
         }
-        diag.error(v.pos(), "expected a time in s or ms");
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a time in s or ms");
         return null;
     }
 
@@ -547,7 +549,8 @@ public final class Syntaxes {
         } else if (v instanceof ComponentValue.Function f && f.name().equalsIgnoreCase("cubic-bezier")) {
             return cubicBezier(f, diag);
         }
-        diag.error(v.pos(), "unsupported easing (use linear, ease, ease-in, ease-out, ease-in-out or cubic-bezier())");
+        diag.report(PropertyCode.UNSUPPORTED_VALUE, v.pos(), "unsupported easing",
+                "use linear, ease, ease-in, ease-out, ease-in-out or cubic-bezier()");
         return null;
     }
 
@@ -559,17 +562,17 @@ public final class Syntaxes {
                 continue;
             }
             if (!(a instanceof Token t && t.is(Token.Kind.NUMBER)) || n == 4) {
-                diag.error(a.pos(), "cubic-bezier() takes four numbers");
+                diag.report(PropertyCode.FUNCTION_ARGUMENTS, a.pos(), "cubic-bezier() takes four numbers");
                 return null;
             }
             p[n++] = (float) t.number();
         }
         if (n != 4) {
-            diag.error(f.pos(), "cubic-bezier() takes four numbers");
+            diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), "cubic-bezier() takes four numbers");
             return null;
         }
         if (p[0] < 0 || p[0] > 1 || p[2] < 0 || p[2] > 1) {
-            diag.error(f.pos(), "cubic-bezier() x values must be between 0 and 1");
+            diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), "cubic-bezier() x values must be between 0 and 1");
             return null;
         }
         return new Easing(p[0], p[1], p[2], p[3]);
@@ -578,7 +581,7 @@ public final class Syntaxes {
     /** A {@code transition-property} name, lower-cased; {@code none} is returned for the caller to check. */
     static String transitionNameOf(ComponentValue v, PropertyRegistry registry, Diagnostics diag) {
         if (!(v instanceof Token t && t.is(Token.Kind.IDENT))) {
-            diag.error(v.pos(), "expected a property name");
+            diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a property name");
             return null;
         }
         String name = t.value().toLowerCase(Locale.ROOT);
@@ -588,12 +591,12 @@ public final class Syntaxes {
         PropertyDef<?> def = registry.byName(name);
         Shorthand shorthand = def == null ? registry.shorthand(name) : null;
         if (def == null && shorthand == null) {
-            diag.error(t.pos(), "unsupported property '" + name + "'");
+            diag.report(PropertyCode.UNKNOWN_PROPERTY, t.pos(), "unsupported property '" + name + "'");
             return null;
         }
         for (PropertyDef<?> d : def != null ? List.<PropertyDef<?>>of(def) : shorthand.longhands()) {
             if (!d.animatable()) {
-                diag.error(t.pos(), "'" + d.name() + "' cannot be transitioned");
+                diag.report(PropertyCode.NOT_ANIMATABLE, t.pos(), "'" + d.name() + "' cannot be transitioned");
                 return null;
             }
         }
@@ -607,13 +610,13 @@ public final class Syntaxes {
                     if (t.unit().equalsIgnoreCase("px")) {
                         return checkSign(Length.px((float) t.number()), t, negative, diag);
                     }
-                    diag.error(t.pos(), "unsupported unit '" + t.unit() + "' (only px)");
+                    diag.report(PropertyCode.UNSUPPORTED_UNIT, t.pos(), "unsupported unit '" + t.unit() + "'", "only px is supported");
                     return null;
                 case NUMBER:
                     if (t.number() == 0) {
                         return Length.ZERO;
                     }
-                    diag.error(t.pos(), "length needs a unit: " + fmt(t.number()) + "px");
+                    diag.report(PropertyCode.MISSING_UNIT, t.pos(), "length needs a unit: " + fmt(t.number()) + "px");
                     return null;
                 case PERCENTAGE:
                     if (percent) {
@@ -629,13 +632,13 @@ public final class Syntaxes {
                     break;
             }
         }
-        diag.error(v.pos(), "expected a length in px" + (percent ? ", a percentage" : "") + (auto ? " or auto" : ""));
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a length in px" + (percent ? ", a percentage" : "") + (auto ? " or auto" : ""));
         return null;
     }
 
     private static Length checkSign(Length l, Token t, boolean negative, Diagnostics diag) {
         if (!negative && l.value() < 0) {
-            diag.error(t.pos(), "negative value not allowed");
+            diag.report(PropertyCode.NEGATIVE_VALUE, t.pos(), "negative value not allowed");
             return null;
         }
         return l;
@@ -657,14 +660,15 @@ public final class Syntaxes {
             if (t.is(Token.Kind.HASH) || t.is(Token.Kind.HASH_ID)) {
                 Integer c = hexColor(t.value());
                 if (c == null) {
-                    diag.error(t.pos(), "invalid hex color #" + t.value());
+                    diag.report(PropertyCode.INVALID_VALUE, t.pos(), "invalid hex color #" + t.value());
                 }
                 return c;
             }
             if (t.is(Token.Kind.IDENT)) {
                 Integer c = NAMED_COLORS.get(t.value().toLowerCase(Locale.ROOT));
                 if (c == null) {
-                    diag.error(t.pos(), "unsupported color name '" + t.value() + "' (use hex or rgb())");
+                    diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "unsupported color name '" + t.value() + "'",
+                            "use hex or rgb()");
                 }
                 return c;
             }
@@ -672,7 +676,7 @@ public final class Syntaxes {
                 && (f.name().equalsIgnoreCase("rgb") || f.name().equalsIgnoreCase("rgba"))) {
             return rgbFunction(f, diag);
         }
-        diag.error(v.pos(), "expected a color");
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a color");
         return null;
     }
 
@@ -712,7 +716,7 @@ public final class Syntaxes {
         List<Token> parts = new ArrayList<>();
         for (ComponentValue a : significant(f.args())) {
             if (!(a instanceof Token t)) {
-                diag.error(a.pos(), "unexpected value in " + f.name() + "()");
+                diag.report(PropertyCode.FUNCTION_ARGUMENTS, a.pos(), "unexpected value in " + f.name() + "()");
                 return null;
             }
             if (!t.is(Token.Kind.COMMA) && !t.isDelim('/')) {
@@ -720,7 +724,7 @@ public final class Syntaxes {
             }
         }
         if (parts.size() != 3 && parts.size() != 4) {
-            diag.error(f.pos(), f.name() + "() takes 3 channels and an optional alpha");
+            diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), f.name() + "() takes 3 channels and an optional alpha");
             return null;
         }
         int argb = 0;
@@ -750,7 +754,7 @@ public final class Syntaxes {
         } else if (t.is(Token.Kind.PERCENTAGE)) {
             unit = t.number() / 100;
         } else {
-            diag.error(t.pos(), "expected a number or percentage");
+            diag.report(PropertyCode.INVALID_VALUE, t.pos(), "expected a number or percentage");
             return null;
         }
         return (int) Math.round(Math.max(0, Math.min(1, unit)) * 255);
@@ -759,7 +763,7 @@ public final class Syntaxes {
     static ComponentValue single(List<ComponentValue> value, SourcePos pos, Diagnostics diag) {
         List<ComponentValue> s = significant(value);
         if (s.size() != 1) {
-            diag.error(s.size() > 1 ? s.get(1).pos() : pos, "expected a single value");
+            diag.report(PropertyCode.VALUE_COUNT, s.size() > 1 ? s.get(1).pos() : pos, "expected a single value");
             return null;
         }
         return s.get(0);

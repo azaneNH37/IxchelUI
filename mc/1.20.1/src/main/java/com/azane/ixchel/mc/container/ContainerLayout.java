@@ -12,6 +12,10 @@ import com.azane.ixchel.mc.element.McElements;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,13 +35,16 @@ public final class ContainerLayout {
     public static final String SLOT_TAG = "mc-slot";
     /** Attribute holding the menu slot index. */
     public static final String INDEX_ATTRIBUTE = "index";
+    /** The declaration file of {@link #TAGS}, a resource next to this class. */
+    private static final String DECLARATIONS = "elements.txt";
     /**
      * {@link McElements#TAGS} plus {@code <mc-slot index="N">}: the projection of menu slot
      * {@code N}. The slot's 16×16 item area is centered in the element's border box and written back
      * to {@code Slot.x/y}; vanilla keeps drawing the item and handling clicks, drags and quick moves
-     * there. Use {@code bind:index} for slots from an {@code each} row.
+     * there. Use {@code bind:index} for slots from an {@code each} row. Declared in this package's
+     * {@code elements.txt}.
      */
-    public static final TagRegistry TAGS = McElements.TAGS.extend().tag(SLOT_TAG, INDEX_ATTRIBUTE).build();
+    public static final TagRegistry TAGS = McElements.TAGS.extend().declare(declarations(), DECLARATIONS).build();
 
     static final int ITEM_SIZE = 16;
 
@@ -156,8 +163,8 @@ public final class ContainerLayout {
             }
             Element earlier = placed.putIfAbsent(index, e);
             if (earlier != null) {
-                report(d, e, "slot " + index + " is already placed by the <" + SLOT_TAG + "> at "
-                        + earlier.pos() + "; this one is ignored");
+                report(d, e, ContainerCode.DUPLICATE_SLOT, "slot " + index + " is already placed by the <" + SLOT_TAG
+                        + "> at " + earlier.pos() + "; this one is ignored");
                 continue;
             }
             slotOf.put(e, index);
@@ -178,8 +185,8 @@ public final class ContainerLayout {
             }
             LayoutBox b = e.box();
             if (b.width() < ITEM_SIZE || b.height() < ITEM_SIZE) {
-                report(d, e, "<" + SLOT_TAG + "> for slot " + i + " is " + b.width() + "x" + b.height()
-                        + "; it must be at least 16x16");
+                report(d, e, ContainerCode.SLOT_TOO_SMALL, "<" + SLOT_TAG + "> for slot " + i + " is " + b.width()
+                        + "x" + b.height() + "; it must be at least 16x16");
             }
             int x = Math.round(b.x() + (b.width() - ITEM_SIZE) / 2);
             int y = Math.round(b.y() - e.scrollOffset() + (b.height() - ITEM_SIZE) / 2);
@@ -196,8 +203,8 @@ public final class ContainerLayout {
                     Math.min(placedWidth, (int) Math.ceil(clip[2])), Math.min(placedHeight, (int) Math.ceil(clip[3]))});
         }
         if (!missing.isEmpty()) {
-            report(d, d.root(), "menu slots " + missing + " have no <" + SLOT_TAG + ">; every slot of "
-                    + menu.getClass().getSimpleName() + " must be placed");
+            report(d, d.root(), ContainerCode.UNPLACED_SLOT, "menu slots " + missing + " have no <" + SLOT_TAG
+                    + ">; every slot of " + menu.getClass().getSimpleName() + " must be placed");
         }
     }
 
@@ -243,18 +250,19 @@ public final class ContainerLayout {
     private Integer index(UiDocument d, Element e, int count) {
         String raw = e.attribute(INDEX_ATTRIBUTE);
         if (raw == null) {
-            report(d, e, "<" + SLOT_TAG + "> needs a slot index: index=\"N\" or bind:index");
+            report(d, e, ContainerCode.MISSING_INDEX, "<" + SLOT_TAG + "> needs a slot index: index=\"N\" or bind:index");
             return null;
         }
         int index;
         try {
             index = Integer.parseInt(raw.trim());
         } catch (NumberFormatException ex) {
-            report(d, e, "slot index '" + raw + "' is not an integer");
+            report(d, e, ContainerCode.MALFORMED_INDEX, "slot index '" + raw + "' is not an integer");
             return null;
         }
         if (index < 0 || index >= count) {
-            report(d, e, "slot index " + index + " is out of range; the menu has " + count + " slots");
+            report(d, e, ContainerCode.INDEX_OUT_OF_RANGE, "slot index " + index + " is out of range; the menu has "
+                    + count + " slots");
             return null;
         }
         return index;
@@ -269,9 +277,21 @@ public final class ContainerLayout {
         return true;
     }
 
-    private void report(UiDocument d, Element at, String message) {
+    private void report(UiDocument d, Element at, ContainerCode code, String message) {
         if (reported.add(at.pos() + message)) {
-            d.diagnostics().error(at.pos(), message);
+            d.diagnostics().report(code, at.pos(), message);
+        }
+    }
+
+    /** The text of {@link #DECLARATIONS}, shipped with this class; missing is a packaging bug. */
+    private static String declarations() {
+        try (InputStream in = ContainerLayout.class.getResourceAsStream(DECLARATIONS)) {
+            if (in == null) {
+                throw new IllegalStateException("missing " + DECLARATIONS + " next to " + ContainerLayout.class.getName());
+            }
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
         }
     }
 

@@ -11,6 +11,8 @@ import com.azane.ixchel.core.event.Keys;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -152,11 +154,7 @@ class UiDocumentInputTest {
             final Cell<String> frozen = source(com.azane.ixchel.core.binding.Source.polled(() -> "f"));
             final Value<Integer> count = state(0);
         }));
-        String msg = e.getMessage();
-        assertTrue(msg.startsWith("4 errors"), msg);
-        assertTrue(msg.contains("t.html:2:8:") && msg.contains("<input> must not have children"), msg);
-        assertTrue(msg.contains("t.html:3:") && msg.contains("but 'frozen' is not one"), msg);
-        assertTrue(msg.contains("t.html:4:") && msg.contains("but 'count' is java.lang.Integer"), msg);
-        assertTrue(msg.contains("t.html:5:") && msg.contains("'bind:scrolltop'") && msg.contains("but 'query' is java.lang.String"), msg);
+        assertEquals(List.of("template/invalid-children@t.html:2:8", "binding/two-way-target@t.html:3:20",
+                "binding/two-way-target@t.html:4:20", "binding/two-way-target@t.html:5:22"), DiagCodes.of(e));
     }
 }

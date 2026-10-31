@@ -4,6 +4,7 @@ import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import net.minecraft.client.Minecraft;
@@ -22,6 +23,7 @@ import java.util.List;
  * the items they draw through {@link #icons} and {@link #recipes}: an {@code <mc-item>} takes its stack
  * only from a binding. A recipe cell with several accepted items shows the next one every second.
  */
+@UiTemplate({"ixchelsample:ui/guide/contents.html", "ixchelsample:ui/guide/entries/*.html"})
 final class GuideView extends ViewModel {
     private static final long ROTATION_NANOS = 1_000_000_000L;
 

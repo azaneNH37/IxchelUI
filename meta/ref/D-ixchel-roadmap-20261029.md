@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1；接下来是 E2–E3（文档内 tooltip、S9）、I（i18n）、Doc（用户文档），工具 T1 可并行。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1；接下来是 E2–E3（文档内 tooltip、S9）、I（i18n）、Doc（用户文档），工具 T2（游戏内检查提取）可并行。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
 
 ## Detail
 
@@ -39,9 +39,10 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | E3 | 待做 | S9 | 全局物品 tooltip 宿主 |
 | I | 待做 | — | i18n：`t` 语言键与参数 |
 | Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
-| T1 | 待做 | — | 工具 `tools/cli`：lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
+| T1 | 完成 | 2026-10-31 | 静态检查：`@UiTemplate`、成员表编译、原生元素声明数据、错误码、`ixchel-kit` 的 lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
+| T2 | 待做 | — | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
 
-依赖：D0 → L1 → D → L2 → E1 → E2 → E3；L3、I、Doc、T1 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐。0–C 的结果见场景文档 §3。
+依赖：D0 → L1 → D → L2 → E1 → E2 → E3；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
 #### D0 改名与清理
 
@@ -137,13 +138,29 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 工程：VuePress 源码放 `docs/`；生成参考页的 Gradle 任务；`vuepress build` 进 `check`（CI 文档 §7 的触发条件即 `docs/` 建立）。部署 Pages 仍按 CI 文档等仓库转公开与 `release` 落地。
 - 验收：`check` 通过；按教程从零写出一个带组件的界面。
 
-#### T1 工具：lint 与 schema
+#### T1 静态检查
 
-- 设计依据：`ref/SD-ixchel-tooling-and-editor-20261031.md`（技术栈、仓库位置与分发、T2–T4）。
-- 先定：该文档 §8 的绑定名检查方式（本阶段只做无模型结构检查，不受其阻塞）。
-- 引擎：原生元素声明数据化，mc 层与工具共读；无模型编译模式。
-- 工具：`tools/cli`（`:ixchel-tools`，只依赖 core）的 `lint`、`schema`；sample 与 testmod 各加一个挂在 `check` 上的 lint 任务。
-- 验收：E1 中出现的三类错误（多个 `<template>`、组件文件链接主题、参数名与外壳属性冲突）由 lint 报出且带位置；现有模板 lint 无错误；`build` 通过。
+- 设计依据：`ref/SD-ixchel-tooling-and-editor-20261031.md` §3–§7（#021、#023）。
+- 宿主 API：ViewModel 加 `@UiTemplate`；`UiScreen`、`UiContainerScreen`、`UiHud` 主路径从注解取模板，显式 id 重载作出口，另有无模型重载；`registerHud(modBus, Class, Supplier)`；开发期警告未声明组合与"声明 `Cell` 实装 `Value`"。sample、testmod（含 shade-a/b）全部迁移，两版同改。
+- 引擎：`Compiler` 读成员表（实例反射 / 类反射）；原生元素声明改为 mc 层包路径下的行格式数据文件，由 core `TagRegistry` 解析，带载荷接受类型；`DiagCode` 与各包错误码 enum，`Diagnostic` 加 code 与 hint，迁移全部报错调用点，测试改断言码与位置。
+- 工具：`tools/kit`（`:ixchel-kit`，只依赖 core）的 `lint`、`schema`、`--explain`，仅项目内入口；sample 与 testmod 各加一个挂在 `check` 上的 lint JavaExec 任务，照抄对外配方。
+- 验收：E1 三类错误（多个 `<template>`、组件文件链接主题、参数名与外壳属性冲突）、未知绑定名、`bind:value` 指向只读 `Cell`、`<for>` 遍历非列表、组件参数不符均由 lint 报出并带位置与错误码；现有模板零错误；`-Pcheck=all` 不变；`build` 通过。
+- 结果（2026-10-31）：按已定完成。验收探针逐项报出：`template/component-file-content`、`load/library-sheet-not-on-page`、`template/reserved-member-name`、`binding/unknown-name`、`binding/two-way-target`、`binding/value-type`、`binding/unknown-target`；sample 与 testmod `lintUi` 0 错 0 警（所有页面均被注解认领）；`-Pcheck=all` 160 项通过；core 测试断言全部改为"码@位置"，输出格式只由 `DiagnosticsTest` 固定。偏差：
+  - 静态入口是 core 的 `UiDocument.check(template, file, files, tags, shape)`，用占位值编译、不写值、不排版；排版期错误（如 `layout/inline-box-property`）不在 lint 范围。
+  - 模板 id 匹配放在 `UiTemplate.Ids`（`*` 不跨 `/` 与 `:`）；挂载点经包内 `mc.DeclaredTemplate` 取唯一具体 id，类上只有通配时须显式传 id（`GuideScreen`）。
+  - 没有注解认领的页面不是只做结构检查，而是以空成员表完整检查后去掉 `binding/unknown-name`，另报 `model/unassociated-template`；组件文件按页面链接找出，不单独当页面。孤立（无人链接）的组件文件按页面检查，报 `template/misplaced-element`。
+  - `<mc-slot>` 声明在 `container/elements.txt` 单独成文件，不用 `host=` 字段；kit 记录哪些标签只属于容器界面。
+  - `bind:<参数>` 编译失败时不再连带报 `binding/missing-parameter`（kit 冒烟时暴露的连锁误报）。
+  - kit 不用 JavaExec 的 classpath 加载宿主类：ModDevGradle 打过补丁的 Forge jar 保留原签名，JDK 加载器报 SHA-384 digest error；改为 classpath 只放 kit，宿主运行时 classpath 经 `--classpath` 传入自建的不校验签名的加载器（父优先，core 类型不重复）。
+  - schema 列出标签与载荷类型、longhand 与 shorthand、库样式表及其 `--ix-*` 变量（为此公开 `PropertyRegistry.shorthands()`、`LibrarySheets.names()`/`themeVariables()`）、组件、ViewModel 成员表；CSS 取值语法暂无公开描述，未列出。
+  - 错误码在 kit 中靠扫描 core 与 `com/azane/ixchel/` 所在 classpath 根的 `DiagCode` enum 得到，不维护名单；kit 自有码为 `model/missing-template`、`model/invalid-template-id`、`model/not-a-view-model`、`model/unchecked-template`、`model/unassociated-template`。
+
+#### T2 游戏内检查
+
+- 设计依据：同上 §8（#022）。
+- core 新包放 `Driver`、运行器、`InputPort`/`Pump` 端口与帧统计，`paintedCenter` 公开到 `hitTest` 旁；1.20.1 mc 层实现输入、截图、服务端步骤、槽位、开发世界、失败转储与非 0 退出；forge-1.20.1 提供 `Pump`；`-Dixchel.check.<modid>` 开启。
+- sample 的 `Script`、`Checks`、`BenchWorld`、`FrameTimer` 删除，场景改用库内框架，只做等价重构。1.21.1 不适配，记为缺项。
+- 验收：`-Pcheck=all` 160 项结果不变；人为制造失败时进程非 0 退出并产出转储；`build` 通过。
 
 ### 3. 风险
 
@@ -154,6 +171,9 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | 行内排版在 Taffy 之外自写 | E1 | 只在子节点全为行内内容的元素上启用，作为带测量函数的叶子，Taffy 树其余部分不变 |
 | 外壳元素改变树结构，check 选择器失效 | L2 | 迁移与选择器同提交，断言不改 |
 | 1.21.1 落后 | D0、L3 | 两版同改，testmod 冒烟 |
+| 错误码迁移触及约 195 个报错调用点与大量断言消息的测试 | T1 | 按包逐个迁移，调用点与测试同提交，测试只改断言对象不改场景 |
+| 成员表改造影响运行时绑定 | T1 | 实例反射来源保持现有行为，`-Pcheck=all` 与 core 测试为回归网 |
+| 提取检查框架时改变时序（两步之间先画一帧） | T2 | `Pump` 保留"tick 结束且该帧已画完"语义，场景断言不改 |
 
 ### 4. 不排期
 
@@ -164,4 +184,5 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 性能，触发条件为 `FrameTimer` 预算超标或大列表（S3、S8）卡顿，按序做：Painter 按视口裁剪 > `contain` 与局部重排 > `Derived` 相等截断的代价 > tick 与帧两个时间域（动画用游戏时间，现为 `System::nanoTime`，暂停不冻结）。现状为首轮评审时的判断，开工前复核。
 - 游戏 UI 相对 Web 的缺口：`on:keydown` 指向按键绑定（`KeyMapping`，随玩家改键）；交互音效（控件点击音）；`border-image` 九宫格与 `image-rendering: pixelated`；声明式世界锚定（现需 Java 侧 `WorldProjection.toGui` 计算后绑定）。
 - 整合包可用的发行形态（另一个宿主 mod，未分析）。
+- 附属 mod 扩展主 mod 界面的库原语：由 JDK `Map` 构造的模型、运行时按 id 装入片段的挂载点（工具文档 §11）；1.21.1 游戏内检查适配。
 - 场景扩展：场景文档 §5。

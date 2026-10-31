@@ -3,9 +3,7 @@ package com.azane.ixchel.sample.loot;
 import com.azane.ixchel.forge.IxchelForge;
 import com.azane.ixchel.mc.UiHud;
 import com.azane.ixchel.mc.UiScreen;
-import com.azane.ixchel.sample.IxchelSampleMod;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.IEventBus;
 
 /**
@@ -14,7 +12,6 @@ import net.minecraftforge.eventbus.api.IEventBus;
  * pick-up button. The HUD is hidden until toggled from the sample index.
  */
 public final class LootScreens {
-    private static final ResourceLocation LIST = new ResourceLocation(IxchelSampleMod.MOD_ID, "ui/loot/list.html");
     private static UiHud hud;
 
     private LootScreens() {
@@ -22,7 +19,7 @@ public final class LootScreens {
 
     /** Client only; from client setup. */
     public static void register(IEventBus modBus) {
-        hud = IxchelForge.registerHud(modBus, new ResourceLocation(IxchelSampleMod.MOD_ID, "ui/loot/hud.html"), LootView::new)
+        hud = IxchelForge.registerHud(modBus, LootView.class, LootView::new)
                 .show(false);
     }
 
@@ -31,6 +28,6 @@ public final class LootScreens {
     }
 
     public static void openList() {
-        Minecraft.getInstance().setScreen(new UiScreen(LIST, new LootListView()));
+        Minecraft.getInstance().setScreen(new UiScreen(new LootListView()));
     }
 }

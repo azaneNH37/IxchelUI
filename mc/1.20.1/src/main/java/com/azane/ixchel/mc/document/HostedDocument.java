@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.document;
 
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.UiLoadException;
@@ -57,7 +58,8 @@ public final class HostedDocument implements AutoCloseable {
     private int logged;
 
     /**
-     * Loads the document now.
+     * Loads the document now. In a development run, warns when {@code model}'s class does not declare
+     * {@code template} with {@link UiTemplate}: the lint then skips the template's binding checks.
      *
      * @param template the template; its namespace is the host mod id, its stylesheets are {@code <link>}ed
      * @param tags     the elements the template may use, such as {@link McElements#TAGS}
@@ -72,6 +74,10 @@ public final class HostedDocument implements AutoCloseable {
         this.tags = tags;
         this.model = model;
         this.onReload = onReload;
+        if (dev != null && model != null && !UiTemplate.Ids.covers(model.getClass(), template.toString())) {
+            LOG.warn("Ixchel UI: {} is not declared in the @UiTemplate of {}; the lint skips its binding checks",
+                    template, model.getClass().getName());
+        }
         load();
     }
 

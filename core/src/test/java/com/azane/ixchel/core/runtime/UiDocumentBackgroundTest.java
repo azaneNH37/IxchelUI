@@ -11,7 +11,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentBackgroundTest {
     private static UiDocument load(String html, String css, ImageMeasurer images) {
@@ -139,9 +138,7 @@ class UiDocumentBackgroundTest {
                 ".a { width: 20px; height: 20px; background-image: url(x:missing.png) }", GoldenTest.NO_IMAGES);
         assertEquals("", frame(doc));
         assertEquals("", GoldenTest.print(doc.frame(100, 90)));
-        assertEquals(1, doc.diagnostics().errorCount());
-        String d = doc.diagnostics().entries().get(0).toString();
-        assertTrue(d.startsWith("t.html:2:1:") && d.contains("cannot load background image 'x:missing.png'"), d);
+        assertEquals(List.of("paint/background-image-unsized@t.html:2:1"), DiagCodes.of(doc.diagnostics()));
     }
 
     @Test
@@ -150,9 +147,7 @@ class UiDocumentBackgroundTest {
                 ".a { width: 100px; height: 100px; background-image: url(x:a.png); background-size: 0.5px 0.5px }",
                 GoldenTest.NO_IMAGES);
         assertEquals("", frame(doc));
-        assertEquals(1, doc.diagnostics().errorCount());
-        assertTrue(doc.diagnostics().entries().get(0).message().contains("would repeat 40000 times"),
-                doc.diagnostics().entries().get(0).message());
+        assertEquals(List.of("paint/background-too-many-tiles@t.html:2:1"), DiagCodes.of(doc.diagnostics()));
     }
 
     @Test
@@ -169,17 +164,9 @@ class UiDocumentBackgroundTest {
                 .i { background-repeat: space }
                 .j { transition: background-position-x 1s }
                 """, GoldenTest.NO_IMAGES));
-        String m = e.getMessage();
-        assertTrue(m.startsWith("10 errors"), m);
-        assertTrue(m.contains("t.css:1:28:") && m.contains("invalid resource location 'Minecraft:Textures/x.png'"), m);
-        assertTrue(m.contains("multiple background layers are not supported"), m);
-        assertTrue(m.contains("expected none or url()"), m);
-        assertTrue(m.contains("invalid resource location ''"), m);
-        assertTrue(m.contains("'cover' is not supported"), m);
-        assertTrue(m.contains("negative value not allowed"), m);
-        assertTrue(m.contains("expected 1 or 2 values"), m);
-        assertTrue(m.contains("t.css:8:27:") && m.contains("expected a length in px, a percentage"), m);
-        assertTrue(m.contains("expected one of repeat, repeat-x, repeat-y, no-repeat"), m);
-        assertTrue(m.contains("'background-position-x' cannot be transitioned"), m);
+        assertEquals(List.of("css/invalid-resource-location@t.css:1:28", "css/unsupported-value@t.css:2:36",
+                "css/invalid-value@t.css:3:24", "css/invalid-resource-location@t.css:4:28", "css/unsupported-value@t.css:5:23",
+                "css/negative-value@t.css:6:23", "css/value-count@t.css:7:31", "css/invalid-value@t.css:8:27",
+                "css/invalid-value@t.css:9:25", "css/not-animatable@t.css:10:18"), DiagCodes.of(e));
     }
 }

@@ -4,6 +4,7 @@ import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.sample.network.Network;
@@ -26,6 +27,7 @@ import java.util.Locale;
  * model lives and sends intents; a click shows its effect once the server's next snapshot arrives.
  * Intents set values rather than toggle them, so a repeated or late one does no harm.
  */
+@UiTemplate("ixchelsample:ui/machine/panel.html")
 final class MachineView extends ViewModel {
     /** A stonecutting result; recomputed only when the input item or the choice changes. */
     record RecipeRow(int index, ItemStack icon, String name, boolean selected) {

@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc;
 
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.runtime.UiDocument;
@@ -17,7 +18,10 @@ import java.util.function.Supplier;
  * view model. A development run also reloads on save. Client thread only.
  *
  * <pre>{@code
- * UiHud hud = IxchelNeoForge.registerHud(modBus, ResourceLocation.fromNamespaceAndPath(MODID, "ui/ammo_hud.html"), AmmoHudView::new);
+ * @UiTemplate("ixcheltest:ui/ammo_hud.html")
+ * class AmmoHudView extends ViewModel { ... }
+ *
+ * UiHud hud = IxchelNeoForge.registerHud(modBus, AmmoHudView.class, AmmoHudView::new);
  * hud.show(false);
  * }</pre>
  */
@@ -28,6 +32,29 @@ public final class UiHud {
     private boolean shown = true;
 
     /**
+     * A HUD of the template {@code type} declares with {@link UiTemplate}.
+     *
+     * @param type  the view model class; it declares exactly one concrete template
+     * @param model creates the view model on the first load
+     * @throws IllegalArgumentException if {@code type} does not declare exactly one concrete template
+     */
+    public <V extends ViewModel> UiHud(Class<V> type, Supplier<? extends V> model) {
+        this(DeclaredTemplate.of(type), model);
+    }
+
+    /**
+     * A HUD of a template without a view model.
+     *
+     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     *                 id, stylesheets come from its {@code <link>} elements
+     */
+    public UiHud(ResourceLocation template) {
+        this(template, () -> null);
+    }
+
+    /**
+     * A HUD of an explicit template.
+     *
      * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements
      * @param model    creates the view model on the first load; may return {@code null} for a template

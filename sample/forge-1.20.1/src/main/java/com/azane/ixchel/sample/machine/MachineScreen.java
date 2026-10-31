@@ -1,14 +1,12 @@
 package com.azane.ixchel.sample.machine;
 
 import com.azane.ixchel.mc.UiContainerScreen;
-import com.azane.ixchel.sample.IxchelSampleMod;
 import com.azane.ixchel.sample.network.Network;
 import com.azane.ixchel.sample.registry.ModBlocks;
 import com.azane.ixchel.sample.registry.ModMenus;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
@@ -21,15 +19,13 @@ import net.minecraft.world.level.Level;
  * entity and menu are registered in {@code registry}.
  */
 public final class MachineScreen {
-    private static final ResourceLocation TEMPLATE = new ResourceLocation(IxchelSampleMod.MOD_ID, "ui/machine/panel.html");
-
     private MachineScreen() {
     }
 
     /** Client only; from client setup, after registries are ready. */
     public static void registerScreen() {
         MenuScreens.register(ModMenus.POWERED_STONECUTTER.get(), (MachineMenu menu, Inventory inv, Component title) ->
-                new UiContainerScreen<>(menu, inv, title, TEMPLATE, new MachineView(menu)));
+                new UiContainerScreen<>(menu, inv, title, new MachineView(menu)));
     }
 
     /**

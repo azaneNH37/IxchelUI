@@ -2,6 +2,7 @@ package com.azane.ixchel.testmod;
 
 import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Derived;
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
@@ -17,6 +18,7 @@ import java.util.function.Supplier;
  * Stand-in for TACZ gun data: the main-hand stack is the "gun", its count the loaded ammo. The icon
  * is a paint-time handle; the stack is a value only because the counts and the name derive from it.
  */
+@UiTemplate("ixcheltest:ui/ammo_hud.html")
 public final class AmmoHudView extends ViewModel {
     final Value<Supplier<ItemStack>> gunIcon = state(AmmoHudView::mainHand);
     final Cell<ItemStack> gun = source(ClientSources.mainHand());

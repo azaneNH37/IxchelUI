@@ -1,101 +1,185 @@
 ---
 tags: [survey, design]
 date: 2026-10-31
-origin: E1 的 S8 模板三轮加载错误都要进游戏（每轮约 50 s）才暴露；后续的可视化编辑器与外部 agent 手写模板都需要运行前校验，先定工具的技术栈、位置与分发
-related: [ref/D-ixchel-roadmap-20261029.md, ref/SD-ixchel-template-and-style-language-20261029.md, ref/D-ixchel-ci-workflows-20261026.md, DECISIONS.md#010]
+origin: E1 的 S8 模板三轮加载错误都要进游戏（每轮约 50 s）才暴露；agent 与人写 UI 时需要运行前校验与游戏内验证，先定工具的分层、模板与模型的关联方式、位置与分发
+related: [ref/D-ixchel-roadmap-20261029.md, ref/SD-ixchel-template-and-style-language-20261029.md, ref/SD-ixchel-context-model-and-components-20261030.md, ref/D-ixchel-ci-workflows-20261026.md, DECISIONS.md#004, DECISIONS.md#010, DECISIONS.md#021, DECISIONS.md#022, DECISIONS.md#023]
 ---
 
-# Ixchel UI: Tooling and Visual Editor
+# Ixchel UI: Tooling, In-game Checks and Editor
 
 ## Summary
 
-linter 与预览只用 core 的加载器与布局，不另写解析：新增只依赖 core 的 JVM 工具 `tools/cli`（`:ixchel-tools`），对 agent 和 CI 是命令行，对编辑器是本地服务；可视化编辑器是 `tools/editor` 下的 TS 前端，构建产物打进工具 jar 由 `ixchel serve` 提供。工具不进 mod jar，不依赖 mc 层与加载器。浏览器内运行 core（TeaVM）放到最后，spike 通过再做。
+游戏外只做静态检查，运行时验证一律在游戏内，不做无头运行（#022）。静态检查由只依赖 core 的 `ixchel-kit`（`tools/kit`）提供：lint（结构 + 类型）与 schema，类型检查的输入是 ViewModel 类上的 `@UiTemplate` 与类反射得到的成员表（#021），编译器改为读成员表；诊断带稳定的符号错误码（#023）；原生元素声明改为 mc 层的数据文件。游戏内检查从 sample 提取进库：core 驱动、mc 层输入与转储、加载器层两个钩子，开发期属性开启。可视化编辑器排在最后，Node 从那一步才引入。
 
 ## Detail
 
 ### 1. 起因
 
-E1 写 S8 时三轮失败都是结构错误：组件文件含多个 `<template>`、组件文件链接 `@ixchel/dark.css`、参数名 `title` 与外壳元素属性冲突（及其连带的"未知标签"）。它们不需要游戏运行时，但只有进游戏加载才报出。外部作者的 agent 手写模板时最常见的错误也是写出子集之外的标签、属性与 CSS。
+E1 写 S8 时三轮失败都是结构错误：组件文件含多个 `<template>`、组件文件链接 `@ixchel/dark.css`、参数名 `title` 与外壳元素属性冲突（及连带的"未知标签"）。它们不需要游戏，却只有进游戏加载才报出。agent 手写模板最常见的错误是写出子集外的标签、属性与 CSS，其次是绑定名与类型；交互、原版路径、服务端与像素问题只能在游戏内验证。
 
-### 2. 架构
+### 2. 分层
 
-```
-游戏运行时：  mc 适配层 ──> core
-工具：        tools/cli（Java）──> core
-              tools/editor（TS）──JSON over HTTP/WS──> tools/cli
-              agent / CI ──> tools/cli
-              editor 写回 html/css 源文件 ──开发期热重载──> 游戏
-原生元素声明（数据）由 mc 层与 tools/cli 共读
-```
+按依赖划分工具能做的事：
 
-- 事实来源只有 core：lint 走与游戏相同的加载与诊断路径，预览走相同的布局与 `DisplayList`。用 TS 重写解析或让浏览器直接渲染这份 HTML/CSS 都会形成两套语义（`display` 初值、IFC 规则、MC 字体、组件、绑定），不选。
-- 游戏内热重载是最高保真的预览，编辑器预览不追求像素一致。
-- 前提（已核对）：core 编译期只依赖 `dev.vfyjxf:taffy`，它是纯 Java 移植，jar 内无原生库；链接图（相对路径、递归加载、组件）在 core（L2），mc 层只按 id 读文本，换成按文件系统读即可离线加载。
-
-### 3. 技术栈
-
-| 部分 | 选择 | 理由 |
+| 层 | 依赖 | 能做 |
 |---|---|---|
-| lint / 预览引擎 | core（JVM） | 与游戏同一路径，零分歧 |
-| CLI | Java fat jar（shadow），`java -jar ixchel-tools.jar` | mod 作者必有 Java；另给 Gradle 任务供 CI |
-| 编辑器前端 | TypeScript + Vite + React；代码区 CodeMirror 6 | React 生态与 agent 熟悉度最好；CodeMirror 6 比 Monaco 轻，自带 HTML/CSS 语言与 lint 接口 |
-| 预览渲染 | Canvas 2D 回放 `DisplayList` JSON | 命令只有 Rect/Text/Image/Custom/Clip/Transform 几类 |
-| 前后端连接 | 本地进程 `ixchel serve`（HTTP/WS） | 工作量最小，无兼容风险 |
+| α | core + 只读资源 | 结构 lint、schema、布局与绘制回放（编辑器） |
+| β | + 宿主编译产物（ViewModel 类） | 绑定名与类型检查 |
+| δ | 运行中的游戏 | 交互、原版路径、服务端、槽位、像素、帧预算 |
 
-可选的浏览器内运行 core（编辑器可纯静态托管、不装 Java）：
+不做无头运行（在游戏外实例化 ViewModel、跑 binding 与事件）：它要求宿主把 ViewModel 与 MC 类解耦，代价落在作者的架构上，能覆盖的范围又被 β 与 δ 夹住（#022）。
 
-| 方案 | 评价 |
+| | 游戏外静态检查 | 游戏内检查 |
+|---|---|---|
+| 提供者 | `ixchel-kit` | 库（core + mc + 加载器层） |
+| 宿主接入 | 一个 JavaExec 任务挂在 `check` 上 | 一个开发期 sourceSet（自己的 `@Mod`，注册场景）+ run 配置属性 |
+| 耗时 | 秒级 | 一次启动约 1 分钟，跑全部场景 |
+
+不考虑云端 agent，只面向本地 agent（如 Claude Code）与人。
+
+### 3. 模板与 ViewModel 的关联（#021）
+
+现状：关联只在运行时、按实例、按名字建立（`new UiScreen(template, model)` 等，`Compiler.pageNames` 反射实例字段，`Compiler.java:958`）。静态检查需要事先知道"哪个模板配哪个类"。
+
+```java
+@UiTemplate("examplemod:ui/waypoints/list.html")              // String[] value()，完整资源 id
+final class WaypointsView extends ViewModel { ... }
+
+@UiTemplate("examplemod:ui/guide/entries/*.html")             // 通配只作用于路径部分
+final class GuideView extends ViewModel { ... }
+
+new UiScreen(new WaypointsView());   // 主路径：注解须恰好一个具体 id
+new UiScreen(id, view);              // 显式 id：通配、多模板，也是出口
+new UiScreen(id);                    // 无 ViewModel
+IxchelForge.registerHud(modBus, EnvView.class, EnvView::new);  // HUD：类显式给出
+```
+
+- 注解值用完整 id（`MODID + ":ui/..."` 是合法的编译期常量）；不支持命名空间通配 `*:`。其它命名空间的 id 语法上允许、运行时可用，lint 只查本项目资源根，其余标为未检查。
+- 出口：显式 id 不在注解范围内、或类无注解时照常加载（运行时绑定检查不变），开发期警告"该组合未经静态检查"。正确性不靠注解，注解只决定静态覆盖面。真实需要出口的情形：模板 id 来自数据（整合包作者在自己的命名空间写页面）；通用 ViewModel 不愿为每个界面派生空子类。
+- 资源包覆盖同一 id 不受影响。跨 mod 复用 ViewModel 不支持也无需求：各 mod 的副本 relocate 后类型不通（#004）。
+- `models.json`（各 ViewModel 的成员表）不再手写，改为构建时由注解与类生成、随 jar 导出，供资源包作者的 lint 使用（T3）。
+
+### 4. 编译器读成员表
+
+`Compiler` 不再直接反射实例，改读成员表：名字 → 种类（Cell / Action）、声明类型（含泛型参数）、可写性。
+
+| 成员表来源 | 用途 |
 |---|---|
-| TeaVM（Apache-2.0，0.16.0，2026-10） | 字节码 AOT 到 JS / Wasm GC / C，产物小；官方定位是"不能把现有大代码库整体搬过去"，反射、资源、类加载受限，0.16 已支持方法反射、泛型信息与 `getResourceAsStream`，反射成员须按 policy 声明 |
-| CheerpJ | 不改代码跑 JVM 字节码，商用许可受限、体积与启动成本大，不选 |
-| GraalVM Web Image | 仍是实验阶段，不选 |
+| 实例反射 | 运行时，行为不变 |
+| 类反射 | lint（`Class.forName(n, false, loader)`，不触发初始化） |
+| JDK `Map` | 预留：附属 mod 扩展点的"表构造模型"（§10），现在不做 |
 
-core 中会触到 TeaVM 限制的只有：`binding.compile.Compiler` 的 `getDeclaredFields`、`RecordComponent`、`MethodHandles.lookup().unreflect`（编辑器预览走无模型或 fixture 数据，不经这条路径；`MethodHandles` 大概率不支持，需要时改 `Method.invoke`）；`LibrarySheets` 的 `getResourceAsStream` 与 `ConcurrentHashMap`。解析、样式、布局、绘制主干是普通集合、record、lambda。以上适配度均为推断，以 spike 为准。
+静态与运行时只差两处，都留给运行时：
 
-### 4. CLI
+- 字段声明为 `Cell` 而实际装的是 `Value`：静态只见声明类型，规则是"字段声明写精确类型"，开发期运行时对不一致给警告。
+- 字段为 `null`（`Name.Unset`）：运行时状态，照旧在运行时报。
 
-```
-ixchel lint   <资源根> [--json]        # 无模型结构加载；file:line:col + 稳定错误码；有错误时退出码非 0
-ixchel schema [--json]                 # 导出支持的标签、属性、CSS 属性与取值、库内主题名
-ixchel render <模板 id> --size 427x240 --out a.png [--data fixture.json]
-ixchel serve  --port N                 # 编辑器后端：load / lint / layout / hit；同时提供编辑器静态页面
-```
+record 成员本来就按声明的组件类型解析（`Compiler.java:912-943`），无需改动。
 
-`schema` 给 agent 写模板前查子集；`render` 让 agent 不进游戏看布局。之后可在 lint 上加 LSP（lsp4j），VS Code 与走 LSP 的 agent 直接得到诊断（可选）。
+### 5. 原生元素声明数据化
 
-### 5. core 与 mc 层需要的改动
+原生元素：mc 层加进 HTML 子集、由 MC 绘制的元素（1.20.1：`<mc-item>`、`<mc-entity>`，容器界面另有 `<mc-slot>`；1.21.1：只有 `<mc-item>`）。现以代码登记在 `McElements.TAGS` / `ContainerLayout.TAGS`，同一个类还构建绘制器，kit 不能安全加载；载荷接受的类型（`ItemStack` 或 `Supplier<ItemStack>`）只写在 javadoc 里，运行时到绘制才发现。
 
-1. 原生元素声明数据化：`<mc-item>` 等现由 mc 层 `McElements.TAGS` 以代码登记，工具拿不到；抽出不依赖 MC 类的声明（标签名、载荷属性、允许的属性），mc 层与工具共读。
-2. 无模型编译模式：模板不写 ViewModel 类名（语言文档已否决），lint 无从得知名字对应的模型，先跳过绑定名解析，只查结构。
-3. 源码位置贯通到元素、属性与 CSS 声明：编辑器要按源码区间写回、保持最小 diff；现在只有指令与诊断带位置。这是编辑器的主要前置。
-4. 工具版测量器：从用户本机 MC client jar 读字体字形宽度（不打包 Mojang 资源），读不到退近似宽度并在预览上标出；物品图标读 `textures/item/<id>.png`，没有则画占位框。
-
-### 6. 仓库位置与分发
+每个 mc 层在包路径下放声明资源，`TAGS` 从它构建，kit 在项目内从 classpath 读、项目外用内置副本。core 不引入 JSON，用行格式，由 core 的 `TagRegistry` 解析，mc 层与 kit 共用：
 
 ```
-tools/
-  cli/      Gradle 项目 :ixchel-tools（只依赖 :ixchel-core），包按契约：lint、render、schema、serve
-  editor/   npm 项目（TS + Vite + React），dist/ 与 node_modules/ 不提交
+# mc/1.20.1/src/main/resources/com/azane/ixchel/mc/element/elements.txt
+mc-item    payload=item    accepts=net.minecraft.world.item.ItemStack,java.util.function.Supplier<net.minecraft.world.item.ItemStack>
+mc-entity  payload=entity  accepts=net.minecraft.world.entity.LivingEntity,java.util.function.Supplier<net.minecraft.world.entity.LivingEntity>
+
+# mc/1.20.1/src/main/resources/com/azane/ixchel/mc/container/elements.txt
+mc-slot    attrs=index     host=container
 ```
 
-- 构建：`tools/editor` 的 `npm ci && vite build` 产出 `dist/`，`:ixchel-tools` 的 `processResources` 拷进 jar 的 `/editor/`，再打 fat jar。Node 由 `com.github.node-gradle.node`（`download = true`）下到 Gradle 缓存，入口仍只有 `./gradlew build`；npm + `package-lock.json`。全量 `build` 因此多一次前端构建，嫌慢时再把 `:ixchel-tools` 移出默认 `build`。
-- 前端开发：先起 `ixchel serve`，`tools/editor` 里 `npm run dev`，Vite 代理 API 到 serve；只改 Java 的人不碰 Node。
-- 分发：前端没有单独分发物，随 jar 走；`ixchel serve` 启动后打开浏览器。jar 挂 GitHub Releases，与库同版本，随 `release` 工作流（#010，未实现）一起做。
-- 不选：托管静态站点连本地 CLI（页面与 jar 分别发版会协议错配，https 页面访问 http://localhost 受浏览器私有网络访问限制）；npm / `npx` 分发（用户已需 Java，再要 Node 是多一个前提）；Electron / Tauri（分平台打包、签名、更新，工作量最大）。
-- TeaVM spike 成功后，同一份 `dist/` 加 Wasm 发到 Pages（可与 Doc 阶段的 `docs/` 站点同处），jar 内置版保留。
+字段：标签名、载荷属性、载荷接受的类型（类名字符串）、额外属性、适用宿主。运行时也可在加载期检查载荷类型。
 
-### 7. 分阶段
+### 6. 诊断错误码（#023）
 
-| 阶段 | 内容 | 受益方 |
+现状：`Diagnostic(severity, message, pos)`，严重级别由调用点决定；core 约 195 个报错调用点（css 76、binding 57、template 54、style 5，粗略 grep）；测试多处断言消息原文。
+
+```java
+public interface DiagCode {
+    String id();                     // "binding/unknown-name"
+    Diagnostic.Severity severity();
+    String summary();                // 英文一句话，供 --explain 与文档生成
+}
+public record Diagnostic(DiagCode code, String message, SourcePos pos, String hint) { }  // hint 可空
+
+public enum BindingCode implements DiagCode {   // 放在报告它的包里
+    UNKNOWN_NAME("binding/unknown-name", ERROR, "the name is not a member of the view model"), ...
+}
+diag.error(BindingCode.UNKNOWN_NAME, pos, msg);
+```
+
+| 方面 | 规则 |
+|---|---|
+| 形式 | 符号名 `领域/名称`，全英文（码、消息、summary、hint） |
+| 领域 | 按加载阶段：`load`、`template`、`css`、`style`、`binding`、`element`（mc 层定义）、`model`（注解与成员表） |
+| 定义处 | 每领域一个实现 `DiagCode` 的 enum，放在报告它的包里；mc 层自定义，core 不需知道 |
+| 严重级别 | 由码决定，不由调用点决定；暂不可配置 |
+| 粒度 | 一种作者可改正的错误一个码，估计 60–90 个；库内部不变式被破坏是 bug，抛异常，不作诊断 |
+| 输出 | 文本 `file:line:col: error[binding/unknown-name]: message`，下一行 `  hint: …`；JSON `{code, severity, file, line, col, message, hint}` |
+| 稳定性 | 码是公开契约：不改名、不复用，废弃保留占位；消息原文不是契约 |
+| 校验 | 一个测试扫描所有 enum 保证 id 唯一 |
+| 文档 | 由注册表生成每个码的页面（#010 参考页由代码生成）；kit 提供 `--explain <code>` |
+| 测试迁移 | 断言消息原文的测试改为断言码与位置；`DiagnosticsTest` 测输出格式本身，保留 |
+
+`Diagnostics.within(note)` 不变，组件上下文仍追加在消息后。
+
+### 7. ixchel-kit
+
+| | 内容 |
+|---|---|
+| 制品 | `:ixchel-kit`（`tools/kit/`），只依赖 core，与库同版本；T1 普通 jar，T3 再出 fat jar |
+| 项目内（主入口） | 宿主写 JavaExec：classpath = 宿主运行时 classpath + kit；读 `@UiTemplate` 构建成员表；原生元素声明从 mc 制品读，无需配置目标版本 |
+| 项目外（T3） | `java -jar`：结构检查与 schema，`--target` 选内置声明；资源包作者的类型检查用导出的 `models.json` |
+| `lint` | 结构 + 类型，`file:line:col` + 错误码 + hint，`--json`；有错误退出码非 0。注解列出的模板不存在报错；没有注解认领的模板只做结构检查并提示"未关联模型" |
+| `schema` | 当前目标的标签、属性、CSS 属性与取值；主题变量 `--ix-*`；本项目组件（参数、事件、插槽）；各 ViewModel 成员表 |
+| `--explain` | 错误码说明 |
+
+包按契约：`project`（资源根、宿主 classpath、注解扫描、声明读取、成员表构建）、`lint`、`schema`，入口 `Main`。
+
+sample 与 testmod 的 lint 任务原样照抄对外配方，不收进 `build-logic` 约定插件：自家用的就是外部作者的写法，配方坏了第一时间暴露。外部作者确有需要时再出 Gradle 插件。
+
+### 8. 游戏内检查
+
+现状：sample 的 `src/check`（`Script` 约 440 行、`Checks`、`BenchWorld`、`FrameTimer` 与 10 个场景）只服务 sample；`Checks.finish()` 调 `mc.stop()`，退出码不反映失败；testmod-neoforge-1.21.1 没有检查框架。
+
+| 层 | 内容 |
+|---|---|
+| core（新包，如 `core.check`） | `Driver`：步骤队列、选择器操作、读取、结果记录；运行器：按名选择、报告文本；端口 `InputPort`、`Pump`；帧耗时统计（median/p95）。`paintedCenter` 公开、放在 `EventDispatcher.hitTest` 旁，保证"算出的坐标"与"命中的元素"一致 |
+| mc 层 | 经 vanilla `Screen` 实现 `InputPort`；`hoverAt`、截图、服务端步骤、槽位、开发世界引导、可选玩家重置；失败时转储文档树与布局（也可按键或命令手动转储）；`UiScreen` 与 HUD 内计时；有失败时非 0 退出 |
+| 加载器层 | `Pump`：tick 结束且该帧已画完 |
+| 宿主 | 开发期 sourceSet：自己的 `@Mod` 调 `IxchelChecks.install(modid, …)` 注册场景；属性 `ixchel.check.<modid>=名字[,…]|all`。给配方，不做 Gradle 插件 |
+
+- 随现有 mc / 加载器制品发布，不另出按版本的制品，也无第二份 SRG 配方；代价是 `Driver` 等成为 core 的公开 API。
+- 等待单位为帧；转储与 `-Dixchel.devResources.<modid>` 同类，属性开启、仅开发期。
+- sample 迁移只做等价重构，`-Pcheck=all` 结果不变为验收。
+- 1.21.1 暂不做适配，记为缺项（#005）。
+
+### 9. 编辑器（T4）
+
+- 架构：编辑器后端 `ixchel serve`（kit 内），前端 `tools/editor`（TS + Vite + React，代码区 CodeMirror 6），JSON over HTTP/WS；预览用 Canvas 2D 回放 `DisplayList` JSON；编辑器写回 html/css 源文件，经开发期热重载进游戏。游戏内热重载是最高保真的预览，编辑器不追求像素一致。
+- 事实来源只有 core：用 TS 重写解析或让浏览器直接渲染这份 HTML/CSS 会形成两套语义，不选。core 编译期只依赖纯 Java 的 `dev.vfyjxf:taffy`，链接图在 core，可离线加载。
+- 前置：源码位置贯通到元素、属性与 CSS 声明（按源码区间写回、最小 diff）；工具版测量器（从用户本机 MC client jar 读字形宽度，不打包 Mojang 资源，读不到退近似宽度并在预览标出；物品图标读 `textures/item/<id>.png`，没有画占位框）；布局转储与 `render`（`DisplayList` 转 PNG）。
+- 构建：`npm ci && vite build` 的 `dist/` 由 kit 的 `processResources` 拷进 jar 的 `/editor/`；Node 由 `com.github.node-gradle.node`（`download = true`）下到 Gradle 缓存，入口仍只有 `./gradlew build`。只改 Java 的人不碰 Node。
+- 分发：随 kit jar 走，挂 GitHub Releases，随 `release` 工作流（#010，未实现）。不选：托管静态站点连本地 CLI（分别发版协议错配，https 页面访问 localhost 受私有网络访问限制）；npm / `npx`（多一个 Node 前提）；Electron / Tauri（分平台打包签名更新）。
+- 浏览器内运行 core（可选）：TeaVM（Apache-2.0，0.16.0，反射成员须按 policy 声明）为候选，CheerpJ（许可与体积）、GraalVM Web Image（实验阶段）不选。core 中会触到限制的只有 `Compiler` 的反射与 `MethodHandles`、`LibrarySheets` 的资源读取；适配度为推断，以 spike 为准。
+
+### 10. 分阶段
+
+| 阶段 | 内容 | 验收 |
 |---|---|---|
-| T1 | `tools/cli` 的 lint 与 schema，sample/testmod 加挂在 `check` 上的 lint 任务；§5 第 1、2 项 | agent、CI、仓库自身 |
-| T2 | render：工具版测量器，`DisplayList` 转 PNG，fixture 数据 | agent 离线看布局 |
-| T3 | serve 与编辑器：源码区、结构树、Canvas 预览、预览点选定位源码；§5 第 3 项 | 人 |
-| T4（可选） | 拖拽与属性面板编辑；TeaVM spike；LSP | 人 |
+| T1 静态检查 | §3–§7：`@UiTemplate` 与挂载 API（sample、testmod 迁移）、成员表编译、原生元素声明数据、错误码、kit 的 `lint`/`schema`/`--explain`（项目内）；sample 与 testmod 各一个挂在 `check` 上的 lint 任务 | E1 三类错误与未知绑定、`bind:value` 指向只读 `Cell`、`<for>` 遍历非列表、组件参数不符均由 lint 报出并带位置与码；现有模板零错误；`-Pcheck=all` 不变 |
+| T2 游戏内检查 | §8（仅 1.20.1） | `-Pcheck=all` 160 项结果不变；人为制造失败时非 0 退出并产出转储 |
+| T3 对外 | 项目外 CLI（fat jar）；导出 `models.json`；容器槽位检查（模板与 menu 的槽位数） | 随 Doc 阶段发布 |
+| T4 编辑器 | §9：转储与 `render`、`serve`、前端 | — |
+| T5（可选） | 拖拽与属性面板；TeaVM spike；LSP（lsp4j） | — |
 
-T1、T2 只在仓库内用（经 Gradle 任务），到 Doc 阶段再对外发布 jar；外部作者确实需要在 CI 里跑时再出 Gradle 插件。
+T1 与 T2 互不依赖，可并行。
 
-### 8. 待定
+### 11. 缺项与不做
 
-- lint 如何检查绑定名：(a) 模型描述文件（如 `<模板>.model.json`，手写或由 Gradle 任务反射编译后的 ViewModel 生成），同时作为编辑器预览的 fixture 结构；(b) 宿主在代码里登记模板与模型类，工具扫描编译产物。倾向 (a)。
-- 编辑器是否必须纯静态托管：若是，TeaVM spike 前移到 T3 之前。
+- 1.21.1 游戏内检查适配：暂缺（#005）。
+- 附属 mod 扩展主 mod 界面：同类条目（按钮、标签页、信息行）用宿主 record + action 即可，库无需支持；附属 mod 自带布局与逻辑的面板需要两个库原语——由 JDK `Map` 构造的模型（§4 预留）与运行时按 id 装入片段的挂载点——等出现三个真实场景再做。扩展点由宿主声明，契约只用 JDK 类型（#004）。
+- 不做：无头 testkit；在游戏外加载 MC 代码的 spike；手写 `model.json`；Gradle DSL 清单、开发期运行时记录关联、扫描挂载调用作为关联来源（分别是重复声明、新写的 UI 当场无法检查、实现脆弱）；check 的 Gradle 插件；云端 agent 与 xvfb。

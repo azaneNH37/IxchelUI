@@ -527,10 +527,10 @@ public final class LayoutEngine {
                 continue;
             }
             if (d == Keywords.Display.FLEX || d == Keywords.Display.BLOCK) {
-                report(e, "<" + e.tag() + "> has display: " + d.name().toLowerCase() + " inside the inline content of a block;"
+                report(e, LayoutCode.BLOCK_IN_INLINE, "<" + e.tag() + "> has display: " + d.name().toLowerCase() + " inside the inline content of a block;"
                         + " a block holds only text and inline content, so use display: inline-block");
             } else if (cs.get(CssProperties.POSITION) == Keywords.Position.ABSOLUTE) {
-                report(e, "<" + e.tag() + "> is absolutely positioned inside the inline content of a block, which is not supported");
+                report(e, LayoutCode.ABSOLUTE_IN_INLINE, "<" + e.tag() + "> is absolutely positioned inside the inline content of a block, which is not supported");
             }
             p.addBox(atom(e), e);
         }
@@ -576,7 +576,7 @@ public final class LayoutEngine {
             found = "transform";
         }
         if (found != null) {
-            report(e, "<" + e.tag() + "> is display: inline and has " + found
+            report(e, LayoutCode.INLINE_BOX_PROPERTY, "<" + e.tag() + "> is display: inline and has " + found
                     + ", which inline elements do not support; use display: inline-block");
         }
     }
@@ -592,9 +592,9 @@ public final class LayoutEngine {
         return false;
     }
 
-    private void report(Element e, String message) {
+    private void report(Element e, LayoutCode code, String message) {
         if (reported.add(e.pos() + ": " + message)) {
-            diag.error(e.pos(), message);
+            diag.report(code, e.pos(), message);
         }
     }
 

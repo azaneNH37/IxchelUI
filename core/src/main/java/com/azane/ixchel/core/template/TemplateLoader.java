@@ -87,11 +87,11 @@ public final class TemplateLoader {
         try {
             id = resolve(from, href);
         } catch (IllegalArgumentException e) {
-            diag.error(at, "cannot load component '" + href + "': " + e.getMessage());
+            diag.report(TemplateCode.UNREADABLE_FILE, at, "cannot load component '" + href + "': " + e.getMessage());
             return null;
         }
         if (loading.contains(id)) {
-            diag.error(at, "component file '" + href + "' links back to itself through " + String.join(" <- ", loading));
+            diag.report(TemplateCode.COMPONENT_CYCLE, at, "component file '" + href + "' links back to itself through " + String.join(" <- ", loading));
             return null;
         }
         if (byFile.containsKey(id)) {
@@ -112,7 +112,7 @@ public final class TemplateLoader {
         }
         String other = fileOfName.putIfAbsent(def.name(), id);
         if (other != null) {
-            diag.error(def.pos(), "component <" + def.name() + "> is also declared in " + other);
+            diag.report(TemplateCode.DUPLICATE_COMPONENT, def.pos(), "component <" + def.name() + "> is also declared in " + other);
             return null;
         }
         components.put(def.name(), def);
@@ -130,14 +130,14 @@ public final class TemplateLoader {
                     String name = link.href().substring(LIBRARY.length());
                     library.putIfAbsent(name, new Library(name, link.pos()));
                 } else {
-                    diag.error(link.pos(), "only the page can link the library stylesheet '" + link.href() + "'");
+                    diag.report(TemplateCode.LIBRARY_SHEET_NOT_ON_PAGE, link.pos(), "only the page can link the library stylesheet '" + link.href() + "'");
                 }
             } else if (s instanceof Template.Link link) {
                 String id;
                 try {
                     id = resolve(from, link.href());
                 } catch (IllegalArgumentException e) {
-                    diag.error(link.pos(), "cannot load stylesheet '" + link.href() + "': " + e.getMessage());
+                    diag.report(TemplateCode.UNREADABLE_FILE, link.pos(), "cannot load stylesheet '" + link.href() + "': " + e.getMessage());
                     continue;
                 }
                 String css = text(id, link.href(), link.pos(), "stylesheet");
@@ -155,11 +155,11 @@ public final class TemplateLoader {
         try {
             String text = read.apply(id);
             if (text == null) {
-                diag.error(at, what + " '" + href + "' not found");
+                diag.report(TemplateCode.FILE_NOT_FOUND, at, what + " '" + href + "' not found");
             }
             return text;
         } catch (RuntimeException e) {
-            diag.error(at, "cannot load " + what + " '" + href + "': " + e.getMessage());
+            diag.report(TemplateCode.UNREADABLE_FILE, at, "cannot load " + what + " '" + href + "': " + e.getMessage());
             return null;
         }
     }

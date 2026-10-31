@@ -33,7 +33,7 @@ final class Vars {
                 if (isVar(f)) {
                     Call c = call(f);
                     if (c == null) {
-                        diag.error(f.pos(), "expected var(--name) or var(--name, fallback)");
+                        diag.report(StyleCode.INVALID_VAR, f.pos(), "expected var(--name) or var(--name, fallback)");
                         ok = false;
                     } else if (c.fallback != null) {
                         ok &= check(c.fallback, diag);

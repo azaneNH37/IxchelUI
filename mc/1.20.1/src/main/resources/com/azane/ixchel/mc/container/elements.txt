@@ -1,0 +1,2 @@
+# The container screen's slot element, read by ContainerLayout; see TagRegistry.Builder.declare for the format.
+mc-slot attrs=index

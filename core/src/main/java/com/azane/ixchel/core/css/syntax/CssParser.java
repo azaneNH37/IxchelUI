@@ -101,7 +101,7 @@ public final class CssParser {
 
     private void skipAtRule() {
         Token at = take();
-        diag.error(at.pos(), "unsupported at-rule @" + at.value());
+        diag.report(CssSyntaxCode.UNSUPPORTED_AT_RULE, at.pos(), "unsupported at-rule @" + at.value());
         while (true) {
             Token t = peek();
             if (t.is(Token.Kind.EOF)) {
@@ -124,7 +124,7 @@ public final class CssParser {
         while (true) {
             Token t = peek();
             if (t.is(Token.Kind.EOF)) {
-                diag.error(start, "expected '{' after selector");
+                diag.report(CssSyntaxCode.EXPECTED_BLOCK, start, "expected '{' after selector");
                 return;
             }
             if (t.is(Token.Kind.LBRACE)) {
@@ -244,7 +244,7 @@ public final class CssParser {
             if (t.is(Token.Kind.EOF)) {
                 if (!warnedUnclosed) {
                     warnedUnclosed = true;
-                    diag.warning(openPos, "unclosed block");
+                    diag.report(CssSyntaxCode.UNCLOSED_BLOCK, openPos, "unclosed block");
                 }
                 return;
             }
@@ -278,11 +278,11 @@ public final class CssParser {
                 end++;
             }
             if (isToken(v, Token.Kind.AT_KEYWORD)) {
-                diag.error(v.pos(), "unsupported at-rule @" + ((Token) v).value());
+                diag.report(CssSyntaxCode.UNSUPPORTED_AT_RULE, v.pos(), "unsupported at-rule @" + ((Token) v).value());
                 k = skipStatement(values, k);
             } else if (isRule) {
                 if (parent == null) {
-                    diag.error(v.pos(), "nested rules are only allowed in a stylesheet");
+                    diag.report(CssSyntaxCode.NESTED_RULE_NOT_ALLOWED, v.pos(), "nested rules are only allowed in a stylesheet");
                 } else {
                     ComponentValue.Block block = (ComponentValue.Block) values.get(end);
                     rule(nest(parent, trim(values.subList(k, end))), block.contents(), v.pos(), nested);
@@ -295,7 +295,7 @@ public final class CssParser {
                 }
                 k = end;
             } else {
-                diag.error(v.pos(), "expected a declaration");
+                diag.report(CssSyntaxCode.EXPECTED_DECLARATION, v.pos(), "expected a declaration");
                 k = skipStatement(values, k);
             }
         }
@@ -322,7 +322,7 @@ public final class CssParser {
             k++;
         }
         if (k >= values.size() || !isToken(values.get(k), Token.Kind.COLON)) {
-            diag.error(nameTok.pos(), "expected ':' after property name '" + nameTok.value() + "'");
+            diag.report(CssSyntaxCode.MISSING_COLON, nameTok.pos(), "expected ':' after property name '" + nameTok.value() + "'");
             return null;
         }
         List<ComponentValue> value = trim(new ArrayList<>(values.subList(k + 1, values.size())));

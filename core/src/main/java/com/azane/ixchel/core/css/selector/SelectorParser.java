@@ -72,12 +72,12 @@ public final class SelectorParser {
                 skipWs();
                 combinators.add(Selector.Combinator.CHILD);
             } else if (v instanceof Token t && (t.isDelim('+') || t.isDelim('~'))) {
-                diag.error(t.pos(), "unsupported combinator '" + t.value() + "'");
+                diag.report(SelectorCode.UNSUPPORTED_COMBINATOR, t.pos(), "unsupported combinator '" + t.value() + "'");
                 return null;
             } else if (ws) {
                 combinators.add(Selector.Combinator.DESCENDANT);
             } else {
-                diag.error(v.pos(), "unexpected token in selector");
+                diag.report(SelectorCode.UNEXPECTED_TOKEN, v.pos(), "unexpected token in selector");
                 return null;
             }
         }
@@ -111,23 +111,24 @@ public final class SelectorParser {
                 continue;
             }
             if (!(v instanceof Token t)) {
-                diag.error(v.pos(), "unexpected " + (v instanceof ComponentValue.Block ? "block" : "function") + " in selector");
+                diag.report(SelectorCode.UNEXPECTED_TOKEN, v.pos(),
+                        "unexpected " + (v instanceof ComponentValue.Block ? "block" : "function") + " in selector");
                 return null;
             }
             if (t.is(Token.Kind.HASH_ID)) {
                 if (id != null && !id.equals(t.value())) {
-                    diag.error(t.pos(), "selector can never match: two different ids");
+                    diag.report(SelectorCode.CONFLICTING_IDS, t.pos(), "selector can never match: two different ids");
                     return null;
                 }
                 id = t.value();
                 i++;
             } else if (t.is(Token.Kind.HASH)) {
-                diag.error(t.pos(), "invalid id selector #" + t.value());
+                diag.report(SelectorCode.INVALID_ID, t.pos(), "invalid id selector #" + t.value());
                 return null;
             } else if (t.isDelim('.')) {
                 Token name = next(1);
                 if (name == null || !name.is(Token.Kind.IDENT)) {
-                    diag.error(t.pos(), "expected a class name after '.'");
+                    diag.report(SelectorCode.MISSING_CLASS_NAME, t.pos(), "expected a class name after '.'");
                     return null;
                 }
                 classes.add(name.value());
@@ -141,7 +142,7 @@ public final class SelectorParser {
                 }
                 int bit = after instanceof Token n && n.is(Token.Kind.IDENT) ? stateBit(n.value()) : 0;
                 if (bit == 0) {
-                    diag.error(after != null ? after.pos() : t.pos(), describePseudo(after));
+                    reportPseudo(after, after != null ? after.pos() : t.pos());
                     return null;
                 }
                 state |= bit;
@@ -151,7 +152,7 @@ public final class SelectorParser {
             }
         }
         if (i == start) {
-            diag.error(i < in.size() ? in.get(i).pos() : endPos(), "expected a selector");
+            diag.report(SelectorCode.EXPECTED_SELECTOR, i < in.size() ? in.get(i).pos() : endPos(), "expected a selector");
             return null;
         }
         return new Selector.Compound(tag, id, List.copyOf(classes), List.copyOf(attributes), state, root);
@@ -166,7 +167,7 @@ public final class SelectorParser {
             }
         }
         if (c.isEmpty() || !(c.get(0) instanceof Token name && name.is(Token.Kind.IDENT))) {
-            diag.error(b.pos(), "expected an attribute name in [...]");
+            diag.report(SelectorCode.INVALID_ATTRIBUTE, b.pos(), "expected an attribute name in [...]");
             return null;
         }
         String attr = name.value().toLowerCase(Locale.ROOT);
@@ -174,11 +175,12 @@ public final class SelectorParser {
             return new Selector.AttributeMatch(attr, null);
         }
         if (!(c.get(1) instanceof Token op && op.isDelim('='))) {
-            diag.error(c.get(1).pos(), "unsupported attribute selector operator; only [name] and [name=value]");
+            diag.report(SelectorCode.UNSUPPORTED_ATTRIBUTE_OPERATOR, c.get(1).pos(), "unsupported attribute selector operator",
+                    "only [name] and [name=value] are supported");
             return null;
         }
         if (c.size() != 3 || !(c.get(2) instanceof Token value && (value.is(Token.Kind.IDENT) || value.is(Token.Kind.STRING)))) {
-            diag.error(b.pos(), "expected [" + attr + "=value] with an identifier or a quoted string");
+            diag.report(SelectorCode.INVALID_ATTRIBUTE, b.pos(), "expected [" + attr + "=value] with an identifier or a quoted string");
             return null;
         }
         return new Selector.AttributeMatch(attr, value.value());
@@ -203,17 +205,16 @@ public final class SelectorParser {
         }
     }
 
-    private static String describePseudo(ComponentValue after) {
+    private void reportPseudo(ComponentValue after, SourcePos at) {
         if (after instanceof Token n && n.is(Token.Kind.COLON)) {
-            return "pseudo-elements are not supported";
+            diag.report(SelectorCode.UNSUPPORTED_PSEUDO, at, "pseudo-elements are not supported");
+        } else if (after instanceof Token n && n.is(Token.Kind.IDENT)) {
+            diag.report(SelectorCode.UNSUPPORTED_PSEUDO, at, "unsupported pseudo-class :" + n.value());
+        } else if (after instanceof ComponentValue.Function f) {
+            diag.report(SelectorCode.UNSUPPORTED_PSEUDO, at, "unsupported pseudo-class :" + f.name() + "()");
+        } else {
+            diag.report(SelectorCode.MISSING_PSEUDO_NAME, at, "expected a pseudo-class name after ':'");
         }
-        if (after instanceof Token n && n.is(Token.Kind.IDENT)) {
-            return "unsupported pseudo-class :" + n.value();
-        }
-        if (after instanceof ComponentValue.Function f) {
-            return "unsupported pseudo-class :" + f.name() + "()";
-        }
-        return "expected a pseudo-class name after ':'";
     }
 
     private Token next(int offset) {

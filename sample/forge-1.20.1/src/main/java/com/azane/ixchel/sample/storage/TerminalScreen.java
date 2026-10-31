@@ -1,12 +1,10 @@
 package com.azane.ixchel.sample.storage;
 
 import com.azane.ixchel.mc.UiContainerScreen;
-import com.azane.ixchel.sample.IxchelSampleMod;
 import com.azane.ixchel.sample.network.Network;
 import com.azane.ixchel.sample.registry.ModMenus;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 
 /**
@@ -16,16 +14,13 @@ import net.minecraft.world.entity.player.Inventory;
  * Ixchel to be clipped. Item and menu are registered in {@code registry}.
  */
 public final class TerminalScreen {
-    private static final ResourceLocation TEMPLATE = new ResourceLocation(IxchelSampleMod.MOD_ID, "ui/storage/terminal.html");
-
     private TerminalScreen() {
     }
 
     /** Client only; from client setup, after registries are ready. */
     public static void registerScreen() {
         MenuScreens.register(ModMenus.STORAGE_TERMINAL.get(), (TerminalMenu menu, Inventory inv, Component title) ->
-                new UiContainerScreen<>(menu, inv, title, TEMPLATE, new TerminalView(menu),
-                        UiContainerScreen.SlotItemRendering.IXCHEL));
+                new UiContainerScreen<>(menu, inv, title, new TerminalView(menu), UiContainerScreen.SlotItemRendering.IXCHEL));
     }
 
     /** The sample index's entry: opens the terminal on the storage around the player ({@link OpenTerminalPacket}). */

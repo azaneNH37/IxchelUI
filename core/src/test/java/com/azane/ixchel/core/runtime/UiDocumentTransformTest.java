@@ -8,10 +8,11 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentTransformTest {
     private static UiDocument load(String html, String css, ViewModel model) {
@@ -57,8 +58,7 @@ class UiDocumentTransformTest {
     void anUnsupportedTransformFunctionIsReportedAtItsPosition() {
         UiLoadException e = assertThrows(UiLoadException.class, () ->
                 load("<div class=\"r\"></div>", ".r { transform: rotate(10deg) skew(5deg) }", null));
-        assertTrue(e.getMessage().contains("t.css:1:31") && e.getMessage().contains("unsupported transform function 'skew'"),
-                e.getMessage());
+        assertEquals(List.of("css/unsupported-value@t.css:1:31"), DiagCodes.of(e));
     }
 
     static final class Pan extends ViewModel {

@@ -9,9 +9,10 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentTransitionTest {
     private long nowMs;
@@ -123,13 +124,9 @@ class UiDocumentTransitionTest {
                 .d { transition: none, width 1s }
                 .e { transition-property: colr }
                 """));
-        String m = e.getMessage();
-        assertTrue(m.startsWith("5 errors"), m);
-        assertTrue(m.contains("'display' cannot be transitioned"), m);
-        assertTrue(m.contains("0s"), m);
-        assertTrue(m.contains("unsupported easing"), m);
-        assertTrue(m.contains("'none' must be the only item"), m);
-        assertTrue(m.contains("unsupported property 'colr'"), m);
+        assertEquals(List.of("css/not-animatable@t.css:1:18", "css/missing-unit@t.css:2:27",
+                "css/unsupported-value@t.css:3:34", "css/none-not-alone@t.css:4:18", "css/unknown-property@t.css:5:27"),
+                DiagCodes.of(e));
     }
 
     @Test

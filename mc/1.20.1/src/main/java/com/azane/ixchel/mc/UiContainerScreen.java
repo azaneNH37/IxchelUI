@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc;
 
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.paint.DisplayList;
@@ -23,9 +24,15 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
  * the slot items is chosen by {@link SlotItemRendering}.
  *
  * <pre>{@code
- * MenuScreens.register(MENU, (menu, inv, title) -> new UiContainerScreen<>(menu, inv, title,
- *         new ResourceLocation(MODID, "ui/machine/panel.html"), new MachineView(menu)));
+ * @UiTemplate("ixchelsample:ui/machine/panel.html")
+ * class MachineView extends ViewModel { ... }
+ *
+ * MenuScreens.register(MENU, (menu, inv, title) -> new UiContainerScreen<>(menu, inv, title, new MachineView(menu)));
  * }</pre>
+ *
+ * <p>The template is the one the view model's class declares with {@link UiTemplate}; a model that
+ * serves several templates, or none, is mounted with the template id
+ * ({@code new UiContainerScreen<>(menu, inv, title, template, model)}).
  *
  * <p>Layout rules:
  * <ul>
@@ -64,12 +71,38 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
     private final ContainerLayout layout;
     private final ClippedSlotItems clippedItems;
 
-    /** Same as the full constructor with {@link SlotItemRendering#VANILLA}. */
+    /**
+     * Same as {@link #UiContainerScreen(AbstractContainerMenu, Inventory, Component, ViewModel, SlotItemRendering)}
+     * with {@link SlotItemRendering#VANILLA}.
+     */
+    public UiContainerScreen(M menu, Inventory inventory, Component title, ViewModel model) {
+        this(menu, inventory, title, model, SlotItemRendering.VANILLA);
+    }
+
+    /**
+     * A container screen of the template {@code model}'s class declares with {@link UiTemplate}.
+     *
+     * @param model     the view model; closed with the screen
+     * @param slotItems who draws slot items
+     * @throws IllegalArgumentException if the class does not declare exactly one concrete template
+     * @throws UiLoadException          outside development when the document has errors
+     */
+    public UiContainerScreen(M menu, Inventory inventory, Component title, ViewModel model,
+                             SlotItemRendering slotItems) {
+        this(menu, inventory, title, DeclaredTemplate.of(model.getClass()), model, slotItems);
+    }
+
+    /**
+     * Same as {@link #UiContainerScreen(AbstractContainerMenu, Inventory, Component, ResourceLocation, ViewModel, SlotItemRendering)}
+     * with {@link SlotItemRendering#VANILLA}.
+     */
     public UiContainerScreen(M menu, Inventory inventory, Component title, ResourceLocation template, ViewModel model) {
         this(menu, inventory, title, template, model, SlotItemRendering.VANILLA);
     }
 
     /**
+     * A container screen of an explicit template.
+     *
      * @param template  the template under {@code assets/<namespace>/}; the namespace is the host mod
      *                  id, stylesheets come from its {@code <link>} elements
      * @param model     the view model the template binds to, or {@code null}; closed with the screen

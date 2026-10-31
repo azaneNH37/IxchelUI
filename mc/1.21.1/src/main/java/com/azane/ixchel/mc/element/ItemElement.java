@@ -15,8 +15,6 @@ import java.util.function.Supplier;
  */
 final class ItemElement implements NativePainter {
     static final String TAG = "mc-item";
-    /** The payload attribute: {@code bind:item}. */
-    static final String PAYLOAD = "item";
     static final ItemElement PAINTER = new ItemElement();
     private static final float SIZE = 16f;
     /** Vanilla item rendering writes depth up to {@code z + 158}. */

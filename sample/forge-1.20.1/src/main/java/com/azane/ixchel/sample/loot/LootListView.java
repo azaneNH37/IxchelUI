@@ -3,6 +3,7 @@ package com.azane.ixchel.sample.loot;
 import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
@@ -18,6 +19,7 @@ import java.util.List;
  * while the order changes; a rarity filter; a pick-up button, disabled out of
  * {@link PickUpDropPacket#PICK_RANGE} (the server checks again).
  */
+@UiTemplate("ixchelsample:ui/loot/list.html")
 final class LootListView extends ViewModel {
     /**
      * A drop's row. {@code icon} is a copy: the entity's stack shrinks in place as it is picked up,

@@ -5,10 +5,11 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentBorderTest {
     private static UiDocument load(String html, String css) {
@@ -65,10 +66,14 @@ class UiDocumentBorderTest {
     }
 
     @Test
-    void borderShorthandRejectsARepeatedPartAndAnUnsupportedStyle() {
-        UiLoadException twice = assertThrows(UiLoadException.class, () -> load("<div></div>", "div { border: 1px 2px solid }"));
-        assertTrue(twice.getMessage().contains("more than one width"), twice.getMessage());
-        UiLoadException dashed = assertThrows(UiLoadException.class, () -> load("<div></div>", "div { border-style: dashed }"));
-        assertTrue(dashed.getMessage().contains("none, solid"), dashed.getMessage());
+    void borderShorthandRejectsARepeatedWidth() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", "div { border: 1px 2px solid }"));
+        assertEquals(List.of("css/repeated-component@t.css:1:19"), DiagCodes.of(e));
+    }
+
+    @Test
+    void borderStyleRejectsAnUnsupportedStyle() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", "div { border-style: dashed }"));
+        assertEquals(List.of("css/invalid-value@t.css:1:21"), DiagCodes.of(e));
     }
 }

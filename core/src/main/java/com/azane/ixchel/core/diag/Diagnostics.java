@@ -27,21 +27,21 @@ public final class Diagnostics {
         return new Diagnostics(this, note);
     }
 
-    public void error(SourcePos pos, String message) {
-        if (target != null) {
-            target.error(pos, message + note);
-            return;
-        }
-        entries.add(new Diagnostic(Diagnostic.Severity.ERROR, message, pos));
-        errorCount++;
+    /** Reports a problem; its severity is {@code code}'s. */
+    public void report(DiagCode code, SourcePos pos, String message) {
+        report(code, pos, message, null);
     }
 
-    public void warning(SourcePos pos, String message) {
+    /** Reports a problem with a fix suggestion ({@code null} for none); its severity is {@code code}'s. */
+    public void report(DiagCode code, SourcePos pos, String message, String hint) {
         if (target != null) {
-            target.warning(pos, message + note);
+            target.report(code, pos, message + note, hint);
             return;
         }
-        entries.add(new Diagnostic(Diagnostic.Severity.WARNING, message, pos));
+        entries.add(new Diagnostic(code, message, pos, hint));
+        if (code.severity() == Diagnostic.Severity.ERROR) {
+            errorCount++;
+        }
     }
 
     public boolean hasErrors() {

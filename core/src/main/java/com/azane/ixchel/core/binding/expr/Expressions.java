@@ -31,7 +31,7 @@ public final class Expressions {
 
     /** Reports a problem at an offset of the directive value. */
     public interface Errors {
-        void error(int at, String message);
+        void report(ExprCode code, int at, String message);
     }
 
     /** An expression's value as {@code eval} over the current values of {@code inputs}, of type {@code type}. */
@@ -115,14 +115,14 @@ public final class Expressions {
         Eval x = operand.eval;
         if (u.op().equals("!")) {
             if (!Types.isBoolean(operand.type)) {
-                errors.error(u.at(), "'!' needs a Boolean, got " + operand.type.getTypeName());
+                errors.report(ExprCode.OPERAND_TYPE, u.at(), "'!' needs a Boolean, got " + operand.type.getTypeName());
                 return null;
             }
             return new Node(Boolean.class, in -> !truth(x.eval(in)));
         }
         Num num = Num.of(operand.type);
         if (num == null) {
-            errors.error(u.at(), "'-' needs a number, got " + operand.type.getTypeName());
+            errors.report(ExprCode.OPERAND_TYPE, u.at(), "'-' needs a number, got " + operand.type.getTypeName());
             return null;
         }
         return new Node(num.boxed, in -> {
@@ -145,7 +145,7 @@ public final class Expressions {
         switch (op) {
             case "&&", "||" -> {
                 if (!Types.isBoolean(left.type) || !Types.isBoolean(right.type)) {
-                    errors.error(b.at(), "'" + op + "' needs Booleans, got " + pair(left, right));
+                    errors.report(ExprCode.OPERAND_TYPE, b.at(), "'" + op + "' needs Booleans, got " + pair(left, right));
                     return null;
                 }
                 boolean and = op.equals("&&");
@@ -165,14 +165,15 @@ public final class Expressions {
                 Class<?> lc = Types.boxed(left.type);
                 Class<?> rc = Types.boxed(right.type);
                 if (!lc.isAssignableFrom(rc) && !rc.isAssignableFrom(lc)) {
-                    errors.error(b.at(), "'" + op + "' compares unrelated types " + pair(left, right));
+                    errors.report(ExprCode.UNRELATED_TYPES, b.at(), "'" + op + "' compares unrelated types "
+                            + pair(left, right));
                     return null;
                 }
                 return new Node(Boolean.class, in -> Objects.equals(l.eval(in), r.eval(in)) == equal);
             }
             case "<", "<=", ">", ">=" -> {
                 if (ln == null || rn == null) {
-                    errors.error(b.at(), "'" + op + "' needs numbers, got " + pair(left, right));
+                    errors.report(ExprCode.OPERAND_TYPE, b.at(), "'" + op + "' needs numbers, got " + pair(left, right));
                     return null;
                 }
                 Num k = Num.promote(ln, rn);
@@ -190,8 +191,8 @@ public final class Expressions {
                     return new Node(String.class, in -> textOf.apply(l.eval(in)) + textOf.apply(r.eval(in)));
                 }
                 if (ln == null || rn == null) {
-                    errors.error(b.at(), "'" + op + "' needs numbers" + (op.equals("+") ? " or a String" : "")
-                            + ", got " + pair(left, right));
+                    errors.report(ExprCode.OPERAND_TYPE, b.at(), "'" + op + "' needs numbers"
+                            + (op.equals("+") ? " or a String" : "") + ", got " + pair(left, right));
                     return null;
                 }
                 Num k = Num.promote(ln, rn);
@@ -212,12 +213,14 @@ public final class Expressions {
             return null;
         }
         if (!Types.isBoolean(test.type)) {
-            errors.error(c.test().at(), "the condition of '?:' needs a Boolean, got " + test.type.getTypeName());
+            errors.report(ExprCode.OPERAND_TYPE, c.test().at(), "the condition of '?:' needs a Boolean, got "
+                    + test.type.getTypeName());
             return null;
         }
         Type type = common(then.type, otherwise.type);
         if (type == null) {
-            errors.error(c.at(), "the branches of '?:' have unrelated types " + pair(then, otherwise));
+            errors.report(ExprCode.UNRELATED_TYPES, c.at(), "the branches of '?:' have unrelated types "
+                    + pair(then, otherwise));
             return null;
         }
         Eval t = test.eval;

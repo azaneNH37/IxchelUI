@@ -5,6 +5,7 @@ import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.EventInfo;
 import com.azane.ixchel.core.binding.Source;
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
@@ -27,6 +28,7 @@ import java.util.Set;
  * for the quest clicked. A quest is locked until its prerequisites are claimed, ready once the player
  * holds what it asks for, done once claimed; the server checks a claim.
  */
+@UiTemplate("ixchelsample:ui/quests/tree.html")
 final class QuestsView extends ViewModel {
     /** The size of {@code .view} in quests.css: zooming keeps its center still. */
     static final float VIEW_WIDTH = 240;

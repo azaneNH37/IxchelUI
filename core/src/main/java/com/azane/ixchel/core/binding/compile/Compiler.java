@@ -6,6 +6,7 @@ import com.azane.ixchel.core.binding.EventInfo;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.binding.expr.Expr;
+import com.azane.ixchel.core.binding.expr.ExprCode;
 import com.azane.ixchel.core.binding.expr.Expressions;
 import com.azane.ixchel.core.binding.expr.Types;
 import com.azane.ixchel.core.css.property.PropertyDef;
@@ -35,11 +36,13 @@ import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import static com.azane.ixchel.core.binding.compile.Bindings.MODEL;
@@ -79,8 +82,13 @@ final class Compiler {
     private final Map<String, ComponentDef> components;
     private Env env;
 
-    Compiler(Element documentRoot, ViewModel model, String owner, Bindings.TextConverter text, TagRegistry tags,
-             PropertyRegistry properties, TopLayer topLayer, Map<String, ComponentDef> components, Diagnostics diag) {
+    /**
+     * @param model the view model local states belong to
+     * @param names the page's names, as {@link Bindings} resolved them from the view model
+     */
+    Compiler(Element documentRoot, ViewModel model, Map<String, Name> names, String owner,
+             Bindings.TextConverter text, TagRegistry tags, PropertyRegistry properties, TopLayer topLayer,
+             Map<String, ComponentDef> components, Diagnostics diag) {
         this.documentRoot = documentRoot;
         this.model = model;
         this.text = text;
@@ -88,7 +96,7 @@ final class Compiler {
         this.properties = properties;
         this.topLayer = topLayer;
         this.components = components;
-        this.env = new Env(pageNames(model, documentRoot.pos(), diag), diag, owner, false, null);
+        this.env = new Env(names, diag, owner, false, null);
     }
 
     private Diagnostics diag() {
@@ -194,7 +202,7 @@ final class Compiler {
     private void state(Directive a, Part.Group out) {
         String name = a.name().substring("state:".length());
         if (!isIdentifier(name) || name.startsWith("$")) {
-            diag().error(a.namePos(), "'" + name + "' is not a valid state name");
+            diag().report(BindingCode.INVALID_NAME, a.namePos(), "'" + name + "' is not a valid state name");
             return;
         }
         if (hides(name, a.namePos(), "state")) {
@@ -215,7 +223,7 @@ final class Compiler {
         if (old == null) {
             return false;
         }
-        diag().error(at, what + " '" + name + "' would hide " + describeName(old));
+        diag().report(BindingCode.HIDDEN_NAME, at, what + " '" + name + "' would hide " + describeName(old));
         return true;
     }
 
@@ -237,8 +245,8 @@ final class Compiler {
             return null;
         }
         if (!Types.isBoolean(ref.type())) {
-            diag().error(test.valuePos(), "<if> needs a Boolean, but '" + test.value().trim() + "' is "
-                    + ref.type().getTypeName());
+            diag().report(BindingCode.VALUE_TYPE, test.valuePos(), "<if> needs a Boolean, but '" + test.value().trim()
+                    + "' is " + ref.type().getTypeName());
             return null;
         }
         check(block, env);
@@ -254,7 +262,7 @@ final class Compiler {
         }
         String alias = as.value().trim();
         if (!isIdentifier(alias) || alias.startsWith("$")) {
-            diag().error(as.valuePos(), "'as' takes a name, got '" + as.value() + "'");
+            diag().report(BindingCode.INVALID_NAME, as.valuePos(), "'as' takes a name, got '" + as.value() + "'");
             return null;
         }
         if (hides(alias, as.valuePos(), "row")) {
@@ -265,8 +273,8 @@ final class Compiler {
             return null;
         }
         if (!List.class.isAssignableFrom(Types.rawClass(list.type()))) {
-            diag().error(each.valuePos(), "'each' needs a List, but '" + each.value().trim() + "' is "
-                    + list.type().getTypeName());
+            diag().report(BindingCode.VALUE_TYPE, each.valuePos(), "'each' needs a List, but '" + each.value().trim()
+                    + "' is " + list.type().getTypeName());
             return null;
         }
         Type element = Types.typeArgument(list.type());
@@ -278,7 +286,8 @@ final class Compiler {
             return null;
         }
         if (!(keyExpr instanceof Expr.Path keyPath) || !keyPath.names().get(0).equals(alias)) {
-            diag().error(key.valuePos(), "'key' is a path from the row '" + alias + "', got '" + key.value().trim() + "'");
+            diag().report(BindingCode.INVALID_KEY, key.valuePos(), "'key' is a path from the row '" + alias + "', got '"
+                    + key.value().trim() + "'");
             return null;
         }
         Env saved = env;
@@ -357,6 +366,8 @@ final class Compiler {
         String tag = "<" + def.name() + ">";
         Map<String, Ref> args = new HashMap<>();
         Map<String, Directive> listeners = new LinkedHashMap<>();
+        // Parameters given with a binding that failed to compile; their problem is already reported.
+        Set<String> failed = new HashSet<>();
         for (Directive a : shell.directives()) {
             String name = a.name();
             if (name.startsWith("bind:") && def.hasParam(name.substring("bind:".length()))) {
@@ -365,12 +376,15 @@ final class Compiler {
                 if (ref != null) {
                     boolean writable = parsed instanceof Expr.Path && ref.write() != Ref.Write.NONE;
                     args.put(name.substring("bind:".length()), writable ? ref : new Ref(ref.cell(), ref.type()));
+                } else {
+                    failed.add(name.substring("bind:".length()));
                 }
             } else if (name.equals("bind:text")) {
-                diag().error(a.namePos(), "bind:text cannot fill " + tag + ": its content is the component's template");
+                diag().report(BindingCode.COMPONENT_TEXT, a.namePos(),
+                        "bind:text cannot fill " + tag + ": its content is the component's template");
             } else if (name.startsWith("on:") && def.events().contains(name.substring("on:".length()).split("\\.")[0])) {
                 if (name.indexOf('.') >= 0) {
-                    diag().error(a.namePos(), "component events take no filters");
+                    diag().report(BindingCode.UNEXPECTED_FILTER, a.namePos(), "component events take no filters");
                 } else {
                     listeners.put(name.substring("on:".length()), a);
                 }
@@ -385,7 +399,8 @@ final class Compiler {
             }
             shell.removeAttribute(p.name());
             if (args.containsKey(p.name())) {
-                diag().error(shell.pos(), "parameter '" + p.name() + "' of " + tag + " is given twice");
+                diag().report(BindingCode.DUPLICATE_PARAMETER, shell.pos(),
+                        "parameter '" + p.name() + "' of " + tag + " is given twice");
             } else {
                 args.put(p.name(), new Ref(MODEL.held(literal), String.class));
             }
@@ -395,7 +410,8 @@ final class Compiler {
         for (Node n : List.copyOf(shell.children())) {
             String slot = n instanceof Element e && TemplateParser.slotOf(e) != null ? TemplateParser.slotOf(e) : "";
             if (!def.slots().contains(slot) && !content.containsKey(slot)) {
-                diag().error(n.pos(), slot.isEmpty() ? tag + " has no default <slot>; this content would be dropped"
+                diag().report(BindingCode.UNKNOWN_SLOT, n.pos(), slot.isEmpty()
+                        ? tag + " has no default <slot>; this content would be dropped"
                         : tag + " has no slot '" + slot + "'");
             }
             content.computeIfAbsent(slot, k -> new ArrayList<>()).add(n);
@@ -420,7 +436,9 @@ final class Compiler {
                     unresolved = true;
                 }
             } else {
-                user.diag().error(shell.pos(), tag + " needs parameter '" + p.name() + "'");
+                if (!failed.contains(p.name())) {
+                    user.diag().report(BindingCode.MISSING_PARAMETER, shell.pos(), tag + " needs parameter '" + p.name() + "'");
+                }
                 unresolved = true;
             }
         }
@@ -459,7 +477,7 @@ final class Compiler {
                     steps.get(i).run();
                 }
             } catch (RuntimeException ex) {
-                diag.error(a.valuePos(), "'" + a.value() + "' threw " + ex);
+                diag.report(BindingCode.RUNTIME_EXCEPTION, a.valuePos(), "'" + a.value() + "' threw " + ex);
             }
         };
     }
@@ -470,7 +488,7 @@ final class Compiler {
         try {
             parsed = Expr.parseStatements(a.value());
         } catch (Expr.SyntaxError ex) {
-            diag().error(at(a, ex.at), ex.getMessage());
+            diag().report(ExprCode.SYNTAX, at(a, ex.at), ex.getMessage());
             return null;
         }
         Env saved = env;
@@ -515,14 +533,15 @@ final class Compiler {
         }
         boolean isClass = target.startsWith("class:");
         if ((isClass || target.equals("disabled")) && !Types.isBoolean(ref.type())) {
-            diag().error(a.valuePos(), "'" + a.name() + "' needs a Boolean, but '" + a.value().trim() + "' is "
-                    + ref.type().getTypeName());
+            diag().report(BindingCode.VALUE_TYPE, a.valuePos(), "'" + a.name() + "' needs a Boolean, but '"
+                    + a.value().trim() + "' is " + ref.type().getTypeName());
             return null;
         }
         if (target.equals("text")) {
             for (Node c : e.children()) {
                 if (!(c instanceof TextNode t) || !t.text().isBlank()) {
-                    diag().error(a.namePos(), "bind:text replaces the content of <" + e.tag() + ">; leave it empty");
+                    diag().report(BindingCode.TEXT_NOT_EMPTY, a.namePos(),
+                            "bind:text replaces the content of <" + e.tag() + ">", "leave it empty");
                     return null;
                 }
             }
@@ -534,12 +553,18 @@ final class Compiler {
             return new Binding.Text(ref.cell(), a, diag(), text, node);
         }
         if (!shell && target.equals(tags.payloadAttribute(e.tag()))) {
+            List<String> accepted = tags.payloadTypes(e.tag());
+            if (!Types.acceptsAny(ref.type(), accepted)) {
+                diag().report(BindingCode.PAYLOAD_TYPE, a.valuePos(), "<" + e.tag() + "> takes "
+                        + String.join(" or ", accepted) + ", but '" + a.value().trim() + "' is " + ref.type().getTypeName());
+                return null;
+            }
             return new Binding.Payload(ref.cell(), a, diag(), e);
         }
         if (isClass) {
             String cls = target.substring("class:".length());
             if (!isClassName(cls)) {
-                diag().error(a.namePos(), "'" + cls + "' is not a valid class name");
+                diag().report(BindingCode.INVALID_CLASS_NAME, a.namePos(), "'" + cls + "' is not a valid class name");
                 return null;
             }
             return new Binding.ClassToggle(ref.cell(), a, diag(), e, cls);
@@ -551,14 +576,18 @@ final class Compiler {
             return styleBinding(e, a, ref);
         }
         switch (target) {
-            case "class" -> diag().error(a.namePos(), "bind:class takes a class name: bind:class:<name>");
-            case "style" -> diag().error(a.namePos(), "bind:style takes a property name: bind:style:<property>");
-            case "type" -> diag().error(a.namePos(), "an <input>'s type is fixed by the template; write type=\"…\"");
+            case "class" -> diag().report(BindingCode.INCOMPLETE_TARGET, a.namePos(),
+                    "bind:class takes a class name: bind:class:<name>");
+            case "style" -> diag().report(BindingCode.INCOMPLETE_TARGET, a.namePos(),
+                    "bind:style takes a property name: bind:style:<property>");
+            case "type" -> diag().report(BindingCode.UNKNOWN_TARGET, a.namePos(),
+                    "an <input>'s type is fixed by the template", "write type=\"…\"");
             default -> {
                 boolean allowed = shell ? TagRegistry.GLOBAL_ATTRIBUTES.contains(target)
                         : tags.isAllowedAttribute(e.tag(), target);
                 if (target.indexOf(':') >= 0 || !allowed) {
-                    diag().error(a.namePos(), "unknown binding target '" + a.name() + "' on <" + e.tag() + ">");
+                    diag().report(BindingCode.UNKNOWN_TARGET, a.namePos(),
+                            "unknown binding target '" + a.name() + "' on <" + e.tag() + ">");
                 } else {
                     return new Binding.Attribute(ref.cell(), a, diag(), text::plain, e, target);
                 }
@@ -575,29 +604,31 @@ final class Compiler {
         if (!custom && property == null) {
             Shorthand shorthand = properties.shorthand(name);
             if (shorthand == null) {
-                diag().error(a.namePos(), "unsupported property '" + name + "' in '" + a.name() + "'");
+                diag().report(BindingCode.UNKNOWN_STYLE_PROPERTY, a.namePos(),
+                        "unsupported property '" + name + "' in '" + a.name() + "'");
             } else {
                 List<String> longhands = new ArrayList<>();
                 for (PropertyDef<?> l : shorthand.longhands()) {
                     longhands.add(l.name());
                 }
-                diag().error(a.namePos(), "'" + name + "' is a shorthand; bind its longhands instead: "
-                        + String.join(", ", longhands));
+                diag().report(BindingCode.SHORTHAND_STYLE, a.namePos(), "'" + name + "' is a shorthand",
+                        "bind its longhands instead: " + String.join(", ", longhands));
             }
             return null;
         }
         Class<?> raw = Types.boxed(ref.type());
         boolean number = Number.class.isAssignableFrom(raw);
         if (!(number || raw == String.class || raw == Object.class)) {
-            diag().error(a.valuePos(), "'" + a.name() + "' takes a String or a Number, but '" + a.value().trim()
-                    + "' is " + ref.type().getTypeName());
+            diag().report(BindingCode.VALUE_TYPE, a.valuePos(), "'" + a.name() + "' takes a String or a Number, but '"
+                    + a.value().trim() + "' is " + ref.type().getTypeName());
             return null;
         }
         if (custom) {
             return new CustomPropertyBinding(ref.cell(), a, diag(), e, name);
         }
         if (number && property.syntax().numberUnit() == null) {
-            diag().error(a.valuePos(), "'" + name + "' takes no plain numbers; bind a String with its CSS value");
+            diag().report(BindingCode.VALUE_TYPE, a.valuePos(), "'" + name + "' takes no plain numbers",
+                    "bind a String with its CSS value");
             return null;
         }
         return new StyleBinding(ref.cell(), a, diag(), e, property);
@@ -616,9 +647,9 @@ final class Compiler {
         };
         boolean writable = parsed instanceof Expr.Path && ref.write() != Ref.Write.NONE;
         if (!writable || Types.boxed(ref.type()) != want) {
-            diag().error(a.valuePos(), "'" + a.name() + "' writes back: it needs a state Value<" + want.getSimpleName()
-                    + "> (a Value field, a local state, a row component or a parameter passed writable), but '"
-                    + a.value().trim() + "' is " + (writable ? ref.type().getTypeName() : "not one"));
+            diag().report(BindingCode.TWO_WAY_TARGET, a.valuePos(), "'" + a.name() + "' writes back: it needs a state Value<"
+                    + want.getSimpleName() + "> (a Value field, a local state, a row component or a parameter passed "
+                    + "writable), but '" + a.value().trim() + "' is " + (writable ? ref.type().getTypeName() : "not one"));
             return null;
         }
         Consumer<Object> writeBack = writer(ref);
@@ -672,7 +703,8 @@ final class Compiler {
         String eventName = parts[0];
         UiEvent.Type type = UiEvent.Type.byTemplateName(eventName);
         if (type == null) {
-            diag().error(a.namePos(), "unknown event '" + eventName + "'; supported: " + eventNames());
+            diag().report(BindingCode.UNKNOWN_EVENT, a.namePos(),
+                    "unknown event '" + eventName + "'; supported: " + eventNames());
             return;
         }
         boolean keyEvent = type == UiEvent.Type.KEY_DOWN || type == UiEvent.Type.KEY_UP;
@@ -683,7 +715,8 @@ final class Compiler {
         int filterMods = -1;
         if (parts.length > 1) {
             if (!keyEvent && !mouseEvent) {
-                diag().error(a.namePos(), "'" + eventName + "' takes no filter; only keydown, keyup, mousedown, "
+                diag().report(BindingCode.UNEXPECTED_FILTER, a.namePos(),
+                        "'" + eventName + "' takes no filter; only keydown, keyup, mousedown, "
                         + "mouseup, click and mousemove do");
                 return;
             }
@@ -691,7 +724,8 @@ final class Compiler {
             if (keyEvent) {
                 filterKey = Keys.code(parts[1]);
                 if (filterKey < 0) {
-                    diag().error(a.namePos(), "unknown key '" + parts[1] + "' in '" + a.name() + "'");
+                    diag().report(BindingCode.UNKNOWN_FILTER, a.namePos(),
+                            "unknown key '" + parts[1] + "' in '" + a.name() + "'");
                     return;
                 }
                 k = 2;
@@ -706,7 +740,8 @@ final class Compiler {
             for (; k < parts.length; k++) {
                 int bit = Keys.modifier(parts[k]);
                 if (bit == 0) {
-                    diag().error(a.namePos(), "unknown " + (keyEvent || k > 1 ? "modifier" : "button or modifier")
+                    diag().report(BindingCode.UNKNOWN_FILTER, a.namePos(),
+                            "unknown " + (keyEvent || k > 1 ? "modifier" : "button or modifier")
                             + " '" + parts[k] + "' in '" + a.name() + "'; supported: "
                             + (keyEvent || k > 1 ? "" : "left, right, middle, ") + "shift, ctrl, alt");
                     return;
@@ -737,7 +772,7 @@ final class Compiler {
                     steps.get(i).run();
                 }
             } catch (RuntimeException ex) {
-                diag.error(a.valuePos(), "'" + a.value() + "' threw " + ex);
+                diag.report(BindingCode.RUNTIME_EXCEPTION, a.valuePos(), "'" + a.value() + "' threw " + ex);
             }
             ev.consume();
         });
@@ -751,23 +786,27 @@ final class Compiler {
             return emit(a, c, port);
         }
         if (target instanceof Name.Unset) {
-            diag().error(at(a, c.at()), "field '" + name + "' of " + env.owner() + " is null");
+            diag().report(BindingCode.MODEL_NULL_FIELD, at(a, c.at()),
+                    "field '" + name + "' of " + env.owner() + " is null");
             return null;
         }
         if (!(target instanceof Name.Act act)) {
-            diag().error(at(a, c.at()), env.component() ? "'" + name + "' is not an event of " + env.owner()
-                    : "'" + name + "' is not an Action field of " + env.owner());
+            // A name that is not visible at all is the unknown-name mistake, whatever the call expected.
+            diag().report(target == null ? BindingCode.UNKNOWN_NAME : BindingCode.NOT_CALLABLE, at(a, c.at()),
+                    env.component() ? "'" + name + "' is not an event of " + env.owner()
+                            : "'" + name + "' is not an Action field of " + env.owner());
             return null;
         }
         Action<Object> action = act.action();
         Type param = act.param();
         boolean wantsArg = param != null && param != Void.class;
         if (c.arg() == null && wantsArg) {
-            diag().error(at(a, c.at()), "'" + name + "' takes a " + param.getTypeName() + "; pass it as " + name + "(value)");
+            diag().report(BindingCode.ARGUMENT_ARITY, at(a, c.at()), "'" + name + "' takes a " + param.getTypeName(),
+                    "pass it as " + name + "(value)");
             return null;
         }
         if (c.arg() != null && !wantsArg) {
-            diag().error(at(a, c.at()), "'" + name + "' takes no argument");
+            diag().report(BindingCode.ARGUMENT_ARITY, at(a, c.at()), "'" + name + "' takes no argument");
             return null;
         }
         if (c.arg() == null) {
@@ -779,8 +818,8 @@ final class Compiler {
         }
         boolean checkable = param instanceof Class<?> || param instanceof ParameterizedType;
         if (checkable && !Types.assignable(arg.type(), param)) {
-            diag().error(at(a, c.arg().at()), "'" + name + "' takes a " + param.getTypeName() + ", but "
-                    + describe(c.arg()) + " is " + arg.type().getTypeName());
+            diag().report(BindingCode.ARGUMENT_TYPE, at(a, c.arg().at()), "'" + name + "' takes a "
+                    + param.getTypeName() + ", but " + describe(c.arg()) + " is " + arg.type().getTypeName());
             return null;
         }
         Cell<?> cell = arg.cell();
@@ -798,7 +837,7 @@ final class Compiler {
             port.called = true;
             port.payload = type;
         } else if (!Objects.equals(port.payload, type)) {
-            diag().error(at(a, c.at()), "event '" + port.name + "' is raised with "
+            diag().report(BindingCode.EVENT_PAYLOAD, at(a, c.at()), "event '" + port.name + "' is raised with "
                     + (type == null ? "no payload" : type.getTypeName()) + " here, but with "
                     + (port.payload == null ? "no payload" : port.payload.getTypeName()) + " elsewhere");
             return null;
@@ -819,12 +858,14 @@ final class Compiler {
         }
         String path = s.target().text();
         if (target.write() == Ref.Write.NONE) {
-            diag().error(at(a, s.at()), "'" + path + "' cannot be assigned: only local states, Value fields, "
+            diag().report(BindingCode.NOT_ASSIGNABLE, at(a, s.at()),
+                    "'" + path + "' cannot be assigned: only local states, Value fields, "
                     + "row components of type Value<T> and parameters passed writable can");
             return null;
         }
         if (!Types.assignable(value.type(), target.type())) {
-            diag().error(at(a, s.value().at()), "'" + path + "' is " + target.type().getTypeName() + ", but "
+            diag().report(BindingCode.ASSIGNMENT_TYPE, at(a, s.value().at()),
+                    "'" + path + "' is " + target.type().getTypeName() + ", but "
                     + describe(s.value()) + " is " + value.type().getTypeName());
             return null;
         }
@@ -843,7 +884,7 @@ final class Compiler {
         try {
             return Expr.parseExpression(a.value());
         } catch (Expr.SyntaxError ex) {
-            diag().error(at(a, ex.at), ex.getMessage());
+            diag().report(ExprCode.SYNTAX, at(a, ex.at), ex.getMessage());
             return null;
         }
     }
@@ -854,7 +895,7 @@ final class Compiler {
             return resolve(a, p);
         }
         Expressions.Compiled c = Expressions.compile(e, p -> resolve(a, p), text::plain,
-                (offset, message) -> diag().error(at(a, offset), message));
+                (code, offset, message) -> diag().report(code, at(a, offset), message));
         return c == null ? null : new Ref(MODEL.derived(c.inputs(), c.eval()), c.type());
     }
 
@@ -870,15 +911,17 @@ final class Compiler {
         Ref ref;
         int next = 1;
         if (name == null) {
-            diag().error(at(a, path.at()), "'" + first + "' is not "
+            diag().report(first.startsWith("$") ? BindingCode.UNAVAILABLE_NAME : BindingCode.UNKNOWN_NAME,
+                    at(a, path.at()), "'" + first + "' is not "
                     + (first.startsWith("$") ? "available here" : env.component()
                     ? "a parameter, event, row or state of " + env.owner() : "a field of " + env.owner()));
             return null;
         } else if (name instanceof Name.Unset) {
-            diag().error(at(a, path.at()), "field '" + first + "' of " + env.owner() + " is null");
+            diag().report(BindingCode.MODEL_NULL_FIELD, at(a, path.at()),
+                    "field '" + first + "' of " + env.owner() + " is null");
             return null;
         } else if (name instanceof Name.Event) {
-            diag().error(at(a, path.at()), "'" + first + "' is an event of " + env.owner()
+            diag().report(BindingCode.NOT_A_VALUE, at(a, path.at()), "'" + first + "' is an event of " + env.owner()
                     + "; it can only be called, and has no pending or error");
             return null;
         } else if (name instanceof Name.Act act) {
@@ -887,8 +930,8 @@ final class Compiler {
                 case "pending" -> ref = new Ref(act.action().pending(), Boolean.class);
                 case "error" -> ref = new Ref(act.action().error(), Throwable.class);
                 default -> {
-                    diag().error(at(a, path.at()), "an action is not a value; use '" + first + ".pending' or '"
-                            + first + ".error'");
+                    diag().report(BindingCode.NOT_A_VALUE, at(a, path.at()), "an action is not a value",
+                            "use '" + first + ".pending' or '" + first + ".error'");
                     return null;
                 }
             }
@@ -915,7 +958,8 @@ final class Compiler {
                     args -> args[0] == null ? null : ((List<?>) args[0]).size()), Integer.class);
         }
         if (!raw.isRecord()) {
-            diag().error(pos, "'" + name + "' in '" + path.text() + "': " + base.type().getTypeName()
+            diag().report(BindingCode.UNKNOWN_MEMBER, pos, "'" + name + "' in '" + path.text() + "': "
+                    + base.type().getTypeName()
                     + (List.class.isAssignableFrom(raw) ? " has only 'size'" : " is not a record"));
             return null;
         }
@@ -945,51 +989,8 @@ final class Compiler {
                 return new Ref(cell, type);
             }
         }
-        diag().error(pos, raw.getSimpleName() + " has no component '" + name + "'");
+        diag().report(BindingCode.UNKNOWN_MEMBER, pos, raw.getSimpleName() + " has no component '" + name + "'");
         return null;
-    }
-
-    /**
-     * The names a page sees: its view model's non-static, non-private {@link Cell} and {@link Action}
-     * fields, a subclass's field hiding a superclass's of the same name. Names starting with {@code $}
-     * belong to the framework.
-     */
-    @SuppressWarnings("unchecked")
-    private static Map<String, Name> pageNames(ViewModel model, SourcePos at, Diagnostics diag) {
-        Map<String, Name> out = new HashMap<>();
-        for (Class<?> c = model.getClass(); c != ViewModel.class; c = c.getSuperclass()) {
-            for (Field f : c.getDeclaredFields()) {
-                int mods = f.getModifiers();
-                if (Modifier.isStatic(mods) || Modifier.isPrivate(mods) || out.containsKey(f.getName())
-                        || !(Cell.class.isAssignableFrom(f.getType()) || f.getType() == Action.class)) {
-                    continue;
-                }
-                if (f.getName().startsWith("$")) {
-                    diag.error(at, "field '" + f.getName() + "' of " + c.getSimpleName()
-                            + ": names starting with '$' belong to the framework");
-                    continue;
-                }
-                f.setAccessible(true);
-                Object value;
-                try {
-                    value = f.get(model);
-                } catch (IllegalAccessException ex) {
-                    throw new IllegalStateException(ex);
-                }
-                Type arg = Types.typeArgument(f.getGenericType());
-                Name name;
-                if (value == null) {
-                    name = new Name.Unset(f.getName());
-                } else if (value instanceof Action<?> action) {
-                    name = new Name.Act((Action<Object>) action, arg);
-                } else {
-                    name = new Ref((Cell<?>) value, arg == null ? Object.class : arg,
-                            value instanceof Value<?> ? Ref.Write.VALUE : Ref.Write.NONE);
-                }
-                out.put(f.getName(), name);
-            }
-        }
-        return out;
     }
 
     /** The position of character {@code offset} of {@code a}'s value. */
@@ -1073,7 +1074,8 @@ final class Compiler {
                 try {
                     MODEL.replace(state, init.get());
                 } catch (RuntimeException ex) {
-                    diag.error(attribute.valuePos(), "'" + attribute.value() + "' threw " + ex);
+                    diag.report(BindingCode.RUNTIME_EXCEPTION, attribute.valuePos(),
+                            "'" + attribute.value() + "' threw " + ex);
                 }
             }
             return false;

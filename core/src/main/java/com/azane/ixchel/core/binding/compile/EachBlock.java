@@ -82,7 +82,8 @@ final class EachBlock extends Block {
         } catch (RuntimeException ex) {
             if (!failing) {
                 failing = true;
-                env.diag().error(eachAttribute.valuePos(), "'" + eachAttribute.value() + "' threw " + ex);
+                env.diag().report(BindingCode.RUNTIME_EXCEPTION, eachAttribute.valuePos(),
+                        "'" + eachAttribute.value() + "' threw " + ex);
             }
             return updateRows();
         }
@@ -95,7 +96,7 @@ final class EachBlock extends Block {
                 if (next.containsKey(k)) {
                     if (!reportedDuplicate) {
                         reportedDuplicate = true;
-                        env.diag().error(keyAttribute.valuePos(), "duplicate key " + k + " in '"
+                        env.diag().report(BindingCode.DUPLICATE_KEY, keyAttribute.valuePos(), "duplicate key " + k + " in '"
                                 + eachAttribute.value() + "'; later rows with it are skipped");
                     }
                     continue;

@@ -4,6 +4,7 @@ import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
@@ -19,6 +20,7 @@ import java.util.List;
  * The session's {@link Waypoints}: add the player's position, select a row (click, or Up/Down from
  * the template's key filters), remove the selected one. Distances follow the player every frame.
  */
+@UiTemplate("ixchelsample:ui/waypoints/list.html")
 final class WaypointsView extends ViewModel {
     record Row(int id, String name, int x, int y, int z, long distance) {
     }

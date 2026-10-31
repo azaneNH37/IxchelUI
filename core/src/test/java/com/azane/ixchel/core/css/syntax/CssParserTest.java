@@ -1,6 +1,6 @@
 package com.azane.ixchel.core.css.syntax;
 
-import com.azane.ixchel.core.diag.Diagnostic;
+import com.azane.ixchel.core.runtime.DiagCodes;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import org.junit.jupiter.api.Test;
@@ -43,9 +43,7 @@ class CssParserTest {
                 "@media (x) { .a { color: red } }\n@import 'x.css';\n.b { width: 1px }", "t.css", diag);
         assertEquals(1, rules.size());
         assertEquals("width", rules.get(0).declarations().get(0).name());
-        assertEquals(2, diag.entries().size());
-        assertEquals("unsupported at-rule @media", diag.entries().get(0).message());
-        assertEquals(new SourcePos("t.css", 2, 1), diag.entries().get(1).pos());
+        assertEquals(List.of("css/unsupported-at-rule@t.css:1:1", "css/unsupported-at-rule@t.css:2:1"), DiagCodes.of(diag));
     }
 
     private static String text(List<ComponentValue> values) {
@@ -78,8 +76,13 @@ class CssParserTest {
                 :not(.a .d.e),:not(.b .d.e) {1}
                 """, out.toString());
         assertFalse(diag.hasErrors());
+    }
+
+    @Test
+    void nestedRuleInAStyleAttributeIsRejected() {
+        Diagnostics diag = new Diagnostics();
         CssParser.parseDeclarations("color: red; .x { y: 1 }", new SourcePos("t.html", 1, 1), diag);
-        assertEquals("nested rules are only allowed in a stylesheet", diag.entries().get(0).message());
+        assertEquals(List.of("css/nested-rule-not-allowed@t.html:1:13"), DiagCodes.of(diag));
     }
 
     @Test
@@ -107,23 +110,23 @@ class CssParserTest {
         List<Rule.Declaration> decls = rules.get(0).declarations();
         assertEquals(1, decls.size());
         assertEquals("width", decls.get(0).name());
-        List<Diagnostic> e = diag.entries();
-        assertEquals(new SourcePos("t.css", 1, 5), e.get(0).pos());
-        assertEquals(new SourcePos("t.css", 1, 16), e.get(1).pos());
+        assertEquals(List.of("css/missing-colon@t.css:1:5", "css/expected-declaration@t.css:1:16"), DiagCodes.of(diag));
     }
 
     @Test
-    void missingBlockAtEofIsAnErrorAndUnclosedBlockAWarning() {
+    void missingBlockAtEofIsAnError() {
         Diagnostics diag = new Diagnostics();
         assertTrue(CssParser.parseStylesheet(".a", "t.css", diag).isEmpty());
-        assertTrue(diag.hasErrors());
+        assertEquals(List.of("css/expected-block@t.css:1:1"), DiagCodes.of(diag));
+    }
 
-        Diagnostics diag2 = new Diagnostics();
-        List<Rule> rules = CssParser.parseStylesheet(".a { color: rgb(1, 2", "t.css", diag2);
+    @Test
+    void unclosedBlockAtEofIsAWarningAndKeepsItsDeclarations() {
+        Diagnostics diag = new Diagnostics();
+        List<Rule> rules = CssParser.parseStylesheet(".a { color: rgb(1, 2", "t.css", diag);
         assertEquals("color", rules.get(0).declarations().get(0).name());
-        assertFalse(diag2.hasErrors());
-        assertEquals(1, diag2.entries().size());
-        assertEquals("unclosed block", diag2.entries().get(0).message());
+        assertFalse(diag.hasErrors());
+        assertEquals(List.of("css/unclosed-block@t.css:1:13"), DiagCodes.of(diag));
     }
 
     @Test
@@ -134,6 +137,6 @@ class CssParserTest {
         assertEquals(new SourcePos("hud.html", 5, 12), decls.get(0).pos());
         assertEquals(new SourcePos("hud.html", 6, 3), decls.get(1).pos());
         assertEquals(new SourcePos("hud.html", 5, 19), decls.get(0).value().get(0).pos());
-        assertEquals(new SourcePos("hud.html", 6, 16), diag.entries().get(0).pos());
+        assertEquals(List.of("css/missing-colon@hud.html:6:16"), DiagCodes.of(diag));
     }
 }

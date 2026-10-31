@@ -2,6 +2,7 @@ package com.azane.ixchel.sample.character;
 
 import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
@@ -33,6 +34,7 @@ import java.util.stream.IntStream;
  * player every frame. Statistics are asked of the server when their tab opens; the reply updates the
  * player's stats counter, which the next frame reads.
  */
+@UiTemplate("ixchelsample:ui/character/panel.html")
 final class CharacterView extends ViewModel {
     record Tab(String id, String label) {
     }

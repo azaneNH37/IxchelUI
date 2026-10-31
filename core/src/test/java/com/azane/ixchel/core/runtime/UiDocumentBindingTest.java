@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -108,8 +109,7 @@ class UiDocumentBindingTest {
         assertEquals("text 0 0 9 #FFFFFFFF \"10\"", GoldenTest.print(doc.frame(100, 100)));
         m.live = -1;
         doc.frame(100, 100);
-        assertEquals(1, doc.diagnostics().errorCount());
-        assertTrue(doc.diagnostics().entries().get(0).message().contains("no ammo"));
+        assertEquals(List.of("binding/runtime-exception@t.html:2:18"), DiagCodes.of(doc.diagnostics()));
 
         m.live = 2;
         assertEquals("text 0 0 9 #FFFFFFFF \"5\"", GoldenTest.print(doc.frame(100, 100)));
@@ -125,20 +125,17 @@ class UiDocumentBindingTest {
                 <div bind:style="text"></div>
                 <div bind:href="text"></div>
                 """, "", new Ammo()));
-        String m = e.getMessage();
-        assertTrue(m.startsWith("6 errors"), m);
-        assertTrue(m.contains("t.html:2:17:") && m.contains("'missing' is not a field of Ammo"), m);
-        assertTrue(m.contains("t.html:3:20:") && m.contains("needs a Boolean"), m);
-        assertTrue(m.contains("t.html:4:22:") && m.contains("java.lang.String is not a record"), m);
-        assertTrue(m.contains("t.html:5:7:") && m.contains("leave it empty"), m);
-        assertTrue(m.contains("t.html:6:6:") && m.contains("bind:style takes a property name: bind:style:<property>"), m);
-        assertTrue(m.contains("t.html:7:6:") && m.contains("unknown binding target 'bind:href'"), m);
+        assertEquals(List.of("binding/unknown-name@t.html:2:17", "binding/value-type@t.html:3:20",
+                "binding/unknown-member@t.html:4:22", "binding/text-not-empty@t.html:5:7",
+                "binding/incomplete-target@t.html:6:6", "binding/unknown-target@t.html:7:6"), DiagCodes.of(e));
+    }
 
+    @Test
+    void aNameInADocumentWithoutAViewModelIsUnknown() {
         UiLoadException none = assertThrows(UiLoadException.class,
                 () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML,
                         GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertTrue(none.getMessage().contains("'x' is not a field of the view model (this document has none)"),
-                none.getMessage());
+        assertEquals(List.of("binding/unknown-name@t.html:1:18"), DiagCodes.of(none));
     }
 
     static final class Held extends ViewModel {
@@ -159,10 +156,14 @@ class UiDocumentBindingTest {
         assertEquals("item 0 0 16 16 bow", GoldenTest.print(doc.frame(100, 100)));
         m.live = null;
         assertEquals("", GoldenTest.print(doc.frame(100, 100)));
+    }
 
+    @Test
+    void aNativeElementsPayloadIsNotAnAttribute() {
+        TagRegistry tags = TagRegistry.HTML.extend().nativeTag("item", "item").build();
         UiLoadException e = assertThrows(UiLoadException.class, () -> UiDocument.load(
                 "<item item=\"sword\"></item>", "t.html", GoldenTest.NO_SHEETS, tags, GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertTrue(e.getMessage().contains("unknown attribute 'item'"), e.getMessage());
+        assertEquals(List.of("template/unknown-attribute@t.html:1:7"), DiagCodes.of(e));
     }
 
     record Row(String name, int count) {
@@ -260,14 +261,9 @@ class UiDocumentBindingTest {
                 <div on:click="select(selected)"></div>
                 <div bind:text="reload"></div>
                 """, "", new Picker()));
-        String m = e.getMessage();
-        assertTrue(m.startsWith("6 errors"), m);
-        assertTrue(m.contains("t.html:2:6:") && m.contains("unknown event 'hover'"), m);
-        assertTrue(m.contains("t.html:3:16:") && m.contains("'row' is not an Action field"), m);
-        assertTrue(m.contains("t.html:4:16:") && m.contains("pass it as select(value)"), m);
-        assertTrue(m.contains("t.html:5:16:") && m.contains("'reload' takes no argument"), m);
-        assertTrue(m.contains("t.html:6:23:") && m.contains("but 'selected' is java.lang.String"), m);
-        assertTrue(m.contains("t.html:7:17:") && m.contains("an action is not a value"), m);
+        assertEquals(List.of("binding/unknown-event@t.html:2:6", "binding/not-callable@t.html:3:16",
+                "binding/argument-arity@t.html:4:16", "binding/argument-arity@t.html:5:16",
+                "binding/argument-type@t.html:6:23", "binding/not-a-value@t.html:7:17"), DiagCodes.of(e));
     }
 
     static final class Keyed extends ViewModel {
@@ -323,14 +319,9 @@ class UiDocumentBindingTest {
                 <div on:click.right.left="up"></div>
                 <div on:wheel.shift="up"></div>
                 """, "", new Keyed()));
-        String m = e.getMessage();
-        assertTrue(m.startsWith("6 errors"), m);
-        assertTrue(m.contains("t.html:2:6:") && m.contains("unknown key 'meta' in 'on:keydown.meta'"), m);
-        assertTrue(m.contains("t.html:3:6:") && m.contains("unknown modifier 'super' in 'on:keydown.up.super'"), m);
-        assertTrue(m.contains("t.html:4:6:") && m.contains("unknown button or modifier 'up' in 'on:click.up'"), m);
-        assertTrue(m.contains("t.html:5:6:") && m.contains("unknown key 'f13' in 'on:keyup.f13'"), m);
-        assertTrue(m.contains("t.html:6:6:") && m.contains("unknown modifier 'left' in 'on:click.right.left'"), m);
-        assertTrue(m.contains("t.html:7:6:") && m.contains("'wheel' takes no filter"), m);
+        assertEquals(List.of("binding/unknown-filter@t.html:2:6", "binding/unknown-filter@t.html:3:6",
+                "binding/unknown-filter@t.html:4:6", "binding/unknown-filter@t.html:5:6",
+                "binding/unknown-filter@t.html:6:6", "binding/unexpected-filter@t.html:7:6"), DiagCodes.of(e));
     }
 
     static final class Clicks extends ViewModel {
@@ -418,16 +409,10 @@ class UiDocumentBindingTest {
                 <for each="rows" as="r" key="r.name"><span bind:text="r.missing"></span></for>
                 <for each="rows" as="rows" key="rows"></for>
                 """, "", new Picker()));
-        String m = e.getMessage();
-        assertTrue(m.startsWith("9 errors"), m);
-        assertTrue(m.contains("t.html:2:1:") && m.contains("<for> requires 'as'") && m.contains("<for> requires 'key'"), m);
-        assertTrue(m.contains("t.html:3:12:") && m.contains("'each' needs a List"), m);
-        assertTrue(m.contains("t.html:4:11:") && m.contains("<if> needs a Boolean"), m);
-        assertTrue(m.contains("t.html:5:30:") && m.contains("'key' is a path from the row 'r'"), m);
-        assertTrue(m.contains("t.html:6:17:") && m.contains("<if> takes only test, slot"), m);
-        assertTrue(m.contains("t.html:7:34:") && m.contains("'nope' is not a field"), m);
-        assertTrue(m.contains("t.html:8:57:") && m.contains("Row has no component 'missing'"), m);
-        assertTrue(m.contains("t.html:9:22:") && m.contains("row 'rows' would hide"), m);
+        assertEquals(List.of("template/missing-block-attribute@t.html:2:1", "template/missing-block-attribute@t.html:2:1",
+                "template/unknown-block-attribute@t.html:6:17", "binding/value-type@t.html:3:12", "binding/value-type@t.html:4:11",
+                "binding/invalid-key@t.html:5:30", "binding/unknown-name@t.html:7:34",
+                "binding/unknown-member@t.html:8:57", "binding/hidden-name@t.html:9:22"), DiagCodes.of(e));
     }
 
     @Test
@@ -473,15 +458,10 @@ class UiDocumentBindingTest {
                 <div bind:text="row.name < 3"></div>
                 <input bind:value="selected + ''"/>
                 """, "", new Picker()));
-        String m = e.getMessage();
-        assertTrue(m.startsWith("7 errors"), m);
-        assertTrue(m.contains("t.html:2:29:") && m.contains("expected a value"), m);
-        assertTrue(m.contains("t.html:3:30:") && m.contains("'&&' needs Booleans, got int and java.lang.Boolean"), m);
-        assertTrue(m.contains("t.html:4:16:") && m.contains("'detail' cannot be assigned"), m);
-        assertTrue(m.contains("t.html:5:23:") && m.contains("'show' is java.lang.Boolean, but the value is java.lang.Integer"), m);
-        assertTrue(m.contains("t.html:6:6:") && m.contains("state 'show' would hide a field, row or state of Picker"), m);
-        assertTrue(m.contains("t.html:7:26:") && m.contains("'<' needs numbers"), m);
-        assertTrue(m.contains("t.html:8:20:") && m.contains("'bind:value' writes back"), m);
+        assertEquals(List.of("binding/expression-syntax@t.html:2:29", "binding/operand-type@t.html:3:30",
+                "binding/not-assignable@t.html:4:16", "binding/assignment-type@t.html:5:23",
+                "binding/hidden-name@t.html:6:6", "binding/operand-type@t.html:7:26",
+                "binding/two-way-target@t.html:8:20"), DiagCodes.of(e));
     }
 
     static final class Bars extends ViewModel {
@@ -527,9 +507,7 @@ class UiDocumentBindingTest {
         assertEquals("rect 0 0 20 4 #FFFFFFFF", GoldenTest.print(doc.frame(100, 100)));
         m.width.set("30 px");
         doc.frame(100, 100);
-        assertEquals(1, doc.diagnostics().errorCount());
-        assertEquals("t.html:2:44: error: 'width' gave 'wide' for 'width': expected a length in px, a percentage or auto",
-                doc.diagnostics().entries().get(0).toString());
+        assertEquals(List.of("binding/invalid-style-value@t.html:2:44"), DiagCodes.of(doc.diagnostics()));
 
         m.width.set("30px");
         assertEquals("rect 0 0 30 4 #FFFFFFFF", GoldenTest.print(doc.frame(100, 100)));
@@ -538,9 +516,8 @@ class UiDocumentBindingTest {
         assertEquals("rect 0 0 30 4 #FFFFFFFF", GoldenTest.print(doc.frame(100, 100)));
         m.tint.set(true);
         doc.frame(100, 100);
-        assertEquals(3, doc.diagnostics().errorCount());
-        assertTrue(doc.diagnostics().entries().get(1).message().contains("negative value not allowed"));
-        assertTrue(doc.diagnostics().entries().get(2).message().contains("gave 7 for 'background-color': this property takes no plain numbers"));
+        assertEquals(List.of("binding/invalid-style-value@t.html:2:44", "binding/invalid-style-value@t.html:2:44",
+                "binding/invalid-style-value@t.html:2:80"), DiagCodes.of(doc.diagnostics()));
     }
 
     static final class Styled extends ViewModel {
@@ -558,17 +535,85 @@ class UiDocumentBindingTest {
                 <div bind:style:width="flag"></div>
                 <div bind:style:color="n"></div>
                 """, "", new Styled()));
-        String m = e.getMessage();
-        assertTrue(m.startsWith("4 errors"), m);
-        assertTrue(m.contains("t.html:2:6:") && m.contains("unsupported property 'wdth'"), m);
-        assertTrue(m.contains("t.html:3:6:") && m.contains("'margin' is a shorthand; bind its longhands instead: "
-                + "margin-top, margin-right, margin-bottom, margin-left"), m);
-        assertTrue(m.contains("t.html:4:24:") && m.contains("takes a String or a Number, but 'flag' is java.lang.Boolean"), m);
-        assertTrue(m.contains("t.html:5:24:") && m.contains("'color' takes no plain numbers"), m);
+        assertEquals(List.of("binding/unknown-style-property@t.html:2:6", "binding/shorthand-style@t.html:3:6",
+                "binding/value-type@t.html:4:24", "binding/value-type@t.html:5:24"), DiagCodes.of(e));
+    }
 
+    @Test
+    void anInvalidInitialBoundStyleValueFailsTheLoad() {
         UiLoadException initial = assertThrows(UiLoadException.class,
                 () -> load("<div bind:style:width=\"bad\"></div>", "", new Styled()));
-        assertTrue(initial.getMessage().contains("t.html:2:24:")
-                && initial.getMessage().contains("'bad' gave 'x y' for 'width': expected a single value"), initial.getMessage());
+        assertEquals(List.of("binding/invalid-style-value@t.html:2:24"), DiagCodes.of(initial));
+    }
+
+    static final class ReadOnlyDeclared extends ViewModel {
+        final Cell<String> f = state("x");
+    }
+
+    @Test
+    void writabilityFollowsTheDeclaredTypeNotTheHeldCell() {
+        UiLoadException e = assertThrows(UiLoadException.class,
+                () -> load("<input bind:value=\"f\"/>", "", new ReadOnlyDeclared()));
+        assertEquals(List.of("model/undeclared-writable@t.html:1:1", "binding/two-way-target@t.html:2:20"), DiagCodes.of(e));
+    }
+
+    private static final TagRegistry STRING_ITEM = TagRegistry.HTML.extend()
+            .declare("item payload=item accepts=java.lang.String", "t").build();
+
+    private static UiDocument loadItem(TagRegistry tags, ViewModel model) {
+        return UiDocument.load(GoldenTest.linked("<item bind:item=\"p\"></item>"), "t.html", GoldenTest.sheet(""), tags,
+                GoldenTest.MONO, GoldenTest.NO_IMAGES, model, Bindings.PLAIN_TEXT);
+    }
+
+    @Test
+    void aPayloadOfAnUnacceptedTypeIsReportedAtTheValue() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> loadItem(STRING_ITEM, new ViewModel() {
+            final Value<Integer> p = state(1);
+        }));
+        assertEquals(List.of("binding/payload-type@t.html:2:18"), DiagCodes.of(e));
+    }
+
+    @Test
+    void aPayloadOfTheAcceptedTypeLoads() {
+        UiDocument doc = loadItem(STRING_ITEM, new ViewModel() {
+            final Value<String> p = state("s");
+        });
+        assertEquals(List.of(), DiagCodes.of(doc.diagnostics()));
+    }
+
+    @Test
+    void anObjectPayloadIsCheckedOnlyAtRuntimeAndLoads() {
+        UiDocument doc = loadItem(STRING_ITEM, new ViewModel() {
+            final Value<Object> p = state("s");
+        });
+        assertEquals(List.of(), DiagCodes.of(doc.diagnostics()));
+    }
+
+    private static final TagRegistry SUPPLIER_ITEM = TagRegistry.HTML.extend()
+            .declare("item payload=item accepts=java.util.function.Supplier<java.lang.String>", "t").build();
+
+    @Test
+    void anAcceptedTypeArgumentIsChecked() {
+        UiDocument doc = loadItem(SUPPLIER_ITEM, new ViewModel() {
+            final Value<Supplier<String>> p = state(() -> "s");
+        });
+        assertEquals(List.of(), DiagCodes.of(doc.diagnostics()));
+    }
+
+    @Test
+    void aMismatchedTypeArgumentIsAPayloadTypeError() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> loadItem(SUPPLIER_ITEM, new ViewModel() {
+            final Value<Supplier<Integer>> p = state(() -> 1);
+        }));
+        assertEquals(List.of("binding/payload-type@t.html:2:18"), DiagCodes.of(e));
+    }
+
+    @Test
+    void anUnloadableAcceptedClassSkipsTheCheck() {
+        TagRegistry tags = TagRegistry.HTML.extend().declare("item payload=item accepts=com.example.Missing", "t").build();
+        UiDocument doc = loadItem(tags, new ViewModel() {
+            final Value<Integer> p = state(1);
+        });
+        assertEquals(List.of(), DiagCodes.of(doc.diagnostics()));
     }
 }

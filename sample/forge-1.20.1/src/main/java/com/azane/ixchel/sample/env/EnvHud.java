@@ -20,7 +20,7 @@ public final class EnvHud {
 
     /** Client only; from client setup. */
     public static void register(IEventBus modBus) {
-        hud = IxchelForge.registerHud(modBus, new ResourceLocation(IxchelSampleMod.MOD_ID, "ui/env/hud.html"), EnvView::new)
+        hud = IxchelForge.registerHud(modBus, EnvView.class, EnvView::new)
                 .show(false);
     }
 

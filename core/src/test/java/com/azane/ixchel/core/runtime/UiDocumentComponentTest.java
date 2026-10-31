@@ -150,7 +150,7 @@ class UiDocumentComponentTest {
 
     @Test
     void loadReportsComponentMisuseAtTheUseAndBodyErrorsWithTheUseAppended() {
-        String m = assertThrows(UiLoadException.class, () -> load("""
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
                 <link rel="component" href="counter.html"/><link rel="component" href="card.html"/>
                 <link rel="component" href="loop-a.html"/><link rel="component" href="dup.html"/>
                 <ui-counter bind:count="total + 1"></ui-counter>
@@ -162,16 +162,20 @@ class UiDocumentComponentTest {
                 "card.html", "<template name=\"ui-card\" events=\"done\"><button on:click=\"done; done(1)\"></button></template>",
                 "loop-a.html", "<link rel=\"component\" href=\"loop-b.html\"/><template name=\"ui-a\"></template>",
                 "loop-b.html", "<link rel=\"component\" href=\"loop-a.html\"/><template name=\"ui-b\"></template>",
-                "dup.html", "<template name=\"ui-card\"></template>"), new Counters())).getMessage();
-        assertTrue(m.contains("counter.html:2:") && m.contains("'count' cannot be assigned")
-                && m.contains("(in <ui-counter> at t.html:3:1)"), m);
-        assertTrue(m.contains("t.html:4:1:") && m.contains("parameter 'label' of <ui-counter> is given twice"), m);
-        assertTrue(m.contains("t.html:5:1:") && m.contains("<ui-counter> needs parameter 'count'"), m);
-        assertTrue(m.contains("t.html:6:10:") && m.contains("<ui-card> has no slot 'nope'"), m);
-        assertTrue(m.contains("t.html:7:") && m.contains("component events take no filters"), m);
-        assertTrue(m.contains("event 'done' is raised with java.lang.Integer here, but with no payload elsewhere"), m);
-        assertTrue(m.contains("loop-b.html:1:1:") && m.contains("links back to itself through"), m);
-        assertTrue(m.contains("component <ui-card> is also declared in card.html"), m);
+                "dup.html", "<template name=\"ui-card\"></template>"), new Counters()));
+        assertEquals(List.of("load/component-cycle@loop-b.html:1:1", "load/duplicate-component@dup.html:1:1",
+                "binding/not-assignable@counter.html:2:31", "binding/duplicate-parameter@t.html:4:1",
+                "binding/missing-parameter@t.html:5:1", "binding/unknown-slot@t.html:6:10",
+                "binding/event-payload@card.html:1:64", "binding/unexpected-filter@t.html:7:32"), DiagCodes.of(e));
+    }
+
+    @Test
+    void aParameterWhoseBindingFailsIsNotAlsoReportedMissing() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
+                <link rel="component" href="counter.html"/>
+                <ui-counter bind:count="nope"></ui-counter>
+                """, Map.of("counter.html", COUNTER), new Counters()));
+        assertEquals(List.of("binding/unknown-name@t.html:2:25"), DiagCodes.of(e));
     }
 
     static final class Styled extends ViewModel {
@@ -221,12 +225,14 @@ class UiDocumentComponentTest {
         m.accent.set("#ff0");
         doc.frame(100, 100);
         assertEquals(0xFFFFFF00, doc.querySelectorAll("ui-btn").get(0).computed().get(CssProperties.COLOR));
+    }
 
-        String msg = assertThrows(UiLoadException.class, () -> load("""
+    @Test
+    void libraryStylesheetsMustExistAndOnlyThePageLinksThem() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
                 <link rel="component" href="c.html"/><link rel="stylesheet" href="@ixchel/nope.css"/><ui-c></ui-c>
                 """, Map.of("c.html", "<link rel=\"stylesheet\" href=\"@ixchel/dark.css\"/><template name=\"ui-c\"></template>"),
-                new Styled())).getMessage();
-        assertTrue(msg.contains("t.html:1:") && msg.contains("no library stylesheet '@ixchel/nope.css'; there are dark.css, vanilla.css"), msg);
-        assertTrue(msg.contains("c.html:1:1:") && msg.contains("only the page can link the library stylesheet"), msg);
+                new Styled()));
+        assertEquals(List.of("load/library-sheet-not-on-page@c.html:1:1", "load/unknown-library-sheet@t.html:1:38"), DiagCodes.of(e));
     }
 }

@@ -10,7 +10,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentTextTest {
     private static UiDocument load(String html, String css) {
@@ -121,8 +120,7 @@ class UiDocumentTextTest {
     void inlineElementWithABoxPropertyIsAnError() {
         UiDocument doc = load("<div>a <span class=\"p\">b</span></div>", "div { display: block } .p { padding: 2px }");
         doc.frame(100, 100);
-        assertEquals(1, doc.diagnostics().entries().size(), doc.diagnostics().entries().toString());
-        assertTrue(doc.diagnostics().entries().get(0).message().contains("display: inline and has padding"));
+        assertEquals(List.of("layout/inline-box-property@t.html:2:8"), DiagCodes.of(doc.diagnostics()));
     }
 
     @Test

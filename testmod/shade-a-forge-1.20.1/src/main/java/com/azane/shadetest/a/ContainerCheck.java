@@ -1,5 +1,6 @@
 package com.azane.shadetest.a;
 
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.UiContainerScreen;
@@ -8,7 +9,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -117,8 +117,7 @@ final class ContainerCheck {
         InventoryMenu menu = mc.player.inventoryMenu;
         vanillaX = menu.slots.get(FROM).x;
         vanillaY = menu.slots.get(FROM).y;
-        mc.setScreen(new UiContainerScreen<>(menu, mc.player.getInventory(), Component.literal("Inventory"),
-                new ResourceLocation(ShadeTestA.MOD_ID, "ui/inventory.html"), new Slots(),
+        mc.setScreen(new UiContainerScreen<>(menu, mc.player.getInventory(), Component.literal("Inventory"), new Slots(),
                 UiContainerScreen.SlotItemRendering.IXCHEL));
     }
 
@@ -162,6 +161,7 @@ final class ContainerCheck {
     }
 
     /** Slot index lists for the template, in menu order. */
+    @UiTemplate("ixchelshadea:ui/inventory.html")
     static final class Slots extends ViewModel {
         final Value<List<Integer>> armor = state(range(5, 9));
         final Value<List<Integer>> main = state(range(9, 36));

@@ -42,7 +42,8 @@ final class IfBlock extends Block {
         } catch (RuntimeException ex) {
             if (!failing) {
                 failing = true;
-                env.diag().error(attribute.valuePos(), "'" + attribute.value() + "' threw " + ex);
+                env.diag().report(BindingCode.RUNTIME_EXCEPTION, attribute.valuePos(),
+                        "'" + attribute.value() + "' threw " + ex);
             }
             on = instance != null;
         }

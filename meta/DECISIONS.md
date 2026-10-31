@@ -124,3 +124,21 @@
 - **context**: 文档内 tooltip 只有 `title` 纯文本；S1、S6、S7 要富内容，滚动容器中的 tooltip 不能被裁剪；MC tooltip 跟随光标、立即出现、鼠标穿透
 - **decision**: 任意元素的 `<ix-tooltip>` 子元素，悬停时进入顶层，按内容定尺寸、贴光标、贴边翻转；`<mc-item>` 不带它时走原版 tooltip；原版物品行由 `<mc-tooltip-lines bind:item>` 提供。细节见 `ref/D-ixchel-roadmap-20261029.md` E2
 - **rejected**: `popover="hint"` + `interestfor` + anchor positioning——只能锚定元素、不能跟随光标，触发者限于 `<a>`/`<button>`，以 `id` 关联违反上下文模型不变式 1；标准写法加私有扩展——写法像标准、行为不同，违反 #003
+
+## #021 模板与 ViewModel 的关联由 ViewModel 类上的 `@UiTemplate` 声明
+- **decided**: 2026-10-31
+- **context**: 静态检查绑定名与类型须事先知道模板配哪个类，而关联原本只在运行时按实例建立
+- **decision**: ViewModel 类加 `@UiTemplate(String[])`，值为完整资源 id，路径部分可通配；挂载 API 主路径从注解取模板（`new UiScreen(view)`），显式 id 重载（`new UiScreen(id, view)`）作通配与出口，组合不在注解范围内时照常加载并在开发期警告；HUD 注册显式给类（`registerHud(modBus, EnvView.class, EnvView::new)`）；编译器改读成员表（实例反射或类反射），ViewModel 字段须声明精确类型。细节见 `ref/SD-ixchel-tooling-and-editor-20261031.md` §3–§4
+- **rejected**: 手写模型描述文件——作者不会维护，与代码漂移；模板里写 ViewModel 类名——语言文档已否决；Gradle DSL 清单——重复声明；开发期运行时记录关联——新写的 UI 当场无法检查；扫描挂载调用——实现脆弱；严格要求显式 id 必须在注解内——模板 id 来自数据（整合包）时无路可走
+
+## #022 游戏外只做静态检查，运行时验证只在游戏内，游戏内检查随库发布
+- **decided**: 2026-10-31
+- **context**: agent 写 UI 需要离线校验与可重复的游戏内验证；sample 的检查框架只服务 sample，且退出码不反映失败
+- **decision**: 静态检查由只依赖 core 的 `ixchel-kit` 提供（lint、schema）；游戏内检查从 sample 提取：core 放驱动、运行器与端口，mc 层实现输入、转储与退出码，加载器层提供 tick/帧钩子，随现有 mc/加载器制品发布，`-Dixchel.check.<modid>` 开启；1.21.1 暂不适配。细节见 `ref/SD-ixchel-tooling-and-editor-20261031.md` §2、§7、§8
+- **rejected**: 无头 testkit（游戏外实例化 ViewModel 跑 binding 与事件）——迫使宿主把 ViewModel 与 MC 解耦，覆盖面又被静态检查与游戏内检查夹住；按版本单独发布检查制品——多一套制品与 SRG 配方；检查的 Gradle 插件——宿主的构建插件（MDG、ForgeGradle、Loom）各异，给配方即可
+
+## #023 诊断带稳定的符号错误码
+- **decided**: 2026-10-31
+- **context**: lint 的 `--json`、文档、agent 修复与编辑器都需要不依赖消息原文的错误标识，而 `Diagnostic` 只有严重级别、消息与位置
+- **decision**: 错误码为英文符号名 `领域/名称`（如 `binding/unknown-name`），由报告它的包内实现 `DiagCode` 的 enum 定义，严重级别由码决定，可附 hint；码是公开契约，不改名、不复用；测试断言码与位置，不断言消息原文。细节见 `ref/SD-ixchel-tooling-and-editor-20261031.md` §6
+- **rejected**: 数字码（如 `IX0123`）——对 agent 与读者不透明；集中在 core 的单一码表——mc 层的码要回流 core，违反依赖方向

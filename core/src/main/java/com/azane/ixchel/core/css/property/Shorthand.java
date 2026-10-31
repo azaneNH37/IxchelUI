@@ -25,7 +25,7 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
         return (value, pos, diag) -> {
             List<ComponentValue> parts = Syntaxes.significant(value);
             if (parts.isEmpty() || parts.size() > 4) {
-                diag.error(parts.size() > 4 ? parts.get(4).pos() : pos, "expected 1 to 4 values");
+                diag.report(PropertyCode.VALUE_COUNT, parts.size() > 4 ? parts.get(4).pos() : pos, "expected 1 to 4 values");
                 return null;
             }
             Object[] v = new Object[parts.size()];
@@ -49,7 +49,7 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
         return (value, pos, diag) -> {
             List<ComponentValue> parts = Syntaxes.significant(value);
             if (parts.isEmpty() || parts.size() > 2) {
-                diag.error(parts.size() > 2 ? parts.get(2).pos() : pos, "expected 1 or 2 values");
+                diag.report(PropertyCode.VALUE_COUNT, parts.size() > 2 ? parts.get(2).pos() : pos, "expected 1 or 2 values");
                 return null;
             }
             Object a = syntax.parse(List.of(parts.get(0)), parts.get(0).pos(), diag);
@@ -69,7 +69,7 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
         return (value, pos, diag) -> {
             List<ComponentValue> parts = Syntaxes.significant(value);
             if (parts.isEmpty() || parts.size() > 2) {
-                diag.error(parts.size() > 2 ? parts.get(2).pos() : pos, "expected 1 or 2 values");
+                diag.report(PropertyCode.VALUE_COUNT, parts.size() > 2 ? parts.get(2).pos() : pos, "expected 1 or 2 values");
                 return null;
             }
             Length x = syntax.parse(List.of(parts.get(0)), parts.get(0).pos(), diag);
@@ -95,7 +95,8 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
         return (value, pos, diag) -> {
             List<ComponentValue> parts = Syntaxes.significant(value);
             if (parts.isEmpty() || parts.size() > 3) {
-                diag.error(parts.size() > 3 ? parts.get(3).pos() : pos, "expected a width, a style and a color, each at most once");
+                diag.report(PropertyCode.VALUE_COUNT, parts.size() > 3 ? parts.get(3).pos() : pos,
+                        "expected a width, a style and a color, each at most once");
                 return null;
             }
             Object w = null;
@@ -105,7 +106,7 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
                 List<ComponentValue> one = List.of(v);
                 if (v instanceof Token t && (t.is(Token.Kind.DIMENSION) || t.is(Token.Kind.NUMBER))) {
                     if (w != null) {
-                        diag.error(v.pos(), "more than one width");
+                        diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "more than one width");
                         return null;
                     }
                     w = width.parse(one, v.pos(), diag);
@@ -114,13 +115,13 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
                     }
                 } else if (v instanceof Token t && t.is(Token.Kind.IDENT) && isBorderStyle(t.value())) {
                     if (s != null) {
-                        diag.error(v.pos(), "more than one style");
+                        diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "more than one style");
                         return null;
                     }
                     s = style.parse(one, v.pos(), diag);
                 } else {
                     if (c != null) {
-                        diag.error(v.pos(), "more than one color");
+                        diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "more than one color");
                         return null;
                     }
                     c = color.parse(one, v.pos(), diag);
@@ -172,7 +173,7 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
                 for (ComponentValue v : item) {
                     if (v instanceof Token t && (t.is(Token.Kind.DIMENSION) || t.is(Token.Kind.NUMBER))) {
                         if (delay != null) {
-                            diag.error(v.pos(), "at most two times: duration then delay");
+                            diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "at most two times: duration then delay");
                             return null;
                         }
                         Float time = Syntaxes.timeOf(v, duration != null, diag);
@@ -186,7 +187,7 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
                         }
                     } else if (Syntaxes.looksLikeEasing(v)) {
                         if (easing != null) {
-                            diag.error(v.pos(), "more than one easing");
+                            diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "more than one easing");
                             return null;
                         }
                         easing = Syntaxes.easingOf(v, diag);
@@ -195,7 +196,7 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
                         }
                     } else {
                         if (property != null) {
-                            diag.error(v.pos(), "more than one property");
+                            diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "more than one property");
                             return null;
                         }
                         property = Syntaxes.transitionNameOf(v, registry, diag);
@@ -206,7 +207,7 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
                 }
                 if ("none".equals(property)) {
                     if (items.size() > 1) {
-                        diag.error(item.get(0).pos(), "'none' must be the only item");
+                        diag.report(PropertyCode.NONE_NOT_ALONE, item.get(0).pos(), "'none' must be the only item");
                         return null;
                     }
                     none = true;

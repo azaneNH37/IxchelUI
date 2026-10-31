@@ -3,6 +3,7 @@ package com.azane.ixchel.testmod.refit;
 import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
@@ -20,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
  * at open; if the gun leaves it, {@link #valid} turns false and the template says so. The laser
  * color is a draft until applied; closing the screen drops an unapplied draft.
  */
+@UiTemplate("ixcheltest:ui/refit.html")
 final class RefitView extends ViewModel {
     record SlotRow(String type, Component name, ItemStack icon, boolean selected) {
     }

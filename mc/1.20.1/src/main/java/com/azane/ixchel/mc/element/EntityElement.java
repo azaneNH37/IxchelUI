@@ -16,8 +16,6 @@ import java.util.function.Supplier;
  */
 final class EntityElement implements NativePainter {
     static final String TAG = "mc-entity";
-    /** The payload attribute: {@code bind:entity}. */
-    static final String PAYLOAD = "entity";
     static final EntityElement PAINTER = new EntityElement();
     /** Depth the entity model writes above its level, as an item's. */
     private static final float DEPTH = 160f;

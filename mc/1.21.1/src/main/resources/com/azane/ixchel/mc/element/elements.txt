@@ -1,0 +1,2 @@
+# Native elements of the mc layer, read by McElements; see TagRegistry.Builder.declare for the format.
+mc-item payload=item accepts=net.minecraft.world.item.ItemStack,java.util.function.Supplier<net.minecraft.world.item.ItemStack>

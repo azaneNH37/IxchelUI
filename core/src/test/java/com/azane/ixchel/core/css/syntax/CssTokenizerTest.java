@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.css.syntax;
 
+import com.azane.ixchel.core.runtime.DiagCodes;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import org.junit.jupiter.api.Test;
@@ -54,8 +55,7 @@ class CssTokenizerTest {
         assertEquals(Token.Kind.BAD_STRING, t.get(0).kind());
         assertTrue(t.get(1).isIdent("color"));
         assertEquals(new SourcePos("t.css", 2, 1), t.get(1).pos());
-        assertEquals(1, diag.entries().size());
-        assertEquals(new SourcePos("t.css", 1, 1), diag.entries().get(0).pos());
+        assertEquals(List.of("css/newline-in-string@t.css:1:1"), DiagCodes.of(diag));
     }
 
     @Test

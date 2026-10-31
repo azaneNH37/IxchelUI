@@ -94,7 +94,7 @@ public final class TemplateParser {
             }
             SourcePos at = p.pos(p.i);
             String name = p.readClosingTag();
-            p.diag.error(at, "closing tag </" + name + "> has no matching opening tag");
+            p.diag.report(TemplateCode.MISMATCHED_CLOSING_TAG, at, "closing tag </" + name + "> has no matching opening tag");
         }
         p.checkSlotPlacement(roots, null);
         if (!componentFile) {
@@ -105,11 +105,11 @@ public final class TemplateParser {
             if (template == null && n instanceof Element e && e.tag().equals("template")) {
                 template = e;
             } else {
-                diag.error(n.pos(), "a component file holds only <link> declarations and one <template>");
+                diag.report(TemplateCode.COMPONENT_FILE_CONTENT, n.pos(), "a component file holds only <link> declarations and one <template>");
             }
         }
         if (template == null) {
-            diag.error(new SourcePos(file, 1, 1), "a component file needs a <template name=\"…\">");
+            diag.report(TemplateCode.MISSING_COMPONENT_TEMPLATE, new SourcePos(file, 1, 1), "a component file needs a <template name=\"…\">");
             return new Template(List.of(), p.styles, null);
         }
         return new Template(List.of(), p.styles, p.define(template));
@@ -141,7 +141,7 @@ public final class TemplateParser {
             } else if (src.startsWith("<!--", i)) {
                 int end = src.indexOf("-->", i + 4);
                 if (end < 0) {
-                    diag.error(pos(i), "unterminated comment");
+                    diag.report(TemplateCode.SYNTAX, pos(i), "unterminated comment");
                     i = src.length();
                 } else {
                     i = end + 3;
@@ -152,7 +152,7 @@ public final class TemplateParser {
                     out.add(e);
                 }
             } else {
-                diag.error(pos(i), src.startsWith("<!", i) || src.startsWith("<?", i)
+                diag.report(TemplateCode.UNSUPPORTED_MARKUP, pos(i), src.startsWith("<!", i) || src.startsWith("<?", i)
                         ? "doctype, CDATA and processing instructions are not supported"
                         : "stray '<'; write &lt; for a literal '<'");
                 i++;
@@ -171,24 +171,24 @@ public final class TemplateParser {
         boolean reserved = block || tag.equals("slot") || tag.equals("template");
         boolean known = reserved || component != null || tags.isKnownTag(tag);
         if (!known) {
-            diag.error(openPos, "unknown tag <" + tag + ">");
+            diag.report(TemplateCode.UNKNOWN_TAG, openPos, "unknown tag <" + tag + ">");
         }
         boolean isStyle = tag.equals("style");
         boolean isLink = tag.equals("link");
         if ((isStyle || isLink) && !topLevel) {
-            diag.error(openPos, "<" + tag + "> is only allowed at the top level");
+            diag.report(TemplateCode.MISPLACED_ELEMENT, openPos, "<" + tag + "> is only allowed at the top level");
         }
         if (!isStyle && !isLink) {
             sawElement = true;
         }
         if (tag.equals("template") && !(componentFile && topLevel)) {
-            diag.error(openPos, "<template> only appears at the top level of a component file");
+            diag.report(TemplateCode.MISPLACED_ELEMENT, openPos, "<template> only appears at the top level of a component file");
             known = false;
         } else if (tag.equals("slot") && templateDepth == 0) {
-            diag.error(openPos, "<slot> only appears inside a component's <template>");
+            diag.report(TemplateCode.MISPLACED_ELEMENT, openPos, "<slot> only appears inside a component's <template>");
             known = false;
         } else if (tag.equals("slot") && forInTemplateDepth > 0) {
-            diag.error(openPos, "<slot> cannot be inside <for>: each slot is filled once");
+            diag.report(TemplateCode.SLOT_IN_FOR, openPos, "<slot> cannot be inside <for>: each slot is filled once");
         }
         Element element = new Element(tag, openPos);
         Set<String> seen = new HashSet<>();
@@ -196,7 +196,7 @@ public final class TemplateParser {
         while (true) {
             skipWhitespace();
             if (i >= src.length()) {
-                diag.error(openPos, "unterminated start tag <" + tag + ">");
+                diag.report(TemplateCode.SYNTAX, openPos, "unterminated start tag <" + tag + ">");
                 return null;
             }
             char c = src.charAt(i);
@@ -210,7 +210,7 @@ public final class TemplateParser {
                 break;
             }
             if (!isAsciiLetter(c)) {
-                diag.error(pos(i), "unexpected '" + c + "' in start tag <" + tag + ">");
+                diag.report(TemplateCode.SYNTAX, pos(i), "unexpected '" + c + "' in start tag <" + tag + ">");
                 i++;
                 continue;
             }
@@ -221,10 +221,10 @@ public final class TemplateParser {
         }
         if (known && tag.equals("img") && element.attribute("src") == null
                 && element.directives().stream().noneMatch(b -> b.name().equals("bind:src"))) {
-            diag.error(openPos, "<img> requires a 'src' attribute or a 'bind:src' binding");
+            diag.report(TemplateCode.IMG_WITHOUT_SOURCE, openPos, "<img> requires a 'src' attribute or a 'bind:src' binding");
         }
         if (known && tag.equals("input") && FormControl.Kind.ofInputType(element.attribute("type")) == null) {
-            diag.error(openPos, "unsupported <input type=\"" + element.attribute("type")
+            diag.report(TemplateCode.UNSUPPORTED_INPUT_TYPE, openPos, "unsupported <input type=\"" + element.attribute("type")
                     + "\">; supported: text, number, checkbox, range");
         }
 
@@ -236,24 +236,24 @@ public final class TemplateParser {
         }
         if (isLink) {
             if (!selfClosing) {
-                diag.error(openPos, "<link> must be self-closing: <link rel=\"stylesheet\" href=\"…\"/>");
+                diag.report(TemplateCode.INVALID_LINK, openPos, "<link> must be self-closing: <link rel=\"stylesheet\" href=\"…\"/>");
             }
             String rel = element.attribute("rel");
             boolean valid = topLevel;
             if (!"stylesheet".equals(rel) && !"component".equals(rel)) {
-                diag.error(openPos, "<link> requires rel=\"stylesheet\" or rel=\"component\"");
+                diag.report(TemplateCode.INVALID_LINK, openPos, "<link> requires rel=\"stylesheet\" or rel=\"component\"");
                 valid = false;
             }
             String href = element.attribute("href");
             if (href == null || href.isEmpty()) {
-                diag.error(openPos, "<link> requires an 'href' attribute");
+                diag.report(TemplateCode.INVALID_LINK, openPos, "<link> requires an 'href' attribute");
                 valid = false;
             }
             if (valid && "component".equals(rel)) {
                 if (sawElement) {
-                    diag.error(openPos, "<link rel=\"component\"> must come before the first element");
+                    diag.report(TemplateCode.LINK_AFTER_ELEMENT, openPos, "<link rel=\"component\"> must come before the first element");
                 } else if (linker == null) {
-                    diag.error(openPos, "components can only be linked from a loaded document");
+                    diag.report(TemplateCode.COMPONENT_LINK_UNAVAILABLE, openPos, "components can only be linked from a loaded document");
                 } else {
                     ComponentDef def = linker.link(href, openPos);
                     if (def != null) {
@@ -275,21 +275,21 @@ public final class TemplateParser {
             templateDepth -= inTemplate ? 1 : 0;
             forInTemplateDepth -= forInTemplate ? 1 : 0;
             if (i >= src.length()) {
-                diag.error(openPos, "<" + tag + "> is never closed");
+                diag.report(TemplateCode.UNCLOSED_TAG, openPos, "<" + tag + "> is never closed");
             } else {
                 SourcePos closePos = pos(i);
                 String closing = readClosingTag();
                 if (!closing.equals(tag)) {
-                    diag.error(closePos, "closing tag </" + closing + "> does not match <" + tag
+                    diag.report(TemplateCode.MISMATCHED_CLOSING_TAG, closePos, "closing tag </" + closing + "> does not match <" + tag
                             + "> opened at " + openPos);
                 }
             }
             if (known && (tag.equals("img") || tag.equals("input")) && !children.isEmpty()) {
-                diag.error(children.get(0).pos(), "<" + tag + "> must not have children");
+                diag.report(TemplateCode.INVALID_CHILDREN, children.get(0).pos(), "<" + tag + "> must not have children");
             } else if (known && tag.equals("select") && !onlyOptions(children)) {
-                diag.error(openPos, "<select> may only contain <option> elements, directly or in <for> and <if>");
+                diag.report(TemplateCode.INVALID_CHILDREN, openPos, "<select> may only contain <option> elements, directly or in <for> and <if>");
             } else if (known && tag.equals("option") && children.stream().anyMatch(n -> !(n instanceof TextNode))) {
-                diag.error(openPos, "<option> may only contain text");
+                diag.report(TemplateCode.INVALID_CHILDREN, openPos, "<option> may only contain text");
             } else {
                 checkSlotPlacement(children, component);
                 for (Node child : children) {
@@ -320,7 +320,7 @@ public final class TemplateParser {
         }
         for (Node n : children) {
             if (n instanceof Element c && slotOf(c) != null) {
-                diag.error(c.pos(), "slot=\"" + slotOf(c) + "\" only goes on a direct child of a component's element");
+                diag.report(TemplateCode.MISPLACED_SLOT_ATTRIBUTE, c.pos(), "slot=\"" + slotOf(c) + "\" only goes on a direct child of a component's element");
             }
         }
     }
@@ -355,12 +355,12 @@ public final class TemplateParser {
         for (Directive d : e.directives()) {
             present.add(d.name());
             if (!allowed.contains(d.name())) {
-                diag.error(d.namePos(), "<" + e.tag() + "> takes only " + String.join(", ", allowed));
+                diag.report(TemplateCode.UNKNOWN_BLOCK_ATTRIBUTE, d.namePos(), "<" + e.tag() + "> takes only " + String.join(", ", allowed));
             }
         }
         for (String r : required) {
             if (!present.contains(r)) {
-                diag.error(e.pos(), "<" + e.tag() + "> requires '" + r + "'");
+                diag.report(TemplateCode.MISSING_BLOCK_ATTRIBUTE, e.pos(), "<" + e.tag() + "> requires '" + r + "'");
             }
         }
     }
@@ -380,10 +380,10 @@ public final class TemplateParser {
             }
         }
         if (!name.contains("-") || name.startsWith("ix-") || name.startsWith("mc-") || !isTagName(name)) {
-            diag.error(template.pos(), "component name '" + name
+            diag.report(TemplateCode.INVALID_COMPONENT_NAME, template.pos(), "component name '" + name
                     + "' must be a tag name with a '-' that does not start with 'ix-' or 'mc-'");
         } else if (tags.isKnownTag(name)) {
-            diag.error(template.pos(), "component name '" + name + "' is a registered tag");
+            diag.report(TemplateCode.INVALID_COMPONENT_NAME, template.pos(), "component name '" + name + "' is a registered tag");
         }
         Set<String> names = new HashSet<>();
         List<ComponentDef.Param> paramList = new ArrayList<>();
@@ -403,7 +403,7 @@ public final class TemplateParser {
             for (Word w : words(events)) {
                 if (checkMemberName(w.text, w.pos, "event", names)) {
                     if (UiEvent.Type.byTemplateName(w.text) != null) {
-                        diag.error(w.pos, "event '" + w.text + "' has the name of a DOM event");
+                        diag.report(TemplateCode.DOM_EVENT_NAME, w.pos, "event '" + w.text + "' has the name of a DOM event");
                     } else {
                         eventList.add(w.text);
                     }
@@ -424,7 +424,7 @@ public final class TemplateParser {
                         slot = d.name().equals("name") ? d.value() : slot;
                     }
                     if (!slots.add(slot)) {
-                        diag.error(e.pos(), slot.isEmpty() ? "the default <slot> appears twice"
+                        diag.report(TemplateCode.DUPLICATE_SLOT, e.pos(), slot.isEmpty() ? "the default <slot> appears twice"
                                 : "<slot name=\"" + slot + "\"> appears twice");
                     }
                 }
@@ -439,11 +439,11 @@ public final class TemplateParser {
             ok = isAsciiLetter(name.charAt(k)) || isDigit(name.charAt(k));
         }
         if (!ok) {
-            diag.error(at, what + " name '" + name + "' must be a letter followed by letters or digits");
+            diag.report(TemplateCode.INVALID_MEMBER_NAME, at, what + " name '" + name + "' must be a letter followed by letters or digits");
         } else if (SHELL_NAMES.contains(name)) {
-            diag.error(at, what + " name '" + name + "' is taken by the component's element");
+            diag.report(TemplateCode.RESERVED_MEMBER_NAME, at, what + " name '" + name + "' is taken by the component's element");
         } else if (!names.add(name)) {
-            diag.error(at, "'" + name + "' is declared twice");
+            diag.report(TemplateCode.DUPLICATE_MEMBER, at, "'" + name + "' is declared twice");
         } else {
             return true;
         }
@@ -510,13 +510,13 @@ public final class TemplateParser {
         String name = readName(true);
         skipWhitespace();
         if (i >= src.length() || src.charAt(i) != '=') {
-            diag.error(namePos, "attribute '" + name + "' needs a quoted value");
+            diag.report(TemplateCode.UNQUOTED_ATTRIBUTE, namePos, "attribute '" + name + "' needs a quoted value");
             return;
         }
         i++;
         skipWhitespace();
         if (i >= src.length() || (src.charAt(i) != '"' && src.charAt(i) != '\'')) {
-            diag.error(namePos, "value of attribute '" + name + "' must be quoted");
+            diag.report(TemplateCode.UNQUOTED_ATTRIBUTE, namePos, "value of attribute '" + name + "' must be quoted");
             while (i < src.length() && !Character.isWhitespace(src.charAt(i))
                     && src.charAt(i) != '>' && !src.startsWith("/>", i)) {
                 i++;
@@ -527,13 +527,13 @@ public final class TemplateParser {
         int valueStart = i;
         int end = src.indexOf(quote, valueStart);
         if (end < 0) {
-            diag.error(namePos, "unterminated value of attribute '" + name + "'");
+            diag.report(TemplateCode.SYNTAX, namePos, "unterminated value of attribute '" + name + "'");
             i = src.length();
             return;
         }
         i = end + 1;
         if (!seen.add(name)) {
-            diag.error(namePos, "duplicate attribute '" + name + "' on <" + tag + ">");
+            diag.report(TemplateCode.DUPLICATE_ATTRIBUTE, namePos, "duplicate attribute '" + name + "' on <" + tag + ">");
             return;
         }
         if (!tagKnown) {
@@ -541,27 +541,27 @@ public final class TemplateParser {
         }
         if (reserved || isDirective(name)) {
             if (tag.equals("style") || tag.equals("link")) {
-                diag.error(namePos, "<" + tag + "> takes no " + (tag.equals("style") ? "attributes" : "bindings"));
+                diag.report(TemplateCode.UNKNOWN_ATTRIBUTE, namePos, "<" + tag + "> takes no " + (tag.equals("style") ? "attributes" : "bindings"));
             } else {
                 element.addDirective(new Directive(name, decode(valueStart, end, false), namePos, pos(valueStart)));
             }
             return;
         }
         if (MOVED.contains(name)) {
-            diag.error(namePos, name.equals("if")
+            diag.report(TemplateCode.MOVED_ATTRIBUTE, namePos, name.equals("if")
                     ? "'if' is a block now: wrap the element in <if test=\"…\">"
                     : "'" + name + "' is a block attribute now: wrap the element in <for each=\"…\" as=\"…\" key=\"…\">");
             return;
         }
         if (isReserved(name)) {
-            diag.error(namePos, "attribute '" + name + "' is not supported yet");
+            diag.report(TemplateCode.UNSUPPORTED_ATTRIBUTE, namePos, "attribute '" + name + "' is not supported yet");
             return;
         }
         boolean allowed = name.equals("slot") && !tag.equals("style") && !tag.equals("link")
                 || (component != null ? TagRegistry.GLOBAL_ATTRIBUTES.contains(name) || component.hasParam(name)
                 : tags.isAllowedAttribute(tag, name));
         if (!allowed) {
-            diag.error(namePos, "unknown attribute '" + name + "' on <" + tag + ">");
+            diag.report(TemplateCode.UNKNOWN_ATTRIBUTE, namePos, "unknown attribute '" + name + "' on <" + tag + ">");
             return;
         }
         String value = decode(valueStart, end, false);
@@ -592,7 +592,7 @@ public final class TemplateParser {
         int start = i;
         int end = src.indexOf("</style", start);
         if (end < 0) {
-            diag.error(openPos, "<style> is never closed");
+            diag.report(TemplateCode.UNCLOSED_TAG, openPos, "<style> is never closed");
             i = src.length();
             return;
         }
@@ -601,7 +601,7 @@ public final class TemplateParser {
         SourcePos closePos = pos(i);
         String closing = readClosingTag();
         if (!closing.equals("style")) {
-            diag.error(closePos, "closing tag </" + closing + "> does not match <style> opened at " + openPos);
+            diag.report(TemplateCode.MISMATCHED_CLOSING_TAG, closePos, "closing tag </" + closing + "> does not match <style> opened at " + openPos);
         }
     }
 
@@ -613,7 +613,7 @@ public final class TemplateParser {
         if (i < src.length() && src.charAt(i) == '>') {
             i++;
         } else {
-            diag.error(pos(i), "expected '>' to end closing tag </" + name + ">");
+            diag.report(TemplateCode.SYNTAX, pos(i), "expected '>' to end closing tag </" + name + ">");
         }
         return name;
     }
@@ -643,7 +643,7 @@ public final class TemplateParser {
             }
         }
         if (start == i) {
-            diag.error(pos(i), "expected a name");
+            diag.report(TemplateCode.SYNTAX, pos(i), "expected a name");
         }
         return src.substring(start, i);
     }
@@ -672,7 +672,7 @@ public final class TemplateParser {
                 int semi = src.indexOf(';', k);
                 String decoded = semi < 0 || semi >= end ? null : entity(src.substring(k + 1, semi));
                 if (decoded == null) {
-                    diag.error(pos(k), "invalid character reference; write &amp; for a literal '&'");
+                    diag.report(TemplateCode.INVALID_CHARACTER_REFERENCE, pos(k), "invalid character reference; write &amp; for a literal '&'");
                     sb.append('&');
                     k++;
                 } else {

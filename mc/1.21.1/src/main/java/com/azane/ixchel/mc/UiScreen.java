@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc;
 
+import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.runtime.UiDocument;
@@ -17,8 +18,15 @@ import net.minecraft.util.StringUtil;
  * model, so late replies and subscriptions end with it. An {@code <mc-item>} or a {@code title} under the
  * pointer shows a vanilla tooltip. Does not pause a single-player game.
  *
+ * <p>The template is the one the view model's class declares with {@link UiTemplate}; a model that
+ * serves several templates, or none, is mounted with the template id:
+ *
  * <pre>{@code
- * mc.setScreen(new UiScreen(ResourceLocation.fromNamespaceAndPath(MODID, "ui/refit.html"), new RefitView(slot)));
+ * @UiTemplate("ixcheltest:ui/refit.html")
+ * class RefitView extends ViewModel { ... }
+ *
+ * mc.setScreen(new UiScreen(new RefitView(slot)));
+ * mc.setScreen(new UiScreen(ResourceLocation.fromNamespaceAndPath(MODID, "ui/pages/" + page + ".html"), new PageView()));
  * }</pre>
  *
  * <p>It needs no world: opened from the title screen or the mod list ({@code Minecraft.level} and
@@ -28,7 +36,7 @@ import net.minecraft.util.StringUtil;
  *
  * <pre>{@code
  * container.registerExtensionPoint(IConfigScreenFactory.class,
- *         (mod, modList) -> new UiScreen(template, new ConfigView(), modList));
+ *         (mod, modList) -> new UiScreen(new ConfigView(), modList));
  * }</pre>
  *
  * <p>In a development run the files are read from the source tree and reloaded on save, keeping the
@@ -39,7 +47,43 @@ public class UiScreen extends Screen {
     private final Screen parent;
 
     /**
-     * A screen that closes to the game (or to the title screen without a world).
+     * A screen of the template {@code model}'s class declares, closing to the game (or to the title
+     * screen without a world).
+     *
+     * @param model the view model; closed with the screen
+     * @throws IllegalArgumentException if the class does not declare exactly one concrete template
+     * @throws UiLoadException          outside development when the document has errors
+     */
+    public UiScreen(ViewModel model) {
+        this(model, null);
+    }
+
+    /**
+     * A screen of the template {@code model}'s class declares, closing to {@code parent}.
+     *
+     * @param model  the view model; closed with the screen
+     * @param parent the screen {@link #onClose} returns to, such as the mod list; {@code null} closes
+     *               to the game
+     * @throws IllegalArgumentException if the class does not declare exactly one concrete template
+     * @throws UiLoadException          outside development when the document has errors
+     */
+    public UiScreen(ViewModel model, Screen parent) {
+        this(DeclaredTemplate.of(model.getClass()), model, parent);
+    }
+
+    /**
+     * A screen of a template without a view model, closing to the game.
+     *
+     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     *                 id, stylesheets come from its {@code <link>} elements
+     * @throws UiLoadException outside development when the document has errors
+     */
+    public UiScreen(ResourceLocation template) {
+        this(template, null, null);
+    }
+
+    /**
+     * A screen of an explicit template, closing to the game (or to the title screen without a world).
      *
      * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements
@@ -51,13 +95,13 @@ public class UiScreen extends Screen {
     }
 
     /**
-     * A screen that closes to {@code parent}.
+     * A screen of an explicit template, closing to {@code parent}.
      *
      * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements
      * @param model    the view model the template binds to, or {@code null}; closed with the screen
      * @param parent   the screen {@link #onClose} returns to, such as the mod list; {@code null} closes
-     *                 as the two-argument constructor does
+     *                 to the game
      * @throws UiLoadException outside development when the document has errors
      */
     public UiScreen(ResourceLocation template, ViewModel model, Screen parent) {

@@ -46,8 +46,8 @@ final class CustomPropertyBinding extends Binding {
             if (problems.hasErrors()) {
                 if (!invalid) {
                     invalid = true;
-                    diag.error(pos, "'" + attribute.value() + "' gave '" + value + "' for '" + name + "': "
-                            + problems.entries().get(0).message());
+                    diag.report(BindingCode.INVALID_STYLE_VALUE, pos, "'" + attribute.value() + "' gave '" + value
+                            + "' for '" + name + "': " + problems.entries().get(0).message());
                 }
                 return false;
             }

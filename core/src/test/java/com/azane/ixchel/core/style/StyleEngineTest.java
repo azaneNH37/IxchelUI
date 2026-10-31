@@ -4,7 +4,7 @@ import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Length;
 import com.azane.ixchel.core.css.syntax.CssParser;
-import com.azane.ixchel.core.diag.Diagnostic;
+import com.azane.ixchel.core.runtime.DiagCodes;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StyleEngineTest {
     private static final SourcePos POS = new SourcePos("t.html", 1, 1);
@@ -145,12 +144,8 @@ class StyleEngineTest {
         assertEquals(Length.px(1), a.computed().get(CssProperties.MARGIN_BOTTOM));
         assertEquals(Length.px(2), a.computed().get(CssProperties.MARGIN_LEFT));
         assertEquals(Length.px(3), a.computed().get(CssProperties.PADDING_RIGHT));
-        List<String> errors = diag.entries().stream().map(Diagnostic::toString).toList();
-        assertEquals(4, errors.size(), errors::toString);
-        assertTrue(errors.get(0).startsWith("t.css:2:4: error: unsupported combinator"), errors.get(0));
-        assertTrue(errors.get(1).startsWith("t.css:3:6: error: unsupported property 'widht'"), errors.get(1));
-        assertTrue(errors.get(2).contains("t.css:3:26:") && errors.get(2).contains("10px"), errors.get(2));
-        assertTrue(errors.get(3).startsWith("t.css:3:37: error: invalid hex color"), errors.get(3));
+        assertEquals(List.of("css/unsupported-combinator@t.css:2:4", "css/unknown-property@t.css:3:6",
+                "css/missing-unit@t.css:3:26", "css/invalid-value@t.css:3:37"), DiagCodes.of(diag));
     }
 
     @Test
@@ -228,7 +223,7 @@ class StyleEngineTest {
         assertEquals(0xFF00FF00, bad.computed().get(CssProperties.COLOR), "an inherited property inherits");
         assertEquals(Length.AUTO, bad.computed().get(CssProperties.WIDTH), "others take their initial value");
         assertEquals(Length.AUTO, bad2.computed().get(CssProperties.WIDTH));
-        assertEquals(2, diag.entries().size(), diag.entries().toString());
+        assertEquals(List.of("style/undefined-var@t.css:4:8", "style/invalid-after-var@t.css:4:31"), DiagCodes.of(diag));
 
         bad.setBoundCustom("--missing", CssParser.parseValue("#fff", POS, diag));
         engine.restyle(root);

@@ -1,8 +1,10 @@
 package com.azane.ixchel.core.css.property;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -13,7 +15,7 @@ import java.util.Map;
 public final class PropertyRegistry {
     private final List<PropertyDef<?>> byId = new ArrayList<>();
     private final Map<String, PropertyDef<?>> byName = new HashMap<>();
-    private final Map<String, Shorthand> shorthands = new HashMap<>();
+    private final Map<String, Shorthand> shorthands = new LinkedHashMap<>();
     private boolean frozen;
     private int[] layoutIds;
 
@@ -76,5 +78,10 @@ public final class PropertyRegistry {
 
     public List<PropertyDef<?>> all() {
         return Collections.unmodifiableList(byId);
+    }
+
+    /** The shorthands in registration order; an unmodifiable view. */
+    public Collection<Shorthand> shorthands() {
+        return Collections.unmodifiableCollection(shorthands.values());
     }
 }

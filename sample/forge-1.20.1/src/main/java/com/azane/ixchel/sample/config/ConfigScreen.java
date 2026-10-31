@@ -1,10 +1,8 @@
 package com.azane.ixchel.sample.config;
 
 import com.azane.ixchel.mc.UiScreen;
-import com.azane.ixchel.sample.IxchelSampleMod;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.fml.ModLoadingContext;
 
@@ -14,8 +12,6 @@ import net.minecraftforge.fml.ModLoadingContext;
  * sample index does. Closing it returns to the screen it was opened from.
  */
 public final class ConfigScreen {
-    private static final ResourceLocation TEMPLATE = new ResourceLocation(IxchelSampleMod.MOD_ID, "ui/config/panel.html");
-
     private ConfigScreen() {
     }
 
@@ -33,7 +29,7 @@ public final class ConfigScreen {
 
     private static Screen create(Screen parent) {
         UiScreen[] screen = new UiScreen[1];
-        screen[0] = new UiScreen(TEMPLATE, new ConfigView(() -> screen[0].onClose()), parent);
+        screen[0] = new UiScreen(new ConfigView(() -> screen[0].onClose()), parent);
         return screen[0];
     }
 }

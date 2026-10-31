@@ -1,11 +1,9 @@
 package com.azane.ixchel.testmod.refit;
 
 import com.azane.ixchel.mc.UiScreen;
-import com.azane.ixchel.testmod.IxchelTestMod;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
@@ -42,6 +40,6 @@ public final class RefitClient {
                         Component.literal("Inspecting ").append(Attachments.type(type).name()), false);
             }
         });
-        return new UiScreen(ResourceLocation.fromNamespaceAndPath(IxchelTestMod.MOD_ID, "ui/refit.html"), view);
+        return new UiScreen(view);
     }
 }

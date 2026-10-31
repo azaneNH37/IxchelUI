@@ -33,7 +33,7 @@ abstract class Binding implements Part {
         } catch (RuntimeException ex) {
             if (!failing) {
                 failing = true;
-                diag.error(attribute.valuePos(), "'" + attribute.value() + "' threw " + ex);
+                diag.report(BindingCode.RUNTIME_EXCEPTION, attribute.valuePos(), "'" + attribute.value() + "' threw " + ex);
             }
             return false;
         }

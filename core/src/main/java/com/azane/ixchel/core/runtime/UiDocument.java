@@ -2,6 +2,7 @@ package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.anim.Transitions;
 import com.azane.ixchel.core.binding.compile.Bindings;
+import com.azane.ixchel.core.binding.ModelShape;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.selector.Selector;
@@ -21,6 +22,7 @@ import com.azane.ixchel.core.paint.Painter;
 import com.azane.ixchel.core.style.StyleEngine;
 import com.azane.ixchel.core.style.StyleSheet;
 import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.template.TemplateCode;
 import com.azane.ixchel.core.template.TemplateLoader;
 import com.azane.ixchel.core.text.TextMeasurer;
 import com.azane.ixchel.core.text.TextShaper;
@@ -113,6 +115,48 @@ public final class UiDocument {
                                   TagRegistry tags, TextMeasurer measurer, ImageMeasurer images, ViewModel model,
                                   Bindings.TextConverter text) {
         Diagnostics diag = new Diagnostics();
+        Parsed p = parse(template, templateFile, files, tags, diag);
+        Bindings bindings = Bindings.compile(p.root, model, p.loaded.components(), text, tags, CssProperties.REGISTRY,
+                p.topLayer, diag);
+        Transitions transitions = new Transitions(CssProperties.REGISTRY, p.root);
+        StyleEngine style = p.style(tags, diag, transitions);
+        style.restyle(p.root);
+        diag.throwIfErrors();
+        LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY, tags, diag);
+        return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, tags, images, transitions,
+                p.topLayer);
+    }
+
+    /**
+     * Checks a template as {@link #load} would load it, without a view model instance and without
+     * laying it out: the template, every linked file, every binding against {@code shape}'s declared
+     * types, and the cascade. Never throws for problems; they are all in the result. Problems that
+     * need values or a viewport are not found.
+     *
+     * @param shape the view model class's shape, or {@code null} for a document without one
+     */
+    public static Diagnostics check(String template, String templateFile, Function<String, String> files,
+                                    TagRegistry tags, ModelShape shape) {
+        Diagnostics diag = new Diagnostics();
+        Parsed p = parse(template, templateFile, files, tags, diag);
+        Bindings.check(p.root, shape, p.loaded.components(), Bindings.PLAIN_TEXT, tags, CssProperties.REGISTRY,
+                p.topLayer, diag);
+        p.style(tags, diag, new Transitions(CssProperties.REGISTRY, p.root)).restyle(p.root);
+        return diag;
+    }
+
+    /** A template and its stylesheets parsed, its roots under the implicit document root. */
+    private record Parsed(TemplateLoader.Loaded loaded, Element root, TopLayer topLayer, List<StyleSheet> components,
+                          List<StyleSheet> themes, List<StyleSheet> author) {
+        StyleEngine style(TagRegistry tags, Diagnostics diag, Transitions transitions) {
+            List<StyleSheet> userAgent = new ArrayList<>(List.of(LibrarySheets.USER_AGENT));
+            userAgent.addAll(LibrarySheets.nativeElements(tags));
+            return new StyleEngine(CssProperties.REGISTRY, userAgent, components, themes, author, diag, transitions);
+        }
+    }
+
+    private static Parsed parse(String template, String templateFile, Function<String, String> files,
+                                TagRegistry tags, Diagnostics diag) {
         TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, tags, diag);
         List<StyleSheet> components = sheets(loaded.componentSheets(), diag);
         List<StyleSheet> themes = library(loaded.library(), diag);
@@ -121,19 +165,7 @@ public final class UiDocument {
         for (Node n : loaded.page().roots()) {
             root.appendChild(n);
         }
-        TopLayer topLayer = new TopLayer();
-        Bindings bindings = Bindings.compile(root, model, loaded.components(), text, tags, CssProperties.REGISTRY,
-                topLayer, diag);
-        Transitions transitions = new Transitions(CssProperties.REGISTRY, root);
-        List<StyleSheet> userAgent = new ArrayList<>(List.of(LibrarySheets.USER_AGENT));
-        userAgent.addAll(LibrarySheets.nativeElements(tags));
-        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, userAgent, components, themes, author,
-                diag, transitions);
-        style.restyle(root);
-        diag.throwIfErrors();
-        LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY, tags, diag);
-        return new UiDocument(root, loaded.files(), diag, style, layout, bindings, tags, images, transitions,
-                topLayer);
+        return new Parsed(loaded, root, new TopLayer(), components, themes, author);
     }
 
     private static List<StyleSheet> sheets(List<TemplateLoader.Sheet> sources, Diagnostics diag) {
@@ -150,7 +182,7 @@ public final class UiDocument {
         for (TemplateLoader.Library l : links) {
             List<String> f = LibrarySheets.files(l.name());
             if (f == null) {
-                diag.error(l.pos(), "no library stylesheet '" + TemplateLoader.LIBRARY + l.name() + "'; there are "
+                diag.report(TemplateCode.UNKNOWN_LIBRARY_SHEET, l.pos(), "no library stylesheet '" + TemplateLoader.LIBRARY + l.name() + "'; there are "
                         + String.join(", ", LibrarySheets.names()));
             } else {
                 files.addAll(f);

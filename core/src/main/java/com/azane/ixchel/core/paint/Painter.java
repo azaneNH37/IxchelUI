@@ -381,7 +381,7 @@ public final class Painter {
         if (Float.isNaN(w) || Float.isNaN(h)) {
             ImageMeasurer.Size natural = images.naturalSize(src);
             if (natural == null) {
-                report(e, "cannot load background image '" + src + "' to size it (background-size: auto)");
+                report(e, PaintCode.BACKGROUND_IMAGE_UNSIZED, "cannot load background image '" + src + "' to size it (background-size: auto)");
                 return;
             }
             if (natural.width() <= 0 || natural.height() <= 0) {
@@ -418,7 +418,7 @@ public final class Painter {
             rows = (int) Math.ceil((bottom - y0) / h);
         }
         if ((long) columns * rows > MAX_TILES) {
-            report(e, "background image '" + src + "' would repeat " + (long) columns * rows
+            report(e, PaintCode.BACKGROUND_TOO_MANY_TILES, "background image '" + src + "' would repeat " + (long) columns * rows
                     + " times (at most " + MAX_TILES + "); use a larger background-size");
             return;
         }
@@ -456,9 +456,9 @@ public final class Painter {
         return l.unit() == Length.Unit.PERCENT ? free * l.value() / 100 : l.value();
     }
 
-    private void report(Element e, String message) {
+    private void report(Element e, PaintCode code, String message) {
         if (reported.add(e.pos() + ": " + message)) {
-            diag.error(e.pos(), message);
+            diag.report(code, e.pos(), message);
         }
     }
 

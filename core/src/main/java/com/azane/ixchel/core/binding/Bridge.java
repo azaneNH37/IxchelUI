@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.binding;
 
+import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
@@ -49,6 +50,22 @@ final class Bridge implements ModelAccess {
     @Override
     public <T> Cell<T> current(Cell<T> flat) {
         return ((Flat<T>) flat).current();
+    }
+
+    @Override
+    public Object read(ViewModel model, ModelShape.Member member) {
+        Field f = ModelShape.of(model.getClass()).fields.get(member.name());
+        try {
+            f.setAccessible(true);
+            return f.get(model);
+        } catch (IllegalAccessException ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    @Override
+    public <A> Action<A> idle(ViewModel owner) {
+        return new Action<>(owner, a -> { }, null);
     }
 
     @Override
