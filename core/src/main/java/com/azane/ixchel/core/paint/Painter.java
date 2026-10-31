@@ -98,7 +98,7 @@ public final class Painter {
         caretVisible = visible;
     }
 
-    /** Clears {@code out} and paints the children of the implicit root into it, then the top layer. */
+    /** Clears {@code out} and paints the children of the implicit root into it, then the top layer's entries. */
     public void paint(Element root, TopLayer top, DisplayList out) {
         out.clear();
         paintChildren(root, 0, out);
@@ -112,13 +112,22 @@ public final class Painter {
             } else {
                 List<Node> options = entry.children();
                 for (int j = 0; j < options.size(); j++) {
-                    if (options.get(j) instanceof Element o) {
+                    if (options.get(j) instanceof Element o && o.tag().equals("option")) {
                         paintElement(o, 0, out);
                     }
                 }
             }
         }
         root.clearRepaint();
+    }
+
+    /** Clears {@code out} and paints {@code top}'s shown tooltip into it; empty when none is shown. */
+    public void paintTooltip(TopLayer top, DisplayList out) {
+        out.clear();
+        if (top.tooltip() != null) {
+            alpha = 1;
+            paintElement(top.tooltip(), 0, out);
+        }
     }
 
     /** {@code dy}: how far scroll containers above move these children up. Colors are multiplied by {@link #alpha}. */
@@ -128,7 +137,7 @@ public final class Painter {
         for (int i = 0; i < children.size(); i++) {
             Node c = children.get(i);
             if (c instanceof Element child) {
-                if (!child.tag().equals("dialog")) {
+                if (!child.rendersInTopLayer()) {
                     paintElement(child, dy, out);
                 }
             } else {
@@ -184,7 +193,7 @@ public final class Painter {
         }
         if (e.tag().equals("img")) {
             out.add(new DrawCommand.Image(b.x(), y, b.width(), b.height(), e.attribute("src"), 0, 0, 1, 1, fade(OPAQUE_WHITE)));
-        } else if (e.payload() != null && tags.payloadAttribute(e.tag()) != null) {
+        } else if (e.payload() != null && tags.isReplaced(e.tag())) {
             out.add(new DrawCommand.Custom(e.tag(), e.payload(), b.x(), y, b.width(), b.height()));
         }
         Keywords.Overflow overflow = cs.get(CssProperties.OVERFLOW);

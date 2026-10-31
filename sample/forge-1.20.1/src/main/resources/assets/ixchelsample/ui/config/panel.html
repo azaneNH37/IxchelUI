@@ -15,8 +15,14 @@
       </div>
       <div class="entries">
         <if test="rows.size == 0"><span class="none">No setting matches the search</span></if>
-        <for each="rows" as="r" key="r.id"><div class="entry" bind:title="r.comment"
+        <for each="rows" as="r" key="r.id"><div class="entry"
              bind:class:modified="r.modified" bind:class:invalid="r.invalid">
+          <ix-tooltip class="entry-tip">
+            <span class="tip-name" bind:text="r.label"></span>
+            <span class="tip-path" bind:text="r.id"></span>
+            <span bind:text="r.comment"></span>
+            <if test="r.restart"><span class="tip-restart">Applies after rejoining a world</span></if>
+          </ix-tooltip>
           <div class="line">
             <div class="marker"></div>
             <span class="name" bind:text="r.label"></span>

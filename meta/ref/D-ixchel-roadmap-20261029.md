@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2；接下来是 E2–E3（文档内 tooltip、S9）、I（i18n）、Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2；接下来是 I（i18n）、Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
 
 ## Detail
 
@@ -35,14 +35,13 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | L2 | 完成 | — | 组件、组件层、CSS 嵌套 |
 | L3 | 完成 | — | 主题层与主题、`var()` |
 | E1 | 完成 | S8 | 文字排版补完：行内流式排版、CJK 断行、`Component` 富文本、行内链接 |
-| E2 | 待做 | S1、S6、S7 的 tooltip | 文档内富 tooltip `<ix-tooltip>` |
-| E3 | 待做 | S9 | 全局物品 tooltip 宿主 |
+| E2 | 完成 | S9；S1、S6、S7 的 tooltip | 文档内富 tooltip `<ix-tooltip>`，兼容原版物品 tooltip |
 | I | 待做 | — | i18n：`t` 语言键与参数 |
 | Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
 | T1 | 完成 | 2026-10-31 | 静态检查：`@UiTemplate`、成员表编译、原生元素声明数据、错误码、`ixchel-kit` 的 lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
 | T2 | 完成 | 2026-10-31 | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
 
-依赖：D0 → L1 → D → L2 → E1 → E2 → E3；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
+依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
 #### D0 改名与清理
 
@@ -108,21 +107,20 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - 生效时进入 `TopLayer`（#014 "第二个场景需要时再加"的落地），按内容定尺寸，贴光标，碰屏幕边缘翻转，不参与命中测试；HUD 无指针不显示。
   - 内容在使用方环境编译，绑定、控制块、组件照常可用，组件体内可把 `<slot>` 放进 `<ix-tooltip>`；外观全由 CSS，主题加 `--ix-tooltip-*`。
   - `<mc-item>` 不带 `<ix-tooltip>` 时仍走原版 `renderTooltip(stack)`，其它 mod 的 tooltip 增强照常生效；带时用作者内容。`title` 保留为原版样式的纯文本。
-- 已定（2026-10-31）：作者在自定义 tooltip 里沿用原版物品行（`Screen.getTooltipFromItem`，含其它 mod 经 `ItemTooltipEvent` 加的行），用 mc 层原生元素 `<mc-tooltip-lines bind:item="…">`，按 E1 的富文本绘制；放在 `<ix-tooltip>` 内时只在显示时参与布局、取行。物品显式传入而非取祖先 `<mc-item>`：E3 的 S9 文档没有 `<mc-item>`，tooltip 外（物品详情）也要能用，且与 `<mc-item bind:item>` 一致。命名：不叫 `mc-tooltip`——与 `<ix-tooltip>` 同后缀会被读成另一种 tooltip 容器，且暗示原版外框；`-lines` 对应 `ItemStack.getTooltipLines`，也表明只有文字行（收纳袋预览、Forge `GatherComponents` 的图像组件不在其中）。未选 ViewModel 字段（S3 的 1300 格网格要为每格预先算好）与 `$` 框架值（要在 `<ix-tooltip>` 内引入新的作用域名字）。
-- 引擎：`TopLayer` 接纳 `<ix-tooltip>` 与按内容定尺寸、定位；两版 mc 层 `Tooltips` 的选取规则。
-- sample：S1 属性说明、S6 配置注释、S7 节点 tooltip 由 `title` 改为 `<ix-tooltip>`，接受的外观变化记入结果。
-- 验收：检查覆盖滚动容器内元素的 tooltip 不被裁剪、贴边翻转、`<mc-item>` 的两种模式；`-Pcheck=all`。
-
-#### E3 S9 增强 tooltip
-
-- 已定（2026-10-31）：事件监听（`RenderTooltipEvent.Pre`）在加载器层，文档在 mc 层运行，复用 E2 的定尺寸与定位；接管原版由宿主 API 开关开启（#009）。
-- 先定：
-  - 1.21.1 是否提供：#005 的对齐范围只到 HUD + 一个 Screen。倾向只做 Forge 1.20.1，1.21.1 记为缺项。
-  - 嵌套绘制：Ixchel 界面内的 `<mc-item>` 默认走原版调用，宿主开启接管后经事件画 S9 文档，`McPainter` 的合批与分层深度须可重入。
-  - 宿主 API 形态：文档复用，换物品只换 ViewModel 数据。
-  - 按住 Shift 的修饰键来源。倾向 `ClientSources.polled`。
-- sample：S9。
-- 验收：场景文档 §2 S9 的交互逐项写成检查；鼠标扫过 S3 网格时的 `FrameTimer` 预算。
+- 已定（2026-10-31）：作者在自定义 tooltip 里沿用原版物品行（`Screen.getTooltipFromItem`，含其它 mod 经 `ItemTooltipEvent` 加的行），用 mc 层原生元素 `<mc-tooltip-lines bind:item="…">`，按 E1 的富文本绘制；放在 `<ix-tooltip>` 内时只在显示时参与布局、取行。物品显式传入而非取祖先 `<mc-item>`：tooltip 外（物品详情）也要能用，且与 `<mc-item bind:item>` 一致。命名：不叫 `mc-tooltip`——与 `<ix-tooltip>` 同后缀会被读成另一种 tooltip 容器，且暗示原版外框；`-lines` 对应 `ItemStack.getTooltipLines`，也表明只有文字行（收纳袋预览、Forge `GatherComponents` 的图像组件不在其中）。未选 ViewModel 字段（S3 的 1300 格网格要为每格预先算好）与 `$` 框架值（要在 `<ix-tooltip>` 内引入新的作用域名字）。
+- 已定（2026-11-01）：不做全局替换原版物品 tooltip 的宿主（原 E3，在 `RenderTooltipEvent.Pre` 中接管）。tooltip 只针对 Ixchel 文档内的元素，原版物品 tooltip 经 `<mc-item>` 默认模式与 `<mc-tooltip-lines>` 兼容。
+- 前置整理（E2 分支的第一个提交，行为不变）："内容归顶层、不进父元素排版"现以 `tag.equals("dialog")` 散在 `LayoutEngine`（3 处）、`Painter`、`EventDispatcher`（命中测试、Tab 焦点）共 6 处跳过点；收为 dom 中一处判断，`<ix-tooltip>` 接入时只加种类。dialog 居中与遮罩、select 选项列表等按种类的行为仍按种类分派；select 本身在正常排版中，不归入此类。
+- 引擎：`TopLayer` 接纳 `<ix-tooltip>` 与按内容定尺寸、定位；两版 mc 层 `Tooltips` 的选取规则。容器界面中文档画在 `renderBg` 内、原版槽位物品与手持物品之前，tooltip 须在原版绘制之后单独绘制（现 `doc.drawTooltip` 处），否则被槽位物品盖住。
+- sample：S1 属性说明、S6 配置注释、S7 节点 tooltip 由 `title` 改为 `<ix-tooltip>`，接受的外观变化记入结果；新建 S9 元素 tooltip 示例页。
+- 验收：场景文档 §2 S9 的交互逐项写成检查，其中含滚动容器内元素的 tooltip 不被裁剪、贴边翻转、`<mc-item>` 的三种模式；`-Pcheck=all`。
+- 结果（2026-11-01）：按已定完成，sample 结果见场景文档"阶段 E2 结果"。`TopLayer` 另存当前 tooltip（至多一个，不进 dialog/select 的打开序列）；显示、移动、隐藏都不重排文档，只对 tooltip 子树单独求尺寸，指针移动只重新定位；tooltip 有自己的显示列表（`UiDocument.tooltipDisplayList`），mc 层在原版绘制之后、`painter.topZ()` 之上单独画，没有 `<ix-tooltip>` 的目标（`title`、默认模式 `<mc-item>`）仍走原版绘制。偏差与补充：
+  - 位置：指针右 8、上 16，右侧放不下翻到指针左侧，底部放不下上移，取整到像素。
+  - 不设默认 `max-width`（与原版 tooltip 一致），由作者 CSS 给。tooltip 的层节点是 `align-items: flex-start` 的 column：用 row 时被 `max-width` 压窄的内容高度仍按不换行计算（Taffy），文字溢出外框。压窄后宽度取换行后最长行，不是 CSS 的 `max-width` 值。
+  - 模板规则：顶层或嵌在另一个 `<ix-tooltip>` 内报 `misplaced-element`；`<input>`、`<img>` 只能含 `<ix-tooltip>`；`<select>` 可直接含一个；带载荷的原生元素子元素不限（S3 的数量角标写在 `<mc-item>` 里）。
+  - 原生元素声明新增 `content=lines`（`TagRegistry.hasLineContent`）：不是替换元素，按 flex column 排版，子元素由宿主填为每行一个文本节点，模板中不得写子元素；`<mc-tooltip-lines>` 是唯一用户。
+  - 取行：只在显示列表版本变化的帧后全树查找 `<mc-tooltip-lines>`，之后每帧只更新已知且可见的元素（不在任何 tooltip 内，或在正显示的 tooltip 内），逐行比较、有变化才写；隐藏 tooltip 内的元素不调用 `getTooltipFromItem`。
+  - 悬停目标沿最深者优先，故 S7 的 tooltip 写在节点的图标 `<mc-item>` 内（否则图标作为更深的元素先命中，显示原版物品 tooltip）；节点图标外 5px 的边框区不再显示 tooltip。
+  - `-Pcheck=all` 184 项通过；1.21.1 只经 `build` 编译，未进游戏。
 
 #### I i18n
 

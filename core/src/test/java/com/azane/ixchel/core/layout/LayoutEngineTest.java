@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LayoutEngineTest {
     private static final TextMeasurer MONO = new TextMeasurer() {
@@ -99,5 +100,66 @@ class LayoutEngineTest {
         assertEquals(2, layout.computeCount);
         assertEquals(18, mark.box().x());
         assertEquals("x10", layout.fragments(text).get(0).text());
+    }
+
+    @Test
+    void theTooltipIsPlacedAtThePointerFlipsAtTheEdgesAndNeverReflowsTheDocument() {
+        Diagnostics diag = new Diagnostics();
+        Element root = new Element("#root", new SourcePos("t.html", 1, 1));
+        for (Node n : TemplateParser.parse("<div class=\"a\">x<ix-tooltip class=\"tip\">t</ix-tooltip></div>",
+                "t.html", TagRegistry.HTML, diag).roots()) {
+            root.appendChild(n);
+        }
+        StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(
+                ".a { width: 10px } .tip { width: 30px; height: 30px }", "t.css", diag), CssProperties.REGISTRY, diag);
+        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, TagRegistry.HTML, diag);
+        TopLayer top = new TopLayer();
+        Element a = (Element) root.children().get(0);
+        Element tip = (Element) a.children().get(1);
+        style.restyle(root);
+        layout.layout(root, 100, 100, top);
+        assertEquals(1, layout.computeCount);
+        assertEquals(10, a.box().width(), "the tooltip takes no room in its parent");
+
+        top.showTooltip(tip, 50, 50);
+        style.restyle(root);
+        layout.layout(root, 100, 100, top);
+        assertEquals(58, tip.box().x(), "right of the pointer");
+        assertEquals(34, tip.box().y(), "and above it");
+
+        top.showTooltip(tip, 80, 90);
+        layout.placeTooltip(top);
+        assertEquals(42, tip.box().x(), "flipped left of the pointer at the right edge");
+        assertEquals(70, tip.box().y(), "moved up to stay above the bottom edge");
+
+        top.showTooltip(null, 0, 0);
+        style.restyle(root);
+        layout.layout(root, 100, 100, top);
+        assertEquals(1, layout.computeCount, "showing, moving and hiding the tooltip never laid the document out again");
+    }
+
+    @Test
+    void aTooltipNarrowedByMaxWidthIsAsTallAsItsWrappedText() {
+        Diagnostics diag = new Diagnostics();
+        Element root = new Element("#root", new SourcePos("t.html", 1, 1));
+        for (Node n : TemplateParser.parse("<div>x<ix-tooltip class=\"tip\"><div class=\"text\">aaaa bbbb cccc</div></ix-tooltip></div>",
+                "t.html", TagRegistry.HTML, diag).roots()) {
+            root.appendChild(n);
+        }
+        StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(
+                ".tip { flex-direction: column; max-width: 30px } .text { display: block }", "t.css", diag),
+                CssProperties.REGISTRY, diag);
+        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, TagRegistry.HTML, diag);
+        TopLayer top = new TopLayer();
+        Element tip = (Element) ((Element) root.children().get(0)).children().get(1);
+        Element text = (Element) tip.children().get(0);
+        top.showTooltip(tip, 10, 50);
+        style.restyle(root);
+        layout.layout(root, 100, 100, top);
+        assertTrue(tip.box().width() <= 30, "narrowed to its max-width");
+        assertEquals(text.box().height(), tip.box().height(), "the tooltip holds all three wrapped lines");
+        assertEquals(27, text.box().height(), "three 9px lines");
     }
 }

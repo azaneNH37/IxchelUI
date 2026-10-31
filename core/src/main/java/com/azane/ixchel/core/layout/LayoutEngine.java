@@ -81,12 +81,23 @@ import java.util.Set;
  * {@code <select>} as a column of their max-content width but at least the select's, placed under
  * the select where it shows (its {@link Element#scrollOffset()} taken off), or above it when the
  * viewport has no room below, and moved left to stay inside. A closed dialog is not laid out.
+ *
+ * <p>The shown {@linkplain TopLayer#tooltip() tooltip} is laid out last at its max-content size, at
+ * most the viewport's width, and placed at the pointer as vanilla places its tooltips: its box starts
+ * {@value #TOOLTIP_OFFSET} pixels right of the pointer and {@value #TOOLTIP_RISE} above it, flips to
+ * end {@value #TOOLTIP_OFFSET} pixels left of the pointer when it would leave the viewport's right
+ * edge, and moves up to stay above the bottom edge; never past the left or top edge. Showing, hiding,
+ * moving or changing it never lays out the document again.
  */
 public final class LayoutEngine {
     /** Floats per recorded measurement: known width, known height, available width, then the answer. */
     private static final int QUERY = 5;
     /** Pixels a select reserves after its label for the arrow. */
     public static final float SELECT_ARROW_SPACE = 10;
+    /** Horizontal gap between the pointer and the tooltip's box, either side. */
+    public static final float TOOLTIP_OFFSET = 8;
+    /** How far above the pointer the tooltip's box starts. */
+    public static final float TOOLTIP_RISE = 16;
 
     /**
      * A text node's characters on one line, at document coordinates; {@code y} is the top of a line of
@@ -251,48 +262,93 @@ public final class LayoutEngine {
         for (Element entry : entries) {
             layerIds.add(syncLayer(entry, resized));
         }
+        Element tip = top.tooltip();
+        if (tip != null) {
+            // Its own tree: nothing in it moves the document.
+            boolean documentChanged = changed;
+            syncLayer(tip, resized);
+            changed = documentChanged;
+        }
         for (Iterator<Map.Entry<Element, NodeId>> it = layers.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Element, NodeId> en = it.next();
-            if (!entries.contains(en.getKey())) {
+            if (!entries.contains(en.getKey()) && en.getKey() != tip) {
+                changed |= !en.getKey().tag().equals(TopLayer.TOOLTIP);
                 tree.remove(en.getValue());
                 layerChildren.remove(en.getKey());
                 it.remove();
-                changed = true;
             }
         }
         for (Iterator<Map.Entry<Node, Slot>> it = slots.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Node, Slot> en = it.next();
             if (en.getValue().seen != generation) {
+                changed |= !inTooltip(en.getKey());
                 tree.remove(en.getValue().id);
                 if (en.getKey() instanceof TextNode t) {
                     fragments.remove(t);
                 }
                 it.remove();
-                changed = true;
             }
         }
         if (resized) {
             tree.setStyle(rootId, rootStyle(viewportWidth, viewportHeight));
             changed = true;
         }
-        if (!changed) {
-            return;
+        if (changed) {
+            computeCount++;
+            fragments.clear();
+            tree.computeLayout(rootId, TaffySize.of(AvailableSpace.definite(viewportWidth), AvailableSpace.definite(viewportHeight)));
+            writeBoxes(root, 0, 0);
+            for (int i = 0; i < entries.size(); i++) {
+                placeLayer(entries.get(i), layerIds.get(i));
+            }
         }
-        computeCount++;
-        fragments.clear();
-        tree.computeLayout(rootId, TaffySize.of(AvailableSpace.definite(viewportWidth), AvailableSpace.definite(viewportHeight)));
-        writeBoxes(root, 0, 0);
-        for (int i = 0; i < entries.size(); i++) {
-            placeLayer(entries.get(i), layerIds.get(i));
+        if (tip != null) {
+            placeTooltip(top);
         }
     }
 
-    /** Syncs an entry's content under its own node; a dialog's node is the viewport box it is centered in. */
+    /** Whether {@code n} is a tooltip or inside one: content of a tooltip's own tree, not the document's. */
+    private static boolean inTooltip(Node n) {
+        for (Node a = n; a != null; a = a.parent()) {
+            if (a instanceof Element e && e.tag().equals(TopLayer.TOOLTIP)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Places the shown tooltip at {@code top}'s pointer, after a {@link #layout} that laid it out; the
+     * document is not touched. A host calls it alone when only the pointer moved.
+     */
+    public void placeTooltip(TopLayer top) {
+        Element tip = top.tooltip();
+        NodeId id = layers.get(tip);
+        tree.computeLayout(id, TaffySize.of(AvailableSpace.definite(viewportWidth), AvailableSpace.maxContent()));
+        Layout l = tree.getLayout(slots.get(tip).id);
+        float w = l.size().width;
+        float h = l.size().height;
+        float px = top.tooltipX();
+        float py = top.tooltipY();
+        float x = px + TOOLTIP_OFFSET;
+        if (x + w > viewportWidth) {
+            x = px - TOOLTIP_OFFSET - w;
+        }
+        float y = Math.min(py - TOOLTIP_RISE, viewportHeight - h);
+        x = Math.round(Math.max(0, x));
+        y = Math.round(Math.max(0, y));
+        writeBoxes(tip, x - l.location().x, y - l.location().y);
+    }
+
+    /**
+     * Syncs an entry's content under its own node; a dialog's node is the viewport box it is centered
+     * in, a tooltip's a column its content shrinks to fit in, wrapping at the content's max-width.
+     */
     private NodeId syncLayer(Element entry, boolean resized) {
         boolean dialog = entry.tag().equals("dialog");
         NodeId id = layers.get(entry);
         if (id == null) {
-            id = tree.newLeaf(new TaffyStyle());
+            id = tree.newLeaf(entry.tag().equals(TopLayer.TOOLTIP) ? tooltipLayerStyle() : new TaffyStyle());
             layers.put(entry, id);
             changed = true;
             resized = true;
@@ -304,12 +360,12 @@ public final class LayoutEngine {
             tree.setStyle(id, s);
         }
         List<NodeId> ids = new ArrayList<>();
-        if (dialog) {
+        if (entry.rendersInTopLayer()) {
             ids.add(sync(entry, false));
         } else {
             List<Node> children = entry.children();
             for (int i = 0; i < children.size(); i++) {
-                if (children.get(i) instanceof Element o) {
+                if (children.get(i) instanceof Element o && o.tag().equals("option")) {
                     ids.add(sync(o, false));
                 }
             }
@@ -344,10 +400,18 @@ public final class LayoutEngine {
         float x = Math.max(0, Math.min(b.x(), viewportWidth - l.size().width));
         List<Node> children = entry.children();
         for (int i = 0; i < children.size(); i++) {
-            if (children.get(i) instanceof Element o) {
+            if (children.get(i) instanceof Element o && o.tag().equals("option")) {
                 writeBoxes(o, x, y);
             }
         }
+    }
+
+    private static TaffyStyle tooltipLayerStyle() {
+        TaffyStyle s = new TaffyStyle();
+        s.display = TaffyDisplay.FLEX;
+        s.flexDirection = FlexDirection.COLUMN;
+        s.alignItems = AlignItems.FLEX_START;
+        return s;
     }
 
     /** Fonts or glyph widths changed: drop cached measurements and lay every paragraph out again. */
@@ -442,7 +506,7 @@ public final class LayoutEngine {
         List<Node> children = e.children();
         List<NodeId> ids = new ArrayList<>(children.size());
         for (Node c : children) {
-            if (c instanceof Element d && d.tag().equals("dialog")) {
+            if (c instanceof Element d && d.rendersInTopLayer()) {
                 // Laid out in the top layer while open, not at all while closed.
                 clearTreeChanges(d);
                 continue;
@@ -461,9 +525,9 @@ public final class LayoutEngine {
         return slot.id;
     }
 
-    /** {@code <img>} and native elements: their content is their own, not a paragraph. */
+    /** {@code <img>} and native elements the host draws: their content is their own, not a paragraph. */
     private boolean isReplaced(Element e) {
-        return e.tag().equals("img") || tags.payloadAttribute(e.tag()) != null;
+        return e.tag().equals("img") || tags.isReplaced(e.tag());
     }
 
     /** An element whose content is a paragraph, where flex layout or an inline formatting context lays out the element itself. */
@@ -514,7 +578,7 @@ public final class LayoutEngine {
             Element e = (Element) c;
             ComputedStyle cs = e.computed();
             Keywords.Display d = cs.get(CssProperties.DISPLAY);
-            if (e.tag().equals("dialog") || d == Keywords.Display.NONE) {
+            if (e.rendersInTopLayer() || d == Keywords.Display.NONE) {
                 clearTreeChanges(e);
                 continue;
             }
@@ -765,7 +829,7 @@ public final class LayoutEngine {
             List<Node> children = e.children();
             for (int i = 0; i < children.size(); i++) {
                 Node c = children.get(i);
-                if (c instanceof Element skipped && (skipped.tag().equals("dialog") || e.tag().equals("select"))) {
+                if (c instanceof Element skipped && (skipped.rendersInTopLayer() || e.tag().equals("select"))) {
                     continue; // top-layer content: placed by placeLayer, and no part of this scroll range
                 }
                 Slot cs = slots.get(c);

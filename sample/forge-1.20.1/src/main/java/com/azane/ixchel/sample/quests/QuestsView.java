@@ -43,8 +43,8 @@ final class QuestsView extends ViewModel {
     record ChapterRow(String id, String title, ItemStack icon) {
     }
 
-    /** {@code state}: {@code locked}, {@code open}, {@code ready} or {@code done}. */
-    record Node(String id, int x, int y, ItemStack icon, String state, String tooltip) {
+    /** {@code state}: {@code locked}, {@code open}, {@code ready} or {@code done}; {@code label} says it in words. */
+    record Node(String id, int x, int y, ItemStack icon, String state, String title, String task, String label) {
     }
 
     /** A line from a prerequisite's center: {@code angle} in degrees, clockwise from the x axis. */
@@ -144,8 +144,7 @@ final class QuestsView extends ViewModel {
         List<Node> out = new ArrayList<>();
         for (Quests.Quest q : chapterOf(chapter).quests()) {
             String state = state(q, claimed, held);
-            out.add(new Node(q.id(), q.x(), q.y(), icons.get(q.id()), state, q.title() + "\n" + task(q, held)
-                    + "\n" + label(state)));
+            out.add(new Node(q.id(), q.x(), q.y(), icons.get(q.id()), state, q.title(), task(q, held), label(state)));
         }
         return out;
     }

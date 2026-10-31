@@ -23,8 +23,15 @@
             <for each="nodes" as="n" key="n.id"><div class="node" bind:class:locked="n.state == 'locked'"
                  bind:class:ready="n.state == 'ready'" bind:class:done="n.state == 'done'"
                  bind:class:selected="n.id == selected" bind:style:left="n.x" bind:style:top="n.y"
-                 bind:title="n.tooltip" on:click="open(n)">
-              <mc-item class="icon" bind:item="n.icon"></mc-item>
+                 on:click="open(n)">
+              <mc-item class="icon" bind:item="n.icon"><ix-tooltip class="quest-tip">
+                <span class="tip-title" bind:text="n.title"></span>
+                <div class="tip-task">
+                  <mc-item class="tip-icon" bind:item="n.icon"></mc-item>
+                  <span bind:text="n.task"></span>
+                </div>
+                <span class="tip-state" bind:class:ready="n.state == 'ready'" bind:text="n.label"></span>
+              </ix-tooltip></mc-item>
             </div></for>
           </div>
         </div>

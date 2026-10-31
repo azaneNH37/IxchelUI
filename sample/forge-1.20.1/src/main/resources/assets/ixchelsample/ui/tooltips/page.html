@@ -1,0 +1,100 @@
+<link rel="stylesheet" href="@ixchel/dark.css"/>
+<link rel="stylesheet" href="page.css"/>
+<link rel="component" href="help.html"/>
+<div class="screen">
+  <div class="panel">
+    <div class="header">
+      <span class="title">Element tooltips</span>
+      <span class="hint">Hover anything; the tooltip follows the pointer</span>
+    </div>
+    <div class="body">
+      <div class="column">
+        <span class="section">Buttons</span>
+        <div class="row">
+          <button class="save">Save<ix-tooltip class="tip">
+            <div class="text">Writes the draft to disk <span class="key">Ctrl</span> <span class="key">S</span></div>
+          </ix-tooltip></button>
+          <button class="cast" bind:disabled="cooldown > 0">Cast<ix-tooltip class="tip">
+            <span class="tip-head">Fireball</span>
+            <span class="countdown" bind:class:ready="cooldown == 0"
+                  bind:text="cooldown > 0 ? 'Ready in ' + cooldown + ' s' : 'Ready'"></span>
+          </ix-tooltip></button>
+        </div>
+
+        <span class="section">Form controls</span>
+        <div class="row">
+          <input class="name" placeholder="Name" bind:value="name"><ix-tooltip class="tip">
+            <span>Shown above your head, at most 16 letters</span>
+          </ix-tooltip></input>
+          <select class="mode" bind:value="mode"><ix-tooltip class="tip">
+            <span>How the light level is shown</span>
+          </ix-tooltip>
+            <option value="smooth">Smooth</option>
+            <option value="steps">Steps</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+
+        <span class="section">Terms in text</span>
+        <div class="text">A <span class="term">redstone tick<ix-tooltip class="tip">
+          <span>0.1 s: two game ticks</span>
+        </ix-tooltip></span> is the unit of every delay; a <a class="link">repeater<ix-tooltip class="tip">
+          <span>Delays a signal by 1 to 4 redstone ticks</span>
+        </ix-tooltip></a> counts in them.</div>
+
+        <span class="section">Items: vanilla, custom, custom with the item's lines</span>
+        <div class="row">
+          <mc-item class="item vanilla" bind:item="sword"></mc-item>
+          <mc-item class="item custom" bind:item="apple"><ix-tooltip class="tip">
+            <span class="tip-head">A snack for the road</span>
+            <span>Eat it when the hearts run low</span>
+          </ix-tooltip></mc-item>
+          <mc-item class="item lines" bind:item="sword"><ix-tooltip class="tip">
+            <mc-tooltip-lines bind:item="sword"></mc-tooltip-lines>
+            <span class="tip-extra">Forged for the tooltip sample</span>
+          </ix-tooltip></mc-item>
+        </div>
+
+        <span class="section">Nested: the deepest wins; title for comparison</span>
+        <div class="row">
+          <div class="outer custom">Outer<ix-tooltip class="tip"><span>The outer box</span></ix-tooltip>
+            <div class="inner">Inner<ix-tooltip class="tip"><span>The inner box, over the outer one</span></ix-tooltip></div>
+          </div>
+          <div class="outer titled" title="The outer box (title)">Outer
+            <div class="inner" title="The inner box (title)">Inner</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="column wide">
+        <span class="section">A scrolled list at the screen edge</span>
+        <div class="list">
+          <for each="entries" as="e" key="e"><div class="entry">
+            <span bind:text="'Entry ' + e"></span>
+            <ix-tooltip class="tip">
+              <span class="tip-head" bind:text="'Entry ' + e + ' of ' + entries.size"></span>
+              <span>Not clipped by the list; flips at the screen edge</span>
+            </ix-tooltip>
+          </div></for>
+        </div>
+
+        <span class="section">From a component</span>
+        <div class="row">
+          <help-badge>
+            <span class="tip-head">Help from a component</span>
+            <span>The badge puts what it is given into its tooltip</span>
+          </help-badge>
+          <button class="open" on:click="dialogOpen = true">Open a dialog</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <dialog class="dialog" bind:open="dialogOpen">
+    <span>Tooltips draw above the dialog</span>
+    <div class="row">
+      <button class="close" on:click="dialogOpen = false">Close<ix-tooltip class="tip">
+        <span>Back to the page</span>
+      </ix-tooltip></button>
+    </div>
+  </dialog>
+</div>

@@ -73,6 +73,25 @@
   background-color: var(--ix-hover);
 }
 
+/* A setting's tooltip: its name and path, the spec comment, and whether it waits for a rejoin. */
+.entry-tip {
+  flex-direction: column;
+  max-width: 200px;
+  gap: 2px;
+}
+
+.tip-name {
+  color: #FFFF55;
+}
+
+.tip-path {
+  color: var(--ix-text-dim);
+}
+
+.tip-restart {
+  color: var(--ix-warning);
+}
+
 .line {
   flex-direction: row;
   align-items: center;

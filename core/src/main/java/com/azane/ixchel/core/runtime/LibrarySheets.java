@@ -26,8 +26,8 @@ import java.util.stream.Collectors;
  * survive relocation) and compiled once; a problem in one is a bug in the library. They do not
  * follow resource reloads.
  *
- * <p>The user-agent sheet holds the defaults of the inline elements, the form controls and
- * {@code <dialog>}; {@link #nativeElements} adds {@code display: inline} for a registry's native elements.
+ * <p>The user-agent sheet holds the defaults of the inline elements, the form controls,
+ * {@code <dialog>} and {@code <ix-tooltip>}; {@link #nativeElements} adds the display of a registry's native elements.
  * A theme is
  * {@code themes/theme.css}, the rules every theme shares, written against custom properties, then
  * the theme's own sheet, which sets those properties on {@code :root}.
@@ -92,16 +92,21 @@ public final class LibrarySheets {
         return COMPILED.computeIfAbsent(file, LibrarySheets::compile);
     }
 
-    /** {@code display: inline} for the native elements of {@code tags}, which are replaced inline elements like {@code <img>}. */
+    /**
+     * {@code display: inline} for the native elements of {@code tags} the host draws, which are replaced
+     * inline elements like {@code <img>}; a column for those with line content, one line per row.
+     */
     static List<StyleSheet> nativeElements(TagRegistry tags) {
-        String selectors = tags.tags().stream().filter(t -> tags.payloadAttribute(t) != null).sorted()
-                .collect(Collectors.joining(", "));
-        if (selectors.isEmpty()) {
+        String replaced = tags.tags().stream().filter(tags::isReplaced).sorted().collect(Collectors.joining(", "));
+        String lines = tags.tags().stream().filter(tags::hasLineContent).sorted().collect(Collectors.joining(", "));
+        String css = (replaced.isEmpty() ? "" : replaced + " { display: inline }\n")
+                + (lines.isEmpty() ? "" : lines + " { display: flex; flex-direction: column }\n");
+        if (css.isEmpty()) {
             return List.of();
         }
-        return List.of(COMPILED.computeIfAbsent(selectors + " { display: inline }", css -> {
+        return List.of(COMPILED.computeIfAbsent(css, c -> {
             Diagnostics diag = new Diagnostics();
-            StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(css, "native elements", diag), CssProperties.REGISTRY, diag);
+            StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(c, "native elements", diag), CssProperties.REGISTRY, diag);
             if (diag.hasErrors()) {
                 throw new IllegalStateException("invalid native element sheet: " + diag.entries());
             }

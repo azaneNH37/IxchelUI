@@ -151,7 +151,7 @@ public final class EventDispatcher {
             }
             List<Node> options = entry.children();
             for (int j = options.size() - 1; j >= 0; j--) {
-                if (options.get(j) instanceof Element o) {
+                if (options.get(j) instanceof Element o && o.tag().equals("option")) {
                     Element hit = hit(o, x, y);
                     if (hit != null) {
                         return hit;
@@ -643,7 +643,7 @@ public final class EventDispatcher {
         float childY = y + e.scrollTop();
         List<Node> children = e.children();
         for (int i = children.size() - 1; i >= 0; i--) {
-            if (children.get(i) instanceof Element c && !c.tag().equals("dialog")) {
+            if (children.get(i) instanceof Element c && !c.rendersInTopLayer()) {
                 Element h = hit(c, x, childY);
                 if (h != null) {
                     return h;
@@ -744,7 +744,7 @@ public final class EventDispatcher {
             return;
         }
         for (Node n : e.children()) {
-            if (n instanceof Element c && !(c.tag().equals("dialog"))) {
+            if (n instanceof Element c && !c.rendersInTopLayer()) {
                 collectFocusable(c, out);
             }
         }

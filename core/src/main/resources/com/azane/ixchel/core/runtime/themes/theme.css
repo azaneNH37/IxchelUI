@@ -33,3 +33,9 @@ button:disabled {
     background-color: var(--ix-button-disabled);
     color: var(--ix-button-disabled-text);
 }
+
+ix-tooltip:open {
+    border: var(--ix-tooltip-frame);
+    background-color: var(--ix-tooltip);
+    color: var(--ix-tooltip-text);
+}

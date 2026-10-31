@@ -109,6 +109,35 @@
   transform: scale(1.15);
 }
 
+/* A quest's tooltip: the title, what to bring and how far along it is. */
+.quest-tip {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tip-title {
+  color: #FFFF55;
+}
+
+.tip-task {
+  flex-direction: row;
+  align-items: center;
+  gap: 3px;
+}
+
+.tip-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.tip-state {
+  color: var(--ix-text-muted);
+}
+
+.tip-state.ready {
+  color: #55FF55;
+}
+
 /* Over the canvas, outside its transform. */
 .detail {
   position: absolute;

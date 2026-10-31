@@ -17,7 +17,9 @@ import java.util.Set;
  *
  * <p>A native element is drawn by the adapter layer, not the core: it paints as a
  * {@link com.azane.ixchel.core.paint.DrawCommand.Custom} carrying its payload, an adapter object that
- * only a binding can set ({@code <mc-item bind:item="gun"></mc-item>}).
+ * only a binding can set ({@code <mc-item bind:item="gun"></mc-item>}). A native element with
+ * {@linkplain #hasLineContent line content} is not drawn by the host: the host fills it with one
+ * child element per line, laid out and painted as ordinary content.
  */
 public final class TagRegistry {
     /**
@@ -36,9 +38,10 @@ public final class TagRegistry {
      * placeholder maxlength min max step} (type {@code text}, {@code number}, {@code checkbox} or
      * {@code range}; its value is {@code bind:value}, a checkbox's state {@code bind:checked}),
      * {@code select} of {@code option value} (its value is {@code bind:value}), {@code button},
-     * {@code dialog} (open while {@code bind:open}), {@code style}, {@code link rel href}.
+     * {@code dialog} (open while {@code bind:open}), {@code style}, {@code link rel href}, and the
+     * library's {@code ix-tooltip} (its parent's tooltip, shown by the host).
      */
-    public static final TagRegistry HTML = new Builder(Map.of(), Map.of(), Map.of())
+    public static final TagRegistry HTML = new Builder(Map.of(), Map.of(), Map.of(), Set.of())
             .tag("div")
             .tag("span")
             .tag("a")
@@ -48,6 +51,7 @@ public final class TagRegistry {
             .tag("option", "value")
             .tag("button")
             .tag("dialog")
+            .tag("ix-tooltip")
             .tag("style")
             .tag("link")
             .build();
@@ -55,17 +59,19 @@ public final class TagRegistry {
     private final Map<String, Set<String>> attributes;
     private final Map<String, String> payloads;
     private final Map<String, List<String>> payloadTypes;
+    private final Set<String> lineContent;
 
     private TagRegistry(Map<String, Set<String>> attributes, Map<String, String> payloads,
-                        Map<String, List<String>> payloadTypes) {
+                        Map<String, List<String>> payloadTypes, Set<String> lineContent) {
         this.attributes = attributes;
         this.payloads = payloads;
         this.payloadTypes = payloadTypes;
+        this.lineContent = lineContent;
     }
 
     /** A builder starting from this registry's tags and attributes. */
     public Builder extend() {
-        return new Builder(attributes, payloads, payloadTypes);
+        return new Builder(attributes, payloads, payloadTypes, lineContent);
     }
 
     public boolean isKnownTag(String tag) {
@@ -93,6 +99,19 @@ public final class TagRegistry {
         return payloadTypes.getOrDefault(tag, List.of());
     }
 
+    /**
+     * Whether the native element {@code tag} is filled by the host with one child element per line
+     * (declared {@code content=lines}) instead of being drawn by it.
+     */
+    public boolean hasLineContent(String tag) {
+        return lineContent.contains(tag);
+    }
+
+    /** Whether {@code tag} is a native element the host draws: its box is its own, its children are not laid out. */
+    public boolean isReplaced(String tag) {
+        return payloads.containsKey(tag) && !lineContent.contains(tag);
+    }
+
     /** The registered tags. */
     public Set<String> tags() {
         return attributes.keySet();
@@ -108,12 +127,14 @@ public final class TagRegistry {
         private final Map<String, Set<String>> attributes = new LinkedHashMap<>();
         private final Map<String, String> payloads = new LinkedHashMap<>();
         private final Map<String, List<String>> payloadTypes = new LinkedHashMap<>();
+        private final Set<String> lineContent = new LinkedHashSet<>();
 
         private Builder(Map<String, Set<String>> from, Map<String, String> fromPayloads,
-                        Map<String, List<String>> fromPayloadTypes) {
+                        Map<String, List<String>> fromPayloadTypes, Set<String> fromLineContent) {
             from.forEach((tag, attrs) -> attributes.put(tag, new LinkedHashSet<>(attrs)));
             payloads.putAll(fromPayloads);
             payloadTypes.putAll(fromPayloadTypes);
+            lineContent.addAll(fromLineContent);
         }
 
         /**
@@ -171,7 +192,8 @@ public final class TagRegistry {
          *
          * <pre>{@code
          * # payload: the attribute bind:<payload> sets; accepts: the payload's types (binary names,
-         * # one type argument allowed); attrs: extra plain attributes
+         * # one type argument allowed); attrs: extra plain attributes; content=lines: the host fills
+         * # the native element with one child element per line instead of drawing it
          * mc-item payload=item accepts=net.minecraft.world.item.ItemStack,java.util.function.Supplier<net.minecraft.world.item.ItemStack>
          * mc-slot attrs=index
          * }</pre>
@@ -192,6 +214,7 @@ public final class TagRegistry {
                 String payload = null;
                 List<String> accepts = List.of();
                 String[] attrs = new String[0];
+                boolean lineFilled = false;
                 for (int k = 1; k < fields.length; k++) {
                     int eq = fields[k].indexOf('=');
                     String key = eq < 0 ? fields[k] : fields[k].substring(0, eq);
@@ -200,6 +223,12 @@ public final class TagRegistry {
                         case "payload" -> payload = value;
                         case "accepts" -> accepts = List.of(value.split(","));
                         case "attrs" -> attrs = value.split(",");
+                        case "content" -> {
+                            if (!value.equals("lines")) {
+                                throw new IllegalArgumentException(file + ":" + (n + 1) + ": content must be 'lines'");
+                            }
+                            lineFilled = true;
+                        }
                         default -> throw new IllegalArgumentException(
                                 file + ":" + (n + 1) + ": unknown field '" + key + "'");
                     }
@@ -208,8 +237,11 @@ public final class TagRegistry {
                     if (payload != null) {
                         nativeTag(fields[0], payload, attrs);
                         payloadTypes.put(fields[0], accepts);
-                    } else if (!accepts.isEmpty()) {
-                        throw new IllegalArgumentException("'accepts' needs a payload");
+                        if (lineFilled) {
+                            lineContent.add(fields[0]);
+                        }
+                    } else if (!accepts.isEmpty() || lineFilled) {
+                        throw new IllegalArgumentException("'" + (lineFilled ? "content" : "accepts") + "' needs a payload");
                     } else {
                         tag(fields[0], attrs);
                     }
@@ -223,7 +255,7 @@ public final class TagRegistry {
         public TagRegistry build() {
             Map<String, Set<String>> copy = new LinkedHashMap<>();
             attributes.forEach((tag, attrs) -> copy.put(tag, Set.copyOf(attrs)));
-            return new TagRegistry(Map.copyOf(copy), Map.copyOf(payloads), Map.copyOf(payloadTypes));
+            return new TagRegistry(Map.copyOf(copy), Map.copyOf(payloads), Map.copyOf(payloadTypes), Set.copyOf(lineContent));
         }
 
         /** Same grammar as the template parser: ASCII letter first, then letters, digits or '-'. */

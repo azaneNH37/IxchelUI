@@ -31,7 +31,11 @@
     </div>
   </div>
   <div class="page list" bind:class:shown="tab == 'attributes'">
-    <for each="attributes" as="a" key="a.name"><div class="row attribute" bind:title="a.description">
+    <for each="attributes" as="a" key="a.name"><div class="row attribute">
+      <ix-tooltip class="attribute-tip">
+        <span class="tip-name" bind:text="a.name"></span>
+        <span bind:text="a.description"></span>
+      </ix-tooltip>
       <span class="name" bind:text="a.name"></span>
       <span class="value" bind:text="a.value"></span>
     </div></for>

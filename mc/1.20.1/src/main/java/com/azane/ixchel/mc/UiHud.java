@@ -113,7 +113,7 @@ public final class UiHud {
             return;
         }
         FrameTimer.start(this);
-        doc.frame(g.guiWidth(), g.guiHeight());
+        doc.frame(g.guiWidth(), g.guiHeight(), Float.NaN, Float.NaN);
         doc.paint(g, Float.NaN, Float.NaN);
         doc.drawOverlay(g);
         FrameTimer.stop(this);

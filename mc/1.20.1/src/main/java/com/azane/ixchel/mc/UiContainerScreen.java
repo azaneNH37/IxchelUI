@@ -122,13 +122,13 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         super.init();
         doc.watch();
         // Lay out now: other mods read the GUI area right after init.
-        layout();
+        layout(Float.NaN, Float.NaN);
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         FrameTimer.start(this);
-        layout();
+        layout(mouseX, mouseY);
         if (clippedItems != null) {
             clippedItems.hideVanillaLoop(this);
         }
@@ -165,8 +165,9 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         }
     }
 
-    private void layout() {
-        DisplayList list = doc.frame(width, height);
+    /** Frames the document for the pointer, NaN for none, and moves the GUI area to where it laid the slots out. */
+    private void layout(float pointerX, float pointerY) {
+        DisplayList list = doc.frame(width, height, pointerX, pointerY);
         UiDocument d = doc.document();
         if (list != null && d != null && layout.update(d, list, width, height)) {
             leftPos = layout.left();

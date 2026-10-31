@@ -91,7 +91,7 @@ final class McResources {
     }
 
     /** A {@link Component} keeps its colors and formatting in {@code bind:text}; elsewhere it is its plain string. */
-    private static final Bindings.TextConverter TEXT = new Bindings.TextConverter() {
+    static final Bindings.TextConverter TEXT = new Bindings.TextConverter() {
         @Override
         public String plain(Object value) {
             return value instanceof Component c ? c.getString() : Bindings.PLAIN_TEXT.plain(value);

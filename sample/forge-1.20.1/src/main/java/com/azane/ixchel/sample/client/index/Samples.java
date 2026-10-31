@@ -9,6 +9,7 @@ import com.azane.ixchel.sample.machine.MachineScreen;
 import com.azane.ixchel.sample.registry.ModItems;
 import com.azane.ixchel.sample.quests.QuestsScreen;
 import com.azane.ixchel.sample.storage.TerminalScreen;
+import com.azane.ixchel.sample.tooltips.TooltipsScreen;
 import com.azane.ixchel.sample.waypoints.WaypointsScreen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -58,6 +59,10 @@ public final class Samples {
                 Sample.screen("guide", "Guidebook", "A two-page book: contents built from the entry templates, "
                         + "links with Back, page turns by arrow or key, styled paragraphs with items in the line, "
                         + "Chinese text, and crafting grids that cycle through the accepted ingredients.",
-                        new ItemStack(Items.BOOK), Guide::open));
+                        new ItemStack(Items.BOOK), Guide::open),
+                Sample.screen("tooltips", "Element tooltips", "Rich tooltips on buttons, form controls, terms in "
+                        + "text and items (vanilla, custom, custom with the item's own lines); a scrolled list at the "
+                        + "screen edge, nesting, a component, a countdown and a dialog.", new ItemStack(Items.NAME_TAG),
+                        TooltipsScreen::open));
     }
 }

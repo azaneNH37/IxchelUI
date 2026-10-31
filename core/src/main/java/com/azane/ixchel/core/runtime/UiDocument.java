@@ -46,9 +46,9 @@ import java.util.function.LongSupplier;
  * <p>Below the template's stylesheets sit the theme layer, the library stylesheets the page links
  * as {@code @ixchel/<name>}, the component layer, the stylesheets component files link, and a
  * user-agent stylesheet with the defaults of the inline elements, the native elements, the form
- * controls and {@code <dialog>} (see {@link LibrarySheets}). Open selects and dialogs live in the
- * document's {@link TopLayer}, which
- * layout, paint and input share.
+ * controls, {@code <dialog>} and {@code <ix-tooltip>} (see {@link LibrarySheets}). Open selects and
+ * dialogs, and the shown tooltip, live in the document's {@link TopLayer}, which layout, paint and
+ * input share.
  */
 public final class UiDocument {
     static final long BLINK_MS = 500;
@@ -62,6 +62,8 @@ public final class UiDocument {
     private final Bindings bindings;
     private final TopLayer topLayer;
     private final DisplayList displayList = new DisplayList();
+    private final DisplayList tooltipList = new DisplayList();
+    private boolean tooltipMoved;
     private final EventDispatcher events;
     private final Transitions transitions;
     private LongSupplier clock = System::nanoTime;
@@ -203,9 +205,33 @@ public final class UiDocument {
         return files;
     }
 
-    /** Open selects and dialogs, bottom first. */
+    /** Open selects and dialogs, bottom first, and the shown tooltip. */
     public TopLayer topLayer() {
         return topLayer;
+    }
+
+    /**
+     * Shows {@code tip}, an {@code <ix-tooltip>} of this document, at the pointer {@code (x, y)} from the
+     * next {@link #frame} on, or hides the tooltip when {@code null}. The host picks it before each frame;
+     * moving it only places it again.
+     */
+    public void setTooltip(Element tip, float x, float y) {
+        if (tip != null && !tip.tag().equals(TopLayer.TOOLTIP)) {
+            throw new IllegalArgumentException("not an <ix-tooltip>: <" + tip.tag() + ">");
+        }
+        if (tip == topLayer.tooltip() && (tip == null || x == topLayer.tooltipX() && y == topLayer.tooltipY())) {
+            return;
+        }
+        tooltipMoved |= tip == topLayer.tooltip();
+        topLayer.showTooltip(tip, x, y);
+    }
+
+    /**
+     * The shown tooltip's display list, painted above {@link #frame}'s; brought up to date by
+     * {@link #frame}, same instance every frame, empty while no tooltip is shown.
+     */
+    public DisplayList tooltipDisplayList() {
+        return tooltipList;
     }
 
     /** The implicit root; its children are the template's top-level elements. */
@@ -283,11 +309,24 @@ public final class UiDocument {
         boolean caret = caretVisible(now);
         boolean blinked = caret != painter.caretVisible();
         painter.setCaretVisible(caret);
+        Element tip = topLayer.tooltip();
+        if (tip != null && !isConnected(tip)) {
+            topLayer.showTooltip(null, 0, 0); // a binding removed it this frame
+            dirty = true;
+        }
         if (!dirty) {
-            if (root.needsRepaint() || blinked) {
+            boolean repaint = root.needsRepaint() || blinked;
+            if (tooltipMoved) {
+                layout.placeTooltip(topLayer);
+            }
+            if (repaint) {
                 painter.paint(root, topLayer, displayList);
                 events.afterLayout();
             }
+            if (repaint || tooltipMoved) {
+                painter.paintTooltip(topLayer, tooltipList);
+            }
+            tooltipMoved = false;
             return displayList;
         }
         this.viewportWidth = viewportWidth;
@@ -297,8 +336,18 @@ public final class UiDocument {
         style.restyle(root);
         layout.layout(root, viewportWidth, viewportHeight, topLayer);
         painter.paint(root, topLayer, displayList);
+        painter.paintTooltip(topLayer, tooltipList);
+        tooltipMoved = false;
         events.afterLayout();
         return displayList;
+    }
+
+    private boolean isConnected(Element e) {
+        Node n = e;
+        while (n.parent() != null) {
+            n = n.parent();
+        }
+        return n == root;
     }
 
     /** Whether the focused input's caret is in the visible half of its blink; restarts on any change of the field. */

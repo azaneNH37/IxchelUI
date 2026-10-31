@@ -124,7 +124,7 @@ public class UiScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         FrameTimer.start(this);
         renderBackground(g);
-        doc.frame(width, height);
+        doc.frame(width, height, mouseX, mouseY);
         doc.paint(g, mouseX, mouseY);
         doc.drawOverlay(g);
         doc.drawTooltip(g, mouseX, mouseY);

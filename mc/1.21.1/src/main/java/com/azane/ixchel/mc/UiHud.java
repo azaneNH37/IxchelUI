@@ -112,7 +112,7 @@ public final class UiHud {
         if (!shown || doc == null) {
             return;
         }
-        doc.frame(g.guiWidth(), g.guiHeight());
+        doc.frame(g.guiWidth(), g.guiHeight(), Float.NaN, Float.NaN);
         doc.paint(g, Float.NaN, Float.NaN);
         doc.drawOverlay(g);
     }

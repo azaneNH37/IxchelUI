@@ -66,8 +66,12 @@ public final class QuestsCheck {
             s.scroll(".view", 1);
             s.scroll(".view", 1);
 
-            // The title shows as a vanilla tooltip (screenshot only: nothing to query).
+            // Fails if the quest's <ix-tooltip> does not show for its icon (the screenshot shows it unscaled).
             s.hover(".node");
+            s.waitUntil("the hovered quest shows its tooltip", () -> {
+                Element tip = Script.document().topLayer().tooltip();
+                return tip != null && tip.parent().parent() == node(0);
+            }, Script.WAIT);
             s.shot("quests-tooltip");
             s.click(".node");
             s.waitUntil("a click opens the quest's details", () -> Script.query(".detail").size() == 1

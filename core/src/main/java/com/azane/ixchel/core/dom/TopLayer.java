@@ -10,14 +10,53 @@ import java.util.List;
  * form the list) or an open {@code <dialog>} (modal: everything below it is inert). Entries stay in
  * the tree; opening one sets {@link Element#OPEN} on it, which restyles it and so runs layout, where
  * the entries are placed against the viewport.
+ *
+ * <p>Above every entry, outside {@link #entries()}, the {@linkplain #tooltip() tooltip}: at most one
+ * {@code <ix-tooltip>} the host shows at the pointer. It is never hit, never focused and makes
+ * nothing inert; it is also {@link Element#OPEN} while shown.
  */
 public final class TopLayer {
+    /** The tag of tooltip elements. */
+    public static final String TOOLTIP = "ix-tooltip";
+
     private final List<Element> entries = new ArrayList<>();
     private final List<Element> view = Collections.unmodifiableList(entries);
+    private Element tooltip;
+    private float tooltipX;
+    private float tooltipY;
 
     /** Bottom first; unmodifiable live view. */
     public List<Element> entries() {
         return view;
+    }
+
+    /** The shown {@code <ix-tooltip>}, or {@code null}. */
+    public Element tooltip() {
+        return tooltip;
+    }
+
+    /** The pointer the tooltip is placed at, in GUI pixels. */
+    public float tooltipX() {
+        return tooltipX;
+    }
+
+    public float tooltipY() {
+        return tooltipY;
+    }
+
+    /** Shows {@code tip}, an {@code <ix-tooltip>}, at the pointer {@code (x, y)} instead of the current one; {@code null} hides it. */
+    public void showTooltip(Element tip, float x, float y) {
+        if (tip != tooltip) {
+            if (tooltip != null) {
+                tooltip.setState(Element.OPEN, false);
+            }
+            tooltip = tip;
+            if (tip != null) {
+                tip.setState(Element.OPEN, true);
+            }
+        }
+        tooltipX = x;
+        tooltipY = y;
     }
 
     public boolean isOpen(Element e) {

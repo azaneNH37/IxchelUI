@@ -11,6 +11,7 @@ import com.azane.ixchel.sample.check.scenario.LootCheck;
 import com.azane.ixchel.sample.check.scenario.MachineCheck;
 import com.azane.ixchel.sample.check.scenario.QuestsCheck;
 import com.azane.ixchel.sample.check.scenario.StorageCheck;
+import com.azane.ixchel.sample.check.scenario.TooltipsCheck;
 import com.azane.ixchel.sample.check.scenario.WaypointsCheck;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLEnvironment;
@@ -43,6 +44,7 @@ public final class IxchelSampleCheckMod {
             ConfigCheck.register(checks);
             QuestsCheck.register(checks);
             GuideCheck.register(checks);
+            TooltipsCheck.register(checks);
         });
     }
 }

@@ -15,10 +15,14 @@ public final class McElements {
     private static final String DECLARATIONS = "elements.txt";
 
     /**
-     * {@link TagRegistry#HTML} plus {@code <mc-item bind:item="...">}, declared in this package's
-     * {@code elements.txt}: an item drawn like a vanilla slot item, sized in CSS. Bind an
+     * {@link TagRegistry#HTML} plus the elements declared in this package's {@code elements.txt}:
+     * <ul>
+     * <li>{@code <mc-item bind:item="...">}: an item drawn like a vanilla slot item, sized in CSS. Bind an
      * {@code ItemStack} snapshot when bindings must see changes, or a {@code Supplier<ItemStack>}
-     * handle read at paint time when only the picture changes; keep the handle instance stable.
+     * handle read at paint time when only the picture changes; keep the handle instance stable.</li>
+     * <li>{@code <mc-tooltip-lines bind:item="...">}: the lines of the item's vanilla tooltip as a
+     * column of text, filled by {@link TooltipLines}; in an {@code <ix-tooltip>}, only while it shows.</li>
+     * </ul>
      */
     public static final TagRegistry TAGS = TagRegistry.HTML.extend().declare(declarations(), DECLARATIONS).build();
 

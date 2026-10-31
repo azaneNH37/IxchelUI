@@ -109,6 +109,17 @@
   color: var(--ix-accent);
 }
 
+/* An attribute's tooltip: its name over what it does. */
+.attribute-tip {
+  flex-direction: column;
+  max-width: 160px;
+  gap: 2px;
+}
+
+.tip-name {
+  color: #FFFF55;
+}
+
 .empty {
   color: #DDDDDD;
 }

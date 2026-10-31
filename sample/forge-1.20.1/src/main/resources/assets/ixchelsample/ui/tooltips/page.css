@@ -1,0 +1,140 @@
+/* The panel fills the screen, so the list's right column touches its right edge. */
+.screen {
+  width: 100%;
+  height: 100%;
+}
+
+.panel {
+  flex-grow: 1;
+  margin: 6px;
+  padding: 6px;
+}
+
+.header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.hint {
+  color: var(--ix-text-dim);
+}
+
+.body {
+  flex-direction: row;
+  flex-grow: 1;
+  gap: 10px;
+}
+
+.column {
+  width: 220px;
+}
+
+.column.wide {
+  flex-grow: 1;
+}
+
+.section {
+  margin: 6px 0 3px;
+  color: var(--ix-text-muted);
+}
+
+.row {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+button {
+  padding: 3px 6px;
+}
+
+.name {
+  width: 90px;
+}
+
+.mode {
+  width: 70px;
+}
+
+/* A paragraph: text and inline terms in one flow. */
+.text {
+  display: block;
+}
+
+.term {
+  color: #FFD24A;
+}
+
+.item {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+}
+
+.outer {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--ix-text-dim);
+}
+
+.inner {
+  padding: 4px;
+  background-color: var(--ix-well);
+}
+
+.list {
+  height: 90px;
+  overflow: auto;
+  background-color: var(--ix-well);
+}
+
+.entry {
+  flex-direction: row;
+  padding: 3px;
+}
+
+.entry:hover {
+  background-color: var(--ix-hover);
+}
+
+.open {
+  margin-left: 4px;
+}
+
+.dialog {
+  gap: 6px;
+}
+
+/* Every tooltip on the page: a column; the one with a key hint flows as text. */
+.tip {
+  flex-direction: column;
+  max-width: 160px;
+  gap: 2px;
+}
+
+.key {
+  display: inline-block;
+  padding: 0 2px;
+  border: 1px solid #FFFFFF50;
+  background-color: #FFFFFF20;
+}
+
+.tip-head {
+  color: #FFFF55;
+}
+
+.countdown {
+  color: var(--ix-warning);
+}
+
+.countdown.ready {
+  color: var(--ix-positive);
+}
+
+.tip-extra {
+  color: #55FFFF;
+}

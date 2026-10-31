@@ -1,0 +1,20 @@
+.badge {
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  border: 1px solid var(--ix-text-dim);
+  color: var(--ix-text-muted);
+}
+
+.badge:hover {
+  border-color: #FFFFFF;
+  color: #FFFFFF;
+}
+
+.badge-tip {
+  flex-direction: column;
+  max-width: 160px;
+  gap: 2px;
+}

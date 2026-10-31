@@ -20,4 +20,7 @@
     --ix-positive: #55FF55;
     --ix-negative: #FF5555;
     --ix-warning: #FFAA00;
+    --ix-tooltip: #101418F0;
+    --ix-tooltip-frame: 1px solid #FFFFFF30;
+    --ix-tooltip-text: #FFFFFF;
 }

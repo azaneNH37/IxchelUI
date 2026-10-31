@@ -45,6 +45,13 @@ public final class ConfigCheck {
                     && Script.text(".category.active").equals("General"), Script.WAIT);
             s.expect("nothing modified: Save and Undo disabled", () -> disabled(".save") && disabled(".undo"));
             s.shot("config-general");
+            // Fails if a row's <ix-tooltip> does not show over its label.
+            s.hover(".entry .name");
+            s.waitUntil("a hovered setting shows its tooltip", () -> {
+                Element tip = Script.document().topLayer().tooltip();
+                return tip != null && tip.parent() == Script.query(".entry").get(0);
+            }, Script.WAIT);
+            s.shot("config-tooltip");
 
             s.clickText(".category", "Compass");
             s.waitUntil("a category click shows its rows", () -> Script.texts(".name").contains("Compass range")

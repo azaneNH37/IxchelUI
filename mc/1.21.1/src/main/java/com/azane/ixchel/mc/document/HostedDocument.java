@@ -4,13 +4,16 @@ import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.UiLoadException;
+import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.event.Clipboard;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.mc.element.McElements;
+import com.azane.ixchel.mc.element.TooltipLines;
 import com.azane.ixchel.mc.element.Tooltips;
 import com.azane.ixchel.mc.paint.McPainter;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -21,9 +24,9 @@ import java.util.List;
 
 /**
  * A document as every host (screen, container screen, HUD) runs it: loaded from the host mod's
- * resources, reloaded on demand, framed and painted with the native elements, with the vanilla
- * tooltip of what is under the pointer and the system clipboard for its inputs. The view model lives
- * as long as this object and is kept across reloads.
+ * resources, reloaded on demand, framed and painted with the native elements, with the tooltip of
+ * what is under the pointer and the system clipboard for its inputs. The view model lives as long as
+ * this object and is kept across reloads.
  *
  * <p>In a development run with {@code -Dixchel.devResources.<hostModId>=<resource root>} the files
  * are read from the source tree and, once {@link #watch watched}, reloaded on save; a failed load
@@ -50,9 +53,16 @@ public final class HostedDocument implements AutoCloseable {
     private final ViewModel model;
     private final Runnable onReload;
     private final McPainter painter = new McPainter(Minecraft.getInstance().font, McElements.PAINTERS);
+    /** Draws the {@code <ix-tooltip>} above the document, after the host's own drawing. */
+    private final McPainter tooltipPainter = new McPainter(Minecraft.getInstance().font, McElements.PAINTERS);
+    private final TooltipLines lines = new TooltipLines(McResources.TEXT::styled);
     private UiDocument document;
     private List<String> files;
     private DisplayList displayList;
+    /** The {@link DisplayList#version()} the line elements were last looked for at. */
+    private long linesVersion = -1;
+    /** The element whose tooltip shows, picked by the last {@link #frame}; {@code null} for none. */
+    private Element tooltipTarget;
     private List<Diagnostic> loadErrors = List.of();
     private DevResources.Watcher watcher;
     private int logged;
@@ -99,6 +109,8 @@ public final class HostedDocument implements AutoCloseable {
             document.events().setClipboard(CLIPBOARD);
             files = loaded.files();
             displayList = null;
+            linesVersion = -1;
+            tooltipTarget = null;
             loadErrors = List.of();
             logged = 0;
             if (watcher != null) {
@@ -128,12 +140,26 @@ public final class HostedDocument implements AutoCloseable {
         return document;
     }
 
-    /** Brings the document up to date for a screen of the given size and logs new diagnostics; {@code null} without a document. */
-    public DisplayList frame(int width, int height) {
+    /**
+     * Brings the document up to date for a screen of the given size and the pointer, NaN in a HUD, and
+     * logs new diagnostics; {@code null} without a document. Picks the tooltip of what is under the
+     * pointer: an {@code <ix-tooltip>} is laid out in this frame.
+     */
+    public DisplayList frame(int width, int height, float pointerX, float pointerY) {
         if (document == null) {
             return null;
         }
+        tooltipTarget = Float.isNaN(pointerX) ? null : Tooltips.target(document.events().hitTest(pointerX, pointerY));
+        document.setTooltip(tooltipTarget == null ? null : Tooltips.tooltipOf(tooltipTarget), pointerX, pointerY);
+        lines.update(document);
         displayList = document.frame(width, height);
+        if (displayList.version() != linesVersion) {
+            // The tree may have changed: line elements a binding just added are filled before they show.
+            if (lines.discover(document) && lines.update(document)) {
+                displayList = document.frame(width, height);
+            }
+            linesVersion = displayList.version();
+        }
         List<Diagnostic> entries = document.diagnostics().entries();
         for (; logged < entries.size(); logged++) {
             LOG.warn("Ixchel UI: {}", entries.get(logged));
@@ -153,12 +179,23 @@ public final class HostedDocument implements AutoCloseable {
         return painter.topZ();
     }
 
-    /** Draws the vanilla tooltip of the {@code <mc-item>} or {@code title} under the pointer, above everything the document drew. */
+    /**
+     * Draws the tooltip the last {@link #frame} picked above everything the document drew: the shown
+     * {@code <ix-tooltip>}, or the vanilla tooltip of the {@code <mc-item>} or {@code title}.
+     */
     public void drawTooltip(GuiGraphics g, int mouseX, int mouseY) {
-        if (document != null) {
-            Tooltips.render(g, Minecraft.getInstance().font, document.events().hitTest(mouseX, mouseY), painter.topZ(),
-                    mouseX, mouseY);
+        if (document == null || tooltipTarget == null) {
+            return;
         }
+        if (document.topLayer().tooltip() == null) {
+            Tooltips.renderVanilla(g, Minecraft.getInstance().font, tooltipTarget, painter.topZ(), mouseX, mouseY);
+            return;
+        }
+        PoseStack ps = g.pose();
+        ps.pushPose();
+        ps.translate(0, 0, painter.topZ() + Tooltips.Z);
+        tooltipPainter.paint(g, document.tooltipDisplayList(), Float.NaN, Float.NaN);
+        ps.popPose();
     }
 
     /** Draws load or runtime errors over everything in a development run. */

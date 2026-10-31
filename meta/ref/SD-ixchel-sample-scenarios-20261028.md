@@ -9,7 +9,7 @@ related: [DECISIONS.md#005, DECISIONS.md#009, ref/D-ixchel-module-breakdown-2026
 
 ## Summary
 
-sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器面板、存储终端、掉落物雷达、环境 HUD、配置面板、任务树、指南书、增强 tooltip。只做 Forge 1.20.1（#005）。sample 同时驱动路线图：每个场景列出需要的新库能力，实现顺序与状态见 `ref/D-ixchel-roadmap-20261029.md`；场景的检查（§4）通过，即为对应能力的验收。现有 refit 保留作性能基线，status、pickup、waypoints 并入新场景，背包改装在角色面板与机器面板落地后删除。美术用原版资源，缺的图标自画 16×16。
+sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器面板、存储终端、掉落物雷达、环境 HUD、配置面板、任务树、指南书、元素 tooltip。只做 Forge 1.20.1（#005）。sample 同时驱动路线图：每个场景列出需要的新库能力，实现顺序与状态见 `ref/D-ixchel-roadmap-20261029.md`；场景的检查（§4）通过，即为对应能力的验收。现有 refit 保留作性能基线，status、pickup、waypoints 并入新场景，背包改装在角色面板与机器面板落地后删除。美术用原版资源，缺的图标自画 16×16。
 
 ## Detail
 
@@ -20,7 +20,7 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 伪类：`:hover` `:active` `:focus`。没有 `:disabled` `:checked`。
 - 输入：`UiScreen` 与 `UiContainerScreen` 只转发了 `keyPressed`、点击和滚轮，没有 `charTyped`，也没有 `mouseDragged`。
 - 文本：单个文本节点内可按宽度换行（`TextShaper`），跨 `span` 的行内流式排版不支持。
-- 宿主：HUD、`UiScreen`、`UiContainerScreen`。没有 tooltip 宿主，也没有世界空间宿主。
+- 宿主：HUD、`UiScreen`、`UiContainerScreen`。没有世界空间宿主。tooltip 只有 `item` 的原版物品 tooltip。
 
 ### 2. 场景
 
@@ -95,13 +95,22 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 交互与视觉：双页书（两张 `textures/gui/book.png` 并排）、目录、条目间链接与“返回”历史、翻页（按钮与方向键）。正文有粗体、颜色、行内物品图标、图片，嵌入 3×3 合成配方（备选原料按时间轮换）。分页由作者用显式页元素划分，不自动分页。
 - 新能力：跨 `span` 与行内元素的流式排版（`display: inline` 或等价物），行内链接的命中测试。
 
-#### S9 增强 tooltip
+#### S9 元素 tooltip
 
-- 对标：Legendary Tooltips、Apotheosis 的词缀 tooltip。
-- 宿主：新增 tooltip 宿主，在 `RenderTooltipEvent.Pre` 中取消原版并绘制文档。文档复用，悬停物品换掉时只换 VM 数据。
-- 数据：悬停的 `ItemStack`、已装备的同部位物品。
-- 交互与视觉：按稀有度着色的边框、标题、图标、附魔列表、属性与当前装备对比（绿增红减）、耐久条，按住 Shift 显示详情。尺寸随内容，贴近光标，碰到屏幕边缘时翻转。
-- 新能力：tooltip 宿主。替换原版 tooltip 与其它 mod 冲突面大，由宿主 API 参数开启（#009）。性能：鼠标扫过网格时每帧都可能换物品。
+- 对标：mod 界面中的说明性悬停提示（按钮用途、配置项说明、物品附加信息）。
+- 宿主：`UiScreen`。
+- 数据：几个示例 `ItemStack`；一个随时间变化的值（如冷却倒计时）。
+- 交互与视觉：一页内各类元素各自带 `<ix-tooltip>`：
+  - 按钮：用途说明加按键提示（`inline-block` 小块）；
+  - 表单控件：`<input>`、未展开的 `<select>`；
+  - 正文中的行内 `<span>`、`<a>` 术语；
+  - `<mc-item>` 三种模式并列：不写（原版）、纯自定义、自定义内含 `<mc-tooltip-lines>` 再加行；
+  - 滚动列表中贴边的元素：tooltip 不被裁剪，碰屏幕边缘翻转；
+  - 嵌套元素各有 tooltip 时最深者优先；与 `title` 纯文本并排对照；
+  - 组件把 `<slot>` 放进 `<ix-tooltip>`；
+  - tooltip 内容含绑定，显示期间实时变化；
+  - 对话框内元素的 tooltip 画在对话框之上。
+- 新能力：`<ix-tooltip>`、`<mc-tooltip-lines>`（路线图 E2）。S1、S6、S7 的迁移只覆盖说明文字，S9 覆盖其余元素种类与边界。
 
 ### 3. 实现与结果
 
@@ -160,6 +169,11 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 检查 `guide` 17 项：目录列出全部条目、段内链接、翻页按钮与 Left/Right、第二个 spread 上的链接、配方格轮换、Back 回到链接所在 spread、Backspace 回目录且历史清空、中文页、加载无诊断、帧耗时。
 - 帧耗时（6 页长条目）：静止 p95 约 0.9–1.3 ms，逐 tick 翻页约 1.1–1.6 ms，预算 3 / 3.5 ms。
 - 外观：超长单词在 `.text` 上 `overflow: hidden` 裁在文字区内；原版 `book.png` 只有左侧书脊，两页并排时右页同样在左侧有书脊（不支持镜像）。
+
+阶段 E2 结果（2026-11-01）：
+- S9 为 `tooltips`（索引入口），一页覆盖 §2 S9 全部元素种类：按钮（按键提示为 `inline-block` 小块，冷却倒计时按 `Source.polled` 每秒变化）、`<input>`、`<select>`、正文 `<span>` 与 `<a>`、`<mc-item>` 三种模式、24 行滚动列表、嵌套与 `title` 对照、组件 `help-badge`（`<slot>` 在 `<ix-tooltip>` 内）、对话框内按钮。检查 `tooltips` 21 项，含隐藏 tooltip 内的 `<mc-tooltip-lines>` 不取行、静止指针下绑定内容变化、贴边条目翻到指针左侧且留在屏内。
+- 迁移：S1 属性行（名称 + 说明，`max-width: 160px`）、S6 配置项（名称、配置路径、注释、需重启提示，`max-width: 200px`）、S7 节点（标题、所需物品行带图标、状态）由 `title` 改为 `<ix-tooltip>`，S1、S6、S7 检查各加一项"悬停显示 tooltip"。接受的外观变化：外框与底色随主题（vanilla 主题紫框、dark 主题灰框），多行分色排版取代原版单色纯文本；S7 节点图标外的边框区不再有 tooltip。
+- 写法：tooltip 内换行要靠作者给 `max-width`；`.key` 这类带边框的小块须 `inline-block`（`inline` 不能有盒属性），放在 `display: block` 的段落里。
 
 ### 4. 自动化检查
 

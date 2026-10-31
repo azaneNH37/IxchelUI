@@ -1,7 +1,8 @@
 /*
  * User-agent defaults, below every author rule (see StyleEngine): the inline elements, the form
- * controls and <dialog>. Native elements get display: inline from a rule UiDocument adds per tag registry.
- * Vanilla-like: black fields with a gray border that turns white on focus, gray buttons.
+ * controls, <dialog> and <ix-tooltip>. Native elements get their display from a rule UiDocument adds
+ * per tag registry. Vanilla-like: black fields with a gray border that turns white on focus, gray
+ * buttons, vanilla's purple-framed tooltips.
  */
 span, a, img {
     display: inline;
@@ -103,4 +104,22 @@ dialog:open {
     padding: 6px;
     border: 1px solid #a0a0a0;
     background-color: #202020;
+}
+
+ix-tooltip {
+    display: none;
+}
+
+/* A tooltip inherits from where it is written (theme properties included); its text starts afresh. */
+ix-tooltip:open {
+    display: flex;
+    padding: 3px;
+    border: 1px solid #5000FF50;
+    background-color: #100010F0;
+    color: #FFFFFF;
+    font-size: 9px;
+    font-weight: normal;
+    font-style: normal;
+    text-align: start;
+    white-space: normal;
 }

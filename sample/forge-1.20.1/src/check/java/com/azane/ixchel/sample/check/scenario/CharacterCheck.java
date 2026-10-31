@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.check.scenario;
 
+import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.mc.check.Checks;
 import com.azane.ixchel.mc.check.Script;
@@ -48,6 +49,11 @@ public final class CharacterCheck {
                 .expect("hidden page reports no errors", () -> Script.document().diagnostics().errorCount() == 0)
                 .expect("diamond helmet's 3 armor shows", () -> value(".attribute", "Armor").equals("3"))
                 .hover(".attribute")
+                // Fails if the row's <ix-tooltip> does not show in the top layer under the pointer.
+                .waitUntil("the hovered attribute shows its tooltip", () -> {
+                    Element tip = Script.document().topLayer().tooltip();
+                    return tip != null && tip.parent() == Script.query(".attribute").get(0);
+                }, Script.WAIT)
                 .shot("character-attributes")
                 .server(p -> {
                     p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 1200, 1));

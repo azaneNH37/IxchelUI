@@ -8,6 +8,7 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
+import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.dom.UiEvent;
 
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ public final class TemplateParser {
     private boolean sawElement;
     private int templateDepth;
     private int forInTemplateDepth;
+    private int tooltipDepth;
     private int i;
 
     private TemplateParser(String source, String file, TagRegistry tags, Linker linker, Diagnostics diag) {
@@ -265,15 +267,23 @@ public final class TemplateParser {
             }
             return null;
         }
+        if (known && tag.equals(TopLayer.TOOLTIP) && (topLevel || tooltipDepth > 0)) {
+            diag.report(TemplateCode.MISPLACED_ELEMENT, openPos, topLevel
+                    ? "<ix-tooltip> is the tooltip of its parent element; it cannot be at the top level"
+                    : "<ix-tooltip> cannot be inside another <ix-tooltip>");
+        }
         if (!selfClosing) {
             List<Node> children = new ArrayList<>();
             boolean inTemplate = tag.equals("template");
             boolean forInTemplate = tag.equals("for") && templateDepth > 0;
+            boolean inTooltip = tag.equals(TopLayer.TOOLTIP);
             templateDepth += inTemplate ? 1 : 0;
             forInTemplateDepth += forInTemplate ? 1 : 0;
+            tooltipDepth += inTooltip ? 1 : 0;
             parseNodes(children, false, false);
             templateDepth -= inTemplate ? 1 : 0;
             forInTemplateDepth -= forInTemplate ? 1 : 0;
+            tooltipDepth -= inTooltip ? 1 : 0;
             if (i >= src.length()) {
                 diag.report(TemplateCode.UNCLOSED_TAG, openPos, "<" + tag + "> is never closed");
             } else {
@@ -284,29 +294,49 @@ public final class TemplateParser {
                             + "> opened at " + openPos);
                 }
             }
-            if (known && (tag.equals("img") || tag.equals("input")) && !children.isEmpty()) {
-                diag.report(TemplateCode.INVALID_CHILDREN, children.get(0).pos(), "<" + tag + "> must not have children");
-            } else if (known && tag.equals("select") && !onlyOptions(children)) {
-                diag.report(TemplateCode.INVALID_CHILDREN, openPos, "<select> may only contain <option> elements, directly or in <for> and <if>");
+            Node notTooltip = known && (tag.equals("img") || tag.equals("input")) ? firstNonTooltip(children) : null;
+            if (notTooltip != null) {
+                diag.report(TemplateCode.INVALID_CHILDREN, notTooltip.pos(), "<" + tag + "> may only contain an <ix-tooltip>");
+            } else if (known && tags.hasLineContent(tag) && !children.stream().allMatch(TemplateParser::isBlank)) {
+                diag.report(TemplateCode.INVALID_CHILDREN, openPos, "<" + tag + "> must not have children: its lines are filled in");
+            } else if (known && tag.equals("select") && !onlyOptions(children, true)) {
+                diag.report(TemplateCode.INVALID_CHILDREN, openPos, "<select> may only contain <option> elements, directly or in <for> and <if>, and an <ix-tooltip>");
             } else if (known && tag.equals("option") && children.stream().anyMatch(n -> !(n instanceof TextNode))) {
                 diag.report(TemplateCode.INVALID_CHILDREN, openPos, "<option> may only contain text");
             } else {
                 checkSlotPlacement(children, component);
                 for (Node child : children) {
-                    element.appendChild(child);
+                    if (!(known && (tag.equals("img") || tag.equals("input") || tags.isReplaced(tag) || tags.hasLineContent(tag))
+                            && isBlank(child))) {
+                        element.appendChild(child);
+                    }
                 }
             }
         }
         return known ? element : null;
     }
 
-    private static boolean onlyOptions(List<Node> children) {
+    private static boolean isBlank(Node n) {
+        return n instanceof TextNode t && t.text().isBlank();
+    }
+
+    private static Node firstNonTooltip(List<Node> children) {
         for (Node n : children) {
-            if (n instanceof TextNode t && t.text().isBlank()) {
+            if (!isBlank(n) && !(n instanceof Element c && c.tag().equals(TopLayer.TOOLTIP))) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    /** Options, directly or in blocks; {@code direct}: also the select's own {@code <ix-tooltip>}. */
+    private static boolean onlyOptions(List<Node> children, boolean direct) {
+        for (Node n : children) {
+            if (isBlank(n)) {
                 continue;
             }
-            if (!(n instanceof Element c) || !(c.tag().equals("option")
-                    || ((c.tag().equals("for") || c.tag().equals("if")) && onlyOptions(c.children())))) {
+            if (!(n instanceof Element c) || !(c.tag().equals("option") || direct && c.tag().equals(TopLayer.TOOLTIP)
+                    || ((c.tag().equals("for") || c.tag().equals("if")) && onlyOptions(c.children(), false)))) {
                 return false;
             }
         }

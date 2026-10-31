@@ -86,7 +86,7 @@
 ## #014 表单控件与弹出层
 - **decided**: 2026-10-29
 - **context**: S6 需要开关、滑条、数字框、下拉、确认框；下拉列表必须跨出可滚动条目列表的裁剪，确认框要遮住并屏蔽下方界面
-- **decision**: 控件用标准 `<input type>`、`<select>`/`<option>`、`<button>`、`<dialog>`（#003），由 core 实现状态、编辑与绘制，默认外观来自 user-agent 样式表，作者样式可覆盖；展开的下拉列表与打开的对话框进入文档顶层，按打开顺序画在整棵树之上、不受祖先裁剪，命中测试同序；模态对话框下方 inert。只有这两类元素进顶层，右键菜单、popover 等等第二个场景需要时再加
+- **decision**: 控件用标准 `<input type>`、`<select>`/`<option>`、`<button>`、`<dialog>`（#003），由 core 实现状态、编辑与绘制，默认外观来自 user-agent 样式表，作者样式可覆盖；展开的下拉列表与打开的对话框进入文档顶层，按打开顺序画在整棵树之上、不受祖先裁剪，命中测试同序；模态对话框下方 inert。只有这两类元素进顶层，右键菜单、popover 等等第二个场景需要时再加（E2 起 `<ix-tooltip>` 也进顶层，单独存放与绘制、不参与命中，见 #020）
 - **rejected**: `z-index` + `position: fixed`——要引入完整的层叠上下文且与裁剪交互复杂，模板作者自己算位置；sample 自建弹出层——选项不能用 CSS 写样式、每个场景重写一遍
 
 ## #015 模板与样式语言的扩展方向
@@ -115,7 +115,7 @@
 
 ## #019 富文本：`Component` 拆为样式片段，进入 core 行内排版
 - **decided**: 2026-10-31
-- **context**: S8 正文要跨 `span` 续排，S9 要保留 `Component` 的颜色与格式；原定方向是把 `Component` 作为不透明宿主文本对象，由 mc 层 `StringSplitter` 测量与换行
+- **context**: S8 正文要跨 `span` 续排并保留 `Component` 的颜色与格式；原定方向是把 `Component` 作为不透明宿主文本对象，由 mc 层 `StringSplitter` 测量与换行
 - **decision**: mc 层把绑定的 `Component` 拆成带样式的文字片段（颜色、粗体、斜体、下划线、删除线、混淆），与模板中的 `<span>` 走同一套 core 行内排版；`TextMeasurer` 按样式测量。行内上下文由 `display: block` 建立，行内元素不支持盒属性。细节见 `ref/D-ixchel-roadmap-20261029.md` E1
 - **rejected**: 不透明宿主文本对象——`Component` 不能与周围文字同行续排，且 core、mc 两套换行
 

@@ -132,6 +132,27 @@ class TemplateParserTest {
     }
 
     @Test
+    void aTooltipBelongsToAnElementAndTheFormControlsTakeItDirectly() {
+        Diagnostics ok = new Diagnostics();
+        TemplateParser.parse("""
+                <div><input> <ix-tooltip>a</ix-tooltip> </input>
+                <select><ix-tooltip>b</ix-tooltip><option value="x">X</option></select>
+                <img src="a.png"><ix-tooltip>c</ix-tooltip></img></div>
+                """, "t.html", TagRegistry.HTML, ok);
+        assertFalse(ok.hasErrors(), ok.entries().toString());
+
+        Diagnostics bad = new Diagnostics();
+        TemplateParser.parse("""
+                <ix-tooltip>top</ix-tooltip>
+                <div><ix-tooltip><span><ix-tooltip>nested</ix-tooltip></span></ix-tooltip></div>
+                <img src="a.png"><span>x</span></img>
+                <select><for each="xs" as="x" key="x"><ix-tooltip>c</ix-tooltip></for></select>
+                """, "t.html", TagRegistry.HTML, bad);
+        assertEquals(List.of("template/misplaced-element@t.html:1:1", "template/misplaced-element@t.html:2:24",
+                "template/invalid-children@t.html:3:18", "template/invalid-children@t.html:4:1"), DiagCodes.of(bad));
+    }
+
+    @Test
     void whitespaceCollapsesAndIsKeptOnlyBetweenSiblings() {
         Diagnostics diag = new Diagnostics();
         Template t = TemplateParser.parse("<div>\n  <span>  a \n\t b  </span>\n  <span>c</span>\n</div>\n<div></div>",
