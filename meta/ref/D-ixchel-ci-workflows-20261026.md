@@ -61,7 +61,8 @@ flowchart LR
 | MC 产物 | mc、loader、sample 共 6 个 | MDG `createMinecraftArtifacts`：下载、反混淆、反编译（不重编译 MC） | 版本号错、上游不可达 |
 | 编译 | 全部 8 个 | `compileJava` | 编译错误；core 引用 MC 类（编译期 classpath 没有 MC） |
 | 打包 | 6 个发布模块（含 kit） | `jar`、`sourcesJar`、`javadocJar`；1.20.1 两个库的 `jar` 自动 reobf 为 SRG；core、mc、loader 的 jar 清单带 `FMLModType: GAMELIBRARY`（#024） | **javadoc 的 doclint 错误**（`withJavadocJar()` 使 javadoc 成为隐含检查） |
-| 打包 | 2 个 sample | `shadowJar`（relocate Ixchel 与 taffy），Forge 侧再 reobf | shade 配方失效：配置属性、relocate、shadow 产物的 reobf |
+| 打包 | 2 个 sample | 经 `com.azane.ixchel` 插件（#025）的 `shadowJar`（relocate Ixchel 与 taffy），Forge 侧再 reobf | 插件接线失效：配置属性、relocate、shadow 产物的 reobf |
+| 构建 | Gradle 插件（included build） | 根 `build` 依赖其 `build`；两个 sample 应用它即在配置期编译 | 插件编译错误 |
 | 检查 | 2 个 sample | `lintUi`；Forge 侧另编译 `check` sourceSet | 模板与 ViewModel 不符；检查代码随业务改动失修 |
 | 测试 | core | JUnit，含弹药 HUD 黄金测试 | 行为回归 |
 

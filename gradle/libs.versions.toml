@@ -17,4 +17,3 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 [plugins]
 moddev = { id = "net.neoforged.moddev", version.ref = "moddev" }
 moddev-legacyforge = { id = "net.neoforged.moddev.legacyforge", version.ref = "moddev" }
-shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

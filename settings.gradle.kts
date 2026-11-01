@@ -1,5 +1,6 @@
 pluginManagement {
     includeBuild("build-logic")
+    includeBuild("tools/gradle-plugin")
     repositories {
         gradlePluginPortal()
         maven("https://maven.neoforged.net/releases")
@@ -26,3 +27,7 @@ module("ixchel-neoforge-1.21.1", "loader/neoforge-1.21.1")
 module("ixchel-kit", "tools/kit")
 module("sample-forge-1.20.1", "sample/forge-1.20.1")
 module("sample-neoforge-1.21.1", "sample/neoforge-1.21.1")
+
+// The Gradle plugin is also a regular included build, so the root `build` and `publishToMavenLocal`
+// can depend on its tasks.
+includeBuild("tools/gradle-plugin")

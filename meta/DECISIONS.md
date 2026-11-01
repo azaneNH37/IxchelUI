@@ -68,7 +68,7 @@
 ## #011 1.20.1 库模块发布 SRG 产物
 - **decided**: 2026-10-27
 - **context**: Forge 1.20.1 运行时为 SRG；宿主要 shade、relocate 后再 reobf 整个 jar，库产物的命名决定了消费方要不要先重映射
-- **decision**: 沿用 legacyforge 默认，`ixchel-mc-1.20.1` 与 `ixchel-forge-1.20.1` 的 `jar` 发布为 SRG。消费方用 `obfuscation.createRemappingConfiguration(shade)` 把这两个模块重映射回 mojmap，`ixchel-core` 直接 shade，shadowJar 之后 `obfuscation.reobfuscate(tasks.shadowJar, …)`。reobf 变体不带依赖声明，所以三个模块要逐个列出。配方见 `sample/forge-1.20.1/build.gradle.kts`（外部写法在 `external mods` 注释中），已在生产实例中与另一份不同版本的副本共存运行
+- **decision**: 沿用 legacyforge 默认，`ixchel-mc-1.20.1` 与 `ixchel-forge-1.20.1` 的 `jar` 发布为 SRG。消费方经 `obfuscation.createRemappingConfiguration(shade)` 把这两个模块重映射回 mojmap，`ixchel-core` 直接 shade，shadowJar 之后 `obfuscation.reobfuscate(tasks.shadowJar, …)`，这些由 Gradle 插件完成（#025）。MDG 的重映射配置本身不传递依赖，所以三个模块逐个列出；reobf 变体在 `.module` 中不声明依赖这一缺陷因此不影响消费方，未修。该链路已在生产实例中与另一份不同版本的副本共存运行
 - **rejected**: 发布 mojmap 产物——legacyforge 下要额外关掉默认 reobf 并另配发布变体；消费方的 reobf 本来就要对 shade 后的整个 jar 再做一次，不会更省事，且未实测
 
 ## #012 文本输入与事件过滤语义
@@ -135,7 +135,7 @@
 - **decided**: 2026-10-31
 - **context**: agent 写 UI 需要离线校验与可重复的游戏内验证；sample 的检查框架只服务 sample，且退出码不反映失败
 - **decision**: 静态检查由只依赖 core 的 `ixchel-kit` 提供（lint、schema）；游戏内检查从 sample 提取：core 放驱动、运行器与端口，mc 层实现输入、转储与退出码，加载器层提供 tick/帧钩子，随现有 mc/加载器制品发布，`-Dixchel.check.<modid>` 开启；1.21.1 暂不适配。细节见 `ref/SD-ixchel-tooling-and-editor-20261031.md` §2、§7、§8
-- **rejected**: 无头 testkit（游戏外实例化 ViewModel 跑 binding 与事件）——迫使宿主把 ViewModel 与 MC 解耦，覆盖面又被静态检查与游戏内检查夹住；按版本单独发布检查制品——多一套制品与 SRG 配方；检查的 Gradle 插件——宿主的构建插件（MDG、ForgeGradle、Loom）各异，给配方即可
+- **rejected**: 无头 testkit（游戏外实例化 ViewModel 跑 binding 与事件）——迫使宿主把 ViewModel 与 MC 解耦，覆盖面又被静态检查与游戏内检查夹住；按版本单独发布检查制品——多一套制品与 SRG 配方。检查的 Gradle 接线（`check` sourceSet、`-Pcheck`）后由 #025 的插件提供
 
 ## #023 诊断带稳定的符号错误码
 - **decided**: 2026-10-31
@@ -146,5 +146,12 @@
 ## #024 sample 即使用方形态，库 jar 声明 GAMELIBRARY
 - **decided**: 2026-11-01
 - **context**: sample 把库源码并入自己的 mod 运行，使用方"以 jar 依赖开发、shade 发布"的路径从未运行过，shade 只由两个独立测试宿主覆盖，sample 构建脚本也不能当配方看
-- **decision**: core、mc、loader 的 jar 清单写 `FMLModType: GAMELIBRARY`，宿主开发期以普通依赖接入（FML 把它载入 game 层）；两个 sample 按使用方写法构建（shade + relocate，1.20.1 另 reobf），仓库内写法与外部只差依赖坐标，差异写在 `external mods` 注释；不再保留独立 shade 宿主
+- **decision**: core、mc、loader 的 jar 清单写 `FMLModType: GAMELIBRARY`，宿主开发期以普通依赖接入（FML 把它载入 game 层）；两个 sample 按使用方写法构建（shade + relocate，1.20.1 另 reobf），两者都应用 #025 的插件，仓库内外的差别（项目依赖还是 Maven 坐标）在插件内；不再保留独立 shade 宿主
 - **rejected**: 库源码 sourceSet 并入宿主——使用方的开发期路径无人运行；保留 shade-a/b——两份副本共存已在生产实例验证，重复确认没有新信息；代价是 IDE 中不能热替换库类（模板与 CSS 热重载不受影响）
+
+## #025 ModDevGradle 宿主的构建由 Gradle 插件 `com.azane.ixchel` 完成
+- **decided**: 2026-11-01
+- **context**: 使用方要抄的构建配方（shade 配置属性、relocate 每个库包、Forge 1.20.1 的重映射与 reobf、kit 的 lint 任务、devResources 与检查接线）有五十多行，sample 脚本也因此难读
+- **decision**: `tools/gradle-plugin`（included build，Java，随库同 group 与版本发布 `ixchel-gradle-plugin` 与插件标记）。只支持 MDG：与 `net.neoforged.moddev.legacyforge` 同用即 Forge 1.20.1，与 `net.neoforged.moddev` 同用即 NeoForge 1.21.1；应用即建 `shade`、加库依赖与 taffy、配 shadowJar（无 classifier，`jar` 改 `-slim`，1.20.1 另 reobf）、注册 `lintUi`。DSL：`ixchel { mod(modid, shadePackage); checks(checkModid) }`，`mod` 注册 MDG mod、按库包 relocate、给所有 run 设 `ixchel.devResources.<modid>`；`checks` 建 `check` sourceSet，`-Pcheck` 时加载检查 mod 并设 `ixchel.check.<modid>`。根项目存在 `:ixchel-core` 时用项目依赖，否则用插件内嵌版本的坐标。两个 sample 应用它
+- **rejected**: 适配层接口兼容 ForgeGradle、Loom——没有使用方；继续给配方——配方长且易抄错，sample 不能当示例读；插件校验 MC 版本——未见误用
+

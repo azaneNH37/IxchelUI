@@ -139,7 +139,7 @@ diag.error(BindingCode.UNKNOWN_NAME, pos, msg);
 
 包按契约：`project`（资源根、宿主 classpath、注解扫描、声明读取、成员表构建）、`lint`、`schema`，入口 `Main`。
 
-两个 sample 的 lint 任务原样照抄对外配方，不收进 `build-logic` 约定插件：自家用的就是外部作者的写法，配方坏了第一时间暴露。外部作者确有需要时再出 Gradle 插件。
+lint 任务由 Gradle 插件 `com.azane.ixchel` 注册为 `lintUi` 并挂在 `check` 上（#025）；两个 sample 应用同一个插件，不收进 `build-logic` 约定插件：自家用的就是外部作者的写法，坏了第一时间暴露。
 
 ### 8. 游戏内检查
 
@@ -150,7 +150,7 @@ diag.error(BindingCode.UNKNOWN_NAME, pos, msg);
 | core（新包，如 `core.check`） | `Driver`：步骤队列、选择器操作、读取、结果记录；运行器：按名选择、报告文本；端口 `InputPort`、`Pump`；帧耗时统计（median/p95）。`paintedCenter` 公开、放在 `EventDispatcher.hitTest` 旁，保证"算出的坐标"与"命中的元素"一致 |
 | mc 层 | 经 vanilla `Screen` 实现 `InputPort`；`hoverAt`、截图、服务端步骤、槽位、开发世界引导、可选玩家重置；失败时转储文档树与布局（也可按键或命令手动转储）；`UiScreen` 与 HUD 内计时；有失败时非 0 退出 |
 | 加载器层 | `Pump`：tick 结束且该帧已画完 |
-| 宿主 | 开发期 sourceSet：自己的 `@Mod` 调 `IxchelChecks.install(modid, …)` 注册场景；属性 `ixchel.check.<modid>=名字[,…]|all`。给配方，不做 Gradle 插件 |
+| 宿主 | 开发期 sourceSet：自己的 `@Mod` 调 `IxchelChecks.install(modid, …)` 注册场景；属性 `ixchel.check.<modid>=名字[,…]|all`。sourceSet 与 `-Pcheck` 接线由插件的 `ixchel { checks(…) }` 提供（#025） |
 
 - 随现有 mc / 加载器制品发布，不另出按版本的制品，也无第二份 SRG 配方；代价是 `Driver` 等成为 core 的公开 API。
 - 等待单位为帧；转储与 `-Dixchel.devResources.<modid>` 同类，属性开启、仅开发期。
@@ -182,4 +182,4 @@ T1 与 T2 互不依赖，可并行。
 
 - 1.21.1 游戏内检查适配：暂缺（#005）。
 - 附属 mod 扩展主 mod 界面：同类条目（按钮、标签页、信息行）用宿主 record + action 即可，库无需支持；附属 mod 自带布局与逻辑的面板需要两个库原语——由 JDK `Map` 构造的模型（§4 预留）与运行时按 id 装入片段的挂载点——等出现三个真实场景再做。扩展点由宿主声明，契约只用 JDK 类型（#004）。
-- 不做：无头 testkit；在游戏外加载 MC 代码的 spike；手写 `model.json`；Gradle DSL 清单、开发期运行时记录关联、扫描挂载调用作为关联来源（分别是重复声明、新写的 UI 当场无法检查、实现脆弱）；check 的 Gradle 插件；云端 agent 与 xvfb。
+- 不做：无头 testkit；在游戏外加载 MC 代码的 spike；手写 `model.json`；Gradle DSL 清单、开发期运行时记录关联、扫描挂载调用作为关联来源（分别是重复声明、新写的 UI 当场无法检查、实现脆弱）；云端 agent 与 xvfb。
