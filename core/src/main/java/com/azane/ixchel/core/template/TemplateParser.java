@@ -10,10 +10,12 @@ import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.dom.UiEvent;
+import com.azane.ixchel.core.text.TextShaper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,14 +33,20 @@ import java.util.Set;
  * <p>The reserved tags {@code <for each as key>}, {@code <if test>}, {@code <slot name>} and
  * {@code <template name params events>} stay in the tree with their attributes as
  * {@linkplain Element#directives() directives}; the binding layer interprets them.
+ *
+ * <p>Translations are resolved here, so the binding layer compiles the translated tree: {@code t="key"}
+ * replaces an element's children with its translation, laying out the argument children and copies of
+ * the {@code mark} children where it refers to them, and {@code t:<attribute>="key"} sets the
+ * attribute to its translation (see {@link Translations}).
  */
 public final class TemplateParser {
-    private static final Set<String> RESERVED = Set.of("t");
     /** Element attributes replaced by the {@code <for>} and {@code <if>} blocks. */
     private static final Set<String> MOVED = Set.of("each", "as", "key", "if");
     /** Names a parameter or event cannot take: they are attributes or targets of the component's element. */
     private static final Set<String> SHELL_NAMES = Set.of("class", "id", "style", "tabindex", "disabled", "title",
-            "text", "scrolltop", "slot", "t");
+            "lang", "translate", "mark", "text", "scrolltop", "slot", "t");
+    /** The attributes {@code t:<attribute>} translates, besides a component's parameters. */
+    private static final Set<String> TRANSLATABLE = Set.of("title", "placeholder");
 
     /** Loads the component of a {@code <link rel="component">}. */
     interface Linker {
@@ -51,6 +59,7 @@ public final class TemplateParser {
     private final TagRegistry tags;
     private final Linker linker;
     private final Diagnostics diag;
+    private final Translations translations;
     private final int[] lineStarts;
     private final List<Template.StyleSource> styles = new ArrayList<>();
     private final Map<String, ComponentDef> components = new HashMap<>();
@@ -58,13 +67,17 @@ public final class TemplateParser {
     private int templateDepth;
     private int forInTemplateDepth;
     private int tooltipDepth;
+    /** Inside {@code translate="no"}: literal text is meant. */
+    private boolean untranslated;
     private int i;
 
-    private TemplateParser(String source, String file, TagRegistry tags, Linker linker, Diagnostics diag) {
+    private TemplateParser(String source, String file, TagRegistry tags, Linker linker, Translations translations,
+                           Diagnostics diag) {
         this.src = source.replace("\r\n", "\n").replace('\r', '\n').replace('\f', '\n');
         this.file = file;
         this.tags = tags;
         this.linker = linker;
+        this.translations = translations;
         this.diag = diag;
         List<Integer> starts = new ArrayList<>();
         starts.add(0);
@@ -76,18 +89,18 @@ public final class TemplateParser {
         lineStarts = starts.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    /** Parses a page that links no components. */
+    /** Parses a page that links no components and translates nothing. */
     public static Template parse(String source, String file, TagRegistry tags, Diagnostics diag) {
-        return parse(source, file, tags, null, false, diag);
+        return parse(source, file, tags, null, Translations.NONE, false, diag);
     }
 
     /**
      * @param linker        loads linked components; {@code null} when the source may not link any
      * @param componentFile the source is a component file: {@code <link>}s and one {@code <template>}
      */
-    static Template parse(String source, String file, TagRegistry tags, Linker linker, boolean componentFile,
-                          Diagnostics diag) {
-        TemplateParser p = new TemplateParser(source, file, tags, linker, diag);
+    static Template parse(String source, String file, TagRegistry tags, Linker linker, Translations translations,
+                          boolean componentFile, Diagnostics diag) {
+        TemplateParser p = new TemplateParser(source, file, tags, linker, translations, diag);
         List<Node> roots = new ArrayList<>();
         while (true) {
             p.parseNodes(roots, true, componentFile);
@@ -99,6 +112,7 @@ public final class TemplateParser {
             p.diag.report(TemplateCode.MISMATCHED_CLOSING_TAG, at, "closing tag </" + name + "> has no matching opening tag");
         }
         p.checkSlotPlacement(roots, null);
+        p.checkMarkPlacement(roots, false);
         if (!componentFile) {
             return new Template(roots, p.styles, null);
         }
@@ -137,7 +151,12 @@ public final class TemplateParser {
                 while (i < src.length() && src.charAt(i) != '<') {
                     i++;
                 }
-                out.add(text(start, i));
+                TextNode text = text(start, i);
+                if (!untranslated && hasLetter(text.text())) {
+                    diag.report(TemplateCode.LITERAL_TEXT, text.pos(), "text '" + text.text().strip() + "' is not translated",
+                            "move it to the language files and write t=\"key\" on the element, or mark it translate=\"no\"");
+                }
+                out.add(text);
             } else if (src.startsWith("</", i)) {
                 return;
             } else if (src.startsWith("<!--", i)) {
@@ -194,6 +213,7 @@ public final class TemplateParser {
         }
         Element element = new Element(tag, openPos);
         Set<String> seen = new HashSet<>();
+        List<Directive> messages = new ArrayList<>();
         boolean selfClosing = false;
         while (true) {
             skipWhitespace();
@@ -216,7 +236,7 @@ public final class TemplateParser {
                 i++;
                 continue;
             }
-            parseAttribute(element, known, reserved, component, seen);
+            parseAttribute(element, known, reserved, component, seen, messages);
         }
         if (known && reserved) {
             checkReservedAttributes(element);
@@ -228,6 +248,30 @@ public final class TemplateParser {
         if (known && tag.equals("input") && FormControl.Kind.ofInputType(element.attribute("type")) == null) {
             diag.report(TemplateCode.UNSUPPORTED_INPUT_TYPE, openPos, "unsupported <input type=\"" + element.attribute("type")
                     + "\">; supported: text, number, checkbox, range");
+        }
+        String translate = element.attribute("translate");
+        if (translate != null && !translate.equals("yes") && !translate.equals("no")) {
+            diag.report(TemplateCode.UNKNOWN_ATTRIBUTE, openPos, "translate takes \"yes\" or \"no\", not \"" + translate + "\"");
+        }
+        boolean ownUntranslated = translate == null ? untranslated : translate.equals("no");
+        Directive message = null;
+        for (Directive d : messages) {
+            if (isStyle || isLink) {
+                diag.report(TemplateCode.UNKNOWN_ATTRIBUTE, d.namePos(), "<" + tag + "> takes no translations");
+            } else if (d.name().equals("t")) {
+                message = d;
+            } else {
+                translateAttribute(element, d, component);
+            }
+        }
+        if (known && !ownUntranslated) {
+            for (String a : TRANSLATABLE) {
+                String v = element.attribute(a);
+                if (v != null && hasLetter(v) && messages.stream().noneMatch(d -> d.name().equals("t:" + a))) {
+                    diag.report(TemplateCode.LITERAL_TEXT, openPos, a + " '" + v + "' is not translated",
+                            "write t:" + a + "=\"key\" instead, or mark the element translate=\"no\"");
+                }
+            }
         }
 
         if (isStyle) {
@@ -280,7 +324,10 @@ public final class TemplateParser {
             templateDepth += inTemplate ? 1 : 0;
             forInTemplateDepth += forInTemplate ? 1 : 0;
             tooltipDepth += inTooltip ? 1 : 0;
+            boolean outerUntranslated = untranslated;
+            untranslated = ownUntranslated;
             parseNodes(children, false, false);
+            untranslated = outerUntranslated;
             templateDepth -= inTemplate ? 1 : 0;
             forInTemplateDepth -= forInTemplate ? 1 : 0;
             tooltipDepth -= inTooltip ? 1 : 0;
@@ -311,6 +358,12 @@ public final class TemplateParser {
                         element.appendChild(child);
                     }
                 }
+            }
+        }
+        if (known) {
+            checkMarkPlacement(element.children(), message != null);
+            if (message != null) {
+                expandMessage(element, message, component);
             }
         }
         return known ? element : null;
@@ -393,6 +446,147 @@ public final class TemplateParser {
                 diag.report(TemplateCode.MISSING_BLOCK_ATTRIBUTE, e.pos(), "<" + e.tag() + "> requires '" + r + "'");
             }
         }
+    }
+
+    /** {@code mark=} only goes on a direct child of an element with {@code t}. */
+    private void checkMarkPlacement(List<Node> children, boolean message) {
+        if (message) {
+            return;
+        }
+        for (Node n : children) {
+            if (n instanceof Element c && c.attribute("mark") != null) {
+                diag.report(TemplateCode.MISPLACED_MARK, c.pos(), "mark=\"" + c.attribute("mark")
+                        + "\" only goes on a direct child of an element with t=\"…\"");
+            }
+        }
+    }
+
+    /** Sets the attribute {@code t:<attribute>} names to its translation. */
+    private void translateAttribute(Element element, Directive d, ComponentDef component) {
+        String attr = d.name().substring(2);
+        boolean param = component != null && component.hasParam(attr);
+        if (!param && !(TRANSLATABLE.contains(attr) && (component != null || tags.isAllowedAttribute(element.tag(), attr)))) {
+            diag.report(TemplateCode.INVALID_TRANSLATED_ATTRIBUTE, d.namePos(), "<" + element.tag() + "> has no translatable attribute '"
+                    + attr + "'; t: translates " + String.join(", ", TRANSLATABLE.stream().sorted().toList()) + " and component parameters");
+            return;
+        }
+        if (element.attribute(attr) != null || element.directives().stream().anyMatch(b -> b.name().equals("bind:" + attr))) {
+            diag.report(TemplateCode.INVALID_TRANSLATED_ATTRIBUTE, d.namePos(), "'" + attr + "' is given twice: by " + d.name() + " and directly");
+            return;
+        }
+        Message.Parsed m = translation(d, Set.of(), 0);
+        StringBuilder text = new StringBuilder();
+        if (m != null) {
+            for (Message.Part p : m.parts()) {
+                if (p instanceof Message.Text t) {
+                    text.append(t.text().replace(TextShaper.LINE_BREAK, '\n'));
+                }
+            }
+        }
+        element.setAttribute(attr, m != null ? text.toString() : d.value());
+    }
+
+    /** Replaces the children of the element with {@code t} by its translation; see {@link Translations}. */
+    private void expandMessage(Element element, Directive d, ComponentDef component) {
+        String tag = element.tag();
+        String host = component != null ? "a component's element"
+                : tag.equals("img") || tag.equals("input") || tag.equals("select") || tags.isReplaced(tag) || tags.hasLineContent(tag)
+                ? "<" + tag + ">" : null;
+        if (host != null) {
+            diag.report(TemplateCode.INVALID_MESSAGE_ELEMENT, d.namePos(), "t=\"…\" cannot go on " + host + ": its content is not its own");
+            return;
+        }
+        if (element.directives().stream().anyMatch(b -> b.name().equals("bind:text"))) {
+            diag.report(TemplateCode.INVALID_MESSAGE_ELEMENT, d.namePos(), "t=\"…\" and bind:text both set the element's text");
+            return;
+        }
+        List<Element> args = new ArrayList<>();
+        Map<String, Element> marks = new LinkedHashMap<>();
+        List<Element> tooltips = new ArrayList<>();
+        boolean valid = true;
+        for (Node n : element.children()) {
+            if (n instanceof TextNode t) {
+                if (!t.text().isBlank()) {
+                    diag.report(TemplateCode.INVALID_MESSAGE_CHILD, t.pos(), "text inside an element with t=\"…\" belongs in the translation");
+                    valid = false;
+                }
+                continue;
+            }
+            Element c = (Element) n;
+            String mark = c.attribute("mark");
+            if (c.tag().equals(TopLayer.TOOLTIP)) {
+                tooltips.add(c);
+            } else if (c.tag().equals("for") || c.tag().equals("if") || c.tag().equals("slot")) {
+                diag.report(TemplateCode.INVALID_MESSAGE_CHILD, c.pos(), "<" + c.tag() + "> makes a varying number of elements;"
+                        + " wrap it in one element to use it as an argument or mark");
+                valid = false;
+            } else if (mark == null) {
+                args.add(c);
+            } else if (!c.children().isEmpty()) {
+                diag.report(TemplateCode.INVALID_MESSAGE_CHILD, c.pos(), "mark '" + mark + "' must be empty: the translation gives its text");
+                valid = false;
+            } else if (marks.putIfAbsent(mark, c) != null) {
+                diag.report(TemplateCode.INVALID_MESSAGE_CHILD, c.pos(), "mark '" + mark + "' is declared twice");
+                valid = false;
+            }
+        }
+        if (!valid) {
+            // the arguments and marks are not what the author meant, so neither are the translation's problems
+            if (translations.get(d.value()) == null) {
+                translation(d, Set.of(), 0);
+            }
+            return;
+        }
+        Message.Parsed m = translation(d, marks.keySet(), args.size());
+        if (m == null) {
+            return;
+        }
+        for (Node n : new ArrayList<>(element.children())) {
+            element.removeChild(n);
+        }
+        boolean[] placed = new boolean[args.size()];
+        for (Message.Part p : m.parts()) {
+            if (p instanceof Message.Text t) {
+                element.appendChild(new TextNode(t.text(), d.valuePos()));
+            } else if (p instanceof Message.Arg a) {
+                Element arg = args.get(a.index());
+                element.appendChild(placed[a.index()] ? arg.copyTemplate() : arg);
+                placed[a.index()] = true;
+            } else if (p instanceof Message.Mark k) {
+                Element copy = marks.get(k.name()).copyTemplate();
+                if (!k.text().isEmpty()) {
+                    copy.appendChild(new TextNode(k.text(), d.valuePos()));
+                }
+                element.appendChild(copy);
+            }
+        }
+        for (Element tip : tooltips) {
+            element.appendChild(tip);
+        }
+    }
+
+    /** The translation {@code d} names, its problems reported; {@code null} once a missing key is reported. */
+    private Message.Parsed translation(Directive d, Set<String> marks, int args) {
+        String raw = translations.get(d.value());
+        if (raw == null) {
+            diag.report(TemplateCode.MISSING_TRANSLATION, d.valuePos(), "no translation of '" + d.value() + "'",
+                    "add it to the language files, the base language first");
+            return null;
+        }
+        Message.Parsed m = Message.parse(raw, marks, args, translations.base());
+        String of = "translation of '" + d.value() + "'"
+                + (translations.language() == null ? "" : " (" + translations.language() + ")") + ": ";
+        for (String p : m.problems()) {
+            diag.report(translations.base() ? TemplateCode.INVALID_TRANSLATION : TemplateCode.LOCALE_TRANSLATION, d.valuePos(), of + p);
+        }
+        for (String u : m.undeclared()) {
+            diag.report(TemplateCode.UNDECLARED_MARK, d.valuePos(), of + u + " names no mark of the element and is shown as text");
+        }
+        return m;
+    }
+
+    private static boolean hasLetter(String s) {
+        return s.codePoints().anyMatch(Character::isLetter);
     }
 
     /** Checks a component file's {@code <template>} and describes its component. */
@@ -533,8 +727,9 @@ public final class TemplateParser {
         return true;
     }
 
+    /** {@code messages} receives {@code t} and {@code t:<attribute>}, resolved once the element's attributes are all read. */
     private void parseAttribute(Element element, boolean tagKnown, boolean reserved, ComponentDef component,
-                                Set<String> seen) {
+                                Set<String> seen, List<Directive> messages) {
         String tag = element.tag();
         SourcePos namePos = pos(i);
         String name = readName(true);
@@ -583,8 +778,8 @@ public final class TemplateParser {
                     : "'" + name + "' is a block attribute now: wrap the element in <for each=\"…\" as=\"…\" key=\"…\">");
             return;
         }
-        if (isReserved(name)) {
-            diag.report(TemplateCode.UNSUPPORTED_ATTRIBUTE, namePos, "attribute '" + name + "' is not supported yet");
+        if (isTranslation(name)) {
+            messages.add(new Directive(name, decode(valueStart, end, false), namePos, pos(valueStart)));
             return;
         }
         boolean allowed = name.equals("slot") && !tag.equals("style") && !tag.equals("link")
@@ -613,9 +808,9 @@ public final class TemplateParser {
         return attribute.startsWith("bind:") || attribute.startsWith("on:") || attribute.startsWith("state:");
     }
 
-    /** Template attributes with planned meaning that are not implemented yet (i18n). */
-    static boolean isReserved(String attribute) {
-        return RESERVED.contains(attribute);
+    /** {@code t} and {@code t:<attribute>}: the parser translates them, so no element may register them. */
+    static boolean isTranslation(String attribute) {
+        return attribute.equals("t") || attribute.startsWith("t:");
     }
 
     private void parseStyleContent(SourcePos openPos) {

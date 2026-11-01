@@ -1,8 +1,9 @@
 <link rel="stylesheet" href="@ixchel/dark.css"/>
 <link rel="component" href="../book.html"/>
 <link rel="component" href="../page.html"/>
-<!-- The long entry: six full pages of mixed styles, Chinese and English; the guide check times it. -->
-<guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
+<!-- The long entry: six full pages of mixed styles, Chinese and English; the guide check times it.
+     A typesetting fixture whose text is the point: not translated, and English whatever the game language. -->
+<guide-book translate="no" lang="en" bind:spread="spread" bind:spreads="spreads" bind:history="history"
             on:prev="prev" on:next="next" on:back="back" on:contents="contents"
             on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
   <guide-page heading="Typesetting">

@@ -14,13 +14,15 @@ import java.util.Map;
  * (closing brackets and punctuation, small kana, the prolonged sound mark) and after one that may not
  * end it (opening brackets). Never inside a {@code nowrap} run. A word wider than the limit gets a line
  * of its own and overflows; words are never split. Spaces at the start of a line are dropped, spaces at
- * its end hang past it and are not drawn.
+ * its end hang past it and are not drawn. A {@link #LINE_BREAK} always ends the line; it is not drawn.
  *
  * <p>Each line is as tall as the tallest of its pieces and the strut (an empty run in the paragraph's
  * own font), aligned on their baselines; an atomic box's baseline is given with it.
  */
 public final class TextShaper {
     public static final String ELLIPSIS = "\u2026";
+    /** U+2028 LINE SEPARATOR: a forced line break, which a translation's {@code \n} becomes. */
+    public static final char LINE_BREAK = '\u2028';
 
     /** Part of a paragraph's content. */
     public sealed interface Item permits Run, Box {
@@ -67,6 +69,7 @@ public final class TextShaper {
     private static final byte TEXT = 0;
     private static final byte SPACE = 1;
     private static final byte BOX = 2;
+    private static final byte BREAK = 3;
 
     /** An unbreakable piece of one item: characters {@code [start, end)} of a run, or a whole box. */
     private record Unit(int item, int start, int end, float width, byte kind, boolean breakBefore) {
@@ -105,7 +108,7 @@ public final class TextShaper {
         float max = 0;
         float word = 0;
         for (Unit u : units(items)) {
-            if (u.breakBefore() || u.kind() == SPACE) {
+            if (u.breakBefore() || u.kind() == SPACE || u.kind() == BREAK) {
                 word = 0;
             }
             if (u.kind() != SPACE) {
@@ -226,8 +229,13 @@ public final class TextShaper {
             int candidate = -1;
             float w = 0;
             int j = start;
+            boolean forced = false;
             for (; j < n; j++) {
                 Unit u = units.get(j);
+                if (u.kind() == BREAK) {
+                    forced = true;
+                    break;
+                }
                 if (j > start && u.breakBefore()) {
                     candidate = j;
                 }
@@ -236,12 +244,12 @@ public final class TextShaper {
                 }
                 w += u.width();
             }
-            int end = j < n ? candidate : n;
+            int end = forced ? j : j < n ? candidate : n;
             Line line = line(items, units, start, end, strut);
             lines.add(line);
             widest = Math.max(widest, line.width());
             height += line.height();
-            i = end;
+            i = forced ? end + 1 : end;
         }
         return new Paragraph(List.copyOf(lines), widest, height);
     }
@@ -306,7 +314,8 @@ public final class TextShaper {
             int chunk = -1;
             for (int k = 0; k <= s.length(); ) {
                 int c = k < s.length() ? s.codePointAt(k) : -1;
-                boolean boundary = c == -1 || c == ' ' || chunk >= 0 && (cjk(c) || cjk(s.codePointBefore(k)));
+                boolean boundary = c == -1 || c == ' ' || c == LINE_BREAK
+                        || chunk >= 0 && (cjk(c) || cjk(s.codePointBefore(k)));
                 if (boundary && chunk >= 0) {
                     int first = s.codePointAt(chunk);
                     boolean brk = breakBefore(prevKind, prevChar, prevNowrap, first, r.nowrap());
@@ -318,6 +327,12 @@ public final class TextShaper {
                 }
                 if (c == -1) {
                     break;
+                }
+                if (c == LINE_BREAK) {
+                    out.add(new Unit(i, k, k + 1, 0, BREAK, false));
+                    prevKind = -1;
+                    k++;
+                    continue;
                 }
                 if (c == ' ') {
                     int e = k;

@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample.waypoints;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,9 +25,10 @@ public final class Waypoints {
         return saved;
     }
 
-    /** Appends a waypoint named {@code Waypoint <n>} and returns it. */
+    /** Appends a waypoint named {@code Waypoint <n>} in the current language and returns it. */
     public static Waypoint add(BlockPos pos) {
-        Waypoint w = new Waypoint(nextId++, "Waypoint " + (saved.size() + 1), pos);
+        String name = Component.translatable("ixchel_sample.waypoints.default_name", saved.size() + 1).getString();
+        Waypoint w = new Waypoint(nextId++, name, pos);
         List<Waypoint> next = new ArrayList<>(saved);
         next.add(w);
         saved = List.copyOf(next);

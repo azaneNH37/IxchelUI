@@ -4,7 +4,7 @@
 <link rel="component" href="../common/player-inventory.html"/>
 <div class="panel" state:sidesOpen="false">
   <div class="header">
-    <span class="title">Powered Stonecutter</span>
+    <span class="title" t="block.ixchel_sample.powered_stonecutter"></span>
     <span class="status" bind:class:bad="statusBad" bind:text="statusText"></span>
   </div>
   <div class="body">
@@ -15,11 +15,11 @@
       <div class="water-fill" bind:style:height="waterHeight" bind:style:background-color="waterColor"></div>
     </div>
     <div class="feed">
-      <mc-slot class="slot" index="1" title="Water bucket: 1000 mB"></mc-slot>
+      <mc-slot class="slot" index="1" t:title="ixchel_sample.machine.water_slot"></mc-slot>
       <div class="flame">
         <div class="flame-fill" bind:style:height="flameHeight" bind:style:background-position-y="flameY"></div>
       </div>
-      <mc-slot class="slot" index="0" title="Fuel"></mc-slot>
+      <mc-slot class="slot" index="0" t:title="ixchel_sample.machine.fuel_slot"></mc-slot>
     </div>
     <div class="work">
       <div class="io">
@@ -30,7 +30,7 @@
         <mc-slot class="slot output" index="3"></mc-slot>
       </div>
       <div class="recipes">
-        <if test="recipes.size == 0"><span class="hint">Put a block to cut in the left slot.</span></if>
+        <if test="recipes.size == 0"><span class="hint" t="ixchel_sample.machine.no_recipes"></span></if>
         <for each="recipes" as="r" key="r.index"><div class="recipe" bind:class:selected="r.selected" bind:title="r.name"
              on:click="pick(r)">
           <mc-item class="icon" bind:item="r.icon"></mc-item>
@@ -40,7 +40,7 @@
   </div>
   <div class="buttons">
     <button class="redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></button>
-    <button class="sides-toggle" bind:class:selected="sidesOpen" on:click="sidesOpen = !sidesOpen">Sides</button>
+    <button class="sides-toggle" bind:class:selected="sidesOpen" on:click="sidesOpen = !sidesOpen" t="ixchel_sample.machine.sides"></button>
   </div>
   <player-inventory bind:inventory="inventory" bind:hotbar="hotbar"></player-inventory>
   <div class="sides" bind:class:open="sidesOpen">

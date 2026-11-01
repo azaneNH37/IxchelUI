@@ -34,6 +34,7 @@ legacyForge {
 ixchel {
     mod("ixchel_sample", "com.azane.ixchel.sample.shadow")
     playtests("ixchel_sample_playtest")
+    lint { enable("i18n/literal-text") }
 }
 
 // Slot compatibility (L2): `-Pslotcompat=jei` loads JEI and Mouse Tweaks, `-Pslotcompat=emi` loads EMI

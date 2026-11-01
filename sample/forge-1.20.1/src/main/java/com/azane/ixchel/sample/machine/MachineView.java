@@ -13,6 +13,7 @@ import com.azane.ixchel.sample.network.Replication;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -33,7 +34,7 @@ final class MachineView extends ViewModel {
     record RecipeRow(int index, ItemStack icon, String name, boolean selected) {
     }
 
-    record SideRow(Direction side, String face, String mode, boolean input, boolean output) {
+    record SideRow(Direction side, Component face, Component mode, boolean input, boolean output) {
     }
 
     /** Pixels of furnace.png's arrow and flame. */
@@ -46,7 +47,7 @@ final class MachineView extends ViewModel {
     final Cell<Item> input;
     final Cell<String> waterColor;
 
-    final Derived<String> statusText;
+    final Derived<Component> statusText;
     final Derived<Boolean> statusBad;
     final Derived<String> energyText;
     final Derived<String> energyHeight;
@@ -56,7 +57,7 @@ final class MachineView extends ViewModel {
     final Derived<Integer> flameHeight;
     final Derived<Integer> flameY;
     final Derived<List<RecipeRow>> recipes;
-    final Derived<String> redstoneLabel;
+    final Derived<Component> redstoneLabel;
     final Derived<List<SideRow>> sideRows;
     final Value<List<Integer>> inventory = state(range(MachineMenu.INVENTORY_START, MachineMenu.HOTBAR_START));
     final Value<List<Integer>> hotbar = state(range(MachineMenu.HOTBAR_START, MachineMenu.SLOT_COUNT));
@@ -77,7 +78,7 @@ final class MachineView extends ViewModel {
             return String.format("#%06X", rgb & 0xFFFFFF);
         }));
 
-        statusText = derive(machine, m -> m.status().label);
+        statusText = derive(machine, m -> m.status().label());
         statusBad = derive(machine, m -> m.status().bad);
         energyText = derive(machine, m -> m.energy() + " / " + MachineBlockEntity.ENERGY_CAPACITY + " FE");
         energyHeight = derive(machine, m -> percent(m.energy(), MachineBlockEntity.ENERGY_CAPACITY));
@@ -89,7 +90,7 @@ final class MachineView extends ViewModel {
         flameY = derive(flameHeight, h -> h - FLAME_HEIGHT);
         Derived<Integer> recipe = derive(machine, MachineState::recipe);
         recipes = derive(input, recipe, MachineView::recipes);
-        redstoneLabel = derive(machine, m -> "Redstone: " + m.redstone().label);
+        redstoneLabel = derive(machine, m -> Component.translatable("ixchel_sample.machine.redstone", m.redstone().label()));
         sideRows = derive(derive(machine, MachineState::sides), MachineView::sideRows);
     }
 
@@ -128,8 +129,8 @@ final class MachineView extends ViewModel {
         List<SideRow> out = new ArrayList<>(6);
         for (Direction d : Direction.values()) {
             MachineState.SideMode m = modes.get(d.get3DDataValue());
-            String face = d.getName().substring(0, 1).toUpperCase(Locale.ROOT) + d.getName().substring(1);
-            out.add(new SideRow(d, face, m.label, m == MachineState.SideMode.INPUT, m == MachineState.SideMode.OUTPUT));
+            out.add(new SideRow(d, Component.translatable("ixchel_sample.machine.face." + d.getName()), m.label(),
+                    m == MachineState.SideMode.INPUT, m == MachineState.SideMode.OUTPUT));
         }
         return out;
     }

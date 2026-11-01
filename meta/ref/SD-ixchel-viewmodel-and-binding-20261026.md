@@ -75,7 +75,7 @@ related: [DECISIONS.md#003, DECISIONS.md#004, ref/SD-ixchel-ui-positioning-and-a
 </div>
 <div class="detail" if="hasSelection">…</div>                          <!-- 🟡 条件挂载 -->
 <button t="tacz.gui.reload" on:click="reload" bind:disabled="!canReload"
-        bind:class:busy="reload.pending"></button>                    <!-- 🟡 t = 语言键；✅ on:/bind:/! -->
+        bind:class:busy="reload.pending"></button>                    <!-- ✅ t = 语言键；✅ on:/bind:/! -->
 ```
 
 ```java
@@ -101,7 +101,7 @@ final class GunModView extends ViewModel {
 | 表达式 | L1 起为语言文档 §3.6 的表达式（字面量、路径、`List.size`、算术、比较、`&& \|\|`、`?:`），整条编译为一个 `Derived`；需要函数或 Java 常量的逻辑仍写 `Derived` | ✅ |
 | 绑定目标 | `text`、任意属性、`class:<名字>`（M2）；`if`、`each`（M3，`each` 必须带 `as` 与 `key`，`key` 是从行名出发的路径；`each` 与 `if` 不能在同一元素上；L2 改为 `<for>`/`<if>` 控制块，见语言文档 §3.5）；`style:<属性>` 接受 CSS 语法的 String，长度类属性也接受数值（按 `px`）；双向：`value`（输入框、`<select>`）、`checked`、`open`（`<dialog>`）、`scrolltop`，目标须是 state `Value` 字段或 `each` 行里类型为 `Value<T>` 的组件 | ✅ |
 | 动作与语句 | `on:x` 的值是语句：`act`、`act(表达式)`、赋值 `目标 = 表达式`，以 `;` 分隔，从左到右执行；加载期按 `Action<A>` 的 `A` 与赋值目标类型检查。事件名为 `click`、`mousedown`、`mouseup`、`mousemove`、`wheel`、`keydown`、`keyup`；语句可读 `$event.x`/`y`/`movementX`/`movementY`/`delta`。键事件可过滤：`on:keydown.<键名>[.shift\|.ctrl\|.alt]`（键名见 `event.Keys`），只在匹配时运行并消费；顶层元素上的键处理器注册到文档根，不需焦点即触发（`<for>`/`<if>` 块内的顶层元素除外）。局部状态 `state:名="初值"` 见语言文档 §3.6 | ✅ |
-| i18n | `t="语言键"`；字面文本开发期警告 | 🟡 |
+| i18n | `t="语言键"`、`t:<属性>="语言键"`，译文插入参数子元素、复制 `mark` 子元素；依赖数据的文本由 Java 返回 `Component`；字面文本警告只在 kit、默认关闭（`ref/SD-ixchel-i18n-20261102.md`，#027） | ✅ |
 | 值转文本 | `String.valueOf`；格式化（如补零）写进 `Derived` 或模板表达式。`Component` 由 mc 层 `TextConverter` 拆成带颜色与格式的样式片段，与周围文字进入同一套 core 行内排版（#019）；CSS 未设的部分继承，混淆只能来自 `Component` | ✅ |
 | 交互状态 | `:hover` / `:active` / `:focus` 由 event 包写状态位，`:checked` / `:open` / `:disabled` 由控件与顶层写，均不经 ViewModel | ✅ |
 | 校验 | 未声明的名字、record 上不存在的组件、不支持的 CSS 属性 → 开发期报错带文件:行:列 | ✅ |
@@ -207,7 +207,7 @@ record 中包含 `ItemStack` 时 record 的 `equals` 退化为引用比较，相
 
 ### 8. 待定
 
-- §3 中剩余 🟡 项：i18n 写法（`t` 属性）。
+- ~~§3 中剩余 🟡 项：i18n 写法（`t` 属性）。~~ 已定，见 `ref/SD-ixchel-i18n-20261102.md`（#027）。
 - 锁定型目标来源的 API 形态与 `valid` 语义（M5 前定）。
 - 动作进行中再次触发：丢弃（默认）、排队或并发。
 - `derive` 参数上限：3（默认）或可变参数。

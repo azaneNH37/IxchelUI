@@ -4,96 +4,95 @@
 <div class="screen">
   <div class="panel">
     <div class="header">
-      <span class="title">Element tooltips</span>
-      <span class="hint">Hover anything; the tooltip follows the pointer</span>
+      <span class="title" t="ixchel_sample.index.tooltips.title"></span>
+      <span class="hint" t="ixchel_sample.tooltips.hint"></span>
     </div>
     <div class="body">
       <div class="column">
-        <span class="section">Buttons</span>
+        <span class="section" t="ixchel_sample.tooltips.buttons"></span>
         <div class="row">
-          <button class="save">Save<ix-tooltip class="tip">
-            <div class="text">Writes the draft to disk <span class="key">Ctrl</span> <span class="key">S</span></div>
+          <button class="save" t="ixchel_sample.tooltips.save"><ix-tooltip class="tip">
+            <div class="text" t="ixchel_sample.tooltips.save.tip"><span mark="key" class="key"></span></div>
           </ix-tooltip></button>
-          <button class="cast" bind:disabled="cooldown > 0">Cast<ix-tooltip class="tip">
-            <span class="tip-head">Fireball</span>
-            <span class="countdown" bind:class:ready="cooldown == 0"
-                  bind:text="cooldown > 0 ? 'Ready in ' + cooldown + ' s' : 'Ready'"></span>
+          <button class="cast" bind:disabled="cooldown > 0" t="ixchel_sample.tooltips.cast"><ix-tooltip class="tip">
+            <span class="tip-head" t="ixchel_sample.tooltips.cast.tip"></span>
+            <span class="countdown" bind:class:ready="cooldown == 0"><if test="cooldown > 0"><span t="ixchel_sample.tooltips.ready_in"><span bind:text="cooldown"></span></span></if><if test="cooldown == 0"><span t="ixchel_sample.tooltips.ready"></span></if></span>
           </ix-tooltip></button>
         </div>
 
-        <span class="section">Form controls</span>
+        <span class="section" t="ixchel_sample.tooltips.form"></span>
         <div class="row">
-          <input class="name" placeholder="Name" bind:value="name"><ix-tooltip class="tip">
-            <span>Shown above your head, at most 16 letters</span>
+          <input class="name" t:placeholder="ixchel_sample.tooltips.name" bind:value="name"><ix-tooltip class="tip">
+            <span t="ixchel_sample.tooltips.name.tip"></span>
           </ix-tooltip></input>
           <select class="mode" bind:value="mode"><ix-tooltip class="tip">
-            <span>How the light level is shown</span>
+            <span t="ixchel_sample.tooltips.mode.tip"></span>
           </ix-tooltip>
-            <option value="smooth">Smooth</option>
-            <option value="steps">Steps</option>
-            <option value="off">Off</option>
+            <option value="smooth" t="ixchel_sample.tooltips.mode.smooth"></option>
+            <option value="steps" t="ixchel_sample.tooltips.mode.steps"></option>
+            <option value="off" t="ixchel_sample.tooltips.mode.off"></option>
           </select>
         </div>
 
-        <span class="section">Terms in text</span>
-        <div class="text">A <span class="term">redstone tick<ix-tooltip class="tip">
-          <span>0.1 s: two game ticks</span>
-        </ix-tooltip></span> is the unit of every delay; a <a class="link">repeater<ix-tooltip class="tip">
-          <span>Delays a signal by 1 to 4 redstone ticks</span>
-        </ix-tooltip></a> counts in them.</div>
+        <span class="section" t="ixchel_sample.tooltips.terms"></span>
+        <div class="text" t="ixchel_sample.tooltips.terms.text"><span class="term" t="ixchel_sample.tooltips.terms.tick"><ix-tooltip class="tip">
+          <span t="ixchel_sample.tooltips.terms.tick.tip"></span>
+        </ix-tooltip></span><a class="link" t="ixchel_sample.tooltips.terms.repeater"><ix-tooltip class="tip">
+          <span t="ixchel_sample.tooltips.terms.repeater.tip"></span>
+        </ix-tooltip></a></div>
 
-        <span class="section">Items: vanilla, custom, custom with the item's lines</span>
+        <span class="section" t="ixchel_sample.tooltips.items"></span>
         <div class="row">
           <mc-item class="item vanilla" bind:item="sword"></mc-item>
           <mc-item class="item custom" bind:item="apple"><ix-tooltip class="tip">
-            <span class="tip-head">A snack for the road</span>
-            <span>Eat it when the hearts run low</span>
+            <span class="tip-head" t="ixchel_sample.tooltips.apple"></span>
+            <span t="ixchel_sample.tooltips.apple.text"></span>
           </ix-tooltip></mc-item>
           <mc-item class="item lines" bind:item="sword"><ix-tooltip class="tip">
             <mc-tooltip-lines bind:item="sword"></mc-tooltip-lines>
-            <span class="tip-extra">Forged for the tooltip sample</span>
+            <span class="tip-extra" t="ixchel_sample.tooltips.sword.extra"></span>
           </ix-tooltip></mc-item>
         </div>
 
-        <span class="section">Nested: the deepest wins; title for comparison</span>
+        <span class="section" t="ixchel_sample.tooltips.nested"></span>
         <div class="row">
-          <div class="outer custom">Outer<ix-tooltip class="tip"><span>The outer box</span></ix-tooltip>
-            <div class="inner">Inner<ix-tooltip class="tip"><span>The inner box, over the outer one</span></ix-tooltip></div>
+          <div class="outer custom"><span t="ixchel_sample.tooltips.outer"></span><ix-tooltip class="tip"><span t="ixchel_sample.tooltips.outer.tip"></span></ix-tooltip>
+            <div class="inner"><span t="ixchel_sample.tooltips.inner"></span><ix-tooltip class="tip"><span t="ixchel_sample.tooltips.inner.tip"></span></ix-tooltip></div>
           </div>
-          <div class="outer titled" title="The outer box (title)">Outer
-            <div class="inner" title="The inner box (title)">Inner</div>
+          <div class="outer titled" t:title="ixchel_sample.tooltips.outer.title"><span t="ixchel_sample.tooltips.outer"></span>
+            <div class="inner" t:title="ixchel_sample.tooltips.inner.title"><span t="ixchel_sample.tooltips.inner"></span></div>
           </div>
         </div>
       </div>
 
       <div class="column wide">
-        <span class="section">A scrolled list at the screen edge</span>
+        <span class="section" t="ixchel_sample.tooltips.list"></span>
         <div class="list">
           <for each="entries" as="e" key="e"><div class="entry">
-            <span bind:text="'Entry ' + e"></span>
+            <span t="ixchel_sample.tooltips.entry"><span bind:text="e"></span></span>
             <ix-tooltip class="tip">
-              <span class="tip-head" bind:text="'Entry ' + e + ' of ' + entries.size"></span>
-              <span>Not clipped by the list; flips at the screen edge</span>
+              <span class="tip-head" t="ixchel_sample.tooltips.entry.of"><span bind:text="e"></span><span bind:text="entries.size"></span></span>
+              <span t="ixchel_sample.tooltips.entry.tip"></span>
             </ix-tooltip>
           </div></for>
         </div>
 
-        <span class="section">From a component</span>
+        <span class="section" t="ixchel_sample.tooltips.component"></span>
         <div class="row">
           <help-badge>
-            <span class="tip-head">Help from a component</span>
-            <span>The badge puts what it is given into its tooltip</span>
+            <span class="tip-head" t="ixchel_sample.tooltips.badge"></span>
+            <span t="ixchel_sample.tooltips.badge.text"></span>
           </help-badge>
-          <button class="open" on:click="dialogOpen = true">Open a dialog</button>
+          <button class="open" on:click="dialogOpen = true" t="ixchel_sample.tooltips.open"></button>
         </div>
       </div>
     </div>
   </div>
   <dialog class="dialog" bind:open="dialogOpen">
-    <span>Tooltips draw above the dialog</span>
+    <span t="ixchel_sample.tooltips.dialog"></span>
     <div class="row">
-      <button class="close" on:click="dialogOpen = false">Close<ix-tooltip class="tip">
-        <span>Back to the page</span>
+      <button class="close" on:click="dialogOpen = false" t="ixchel_sample.tooltips.close"><ix-tooltip class="tip">
+        <span t="ixchel_sample.tooltips.close.tip"></span>
       </ix-tooltip></button>
     </div>
   </dialog>

@@ -8,6 +8,7 @@ import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.selector.Selector;
 import com.azane.ixchel.core.css.selector.SelectorParser;
 import com.azane.ixchel.core.css.syntax.CssParser;
+import com.azane.ixchel.core.diag.DiagCode;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.diag.UiLoadException;
@@ -24,6 +25,7 @@ import com.azane.ixchel.core.style.StyleSheet;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.template.TemplateCode;
 import com.azane.ixchel.core.template.TemplateLoader;
+import com.azane.ixchel.core.template.Translations;
 import com.azane.ixchel.core.text.TextMeasurer;
 import com.azane.ixchel.core.text.TextShaper;
 
@@ -96,7 +98,14 @@ public final class UiDocument {
     /** Loads a document without a view model; it sees only its local states. */
     public static UiDocument load(String template, String templateFile, Function<String, String> files,
                                   TagRegistry tags, TextMeasurer measurer, ImageMeasurer images) {
-        return load(template, templateFile, files, tags, measurer, images, null, Bindings.PLAIN_TEXT);
+        return load(template, templateFile, files, tags, Translations.NONE, measurer, images, null, Bindings.PLAIN_TEXT);
+    }
+
+    /** Loads a document whose template translates nothing. */
+    public static UiDocument load(String template, String templateFile, Function<String, String> files,
+                                  TagRegistry tags, TextMeasurer measurer, ImageMeasurer images, ViewModel model,
+                                  Bindings.TextConverter text) {
+        return load(template, templateFile, files, tags, Translations.NONE, measurer, images, model, text);
     }
 
     /**
@@ -109,15 +118,16 @@ public final class UiDocument {
      * @param templateFile the template's id, {@code namespace:path} or a bare path; links resolve against it
      * @param files        the text of a file id, {@code null} if there is none; a {@link RuntimeException}
      *                     is reported as a load error at the link
+     * @param translations the language's translations; its language is the root's {@code lang}
      * @param images       natural image sizes, for {@code background-size: auto}
      * @param model        the view model {@code bind:*} attributes refer to, or {@code null}
      * @param text         converts bound values to text (the mc layer keeps a component's styles)
      */
     public static UiDocument load(String template, String templateFile, Function<String, String> files,
-                                  TagRegistry tags, TextMeasurer measurer, ImageMeasurer images, ViewModel model,
-                                  Bindings.TextConverter text) {
+                                  TagRegistry tags, Translations translations, TextMeasurer measurer, ImageMeasurer images,
+                                  ViewModel model, Bindings.TextConverter text) {
         Diagnostics diag = new Diagnostics();
-        Parsed p = parse(template, templateFile, files, tags, diag);
+        Parsed p = parse(template, templateFile, files, tags, translations, diag);
         Bindings bindings = Bindings.compile(p.root, model, p.loaded.components(), text, tags, CssProperties.REGISTRY,
                 p.topLayer, diag);
         Transitions transitions = new Transitions(CssProperties.REGISTRY, p.root);
@@ -135,12 +145,14 @@ public final class UiDocument {
      * types, and the cascade. Never throws for problems; they are all in the result. Problems that
      * need values or a viewport are not found.
      *
-     * @param shape the view model class's shape, or {@code null} for a document without one
+     * @param shape   the view model class's shape, or {@code null} for a document without one
+     * @param enabled the {@linkplain DiagCode#optIn() opt-in} checks to run
      */
     public static Diagnostics lint(String template, String templateFile, Function<String, String> files,
-                                   TagRegistry tags, ModelShape shape) {
-        Diagnostics diag = new Diagnostics();
-        Parsed p = parse(template, templateFile, files, tags, diag);
+                                   TagRegistry tags, Translations translations, ModelShape shape,
+                                   Set<? extends DiagCode> enabled) {
+        Diagnostics diag = new Diagnostics(enabled);
+        Parsed p = parse(template, templateFile, files, tags, translations, diag);
         Bindings.lint(p.root, shape, p.loaded.components(), Bindings.PLAIN_TEXT, tags, CssProperties.REGISTRY,
                 p.topLayer, diag);
         p.style(tags, diag, new Transitions(CssProperties.REGISTRY, p.root)).restyle(p.root);
@@ -158,12 +170,15 @@ public final class UiDocument {
     }
 
     private static Parsed parse(String template, String templateFile, Function<String, String> files,
-                                TagRegistry tags, Diagnostics diag) {
-        TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, tags, diag);
+                                TagRegistry tags, Translations translations, Diagnostics diag) {
+        TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, tags, translations, diag);
         List<StyleSheet> components = sheets(loaded.componentSheets(), diag);
         List<StyleSheet> themes = library(loaded.library(), diag);
         List<StyleSheet> author = sheets(loaded.pageSheets(), diag);
         Element root = new Element("#root", new SourcePos(templateFile, 1, 1));
+        if (translations.language() != null) {
+            root.setAttribute("lang", translations.language());
+        }
         for (Node n : loaded.page().roots()) {
             root.appendChild(n);
         }

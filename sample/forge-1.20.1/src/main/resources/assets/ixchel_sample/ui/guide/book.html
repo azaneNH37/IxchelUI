@@ -10,8 +10,8 @@
     </div>
   </div>
   <div class="nav">
-    <button class="contents" on:click="contents">Contents</button>
-    <button class="back" bind:disabled="!history" on:click="back">Back</button>
+    <button class="contents" on:click="contents" t="ixchel_sample.guide.contents"></button>
+    <button class="back" bind:disabled="!history" on:click="back" t="ixchel_sample.guide.back"></button>
     <div class="turns">
       <if test="spread > 0"><div class="turn prev" on:click="prev"></div></if>
       <span class="folio" bind:text="(spread + 1) + ' / ' + spreads"></span>

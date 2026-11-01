@@ -41,8 +41,29 @@ public enum TemplateCode implements DiagCode {
             "The element does not accept this attribute."),
     MOVED_ATTRIBUTE("template/moved-attribute", Severity.ERROR,
             "'if' and 'for' are blocks now, not attributes; wrap the element in the block."),
-    UNSUPPORTED_ATTRIBUTE("template/unsupported-attribute", Severity.ERROR,
-            "The attribute name is reserved but not supported yet."),
+    INVALID_MESSAGE_ELEMENT("i18n/invalid-message-element", Severity.ERROR,
+            "A t=\"…\" is on an element whose content is not its own (a component's element, an <input>, <img>, <select> or native element) or that also binds its text."),
+    INVALID_MESSAGE_CHILD("i18n/invalid-message-child", Severity.ERROR,
+            "A child of a t=\"…\" element is text, a <for>, <if> or <slot>, a mark element with content, or a second mark of the same name."),
+    MISPLACED_MARK("i18n/misplaced-mark", Severity.ERROR,
+            "A mark=\"…\" is not on a direct child of a t=\"…\" element."),
+    INVALID_TRANSLATED_ATTRIBUTE("i18n/invalid-translated-attribute", Severity.ERROR,
+            "A t:<attribute> names an attribute the element does not take, one that cannot be translated, or one also given directly."),
+    MISSING_TRANSLATION("i18n/missing-translation", Severity.ERROR,
+            "No language file has the key."),
+    INVALID_TRANSLATION("i18n/invalid-translation", Severity.ERROR,
+            "A translation in the base language has an unclosed or nested mark, an unsupported '%' conversion or an argument number beyond the arguments, or leaves a mark or argument unused."),
+    LOCALE_TRANSLATION("i18n/locale-translation", Severity.WARNING,
+            "A translation outside the base language has an unclosed or nested mark, an unsupported '%' conversion or an argument number beyond the arguments; it is shown as far as it can be."),
+    UNDECLARED_MARK("i18n/undeclared-mark", Severity.WARNING,
+            "A translation holds what looks like a mark tag whose name the element does not declare; it is shown as text."),
+    LITERAL_TEXT("i18n/literal-text", Severity.WARNING,
+            "Text or a title or placeholder is written in the template instead of taken from the language files; opt in, and mark untranslatable content translate=\"no\".") {
+        @Override
+        public boolean optIn() {
+            return true;
+        }
+    },
     UNKNOWN_BLOCK_ATTRIBUTE("template/unknown-block-attribute", Severity.ERROR,
             "A block or component declaration element has an attribute it does not take."),
     MISSING_BLOCK_ATTRIBUTE("template/missing-block-attribute", Severity.ERROR,

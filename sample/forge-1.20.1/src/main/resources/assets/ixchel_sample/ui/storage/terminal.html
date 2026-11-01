@@ -3,13 +3,13 @@
 <link rel="stylesheet" href="terminal.css"/>
 <div class="panel">
   <div class="header">
-    <span class="title">Storage Terminal</span>
+    <span class="title" t="item.ixchel_sample.storage_terminal"></span>
     <span class="summary" bind:text="shown.size + ' / ' + contents.size"></span>
   </div>
   <div class="tools">
-    <input class="search" bind:value="query" placeholder="Search, @mod" maxlength="50"/>
-    <button class="sort" title="Sort by" on:click="cycleSort"><span bind:text="sortLabel"></span></button>
-    <button class="direction" on:click="descending = !descending"><span bind:text="descending ? 'Desc' : 'Asc'"></span></button>
+    <input class="search" bind:value="query" t:placeholder="ixchel_sample.storage.search" maxlength="50"/>
+    <button class="sort" t:title="ixchel_sample.storage.sort_by" on:click="cycleSort"><span bind:text="sortLabel"></span></button>
+    <button class="direction" on:click="descending = !descending"><if test="descending"><span t="ixchel_sample.storage.descending"></span></if><if test="!descending"><span t="ixchel_sample.storage.ascending"></span></if></button>
   </div>
   <!-- Clicks on the grid store the carried stack (right: one of it); on a cell they take when nothing is carried. -->
   <div class="view" bind:scrolltop="scroll" on:click="store" on:click.right="storeOne">

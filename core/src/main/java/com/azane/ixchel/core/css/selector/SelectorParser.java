@@ -12,8 +12,8 @@ import java.util.Locale;
 
 /**
  * Supported: type, {@code *}, {@code .class}, {@code #id}, {@code [attr]}, {@code [attr=value]},
- * {@code :hover/:active/:focus/:disabled/:checked/:open}, descendant and child combinators, selector
- * lists. Anything else is a dev-time error.
+ * {@code :hover/:active/:focus/:disabled/:checked/:open}, {@code :root}, {@code :lang(range, …)},
+ * descendant and child combinators, selector lists. Anything else is a dev-time error.
  */
 public final class SelectorParser {
     private final List<ComponentValue> in;
@@ -90,6 +90,7 @@ public final class SelectorParser {
         List<Selector.AttributeMatch> attributes = new ArrayList<>();
         int state = 0;
         boolean root = false;
+        List<String> langs = List.of();
         int start = i;
         if (i < in.size() && in.get(i) instanceof Token t) {
             if (t.is(Token.Kind.IDENT)) {
@@ -140,6 +141,18 @@ public final class SelectorParser {
                     i += 2;
                     continue;
                 }
+                if (after instanceof ComponentValue.Function f && f.name().equalsIgnoreCase("lang")) {
+                    if (!langs.isEmpty()) {
+                        diag.report(SelectorCode.INVALID_LANG, f.pos(), "a compound selector takes one :lang(); list the ranges in it");
+                        return null;
+                    }
+                    langs = langRanges(f);
+                    if (langs == null) {
+                        return null;
+                    }
+                    i += 2;
+                    continue;
+                }
                 int bit = after instanceof Token n && n.is(Token.Kind.IDENT) ? stateBit(n.value()) : 0;
                 if (bit == 0) {
                     reportPseudo(after, after != null ? after.pos() : t.pos());
@@ -155,7 +168,32 @@ public final class SelectorParser {
             diag.report(SelectorCode.EXPECTED_SELECTOR, i < in.size() ? in.get(i).pos() : endPos(), "expected a selector");
             return null;
         }
-        return new Selector.Compound(tag, id, List.copyOf(classes), List.copyOf(attributes), state, root);
+        return new Selector.Compound(tag, id, List.copyOf(classes), List.copyOf(attributes), state, root, langs);
+    }
+
+    /** The comma-separated identifiers or strings of {@code :lang()}, lowercase; {@code null} once reported. */
+    private List<String> langRanges(ComponentValue.Function f) {
+        List<String> out = new ArrayList<>();
+        boolean expectRange = true;
+        for (ComponentValue v : f.args()) {
+            if (v instanceof Token t && t.is(Token.Kind.WHITESPACE)) {
+                continue;
+            }
+            if (expectRange && v instanceof Token t && (t.is(Token.Kind.IDENT) || t.is(Token.Kind.STRING)) && !t.value().isEmpty()) {
+                out.add(t.value().toLowerCase(Locale.ROOT));
+                expectRange = false;
+            } else if (!expectRange && v instanceof Token t && t.is(Token.Kind.COMMA)) {
+                expectRange = true;
+            } else {
+                expectRange = true;
+                break;
+            }
+        }
+        if (out.isEmpty() || expectRange) {
+            diag.report(SelectorCode.INVALID_LANG, f.pos(), "expected :lang() with language ranges such as zh or en-us, separated by commas");
+            return null;
+        }
+        return List.copyOf(out);
     }
 
     /** {@code [name]} or {@code [name=value]} with an identifier or string value; other operators are errors. */

@@ -34,6 +34,8 @@ a:hover {
 
 .b { font-weight: bold; }
 .i { font-style: italic; }
+/* Chinese has no italics: emphasis is a color instead. */
+:lang(zh) .i { font-style: normal; color: #2E5AAC; }
 .s { text-decoration: line-through; }
 .red { color: #A01818; }
 .green { color: #1E7A1E; }

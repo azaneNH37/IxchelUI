@@ -3,12 +3,13 @@
 <div class="screen" on:keydown.up="selectPrevious" on:keydown.down="selectNext" on:keydown.delete="remove">
   <div class="panel">
     <div class="header">
-      <span class="title">Waypoints</span>
-      <span class="count" bind:text="rows.size + (rows.size == 1 ? ' waypoint' : ' waypoints')"></span>
+      <span class="title" t="ixchel_sample.waypoints.title"></span>
+      <if test="rows.size == 1"><span class="count" t="ixchel_sample.waypoints.count.one"></span></if>
+      <if test="rows.size != 1"><span class="count" t="ixchel_sample.waypoints.count"><span bind:text="rows.size"></span></span></if>
     </div>
-    <span class="hint">Click a row or use Up/Down; Delete removes. Distances update as you move.</span>
+    <span class="hint" t="ixchel_sample.waypoints.hint"></span>
     <div class="list">
-      <if test="rows.size == 0"><span class="empty">No waypoints yet. Add one where you stand.</span></if>
+      <if test="rows.size == 0"><span class="empty" t="ixchel_sample.waypoints.empty"></span></if>
       <for each="rows" as="r" key="r.id"><div class="row" tabindex="0" on:click="select(r)" bind:class:selected="r.id == selectedId">
         <span class="name" bind:text="r.name"></span>
         <span class="coords" bind:text="r.x + ', ' + r.y + ', ' + r.z"></span>
@@ -16,8 +17,8 @@
       </div></for>
     </div>
     <div class="buttons">
-      <button title="Saves the block you stand on, in this dimension" on:click="add">Add here</button>
-      <if test="selectedId >= 0"><button on:click="remove">Remove</button></if>
+      <button t:title="ixchel_sample.waypoints.add_title" on:click="add" t="ixchel_sample.waypoints.add"></button>
+      <if test="selectedId >= 0"><button on:click="remove" t="ixchel_sample.waypoints.remove"></button></if>
     </div>
   </div>
 </div>

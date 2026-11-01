@@ -8,6 +8,7 @@ import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -27,7 +28,8 @@ import java.util.List;
 final class GuideView extends ViewModel {
     private static final long ROTATION_NANOS = 1_000_000_000L;
 
-    record Entry(String id, String title) {
+    /** {@code title} is {@code ixchel_sample.guide.entry.<id>}. */
+    record Entry(String id, Component title) {
     }
 
     record Slot(int index, ItemStack stack) {
@@ -45,7 +47,8 @@ final class GuideView extends ViewModel {
     private final List<ItemStack[]> pistonCells = cells("piston");
     private final List<ItemStack[]> chestCells = cells("chest");
 
-    final Value<List<Entry>> entries = state(Guide.entries().stream().map(id -> new Entry(id, title(id))).toList());
+    final Value<List<Entry>> entries = state(Guide.entries().stream()
+            .map(id -> new Entry(id, Component.translatable("ixchel_sample.guide.entry." + id))).toList());
     final Value<Icons> icons = state(new Icons(new ItemStack(Items.REDSTONE), new ItemStack(Items.REDSTONE_TORCH),
             new ItemStack(Items.REPEATER), new ItemStack(Items.REDSTONE_LAMP), new ItemStack(Items.PISTON),
             new ItemStack(Items.CHEST), new ItemStack(Items.OAK_PLANKS), new ItemStack(Items.WRITABLE_BOOK)));
@@ -83,12 +86,6 @@ final class GuideView extends ViewModel {
 
     private Guide.Place here() {
         return new Guide.Place(place.entry(), spread.get());
-    }
-
-    /** {@code redstone_basics} reads "Redstone basics". */
-    private static String title(String id) {
-        String words = id.replace('_', ' ');
-        return Character.toUpperCase(words.charAt(0)) + words.substring(1);
     }
 
     /** The nine cells of the vanilla shaped recipe {@code id}, each the items its ingredient accepts. */

@@ -5,6 +5,7 @@ import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -27,7 +28,7 @@ final class ConfigView extends ViewModel {
             "minecraft:spider_eye", "minecraft:dead_bush");
 
     /** A category in the left column. */
-    record Category(String id, String label, Derived<Boolean> active) {
+    record Category(String id, Component label, Derived<Boolean> active) {
     }
 
     /**
@@ -35,11 +36,11 @@ final class ConfigView extends ViewModel {
      * {@code value} every other kind's, as text (a list joined with ", "); {@code saved} is the text
      * of the stored value.
      */
-    record Row(String id, String category, String label, String comment, boolean restart,
+    record Row(String id, String category, Component label, Component comment, boolean restart,
                boolean bool, boolean number, boolean choice, boolean text, boolean color, boolean list,
                String min, String max, String step, List<String> choices,
                Value<Boolean> on, Value<String> value, Value<String> saved,
-               Derived<Boolean> modified, Derived<Boolean> atDefault, Derived<String> error,
+               Derived<Boolean> modified, Derived<Boolean> atDefault, Derived<Component> error,
                Derived<Boolean> invalid, Derived<String> swatch) {
     }
 
@@ -64,11 +65,11 @@ final class ConfigView extends ViewModel {
     final Value<Boolean> canSave = state(false);
     final Value<Boolean> canUndo = state(false);
     final Value<Boolean> restartPending = state(false);
-    final Value<String> status = state("");
+    final Value<Component> status = state(Component.empty());
 
     final Value<Boolean> confirming = state(false);
     final Value<Boolean> listOpen = state(false);
-    final Value<String> listTitle = state("");
+    final Value<Component> listTitle = state(Component.empty());
     final Value<List<Item>> items = state(List.of());
     final Value<String> preset = state("");
 
@@ -100,7 +101,7 @@ final class ConfigView extends ViewModel {
         rows = derive(category, query, (cat, q) -> {
             String needle = q.trim().toLowerCase(Locale.ROOT);
             return all.stream().filter(r -> needle.isEmpty() ? r.category().equals(cat)
-                    : (r.label() + "\n" + r.id() + "\n" + r.comment()).toLowerCase(Locale.ROOT).contains(needle)).toList();
+                    : (r.label().getString() + "\n" + r.id() + "\n" + r.comment().getString()).toLowerCase(Locale.ROOT).contains(needle)).toList();
         });
         for (Row r : all) {
             lastSeen.put(r, draft(r));
@@ -173,8 +174,8 @@ final class ConfigView extends ViewModel {
         Derived<Boolean> atDefault = k == ConfigEntries.Kind.BOOLEAN
                 ? derive(on, o -> String.valueOf(o).equals(def))
                 : derive(value, v -> normalize(e, v).equals(def));
-        Derived<String> error = derive(value, v -> k == ConfigEntries.Kind.BOOLEAN ? "" : validate(e, v));
-        Derived<Boolean> invalid = derive(error, s -> !s.isEmpty());
+        Derived<Component> error = derive(value, v -> k == ConfigEntries.Kind.BOOLEAN ? Component.empty() : validate(e, v));
+        Derived<Boolean> invalid = derive(error, s -> !s.getString().isEmpty());
         Derived<String> swatch = derive(value, v -> {
             Object c = ConfigEntries.parse(ConfigEntries.Kind.COLOR, v);
             return c == null ? "transparent" : ConfigEntries.format(ConfigEntries.Kind.COLOR, c);
@@ -199,19 +200,19 @@ final class ConfigView extends ViewModel {
         return parsed == null || e.validate(parsed) != null ? "\0" + v : ConfigEntries.format(e.kind(), parsed);
     }
 
-    /** An empty string when {@code v} is a valid value, else why not. */
-    private static String validate(ConfigEntries.Entry e, String v) {
+    /** An empty component when {@code v} is a valid value, else why not. */
+    private static Component validate(ConfigEntries.Entry e, String v) {
         Object parsed = ConfigEntries.parse(e.kind(), v);
         if (parsed == null) {
-            return switch (e.kind()) {
-                case INT -> "Must be a whole number";
-                case DOUBLE -> "Must be a number";
-                case COLOR -> "Must be a color #RRGGBB";
-                default -> "Invalid value";
-            };
+            return ConfigEntries.error(switch (e.kind()) {
+                case INT -> "integer";
+                case DOUBLE -> "number";
+                case COLOR -> "color";
+                default -> "invalid";
+            });
         }
-        String error = e.validate(parsed);
-        return error == null ? "" : error;
+        Component error = e.validate(parsed);
+        return error == null ? Component.empty() : error;
     }
 
     private static String draft(Row r) {
@@ -247,7 +248,8 @@ final class ConfigView extends ViewModel {
         canSave.set(anyModified && !anyInvalid);
         canUndo.set(!undoSteps.isEmpty());
         restartPending.set(restart);
-        status.set(anyInvalid ? "Fix the values marked red to save" : anyModified ? "Unsaved changes" : "");
+        status.set(anyInvalid ? Component.translatable("ixchel_sample.config.status.invalid")
+                : anyModified ? Component.translatable("ixchel_sample.config.status.unsaved") : Component.empty());
     }
 
     private void addItem(String text) {
@@ -269,7 +271,7 @@ final class ConfigView extends ViewModel {
         entries.save();
         undoSteps.clear();
         refreshTotals();
-        status.set("Saved");
+        status.set(Component.translatable("ixchel_sample.config.status.saved"));
     }
 
     private void closeLater() {

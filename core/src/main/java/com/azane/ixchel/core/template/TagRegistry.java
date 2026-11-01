@@ -25,9 +25,12 @@ public final class TagRegistry {
     /**
      * Attributes every element except {@code <style>} and {@code <link>} accepts; {@code tabindex} makes
      * an element focusable, {@code disabled} (a boolean attribute) blocks mouse buttons and focus inside
-     * it, {@code title} is tooltip text for the host to show.
+     * it, {@code title} is tooltip text for the host to show, {@code lang} is the language
+     * {@code :lang()} matches, {@code translate="no"} marks content that is not translated, and
+     * {@code mark} names a mark of the parent's translation.
      */
-    public static final Set<String> GLOBAL_ATTRIBUTES = Set.of("class", "id", "style", "tabindex", "disabled", "title");
+    public static final Set<String> GLOBAL_ATTRIBUTES = Set.of("class", "id", "style", "tabindex", "disabled", "title",
+            "lang", "translate", "mark");
 
     /** The only attributes of {@code <link rel="stylesheet" href="…"/>}. */
     public static final Set<String> LINK_ATTRIBUTES = Set.of("rel", "href");
@@ -157,7 +160,7 @@ public final class TagRegistry {
                 if (!isName(a, true)) {
                     throw new IllegalArgumentException("malformed attribute name '" + a + "'");
                 }
-                if (GLOBAL_ATTRIBUTES.contains(a) || TemplateParser.isDirective(a) || TemplateParser.isReserved(a)) {
+                if (GLOBAL_ATTRIBUTES.contains(a) || TemplateParser.isDirective(a) || TemplateParser.isTranslation(a)) {
                     throw new IllegalArgumentException("attribute '" + a + "' cannot be registered on <" + tag + ">");
                 }
                 set.add(a);
@@ -177,7 +180,7 @@ public final class TagRegistry {
                 throw new IllegalArgumentException("<" + tag + "> is already registered");
             }
             if (!isName(payload, false) || GLOBAL_ATTRIBUTES.contains(payload)
-                    || TemplateParser.isReserved(payload) || TemplateParser.isDirective(payload)
+                    || TemplateParser.isTranslation(payload) || TemplateParser.isDirective(payload)
                     || Set.of(extraAttributes).contains(payload)) {
                 throw new IllegalArgumentException("'" + payload + "' cannot be the payload of <" + tag + ">");
             }

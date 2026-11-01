@@ -5,9 +5,11 @@ import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.template.Translations;
 import com.azane.ixchel.mc.paint.McImageMeasurer;
 import com.azane.ixchel.mc.paint.McTextMeasurer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
@@ -53,8 +55,10 @@ final class McResources {
      * development source when present, other namespaces read packed resources); an href starting
      * with {@code @ixchel/} names a stylesheet of the library, such as {@code @ixchel/vanilla.css}; any
      * other href is relative to the linking file's directory ({@code ../common.css} allowed). Error positions name
-     * files as {@code modid:path}. Bound {@link Component}s are flattened with
-     * {@link Component#getString()}; their colors and styles are dropped, CSS styles the text.
+     * files as {@code modid:path}. A bound {@link Component} keeps its colors and formatting in
+     * {@code bind:text} and is its plain string elsewhere. {@code t} attributes are translated into the
+     * selected language, a key it lacks into {@code en_us} as the game does; the root's {@code lang} is
+     * the language code with {@code -} for {@code _} ({@code zh-cn}).
      *
      * @param model the view model {@code bind:*} attributes refer to, or {@code null}
      */
@@ -64,7 +68,7 @@ final class McResources {
             String ns = id.substring(0, colon);
             String path = id.substring(colon + 1);
             return ns.equals(hostModId) ? read(resources, path) : readPacked(resources, new ResourceLocation(ns, path));
-        }, tags, new McTextMeasurer(Minecraft.getInstance().font), new McImageMeasurer(resources), model, TEXT);
+        }, tags, translations(), new McTextMeasurer(Minecraft.getInstance().font), new McImageMeasurer(resources), model, TEXT);
         String host = name("");
         List<String> files = new ArrayList<>();
         for (String id : document.files()) {
@@ -88,6 +92,30 @@ final class McResources {
         } catch (IOException e) {
             throw new UncheckedIOException("cannot read " + id, e);
         }
+    }
+
+    /** The game's current translations: the selected language over {@code en_us}. */
+    private static Translations translations() {
+        Language language = Language.getInstance();
+        String selected = Minecraft.getInstance().getLanguageManager().getSelected();
+        String tag = selected.replace('_', '-');
+        boolean base = selected.equals(Language.DEFAULT);
+        return new Translations() {
+            @Override
+            public String language() {
+                return tag;
+            }
+
+            @Override
+            public boolean base() {
+                return base;
+            }
+
+            @Override
+            public String get(String key) {
+                return language.has(key) ? language.getOrDefault(key) : null;
+            }
+        };
     }
 
     /** A {@link Component} keeps its colors and formatting in {@code bind:text}; elsewhere it is its plain string. */

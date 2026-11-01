@@ -175,6 +175,12 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 迁移：S1 属性行（名称 + 说明，`max-width: 160px`）、S6 配置项（名称、配置路径、注释、需重启提示，`max-width: 200px`）、S7 节点（标题、所需物品行带图标、状态）由 `title` 改为 `<ix-tooltip>`，S1、S6、S7 检查各加一项"悬停显示 tooltip"。接受的外观变化：外框与底色随主题（vanilla 主题紫框、dark 主题灰框），多行分色排版取代原版单色纯文本；S7 节点图标外的边框区不再有 tooltip。
 - 写法：tooltip 内换行要靠作者给 `max-width`；`.key` 这类带边框的小块须 `inline-block`（`inline` 不能有盒属性），放在 `display: block` 的段落里。
 
+阶段 I 结果（2026-11-02）：
+- 1.20.1 全部场景与索引的界面文本改为语言键（`ixchel_sample.<场景>.<名>`，原版已有的键直接复用，如 `gui.done`、`item.minecraft.*`），`en_us.json`/`zh_cn.json` 各 255 键；1.21.1 refit 16 键，服务端拒绝原因以 `Component`（键加参数）经 `ComponentSerialization` 下发，客户端按自己的语言显示。两个 sample 打开 `i18n/literal-text`，`ixchelLint` 均为 0。
+- 不翻译的是数据与符号：任务与章节标题（`quests.json`）、建好的路径点名、配置枚举值、单位（m、FE、mB）与罗盘方位。S6 配置项标签按 Forge 约定取 `<modid>.configuration.<名>`、`.tooltip`、`.section.<名>`，删去 `humanize`。
+- `:lang(zh) .i` 让 S8 的强调在中文下不斜体、改用颜色；S8 `typesetting` 条目是排版样张，`translate="no" lang="en"`。
+- 新增 playtest `language` 8 项：切到 `zh_cn` 并等资源重载及其淡出遮罩结束（遮罩期间点击被吞）后重开界面，`t`、`t:title`、参数、Java `Component` 与根 `lang="zh-cn"` 均为中文，中文目录加载无诊断，切回英文。既有测试只有 S6 预设选项名随原版键变为 "Spider Eye"。
+
 ### 4. 自动化检查
 
 #### 4.1 现状

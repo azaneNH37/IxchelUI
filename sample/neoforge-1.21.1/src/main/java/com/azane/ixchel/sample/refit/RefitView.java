@@ -51,7 +51,7 @@ final class RefitView extends ViewModel {
     final Action<Void> remove;
     final Action<Swatch> pickLaser = action(s -> draftLaser.set(s.id()));
     final Action<Void> applyLaser;
-    final Derived<String> errorText;
+    final Derived<Component> errorText;
     final Derived<Boolean> hasError;
 
     RefitView(int slot) {
@@ -69,7 +69,7 @@ final class RefitView extends ViewModel {
         applyLaser = task(() -> RefitNetwork.laser(slot, draftLaser.get()));
         errorText = derive(install.error(), remove.error(), applyLaser.error(), (a, b, c) -> {
             Throwable t = a != null ? a : b != null ? b : c;
-            return t == null ? null : t.getMessage();
+            return t == null ? null : t instanceof RefitNetwork.RefitRejected r ? r.reason() : Component.literal(String.valueOf(t.getMessage()));
         });
         hasError = derive(errorText, Objects::nonNull);
     }

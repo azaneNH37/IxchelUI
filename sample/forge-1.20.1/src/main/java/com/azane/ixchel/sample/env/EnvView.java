@@ -49,8 +49,8 @@ final class EnvView extends ViewModel {
     }
 
     /** The block under the crosshair; {@code tool} is the harvest hint, red unless {@code harvestable}. */
-    record BlockInfo(Component name, String mod, Item item, String tool, boolean harvestable, List<Prop> properties) {
-        static final BlockInfo NONE = new BlockInfo(Component.empty(), "", Items.AIR, "", true, List.of());
+    record BlockInfo(Component name, String mod, Item item, Component tool, boolean harvestable, List<Prop> properties) {
+        static final BlockInfo NONE = new BlockInfo(Component.empty(), "", Items.AIR, Component.empty(), true, List.of());
     }
 
     /** The entity under the crosshair; health and armor only when {@code living}. */
@@ -58,8 +58,8 @@ final class EnvView extends ViewModel {
         static final EntityInfo NONE = new EntityInfo(Component.empty(), "", false, 0, 0, 0);
     }
 
-    record World(Component biome, String time, String weather, String light, String coords, String facing) {
-        static final World NONE = new World(Component.empty(), "", "", "", "", "");
+    record World(Component biome, Component time, Component weather, Component light, String coords, String facing) {
+        static final World NONE = new World(Component.empty(), Component.empty(), Component.empty(), Component.empty(), "", "");
     }
 
     /** A strip tick every 15°; {@code left} (pixels) places its box so the tick sits on the angle. */
@@ -173,18 +173,20 @@ final class EnvView extends ViewModel {
     }
 
     /** The tool tag and the lowest tier from the vanilla mining tags. */
-    private static String tool(BlockState s) {
-        String kind = s.is(BlockTags.MINEABLE_WITH_PICKAXE) ? "Pickaxe"
-                : s.is(BlockTags.MINEABLE_WITH_AXE) ? "Axe"
-                : s.is(BlockTags.MINEABLE_WITH_SHOVEL) ? "Shovel"
-                : s.is(BlockTags.MINEABLE_WITH_HOE) ? "Hoe" : null;
+    private static Component tool(BlockState s) {
+        String kind = s.is(BlockTags.MINEABLE_WITH_PICKAXE) ? "pickaxe"
+                : s.is(BlockTags.MINEABLE_WITH_AXE) ? "axe"
+                : s.is(BlockTags.MINEABLE_WITH_SHOVEL) ? "shovel"
+                : s.is(BlockTags.MINEABLE_WITH_HOE) ? "hoe" : null;
         String tier = s.is(BlockTags.NEEDS_DIAMOND_TOOL) ? "diamond"
                 : s.is(BlockTags.NEEDS_IRON_TOOL) ? "iron"
                 : s.is(BlockTags.NEEDS_STONE_TOOL) ? "stone" : null;
         if (kind == null) {
-            return s.requiresCorrectToolForDrops() ? "Needs a tool" : "Any tool";
+            return Component.translatable(s.requiresCorrectToolForDrops() ? "ixchel_sample.env.tool.needed" : "ixchel_sample.env.tool.any");
         }
-        return tier == null ? kind : kind + ", " + tier + " or better";
+        Component tool = Component.translatable("ixchel_sample.env.tool." + kind);
+        return tier == null ? tool
+                : Component.translatable("ixchel_sample.env.tool.tiered", tool, Component.translatable("ixchel_sample.env.tier." + tier));
     }
 
     private static EntityInfo entity(LocalPlayer p) {
@@ -212,24 +214,25 @@ final class EnvView extends ViewModel {
         long dayTime = level.getDayTime();
         // Day time 0 is sunrise, drawn as 06:00.
         long t = (dayTime + 6000) % 24000;
-        String time = String.format("Day %d, %02d:%02d", dayTime / 24000 + 1, t / 1000, t % 1000 * 60 / 1000);
-        String light = "Light " + level.getBrightness(LightLayer.BLOCK, pos) + " block, "
-                + level.getBrightness(LightLayer.SKY, pos) + " sky";
+        Component time = Component.translatable("ixchel_sample.env.time", dayTime / 24000 + 1,
+                String.format("%02d:%02d", t / 1000, t % 1000 * 60 / 1000));
+        Component light = Component.translatable("ixchel_sample.env.light", level.getBrightness(LightLayer.BLOCK, pos),
+                level.getBrightness(LightLayer.SKY, pos));
         String coords = pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
         int heading = heading(p);
         String facing = POINTS[Math.round(heading / 45f) % 8] + " " + heading + "\u00b0";
         return new World(biome, time, weather(level, pos), light, coords, facing);
     }
 
-    private static String weather(Level level, BlockPos pos) {
+    private static Component weather(Level level, BlockPos pos) {
         if (!level.isRaining()) {
-            return "Clear";
+            return Component.translatable("ixchel_sample.env.weather.clear");
         }
         Biome.Precipitation here = level.getBiome(pos).value().getPrecipitationAt(pos);
         if (here == Biome.Precipitation.NONE) {
-            return "Clear (dry biome)";
+            return Component.translatable("ixchel_sample.env.weather.dry");
         }
-        String kind = here == Biome.Precipitation.SNOW ? "Snow" : "Rain";
-        return level.isThundering() ? kind + ", thunder" : kind;
+        Component kind = Component.translatable(here == Biome.Precipitation.SNOW ? "ixchel_sample.env.weather.snow" : "ixchel_sample.env.weather.rain");
+        return level.isThundering() ? Component.translatable("ixchel_sample.env.weather.thunder", kind) : kind;
     }
 }

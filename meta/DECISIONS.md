@@ -160,3 +160,9 @@
 - **context**: 两套检查沿用了临时脚本的命名："check" 同时指整个游戏内系统、一个具名测试项、一条断言、Gradle 生命周期任务 `check`、sourceSet `check`、`-Pcheck`、`ixchel.check.<modid>` 与 core 的静态入口 `UiDocument.check`；日志标签 `[ixchel-bench]` 来自早期基准脚本；`scenarios` 参数与 sample 场景 S1–S9 同名；`report` 有四种含义；日志的 "N passed" 数的是断言，用户按名选的却是测试项
 - **decision**: 两个词根互不重叠。游戏外：lint——kit 的 `lint`/`schema`/`explain` 不变，插件任务 `ixchelLint`（插件注册的任务带 `ixchel` 前缀），core 入口 `UiDocument.lint`、`Bindings.lint`，错误码不变（#023）。游戏内：playtest——术语 playtest（具名测试项，如 `machine`）、assertion（一条 PASS/FAIL）、run（一次启动跑完所选测试项）、step（队列一步）；包 `core.playtest`（`PlaytestDriver`、`PlaytestRun`、`FrameBudget`、`Pump`、`InputPort`、`Dump`）与 `mc.playtest`（`Playtests` 注册表、`Playtest` 步骤 API），`IxchelForge.installPlaytests`，断言记录 `record`、汇总文本 `summary`、帧预算断言 `FrameBudget.expect`/`FrameTimer.expect`；插件 DSL `playtests(modid)`、sourceSet `playtest`、`-Pplaytest`、`-Dixchel.playtest.<modid>`；日志 `[ixchel-playtest] <测试项> <断言>: PASS|FAIL`，结尾 `<modid> done: <n> playtests, <p> passed, <f> failed`；输出集中在 `playtests/<modid>/`（`report.txt`、`dumps/`、`screenshots/`）；sample 测试 mod `ixchel_sample_playtest`，每场景一个 `*Playtest` 类。"场景"只指 sample 场景
 - **rejected**: 保留 check 加限定（`ingameCheck`）——名字长，仍与 Gradle `check` 同根；`e2e`——看不出在游戏内；`probe`——已删除的 testmod 用过；`scenario`——与 sample 场景冲突；`lintUi`——插件任务无统一前缀；截图留在 `run/screenshots/`——与手动 F2 截图混在一起
+
+## #027 模板 i18n = 元素级消息 + 译文内具名标记
+- **decided**: 2026-11-02
+- **context**: 原定 `t="语言键"` 只是保留名；属性、参数、依赖数据的文本与句中样式词都没有写法，MC 汉化生态只认语言 JSON
+- **decision**: `t="键"` 由译文给出元素内容，`t:<属性>="键"` 给属性值；译文在 MC 语言 JSON 中，`%s`/`%n$s` 按位置插入不带 `mark` 的子元素，`<名>…</名>` 复制带 `mark="名"` 的空子元素并填入文字（0..n 次，不嵌套、不带属性），`\n` 强制换行；加载期展开、先于绑定编译，切换语言随资源重载重建；外观只由模板与 CSS 决定，`:lang()` 按游戏语言区分；依赖数据的文本由 Java 返回 `Component`；原文只在 `en_us.json`；字面文本警告只在 kit、默认关闭。细节见 `ref/SD-ixchel-i18n-20261102.md`
+- **rejected**: `$t()` 表达式函数与动态键——违反加载期检查与"不提供内置函数"；样式词各自取键——词形与范围脱离句子；`§` 码——样式交给译者、绕过 CSS；编号标签——译者看不懂；模板内写原文——两份原文漂移

@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2；接下来是 I（i18n）、Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I；接下来是 Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
 
 ## Detail
 
@@ -36,7 +36,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | L3 | 完成 | — | 主题层与主题、`var()` |
 | E1 | 完成 | S8 | 文字排版补完：行内流式排版、CJK 断行、`Component` 富文本、行内链接 |
 | E2 | 完成 | S9；S1、S6、S7 的 tooltip | 文档内富 tooltip `<ix-tooltip>`，兼容原版物品 tooltip |
-| I | 待做 | — | i18n：`t` 语言键与参数 |
+| I | 完成 | 全部场景的界面文本 | i18n：`t` 语言键与参数 |
 | Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
 | T1 | 完成 | 2026-10-31 | 静态检查：`@UiTemplate`、成员表编译、原生元素声明数据、错误码、`ixchel-kit` 的 lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
 | T2 | 完成 | 2026-10-31 | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
@@ -124,10 +124,12 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 #### I i18n
 
-- 先定：参数写法（按 MC 语言文件的位置参数 `%s`/`%1$s`，模板中如何给出参数表达式）；参数是否经 `$` 命名空间暴露（#016）；字面文本警告的范围。
-- 引擎：`t="语言键"`（语言文档 §3.5 保留项）与参数；core 只定义翻译端口，mc 层以 vanilla 语言表实现，两个 mc 版本；语言切换后重新取值；组件体内的 `t` 同样可用；字面文本开发期警告（绑定文档 §3 i18n 行）。
-- sample：所有界面文本改为语言键，附 `en_us` 语言文件。
-- 验收：切换游戏语言后界面文本随之变化；缺键与参数个数不符在加载期或首次取值时报告；`-Pplaytest=all`。
+- 已定（2026-11-02）：见 `ref/SD-ixchel-i18n-20261102.md`（#027）。`t="键"`、`t:<属性>="键"`；译文 `%s`/`%n$s` 插入不带 `mark` 的子元素，`<名>…</名>` 复制 `mark="名"` 的空子元素（0..n 次）；`\n` 强制换行；依赖数据的文本由 Java 返回 `Component`；原文只在 `en_us.json`；名字保留 `t`；不预置 `<b>`/`<i>`。
+- 引擎：core 翻译端口（取译文、当前语言）；解析器接受 `t`、`t:<属性>`、`mark`、`translate`，`t` 元素下丢弃空白文本；加载期展开译文（先于绑定编译，组件体与控制块内容同样展开），检查项见设计文档 §5，基准语言 `en_us` 严格；行内排版支持强制换行；选择器 `:lang()`，文档根写当前语言的 `lang`；mc 层以 vanilla `Language` 实现端口，两个 mc 版本；切换语言随资源重载重建。
+- 工具：kit 以资源目录与 classpath 中的 `en_us.json` 为基准做译文检查；`lint --enable <码>` 打开默认关闭的码，字面文本警告为第一个；插件 `ixchel { lint { enable(...) } }`。
+- sample：1.20.1 与 1.21.1 的所有界面文本（含 S8 正文）改为语言键，Java 侧文本改为 `Component.translatable`；附 `en_us`、`zh_cn`；用 `:lang(zh)` 调整至少一处中文外观（如强调去斜体）。
+- 验收：切换游戏语言（`zh_cn`）后界面文本随之变化，写成 playtest；缺键与参数不符在加载期或首次取值时报告，core 单元测试覆盖；sample `ixchelLint` 打开字面文本警告为 0；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
+- 结果（2026-11-02）：按已定完成，引擎、工具与 sample 的结果见 `ref/SD-ixchel-i18n-20261102.md` §7；偏差：S8 的排版样张条目 `typesetting` 不翻译（`translate="no" lang="en"`），其正文就是多文种排版样本。
 
 #### Doc 用户文档
 

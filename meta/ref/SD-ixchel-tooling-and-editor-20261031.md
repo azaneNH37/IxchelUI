@@ -114,7 +114,7 @@ diag.error(BindingCode.UNKNOWN_NAME, pos, msg);
 | 方面 | 规则 |
 |---|---|
 | 形式 | 符号名 `领域/名称`，全英文（码、消息、summary、hint） |
-| 领域 | 按加载阶段：`load`、`template`、`css`、`style`、`binding`、`element`（mc 层定义）、`model`（注解与成员表） |
+| 领域 | 按加载阶段：`load`、`template`、`i18n`（`t` 展开与译文检查）、`css`、`style`、`binding`、`element`（mc 层定义）、`model`（注解与成员表） |
 | 定义处 | 每领域一个实现 `DiagCode` 的 enum，放在报告它的包里；mc 层自定义，core 不需知道 |
 | 严重级别 | 由码决定，不由调用点决定；暂不可配置 |
 | 粒度 | 一种作者可改正的错误一个码，估计 60–90 个；库内部不变式被破坏是 bug，抛异常，不作诊断 |

@@ -2,6 +2,9 @@ package com.azane.ixchel.sample.refit;
 
 import com.azane.ixchel.sample.IxchelSampleMod;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -20,8 +23,8 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,11 +52,14 @@ public final class RefitNetwork {
         }
     }
 
-    /** {@code error} is empty on success. */
-    record Reply(int id, String error) implements CustomPacketPayload {
+    /**
+     * {@code error} is empty on success. A translatable component, so the client shows it in its own
+     * language rather than the server's.
+     */
+    record Reply(int id, Optional<Component> error) implements CustomPacketPayload {
         static final Type<Reply> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(IxchelSampleMod.MOD_ID, "refit_reply"));
-        static final StreamCodec<ByteBuf, Reply> CODEC = StreamCodec.composite(
-                ByteBufCodecs.VAR_INT, Reply::id, ByteBufCodecs.STRING_UTF8, Reply::error, Reply::new);
+        static final StreamCodec<RegistryFriendlyByteBuf, Reply> CODEC = StreamCodec.composite(
+                ByteBufCodecs.VAR_INT, Reply::id, ComponentSerialization.OPTIONAL_STREAM_CODEC, Reply::error, Reply::new);
 
         @Override
         public Type<Reply> type() {
@@ -61,10 +67,17 @@ public final class RefitNetwork {
         }
     }
 
-    /** A request the server turned down; the message is for the player. */
+    /** A request the server turned down; {@link #reason} is for the player. */
     public static final class RefitRejected extends RuntimeException {
-        RefitRejected(String message) {
-            super(message, null, false, false);
+        private final Component reason;
+
+        RefitRejected(Component reason) {
+            super(reason.getString(), null, false, false);
+            this.reason = reason;
+        }
+
+        public Component reason() {
+            return reason;
         }
     }
 
@@ -120,48 +133,48 @@ public final class RefitNetwork {
         if (r.error.isEmpty()) {
             f.complete(null);
         } else {
-            f.completeExceptionally(new RefitRejected(r.error));
+            f.completeExceptionally(new RefitRejected(r.error.get()));
         }
     }
 
     private static void onServer(Request r, IPayloadContext ctx) {
         ServerPlayer p = (ServerPlayer) ctx.player();
-        String error = apply(p.getInventory(), r);
+        Optional<Component> error = apply(p.getInventory(), r);
         delayed.add(new Delayed(p, new Reply(r.id, error), new int[]{REPLY_DELAY_TICKS}));
     }
 
-    /** Returns an error message, or {@code ""} once applied. */
-    private static String apply(Inventory inv, Request r) {
+    /** Returns why the request was turned down, or nothing once applied. */
+    private static Optional<Component> apply(Inventory inv, Request r) {
         if (r.slot < 0 || r.slot >= inv.getContainerSize() || !Attachments.isGun(inv.getItem(r.slot))) {
-            return "The crossbow is no longer in that slot";
+            return reject("gone");
         }
         ItemStack gun = inv.getItem(r.slot);
         if (r.attachment.equals("laser")) {
             if (Attachments.option(Attachments.LASERS, r.option) == null) {
-                return "Unknown laser color '" + r.option + "'";
+                return reject("unknown_laser", r.option);
             }
             Attachments.setLaser(gun, r.option);
-            return "";
+            return Optional.empty();
         }
         Attachments.Type type = Attachments.type(r.attachment);
         if (type == null) {
-            return "Unknown attachment type '" + r.attachment + "'";
+            return reject("unknown_type", r.attachment);
         }
         Attachments.Option current = Attachments.option(type.options(), Attachments.installed(gun, type.id()));
         if (r.option.isEmpty()) {
             if (current == null) {
-                return "No " + type.name().getString().toLowerCase(Locale.ROOT) + " is installed";
+                return reject("none_installed", type.name());
             }
             inv.placeItemBackInInventory(new ItemStack(current.item()));
             Attachments.setInstalled(gun, type.id(), "");
-            return "";
+            return Optional.empty();
         }
         Attachments.Option wanted = Attachments.option(type.options(), r.option);
         if (wanted == null) {
-            return "Unknown " + type.id() + " '" + r.option + "'";
+            return reject("unknown_option", type.name(), r.option);
         }
         if (wanted == current) {
-            return wanted.name().getString() + " is already installed";
+            return reject("already_installed", wanted.name());
         }
         int from = -1;
         for (int i = 0; i < inv.getContainerSize() && from < 0; i++) {
@@ -170,13 +183,18 @@ public final class RefitNetwork {
             }
         }
         if (from < 0) {
-            return "You have no " + wanted.name().getString();
+            return reject("missing_item", wanted.name());
         }
         inv.getItem(from).shrink(1);
         if (current != null) {
             inv.placeItemBackInInventory(new ItemStack(current.item()));
         }
         Attachments.setInstalled(gun, type.id(), wanted.id());
-        return "";
+        return Optional.empty();
+    }
+
+    /** {@code ixchel_sample.refit.error.<name>}. */
+    private static Optional<Component> reject(String name, Object... args) {
+        return Optional.of(Component.translatable("ixchel_sample.refit.error." + name, args));
     }
 }

@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample.config;
 
 import com.electronwill.nightconfig.core.UnmodifiableConfig;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 import java.math.BigDecimal;
@@ -29,9 +30,9 @@ public final class ConfigEntries {
      * @param name the section's dot-joined path, empty for values at the top level
      */
     public record Category(String name, List<Entry> entries) {
-        /** The humanized last path element, e.g. {@code compass} gives "Compass". */
-        public String label() {
-            return humanize(name.substring(name.lastIndexOf('.') + 1));
+        /** {@code ixchel_sample.configuration.section.<name>}, as Forge's config screens name sections. */
+        public Component label() {
+            return Component.translatable(KEY + "section." + name);
         }
     }
 
@@ -41,7 +42,6 @@ public final class ConfigEntries {
         private final ForgeConfigSpec.ValueSpec spec;
         private final ForgeConfigSpec.ConfigValue<?> value;
         private final Kind kind;
-        private final String comment;
         private final Number min, max;
         /** The enum constants for {@link Kind#ENUM}, else empty. */
         private final Enum<?>[] constants;
@@ -57,7 +57,6 @@ public final class ConfigEntries {
             this.max = range == null ? null : (Number) range.getMax();
             Enum<?>[] none = {};
             this.constants = def instanceof Enum<?> e ? e.getDeclaringClass().getEnumConstants() : none;
-            this.comment = stripGenerated(spec.getComment(), range, kind);
         }
 
         /** The dot-joined path, e.g. {@code compass.compassRange}. */
@@ -70,14 +69,14 @@ public final class ConfigEntries {
             return path.get(path.size() - 1);
         }
 
-        /** The humanized name, e.g. {@code compassRange} gives "Compass range". */
-        public String label() {
-            return humanize(name());
+        /** {@code ixchel_sample.configuration.<name>}, as Forge's config screens name values. */
+        public Component label() {
+            return Component.translatable(KEY + name());
         }
 
-        /** The spec comment without Forge's generated range and allowed-values lines; empty when none. */
-        public String comment() {
-            return comment;
+        /** The description shown in the UI: {@code ixchel_sample.configuration.<name>.tooltip}. */
+        public Component comment() {
+            return Component.translatable(KEY + name() + ".tooltip");
         }
 
         public Kind kind() {
@@ -118,37 +117,37 @@ public final class ConfigEntries {
          *
          * @return {@code null} when valid, else a short message for the user
          */
-        public String validate(Object candidate) {
+        public Component validate(Object candidate) {
             switch (kind) {
                 case BOOLEAN -> {
-                    if (!(candidate instanceof Boolean)) return "Must be true or false";
+                    if (!(candidate instanceof Boolean)) return error("boolean");
                 }
                 case INT, COLOR -> {
-                    if (!(candidate instanceof Integer)) return kind == Kind.COLOR ? "Must be a color #RRGGBB" : "Must be a whole number";
-                    String bounds = checkBounds((Integer) candidate);
+                    if (!(candidate instanceof Integer)) return error(kind == Kind.COLOR ? "color" : "integer");
+                    Component bounds = checkBounds((Integer) candidate);
                     if (bounds != null) return bounds;
                 }
                 case DOUBLE -> {
-                    if (!(candidate instanceof Number n) || !Double.isFinite(n.doubleValue())) return "Must be a number";
-                    String bounds = checkBounds(n.doubleValue());
+                    if (!(candidate instanceof Number n) || !Double.isFinite(n.doubleValue())) return error("number");
+                    Component bounds = checkBounds(n.doubleValue());
                     if (bounds != null) return bounds;
                 }
                 case ENUM -> {
                     if (!(candidate instanceof String s) || constant(s) == null) {
-                        return "Must be one of " + String.join(", ", choices());
+                        return error("choice", String.join(", ", choices()));
                     }
                 }
                 case STRING -> {
-                    if (!(candidate instanceof String)) return "Must be text";
+                    if (!(candidate instanceof String)) return error("text");
                 }
                 case LIST -> {
-                    if (!(candidate instanceof List<?> list)) return "Must be a list";
+                    if (!(candidate instanceof List<?> list)) return error("list");
                     for (Object element : list) {
-                        if (!(element instanceof String) || !spec.test(List.of(element))) return "Invalid entry: " + element;
+                        if (!(element instanceof String) || !spec.test(List.of(element))) return error("entry", element);
                     }
                 }
             }
-            return spec.test(toStored(candidate)) ? null : "Invalid value";
+            return spec.test(toStored(candidate)) ? null : error("invalid");
         }
 
         /**
@@ -158,16 +157,16 @@ public final class ConfigEntries {
          */
         @SuppressWarnings("unchecked")
         public void set(Object v) {
-            String error = validate(v);
+            Component error = validate(v);
             if (error != null) {
-                throw new IllegalArgumentException(path() + ": " + error);
+                throw new IllegalArgumentException(path() + ": " + error.getString());
             }
             ((ForgeConfigSpec.ConfigValue<Object>) value).set(toStored(v));
         }
 
-        private String checkBounds(double v) {
+        private Component checkBounds(double v) {
             if (min != null && v < min.doubleValue() || max != null && v > max.doubleValue()) {
-                return "Must be between " + format(kind, min) + " and " + format(kind, max);
+                return error("range", format(kind, min), format(kind, max));
             }
             return null;
         }
@@ -199,6 +198,14 @@ public final class ConfigEntries {
                 default -> v;
             };
         }
+    }
+
+    /** The prefix of the config's translation keys. */
+    private static final String KEY = "ixchel_sample.configuration.";
+
+    /** A validation message, {@code ixchel_sample.configuration.error.<name>}. */
+    static Component error(String name, Object... args) {
+        return Component.translatable(KEY + "error." + name, args);
     }
 
     private final List<Category> categories;
@@ -321,28 +328,4 @@ public final class ConfigEntries {
                 + def.getClass().getName());
     }
 
-    /** Drops the lines Forge appends to the comment of ranged and enum values; those are shown from the bounds and choices. */
-    private static String stripGenerated(String comment, ForgeConfigSpec.Range<?> range, Kind kind) {
-        if (comment == null) return "";
-        List<String> lines = new ArrayList<>(Arrays.asList(comment.split("\n")));
-        if (range != null) lines.remove("Range: " + range);
-        if (kind == Kind.ENUM) lines.removeIf(l -> l.startsWith("Allowed Values: "));
-        return String.join("\n", lines);
-    }
-
-    /** {@code compassRange} gives "Compass range". */
-    private static String humanize(String name) {
-        StringBuilder sb = new StringBuilder(name.length() + 4);
-        for (int i = 0; i < name.length(); i++) {
-            char c = name.charAt(i);
-            if (c == '_' || c == '-') {
-                sb.append(' ');
-            } else if (Character.isUpperCase(c) && i > 0 && !Character.isUpperCase(name.charAt(i - 1))) {
-                sb.append(' ').append(Character.toLowerCase(c));
-            } else {
-                sb.append(sb.isEmpty() ? Character.toUpperCase(c) : c);
-            }
-        }
-        return sb.toString();
-    }
 }

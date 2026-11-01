@@ -22,4 +22,9 @@ public interface DiagCode {
 
     /** One English sentence describing the problem, for {@code --explain} and the reference docs. */
     String summary();
+
+    /** Whether a problem with this code is only reported when its {@link Diagnostics} enables the code. */
+    default boolean optIn() {
+        return false;
+    }
 }

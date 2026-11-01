@@ -19,4 +19,5 @@ neoForge {
 
 ixchel {
     mod("ixchel_sample", "com.azane.ixchel.sample.shadow")
+    lint { enable("i18n/literal-text") }
 }

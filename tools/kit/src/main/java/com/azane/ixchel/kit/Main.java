@@ -6,6 +6,7 @@ import com.azane.ixchel.kit.lint.CodeCatalog;
 import com.azane.ixchel.kit.lint.Lint;
 import com.azane.ixchel.kit.project.ElementDeclarations;
 import com.azane.ixchel.kit.project.Project;
+import com.azane.ixchel.kit.project.LanguageFiles;
 import com.azane.ixchel.kit.project.ProjectClassLoader;
 import com.azane.ixchel.kit.schema.Schema;
 
@@ -15,16 +16,18 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
  * The {@code ixchel-kit} command line:
  *
  * <pre>
- * lint --resources &lt;dir&gt;... --classpath &lt;entry&gt;... [--json]
+ * lint --resources &lt;dir&gt;... --classpath &lt;entry&gt;... [--enable &lt;code-id&gt;...] [--json]
  * schema [--resources &lt;dir&gt;...] [--classpath &lt;entry&gt;...] [--json]
  * explain &lt;code-id&gt; [--classpath &lt;entry&gt;...]
  * </pre>
@@ -38,8 +41,10 @@ import java.util.regex.Pattern;
 public final class Main {
     private static final String USAGE = """
             usage:
-              lint --resources <dir>... --classpath <entry>... [--json]
-                  checks every template under <dir>/assets/<namespace>/; exits 1 on errors
+              lint --resources <dir>... --classpath <entry>... [--enable <code-id>...] [--json]
+                  checks every template under <dir>/assets/<namespace>/; exits 1 on errors.
+                  Translations are checked in en_us. --enable turns on opt-in checks such as
+                  i18n/literal-text.
               schema [--resources <dir>...] [--classpath <entry>...] [--json]
                   tags, library stylesheets, CSS properties, components and view model members
               explain <code-id> [--classpath <entry>...]
@@ -60,9 +65,9 @@ public final class Main {
         System.exit(run(args, out, err));
     }
 
-    /** Parsed arguments: the command, its positionals and the paths of each option. */
+    /** Parsed arguments: the command, its positionals, the paths of each option and the enabled codes. */
     private record Args(String command, List<String> positional, List<Path> resources, List<Path> classpath,
-                        boolean json) {
+                        List<String> enable, boolean json) {
         static Args parse(String[] args) {
             if (args.length == 0) {
                 throw new IllegalArgumentException("no command");
@@ -70,22 +75,37 @@ public final class Main {
             List<String> positional = new ArrayList<>();
             List<Path> resources = new ArrayList<>();
             List<Path> classpath = new ArrayList<>();
+            List<String> enable = new ArrayList<>();
             boolean json = false;
             List<Path> target = null;
+            boolean codes = false;
             for (int i = 1; i < args.length; i++) {
                 String a = args[i];
                 switch (a) {
-                    case "--resources" -> target = resources;
-                    case "--classpath" -> target = classpath;
+                    case "--resources" -> {
+                        target = resources;
+                        codes = false;
+                    }
+                    case "--classpath" -> {
+                        target = classpath;
+                        codes = false;
+                    }
+                    case "--enable" -> {
+                        target = null;
+                        codes = true;
+                    }
                     case "--json" -> {
                         json = true;
                         target = null;
+                        codes = false;
                     }
                     default -> {
                         if (a.startsWith("--")) {
                             throw new IllegalArgumentException("unknown option " + a);
                         }
-                        if (target != null) {
+                        if (codes) {
+                            enable.add(a);
+                        } else if (target != null) {
                             // A value may join several paths with the platform's path separator, as a classpath does.
                             for (String p : a.split(Pattern.quote(File.pathSeparator))) {
                                 if (!p.isEmpty()) {
@@ -98,7 +118,7 @@ public final class Main {
                     }
                 }
             }
-            return new Args(args[0], positional, resources, classpath, json);
+            return new Args(args[0], positional, resources, classpath, enable, json);
         }
 
         /** The project's own compiled output: the directories of its classpath. */
@@ -117,14 +137,13 @@ public final class Main {
                         throw new IllegalArgumentException("lint takes --resources <dir>... and --classpath <entry>...");
                     }
                 }
-                case "schema" -> {
-                    if (!args.positional().isEmpty()) {
-                        throw new IllegalArgumentException("schema takes no positional arguments");
+                case "schema", "explain" -> {
+                    if (!args.enable().isEmpty()) {
+                        throw new IllegalArgumentException("only lint takes --enable");
                     }
-                }
-                case "explain" -> {
-                    if (args.positional().size() != 1) {
-                        throw new IllegalArgumentException("explain takes one code id");
+                    if (args.command().equals("schema") ? !args.positional().isEmpty() : args.positional().size() != 1) {
+                        throw new IllegalArgumentException(args.command().equals("schema")
+                                ? "schema takes no positional arguments" : "explain takes one code id");
                     }
                 }
                 default -> throw new IllegalArgumentException("unknown command " + args.command());
@@ -137,7 +156,7 @@ public final class Main {
         try (ProjectClassLoader loader = new ProjectClassLoader(args.classpath(), Main.class.getClassLoader())) {
             Project project = new Project(args.resources(), args.classes(), loader);
             return switch (args.command()) {
-                case "lint" -> lint(project, args.json(), out);
+                case "lint" -> lint(project, args, out, err);
                 case "schema" -> schema(project, args.json(), out);
                 default -> explain(loader, args.positional().get(0), out, err);
             };
@@ -152,9 +171,21 @@ public final class Main {
         }
     }
 
-    private static int lint(Project project, boolean json, PrintStream out) {
+    private static int lint(Project project, Args args, PrintStream out, PrintStream err) {
+        Set<DiagCode> enabled = new HashSet<>();
+        for (String id : args.enable()) {
+            DiagCode code = CodeCatalog.find(project.loader(), id);
+            if (code == null || !code.optIn()) {
+                err.println(code == null ? "no diagnostic code '" + id + "'" : "'" + id + "' is always checked; --enable takes opt-in checks");
+                err.println(USAGE);
+                return 2;
+            }
+            enabled.add(code);
+        }
+        boolean json = args.json();
         ElementDeclarations elements = ElementDeclarations.load(project.loader());
-        List<Diagnostic> found = Lint.run(project, elements.tags());
+        List<Diagnostic> found = Lint.run(project, elements.tags(), LanguageFiles.base(args.resources(), args.classpath()),
+                enabled);
         long errors = found.stream().filter(d -> d.severity() == Diagnostic.Severity.ERROR).count();
         if (json) {
             List<Object> list = new ArrayList<>();
@@ -199,7 +230,7 @@ public final class Main {
             err.println("ixchel-kit: no diagnostic code '" + id + "'");
             return 2;
         }
-        out.println(code.id() + " (" + severity(code.severity()) + ")");
+        out.println(code.id() + " (" + severity(code.severity()) + (code.optIn() ? ", opt-in" : "") + ")");
         out.println("  " + code.summary());
         return 0;
     }

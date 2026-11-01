@@ -3,11 +3,11 @@
   <div class="panel">
     <span class="title" bind:text="gunName"></span>
     <if test="!valid"><div class="gone">
-      <span>The crossbow left the slot this screen was opened on. Put it back, or press Esc.</span>
+      <span t="ixchel_sample.refit.gone"></span>
     </div></if>
     <if test="valid"><div class="body">
       <div class="column">
-        <span class="label">Attachments</span>
+        <span class="label" t="ixchel_sample.refit.attachments"></span>
         <for each="slots" as="s" key="s.type"><div class="row slot" tabindex="0"
              on:click="select(s)" bind:class:selected="s.selected">
           <mc-item class="icon" bind:item="s.icon"></mc-item>
@@ -24,18 +24,18 @@
           </div></for>
         </div>
         <if test="hasInstalled"><div class="button" on:click="remove" bind:class:busy="remove.pending">
-          <span>Remove</span>
+          <span t="ixchel_sample.refit.remove"></span>
         </div></if>
       </div></if>
       <div class="column">
-        <span class="label">Laser</span>
+        <span class="label" t="ixchel_sample.refit.laser"></span>
         <for each="swatches" as="w" key="w.id"><div class="row swatch" on:click="pickLaser(w)"
              bind:class:selected="w.draft" bind:class:installed="w.current">
           <mc-item class="icon" bind:item="w.icon"></mc-item>
           <span bind:text="w.name"></span>
         </div></for>
         <if test="hasDraft"><div class="button" on:click="applyLaser" bind:class:busy="applyLaser.pending">
-          <span>Apply</span>
+          <span t="ixchel_sample.refit.apply"></span>
         </div></if>
       </div>
     </div></if>

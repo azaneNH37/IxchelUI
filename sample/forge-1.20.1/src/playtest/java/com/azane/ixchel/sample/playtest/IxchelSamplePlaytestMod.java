@@ -34,6 +34,7 @@ public final class IxchelSamplePlaytestMod {
             QuestsPlaytest.register(playtests);
             GuidePlaytest.register(playtests);
             TooltipsPlaytest.register(playtests);
+            LanguagePlaytest.register(playtests);
         });
     }
 }

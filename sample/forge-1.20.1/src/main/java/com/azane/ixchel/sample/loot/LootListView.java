@@ -9,6 +9,7 @@ import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.source.ClientSources;
 import com.azane.ixchel.sample.network.Network;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -31,10 +32,11 @@ final class LootListView extends ViewModel {
     }
 
     /** A filter button: shows drops of rarity {@code level} (vanilla's order) and above. */
-    record Filter(int level, String label) {
+    record Filter(int level, Component label) {
     }
 
-    private static final String[] FILTERS = {"All", "Uncommon+", "Rare+", "Epic"};
+    /** Key suffixes of the filters, in rarity order. */
+    private static final String[] FILTERS = {"all", "uncommon", "rare", "epic"};
 
     final Value<Integer> minRarity = state(0);
     final Cell<List<Row>> drops = source(ClientSources.player(LootListView::rows, List.of()));
@@ -59,7 +61,7 @@ final class LootListView extends ViewModel {
     private static List<Filter> filters() {
         List<Filter> out = new ArrayList<>(FILTERS.length);
         for (int i = 0; i < FILTERS.length; i++) {
-            out.add(new Filter(i, FILTERS[i]));
+            out.add(new Filter(i, Component.translatable("ixchel_sample.loot.filter." + FILTERS[i])));
         }
         return out;
     }

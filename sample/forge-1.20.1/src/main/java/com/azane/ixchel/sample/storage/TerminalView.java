@@ -11,6 +11,7 @@ import com.azane.ixchel.sample.network.Network;
 import com.azane.ixchel.sample.network.Replica;
 import com.azane.ixchel.sample.network.Replication;
 import com.azane.ixchel.sample.network.Replication.Entry;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -32,12 +33,10 @@ final class TerminalView extends ViewModel {
     static final int SPARE_ROWS = 2;
 
     enum SortKey {
-        NAME("Name"), COUNT("Count"), MOD("Mod");
+        NAME, COUNT, MOD;
 
-        final String label;
-
-        SortKey(String label) {
-            this.label = label;
+        Component label() {
+            return Component.translatable("ixchel_sample.storage.sort." + name().toLowerCase(Locale.ROOT));
         }
     }
 
@@ -57,7 +56,7 @@ final class TerminalView extends ViewModel {
     final Derived<List<Tile>> visibleCells;
     final Derived<Integer> contentHeight;
     final Derived<Integer> padTop;
-    final Derived<String> sortLabel;
+    final Derived<Component> sortLabel;
     final Value<List<Integer>> inventory = state(range(TerminalMenu.INVENTORY_START, TerminalMenu.SLOT_COUNT));
 
     final Action<Void> cycleSort = action(() -> sortKey.set(SortKey.values()[(sortKey.get().ordinal() + 1) % SortKey.values().length]));
@@ -77,7 +76,7 @@ final class TerminalView extends ViewModel {
         visibleCells = derive(shown, scroll, TerminalView::visible);
         contentHeight = derive(shown, s -> rows(s.size()) * CELL);
         padTop = derive(scroll, s -> s / CELL * CELL);
-        sortLabel = derive(sortKey, k -> k.label);
+        sortLabel = derive(sortKey, SortKey::label);
         // A new search starts at the top.
         subscribe(query, () -> scroll.set(0));
     }

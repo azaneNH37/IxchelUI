@@ -2,8 +2,8 @@
 <link rel="stylesheet" href="index.css"/>
 <div class="screen">
   <div class="panel">
-    <span class="title">Ixchel UI samples</span>
-    <span class="hint">Click a screen to open it, a HUD to show or hide it. Esc closes.</span>
+    <span class="title" t="ixchel_sample.index.title"></span>
+    <span class="hint" t="ixchel_sample.index.hint"></span>
     <div class="list">
       <for each="rows" as="r" key="r.id"><div class="row" tabindex="0" on:click="open(r)" bind:class:on="r.on">
         <mc-item class="icon" bind:item="r.icon"></mc-item>

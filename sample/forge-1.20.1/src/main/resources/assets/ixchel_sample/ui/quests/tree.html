@@ -3,8 +3,8 @@
 <div class="screen">
   <div class="panel">
     <div class="header">
-      <span class="title">Quests</span>
-      <span class="hint">Drag to pan, wheel to zoom, click a quest</span>
+      <span class="title" t="ixchel_sample.quests.title"></span>
+      <span class="hint" t="ixchel_sample.quests.hint"></span>
     </div>
     <div class="body">
       <div class="chapters">
@@ -44,8 +44,8 @@
           <span class="line" bind:text="detail.reward"></span>
           <span class="state" bind:text="detail.state"></span>
           <div class="actions">
-            <button class="claim" bind:disabled="!detail.ready" on:click="claim">Claim</button>
-            <button class="close" on:click="selected = ''">Close</button>
+            <button class="claim" bind:disabled="!detail.ready" on:click="claim" t="ixchel_sample.quests.claim"></button>
+            <button class="close" on:click="selected = ''" t="ixchel_sample.quests.close"></button>
           </div>
         </div></if>
       </div>

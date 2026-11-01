@@ -6,6 +6,7 @@ import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -14,7 +15,7 @@ import java.util.List;
 /** The sample index: one row per {@link Sample}; HUD rows show whether the HUD is on. */
 @UiTemplate("ixchel_sample:ui/index/index.html")
 final class SampleIndexView extends ViewModel {
-    record Row(String id, String title, String description, ItemStack icon, String state, boolean on) {
+    record Row(String id, Component title, Component description, ItemStack icon, Component state, boolean on) {
     }
 
     private final List<Sample> samples;
@@ -44,7 +45,8 @@ final class SampleIndexView extends ViewModel {
         for (int i = 0; i < samples.size(); i++) {
             Sample s = samples.get(i);
             boolean on = shown.get(i);
-            String state = s.hud() == null ? "" : on ? "HUD on" : "HUD off";
+            Component state = s.hud() == null ? Component.empty()
+                    : Component.translatable(on ? "ixchel_sample.index.hud_on" : "ixchel_sample.index.hud_off");
             out.add(new Row(s.id(), s.title(), s.description(), s.icon(), state, on));
         }
         return out;

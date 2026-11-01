@@ -4,11 +4,13 @@ import com.azane.ixchel.core.binding.ModelShape;
 import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.binding.compile.BindingCode;
+import com.azane.ixchel.core.diag.DiagCode;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.template.Translations;
 import com.azane.ixchel.kit.project.Components;
 import com.azane.ixchel.kit.project.Project;
 
@@ -39,8 +41,12 @@ public final class Lint {
     /**
      * Every problem found, ordered by file and position; diagnostics about an annotation are
      * positioned at its class, by binary name, line 0.
+     *
+     * @param translations the base language, which every {@code t} key must be in
+     * @param enabled      the {@linkplain DiagCode#optIn() opt-in} checks to run
      */
-    public static List<Diagnostic> run(Project project, TagRegistry tags) {
+    public static List<Diagnostic> run(Project project, TagRegistry tags, Translations translations,
+                                       Set<? extends DiagCode> enabled) {
         List<String> templates = project.templates();
         Set<String> componentFiles = Components.scan(project, tags).files();
         Set<String> claimed = new LinkedHashSet<>();
@@ -77,7 +83,7 @@ public final class Lint {
                 }
                 for (String id : ids) {
                     claimed.add(id);
-                    out.addAll(lint(project, tags, id, shape).entries());
+                    out.addAll(lint(project, tags, translations, enabled, id, shape).entries());
                 }
             }
         }
@@ -85,7 +91,7 @@ public final class Lint {
             if (claimed.contains(id) || componentFiles.contains(id)) {
                 continue;
             }
-            for (Diagnostic d : lint(project, tags, id, null).entries()) {
+            for (Diagnostic d : lint(project, tags, translations, enabled, id, null).entries()) {
                 if (d.code() != BindingCode.UNKNOWN_NAME) {
                     out.add(d);
                 }
@@ -101,7 +107,8 @@ public final class Lint {
         return sorted;
     }
 
-    private static Diagnostics lint(Project project, TagRegistry tags, String id, ModelShape shape) {
-        return UiDocument.lint(project.read(id), id, project::read, tags, shape);
+    private static Diagnostics lint(Project project, TagRegistry tags, Translations translations,
+                                    Set<? extends DiagCode> enabled, String id, ModelShape shape) {
+        return UiDocument.lint(project.read(id), id, project::read, tags, translations, shape, enabled);
     }
 }

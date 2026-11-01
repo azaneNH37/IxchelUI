@@ -12,6 +12,7 @@ import com.azane.ixchel.mc.source.ClientSources;
 import com.azane.ixchel.sample.network.Network;
 import com.azane.ixchel.sample.network.Replica;
 import com.azane.ixchel.sample.network.Replication;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -44,14 +45,14 @@ final class QuestsView extends ViewModel {
     }
 
     /** {@code state}: {@code locked}, {@code open}, {@code ready} or {@code done}; {@code label} says it in words. */
-    record Node(String id, int x, int y, ItemStack icon, String state, String title, String task, String label) {
+    record Node(String id, int x, int y, ItemStack icon, String state, String title, Component task, Component label) {
     }
 
     /** A line from a prerequisite's center: {@code angle} in degrees, clockwise from the x axis. */
     record Edge(String id, float x, float y, float length, float angle, boolean done) {
     }
 
-    record Detail(String title, ItemStack icon, String task, String reward, String state, boolean ready) {
+    record Detail(String title, ItemStack icon, Component task, Component reward, Component state, boolean ready) {
     }
 
     private final Map<String, ItemStack> icons = new HashMap<>();
@@ -170,21 +171,16 @@ final class QuestsView extends ViewModel {
         }
         String state = state(q, claimed, held);
         return new Detail(q.title(), icons.get(q.id()), task(q, held),
-                "Reward: " + q.rewardCount() + " × " + new ItemStack(q.reward()).getHoverName().getString(),
+                Component.translatable("ixchel_sample.quests.reward", q.rewardCount(), new ItemStack(q.reward()).getHoverName()),
                 label(state), state.equals("ready"));
     }
 
-    private static String task(Quests.Quest q, Map<Item, Integer> held) {
-        return "Hold " + q.count() + " × " + new ItemStack(q.item()).getHoverName().getString()
-                + " (" + Math.min(q.count(), held.getOrDefault(q.item(), 0)) + "/" + q.count() + ")";
+    private static Component task(Quests.Quest q, Map<Item, Integer> held) {
+        return Component.translatable("ixchel_sample.quests.task", q.count(), new ItemStack(q.item()).getHoverName(),
+                Math.min(q.count(), held.getOrDefault(q.item(), 0)), q.count());
     }
 
-    private static String label(String state) {
-        return switch (state) {
-            case "done" -> "Claimed";
-            case "ready" -> "Ready to claim";
-            case "open" -> "In progress";
-            default -> "Locked: finish the quests before it";
-        };
+    private static Component label(String state) {
+        return Component.translatable("ixchel_sample.quests.state." + state);
     }
 }

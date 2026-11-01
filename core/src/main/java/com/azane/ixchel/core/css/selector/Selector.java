@@ -3,6 +3,7 @@ package com.azane.ixchel.core.css.selector;
 import com.azane.ixchel.core.dom.Element;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * A complex selector: {@code compounds} left to right, {@code combinators.get(i)} sits between
@@ -23,10 +24,11 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, i
 
     /**
      * {@code tag} and {@code id} are {@code null} when absent; {@code stateMask} uses {@link Element} state bits;
-     * {@code root} is {@code :root}, a top-level element of the template (a child of the implicit root).
+     * {@code root} is {@code :root}, a top-level element of the template (a child of the implicit root);
+     * {@code langs} are the lowercase ranges of {@code :lang()}, empty when absent.
      */
     public record Compound(String tag, String id, List<String> classes, List<AttributeMatch> attributes, int stateMask,
-                           boolean root) {
+                           boolean root, List<String> langs) {
         public boolean matches(Element e) {
             if (e.tag().startsWith("#")) {
                 return false;
@@ -55,7 +57,29 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, i
                     return false;
                 }
             }
-            return true;
+            return langs.isEmpty() || matchesLang(e);
+        }
+
+        /**
+         * The element's language is the {@code lang} of it or its nearest ancestor (the document root
+         * carries the game's); a range matches it exactly or as a prefix ending at a {@code -}, ignoring case.
+         */
+        private boolean matchesLang(Element e) {
+            String lang = null;
+            for (Element a = e; a != null && lang == null; a = a.parent()) {
+                lang = a.attribute("lang");
+            }
+            if (lang == null) {
+                return false;
+            }
+            lang = lang.toLowerCase(Locale.ROOT);
+            for (int i = 0; i < langs.size(); i++) {
+                String r = langs.get(i);
+                if (lang.equals(r) || lang.startsWith(r) && lang.charAt(r.length()) == '-') {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
@@ -93,7 +117,8 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, i
             if (c.id != null) {
                 ids++;
             }
-            classes += c.classes.size() + c.attributes.size() + Integer.bitCount(c.stateMask) + (c.root ? 1 : 0);
+            classes += c.classes.size() + c.attributes.size() + Integer.bitCount(c.stateMask) + (c.root ? 1 : 0)
+                    + (c.langs.isEmpty() ? 0 : 1);
             if (c.tag != null) {
                 tags++;
             }

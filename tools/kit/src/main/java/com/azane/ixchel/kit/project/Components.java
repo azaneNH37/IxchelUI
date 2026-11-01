@@ -4,6 +4,7 @@ import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.template.ComponentDef;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.template.TemplateLoader;
+import com.azane.ixchel.core.template.Translations;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,7 +38,7 @@ public final class Components {
                 continue;
             }
             // Problems are the lint's to report, page by page; here only the link graph matters.
-            TemplateLoader.Loaded loaded = TemplateLoader.load(text, id, project::read, tags, new Diagnostics());
+            TemplateLoader.Loaded loaded = TemplateLoader.load(text, id, project::read, tags, Translations.NONE, new Diagnostics());
             for (String f : loaded.files()) {
                 if (!f.equals(id) && f.endsWith(".html")) {
                     files.add(f);

@@ -178,7 +178,7 @@ public final class LayoutEngine {
                     && container.get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE;
         }
 
-        /** Adds {@code text} with whitespace collapsed, across run boundaries too. */
+        /** Adds {@code text} with whitespace collapsed, across run boundaries too; a forced line break is kept and ends a space run. */
         void addRun(String text, float size, boolean bold, boolean nowrapRun, Source source) {
             StringBuilder sb = new StringBuilder(text.length());
             for (int i = 0; i < text.length(); i++) {
@@ -188,6 +188,9 @@ public final class LayoutEngine {
                         sb.append(' ');
                         afterSpace = true;
                     }
+                } else if (c == TextShaper.LINE_BREAK) {
+                    sb.append(c);
+                    afterSpace = true;
                 } else {
                     sb.append(c);
                     afterSpace = false;

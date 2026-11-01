@@ -8,11 +8,13 @@ import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.template.Translations;
 import com.azane.ixchel.core.text.TextMeasurer;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -182,7 +184,8 @@ class UiDocumentTest {
     }
 
     private static List<String> lint(String html, String css, ModelShape shape) {
-        return DiagCodes.of(UiDocument.lint(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML, shape));
+        return DiagCodes.of(UiDocument.lint(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
+                Translations.NONE, shape, Set.of()));
     }
 
     private static List<String> loadFailure(String html, ViewModel model) {

@@ -37,7 +37,7 @@ public final class RefitClient {
             String type = view.selectedType.get();
             if (type != null) {
                 Minecraft.getInstance().gui.setOverlayMessage(
-                        Component.literal("Inspecting ").append(Attachments.type(type).name()), false);
+                        Component.translatable("ixchel_sample.refit.inspecting", Attachments.type(type).name()), false);
             }
         });
         return new UiScreen(view);

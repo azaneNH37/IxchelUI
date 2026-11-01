@@ -52,6 +52,7 @@ public final class TemplateLoader {
 
     private final Function<String, String> read;
     private final TagRegistry tags;
+    private final Translations translations;
     private final Diagnostics diag;
     private final Map<String, ComponentDef> byFile = new HashMap<>();
     private final Map<String, String> fileOfName = new HashMap<>();
@@ -61,22 +62,24 @@ public final class TemplateLoader {
     private final Map<String, Library> library = new LinkedHashMap<>();
     private final Set<String> files = new LinkedHashSet<>();
 
-    private TemplateLoader(Function<String, String> read, TagRegistry tags, Diagnostics diag) {
+    private TemplateLoader(Function<String, String> read, TagRegistry tags, Translations translations, Diagnostics diag) {
         this.read = read;
         this.tags = tags;
+        this.translations = translations;
         this.diag = diag;
     }
 
     /**
-     * @param read the text of a file id, {@code null} if there is no such file; a thrown exception's
-     *             message is reported as the reason the file cannot be loaded
+     * @param read         the text of a file id, {@code null} if there is no such file; a thrown exception's
+     *                     message is reported as the reason the file cannot be loaded
+     * @param translations resolves the {@code t} attributes of the page and its components
      */
     public static Loaded load(String template, String id, Function<String, String> read, TagRegistry tags,
-                              Diagnostics diag) {
-        TemplateLoader l = new TemplateLoader(read, tags, diag);
+                              Translations translations, Diagnostics diag) {
+        TemplateLoader l = new TemplateLoader(read, tags, translations, diag);
         l.files.add(id);
         l.loading.push(id);
-        Template page = TemplateParser.parse(template, id, tags, (href, at) -> l.link(id, href, at), false, diag);
+        Template page = TemplateParser.parse(template, id, tags, (href, at) -> l.link(id, href, at), translations, false, diag);
         List<Sheet> sheets = l.sheets(id, page, true);
         return new Loaded(page, Map.copyOf(l.components), List.copyOf(l.componentSheets), sheets,
                 List.copyOf(l.library.values()), List.copyOf(l.files));
@@ -103,7 +106,7 @@ public final class TemplateLoader {
             return null;
         }
         loading.push(id);
-        Template t = TemplateParser.parse(text, id, tags, (h, p) -> link(id, h, p), true, diag);
+        Template t = TemplateParser.parse(text, id, tags, (h, p) -> link(id, h, p), translations, true, diag);
         loading.pop();
         componentSheets.addAll(sheets(id, t, false));
         ComponentDef def = t.component();

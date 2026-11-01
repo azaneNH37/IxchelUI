@@ -35,7 +35,7 @@ flowchart LR
 | `css.syntax` | CSS Syntax L3 分词、组件值 | diag |
 | `css.selector` | 选择器解析、优先级、匹配 | css.syntax, dom |
 | `css.property` | 属性注册表：名称、语法、初值、是否继承、是否影响布局、是否可过渡 | css.syntax |
-| `dom` / `template` | `Element` 树、类名与状态位；严格模板解析器；`TemplateLoader`（链接图：相对路径、递归加载、去重、环检测、热重载文件表，mc 层只按 id 读取文本）与 `ComponentDef` | diag, css.property（计算值）, css.syntax（`style` 属性的声明） |
+| `dom` / `template` | `Element` 树、类名与状态位；严格模板解析器；`TemplateLoader`（链接图：相对路径、递归加载、去重、环检测、热重载文件表，mc 层只按 id 读取文本）与 `ComponentDef`；翻译端口 `Translations` 与解析期译文展开（#027） | diag, css.property（计算值）, css.syntax（`style` 属性的声明）, text（强制换行字符） |
 | `style` | 规则索引、匹配、层叠、`var()`、计算值 | dom, css.* |
 | `anim` | transition、`@keyframes` | style |
 | `text` | 文本测量接口与结果缓存、换行 | — |

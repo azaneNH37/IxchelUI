@@ -28,11 +28,11 @@ public final class Attachments {
     }
 
     public static final List<Type> TYPES = List.of(
-            new Type("scope", Component.literal("Scope"),
+            new Type("scope", Component.translatable("ixchel_sample.refit.type.scope"),
                     List.of(new Option("spyglass", Items.SPYGLASS), new Option("glass", Items.GLASS_PANE))),
-            new Type("muzzle", Component.literal("Muzzle"),
+            new Type("muzzle", Component.translatable("ixchel_sample.refit.type.muzzle"),
                     List.of(new Option("bars", Items.IRON_BARS), new Option("blaze", Items.BLAZE_ROD))),
-            new Type("grip", Component.literal("Grip"),
+            new Type("grip", Component.translatable("ixchel_sample.refit.type.grip"),
                     List.of(new Option("stick", Items.STICK), new Option("hook", Items.TRIPWIRE_HOOK))));
 
     /** Laser colors, shown as the dye of that color. */

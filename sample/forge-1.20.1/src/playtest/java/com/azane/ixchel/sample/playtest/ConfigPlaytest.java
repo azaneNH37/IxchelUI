@@ -104,7 +104,7 @@ public final class ConfigPlaytest {
             s.click(".preset");
             s.waitUntil("a select inside the dialog opens above it", () -> Playtest.query("select:open option").size() == 5, Playtest.WAIT);
             s.shot("config-list");
-            s.clickText("select:open option", "Spider eye");
+            s.clickText("select:open option", "Spider Eye");
             s.waitUntil("a preset adds a line", () -> Playtest.query(".item").size() == 2, Playtest.WAIT);
             s.click(".list-done");
             s.waitUntil("Done closes the dialog and writes the list", () -> Playtest.query("dialog:open").isEmpty()

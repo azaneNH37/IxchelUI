@@ -1,0 +1,18 @@
+{
+  "ixchel_sample.refit.gone": "The crossbow left the slot this screen was opened on. Put it back, or press Esc.",
+  "ixchel_sample.refit.attachments": "Attachments",
+  "ixchel_sample.refit.remove": "Remove",
+  "ixchel_sample.refit.laser": "Laser",
+  "ixchel_sample.refit.apply": "Apply",
+  "ixchel_sample.refit.inspecting": "Inspecting %s",
+  "ixchel_sample.refit.type.scope": "Scope",
+  "ixchel_sample.refit.type.muzzle": "Muzzle",
+  "ixchel_sample.refit.type.grip": "Grip",
+  "ixchel_sample.refit.error.gone": "The crossbow is no longer in that slot",
+  "ixchel_sample.refit.error.unknown_laser": "Unknown laser color '%s'",
+  "ixchel_sample.refit.error.unknown_type": "Unknown attachment type '%s'",
+  "ixchel_sample.refit.error.none_installed": "No %s is installed",
+  "ixchel_sample.refit.error.unknown_option": "Unknown %s '%s'",
+  "ixchel_sample.refit.error.already_installed": "%s is already installed",
+  "ixchel_sample.refit.error.missing_item": "You have no %s"
+}

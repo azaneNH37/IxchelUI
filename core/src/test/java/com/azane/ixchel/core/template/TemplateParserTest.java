@@ -189,11 +189,4 @@ class TemplateParserTest {
         TemplateParser.parse("<item/>", "t.html", TagRegistry.HTML, plain);
         assertEquals(List.of("template/unknown-tag@t.html:1:1"), DiagCodes.of(plain));
     }
-
-    @Test
-    void plannedAttributesAreRejectedAsNotYetSupported() {
-        Diagnostics diag = new Diagnostics();
-        TemplateParser.parse("<div t=\"go\"></div>", "t.html", TagRegistry.HTML, diag);
-        assertEquals(List.of("template/unsupported-attribute@t.html:1:6"), DiagCodes.of(diag));
-    }
 }

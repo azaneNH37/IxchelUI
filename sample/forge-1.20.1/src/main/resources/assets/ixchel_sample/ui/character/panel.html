@@ -15,7 +15,7 @@
       <mc-slot class="slot" index="7"></mc-slot>
       <mc-slot class="slot" index="8"></mc-slot>
     </div>
-    <mc-entity class="doll" bind:entity="doll" title="You. The doll looks at the pointer."></mc-entity>
+    <mc-entity class="doll" bind:entity="doll" t:title="ixchel_sample.character.doll"></mc-entity>
     <div class="column offhand">
       <mc-slot class="slot" index="45"></mc-slot>
     </div>
@@ -41,7 +41,7 @@
     </div></for>
   </div>
   <div class="page list" bind:class:shown="tab == 'effects'">
-    <if test="effects.size == 0"><span class="empty">No active effects.</span></if>
+    <if test="effects.size == 0"><span class="empty" t="ixchel_sample.character.no_effects"></span></if>
     <for each="effects" as="e" key="e.id"><div class="row effect" bind:class:ending="e.ending" bind:class:dim="e.dim">
       <img class="effect-icon" bind:src="e.icon"/>
       <span class="name" bind:text="e.name"></span>

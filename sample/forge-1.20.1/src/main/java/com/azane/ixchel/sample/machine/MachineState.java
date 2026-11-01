@@ -1,8 +1,10 @@
 package com.azane.ixchel.sample.machine;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * What a player near a powered stonecutter sees of it, replicated to the machine screen
@@ -15,31 +17,31 @@ import java.util.List;
 public record MachineState(int progress, int energy, int water, int burn, int burnTotal, int recipe,
                            Status status, Redstone redstone, List<SideMode> sides) {
     public enum Status {
-        NO_INPUT("Idle: no input", false),
-        PICK_RECIPE("Pick a recipe", false),
-        NO_ENERGY("No energy", true),
-        NO_WATER("No water", true),
-        OUTPUT_FULL("Output full", true),
-        REDSTONE_OFF("Redstone off", true),
-        WORKING("Working", false);
+        NO_INPUT(false),
+        PICK_RECIPE(false),
+        NO_ENERGY(true),
+        NO_WATER(true),
+        OUTPUT_FULL(true),
+        REDSTONE_OFF(true),
+        WORKING(false);
 
-        final String label;
         /** Shown as a warning: the machine has a recipe but cannot run. */
         final boolean bad;
 
-        Status(String label, boolean bad) {
-            this.label = label;
+        Status(boolean bad) {
             this.bad = bad;
+        }
+
+        Component label() {
+            return Component.translatable("ixchel_sample.machine.status." + name().toLowerCase(Locale.ROOT));
         }
     }
 
     public enum Redstone {
-        IGNORED("Ignored"), HIGH("Needs signal"), LOW("Needs no signal");
+        IGNORED, HIGH, LOW;
 
-        final String label;
-
-        Redstone(String label) {
-            this.label = label;
+        Component label() {
+            return Component.translatable("ixchel_sample.machine.redstone." + name().toLowerCase(Locale.ROOT));
         }
 
         Redstone next() {
@@ -49,12 +51,10 @@ public record MachineState(int progress, int energy, int water, int burn, int bu
 
     /** Side modes are stored and shown only; nothing pipes through them. */
     public enum SideMode {
-        NONE("None"), INPUT("Input"), OUTPUT("Output");
+        NONE, INPUT, OUTPUT;
 
-        final String label;
-
-        SideMode(String label) {
-            this.label = label;
+        Component label() {
+            return Component.translatable("ixchel_sample.machine.side." + name().toLowerCase(Locale.ROOT));
         }
 
         SideMode next() {

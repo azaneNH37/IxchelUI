@@ -2,6 +2,7 @@ package com.azane.ixchel.gradle;
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar;
 import net.neoforged.moddevgradle.dsl.ModDevExtension;
+import org.gradle.api.Action;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -12,6 +13,7 @@ import org.gradle.api.attributes.LibraryElements;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
@@ -24,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -39,13 +42,14 @@ import java.util.Properties;
  * <li>registers {@code ixchelLint}, the offline template lint, on {@code check}.</li>
  * </ul>
  * {@link #mod} names the mod and where the library is relocated; {@link #playtests} adds the
- * in-game playtests.
+ * in-game playtests; {@link #lint} configures the lint.
  */
 public abstract class IxchelExtension {
     private static final String GROUP = "com.azane.ixchel";
     private static final String TAFFY_PACKAGE = "dev.vfyjxf.taffy";
 
     private final Project project;
+    private final LintSpec lint;
     private Loader loader;
     private ModDevExtension modDev;
     private String modId;
@@ -53,6 +57,23 @@ public abstract class IxchelExtension {
     @Inject
     public IxchelExtension(Project project) {
         this.project = project;
+        this.lint = project.getObjects().newInstance(LintSpec.class);
+    }
+
+    /** The {@code lint} block of {@code ixchelLint}. */
+    public abstract static class LintSpec {
+        /** The opt-in diagnostic codes the lint also checks. */
+        public abstract SetProperty<String> getEnabled();
+
+        /** Turns on opt-in checks by code id, such as {@code i18n/literal-text}. */
+        public void enable(String... codes) {
+            getEnabled().addAll(codes);
+        }
+    }
+
+    /** Configures {@code ixchelLint}: {@code ixchel { lint { enable("i18n/literal-text") } }}. */
+    public void lint(Action<? super LintSpec> action) {
+        action.execute(lint);
     }
 
     /**
@@ -189,7 +210,9 @@ public abstract class IxchelExtension {
             t.getMainClass().set("com.azane.ixchel.kit.Main");
             FileCollection runtime = main.getRuntimeClasspath();
             t.getInputs().files(runtime);
-            t.getArgumentProviders().add(new LintArguments(project.file("src/main/resources"), runtime));
+            SetProperty<String> enabled = this.lint.getEnabled();
+            t.getInputs().property("enabled", enabled);
+            t.getArgumentProviders().add(new LintArguments(project.file("src/main/resources"), runtime, enabled));
         });
         project.getTasks().named("check", t -> t.dependsOn(lint));
     }
@@ -201,15 +224,23 @@ public abstract class IxchelExtension {
     private static final class LintArguments implements CommandLineArgumentProvider {
         private File resources;
         private FileCollection runtime;
+        private SetProperty<String> enabled;
 
-        LintArguments(File resources, FileCollection runtime) {
+        LintArguments(File resources, FileCollection runtime, SetProperty<String> enabled) {
             this.resources = resources;
             this.runtime = runtime;
+            this.enabled = enabled;
         }
 
         @Override
         public Iterable<String> asArguments() {
-            return List.of("lint", "--resources", resources.getPath(), "--classpath", runtime.getAsPath());
+            List<String> args = new ArrayList<>(List.of("lint", "--resources", resources.getPath(),
+                    "--classpath", runtime.getAsPath()));
+            if (!enabled.get().isEmpty()) {
+                args.add("--enable");
+                args.addAll(enabled.get());
+            }
+            return args;
         }
     }
 

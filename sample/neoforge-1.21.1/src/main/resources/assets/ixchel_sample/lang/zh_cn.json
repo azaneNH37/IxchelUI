@@ -1,0 +1,18 @@
+{
+  "ixchel_sample.refit.gone": "打开此界面时的弩已离开该槽位。请放回去，或按 Esc。",
+  "ixchel_sample.refit.attachments": "配件",
+  "ixchel_sample.refit.remove": "卸下",
+  "ixchel_sample.refit.laser": "激光",
+  "ixchel_sample.refit.apply": "应用",
+  "ixchel_sample.refit.inspecting": "正在查看%s",
+  "ixchel_sample.refit.type.scope": "瞄具",
+  "ixchel_sample.refit.type.muzzle": "枪口",
+  "ixchel_sample.refit.type.grip": "握把",
+  "ixchel_sample.refit.error.gone": "弩已不在那个槽位",
+  "ixchel_sample.refit.error.unknown_laser": "未知的激光颜色“%s”",
+  "ixchel_sample.refit.error.unknown_type": "未知的配件类型“%s”",
+  "ixchel_sample.refit.error.none_installed": "没有安装%s",
+  "ixchel_sample.refit.error.unknown_option": "未知的%s“%s”",
+  "ixchel_sample.refit.error.already_installed": "%s已经安装",
+  "ixchel_sample.refit.error.missing_item": "你没有%s"
+}

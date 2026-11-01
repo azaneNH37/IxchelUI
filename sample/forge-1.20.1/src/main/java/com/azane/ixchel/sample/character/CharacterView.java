@@ -36,11 +36,11 @@ import java.util.stream.IntStream;
  */
 @UiTemplate("ixchel_sample:ui/character/panel.html")
 final class CharacterView extends ViewModel {
-    record Tab(String id, String label) {
+    record Tab(String id, Component label) {
     }
 
     /** One attribute; {@code description} is the row's tooltip. */
-    record AttributeRow(String name, String value, String description) {
+    record AttributeRow(String name, String value, Component description) {
     }
 
     /**
@@ -50,25 +50,26 @@ final class CharacterView extends ViewModel {
     record EffectRow(String id, Component name, Component time, String icon, boolean ending, boolean dim) {
     }
 
-    record StatRow(String name, String value) {
+    record StatRow(Component name, String value) {
     }
 
-    private static final String[][] TABS = {
-            {"equipment", "Equipment"}, {"attributes", "Attributes"}, {"effects", "Effects"}, {"stats", "Stats"}};
+    private static final String[] TABS = {"equipment", "attributes", "effects", "stats"};
 
+    /** Each attribute shown and the key suffix of its description. */
     private static final Object[][] ATTRIBUTES = {
-            {Attributes.MAX_HEALTH, "Health you have when fully healed, in half hearts."},
-            {Attributes.ARMOR, "Reduces damage from most attacks; each point is half an armor icon."},
-            {Attributes.ARMOR_TOUGHNESS, "Keeps armor effective against strong hits."},
-            {Attributes.ATTACK_DAMAGE, "Damage of a fully charged melee hit with what you hold."},
-            {Attributes.ATTACK_SPEED, "Full-strength attacks per second."},
-            {Attributes.MOVEMENT_SPEED, "Walking speed; 0.1 is the default."},
-            {Attributes.LUCK, "Improves loot table rolls, such as fishing."},
+            {Attributes.MAX_HEALTH, "max_health"},
+            {Attributes.ARMOR, "armor"},
+            {Attributes.ARMOR_TOUGHNESS, "armor_toughness"},
+            {Attributes.ATTACK_DAMAGE, "attack_damage"},
+            {Attributes.ATTACK_SPEED, "attack_speed"},
+            {Attributes.MOVEMENT_SPEED, "movement_speed"},
+            {Attributes.LUCK, "luck"},
     };
 
+    /** Each statistic shown and the key suffix of its label. */
     private static final Object[][] STATS = {
-            {Stats.PLAY_TIME, "Time played"}, {Stats.DEATHS, "Deaths"}, {Stats.MOB_KILLS, "Mobs killed"},
-            {Stats.WALK_ONE_CM, "Distance walked"}, {Stats.JUMP, "Jumps"}, {Stats.DAMAGE_DEALT, "Damage dealt"},
+            {Stats.PLAY_TIME, "play_time"}, {Stats.DEATHS, "deaths"}, {Stats.MOB_KILLS, "mob_kills"},
+            {Stats.WALK_ONE_CM, "walked"}, {Stats.JUMP, "jumps"}, {Stats.DAMAGE_DEALT, "damage_dealt"},
     };
 
     final Value<String> tab = state("equipment");
@@ -94,8 +95,8 @@ final class CharacterView extends ViewModel {
 
     private static List<Tab> tabs() {
         List<Tab> out = new ArrayList<>(TABS.length);
-        for (String[] t : TABS) {
-            out.add(new Tab(t[0], t[1]));
+        for (String t : TABS) {
+            out.add(new Tab(t, Component.translatable("ixchel_sample.character.tab." + t)));
         }
         return out;
     }
@@ -110,7 +111,8 @@ final class CharacterView extends ViewModel {
             Attribute attribute = (Attribute) a[0];
             double v = p.getAttributeValue(attribute);
             out.add(new AttributeRow(Component.translatable(attribute.getDescriptionId()).getString(),
-                    String.format(Locale.ROOT, v == Math.rint(v) ? "%.0f" : "%.2f", v), (String) a[1]));
+                    String.format(Locale.ROOT, v == Math.rint(v) ? "%.0f" : "%.2f", v),
+                    Component.translatable("ixchel_sample.character.attribute." + a[1])));
         }
         return out;
     }
@@ -134,7 +136,8 @@ final class CharacterView extends ViewModel {
         List<StatRow> out = new ArrayList<>(STATS.length);
         for (Object[] s : STATS) {
             Stat<ResourceLocation> stat = Stats.CUSTOM.get((ResourceLocation) s[0]);
-            out.add(new StatRow((String) s[1], stat.format(p.getStats().getValue(stat))));
+            out.add(new StatRow(Component.translatable("ixchel_sample.character.stat." + s[1]),
+                    stat.format(p.getStats().getValue(stat))));
         }
         return out;
     }

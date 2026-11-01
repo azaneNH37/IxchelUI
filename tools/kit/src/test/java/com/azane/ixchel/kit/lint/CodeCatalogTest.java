@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CodeCatalogTest {
-    private static final Pattern ID = Pattern.compile("[a-z]+/[a-z0-9-]+");
+    private static final Pattern ID = Pattern.compile("[a-z][a-z0-9]*/[a-z0-9-]+");
 
     @Test
     void everyCodeIdIsWellFormedAndUnique() {

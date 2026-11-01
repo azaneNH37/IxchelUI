@@ -65,6 +65,15 @@ class TextShaperTest {
     }
 
     @Test
+    void aLineBreakEndsTheLineEvenWhenItFitsAndTwoMakeAnEmptyLine() {
+        TextShaper shaper = new TextShaper(ONE_PER_CHAR);
+        String br = String.valueOf(TextShaper.LINE_BREAK);
+        List<TextShaper.Item> items = List.of(run("ab" + br + br + "cd ef"));
+        assertEquals(List.of("ab", "", "cd ef"), lines(shaper.layout(items, 9, 100)));
+        assertEquals(2, shaper.minContentWidth(List.of(run("ab" + br + "cd"))));
+    }
+
+    @Test
     void atomicBoxSitsOnTheBaselineAndRaisesTheLine() {
         TextShaper shaper = new TextShaper(ONE_PER_CHAR);
         TextShaper.Paragraph p = shaper.layout(List.of(run("ab"), new TextShaper.Box(3, 20, 0), run("cd")), 9, 100);
