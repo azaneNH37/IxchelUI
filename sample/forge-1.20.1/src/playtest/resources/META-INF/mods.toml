@@ -1,0 +1,16 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "ixchel_sample_playtest"
+version = "0.0.0"
+displayName = "Ixchel UI Sample Playtests"
+description = "Unattended in-game playtests of the Ixchel UI samples (-Pplaytest). Not distributed."
+
+[[dependencies.ixchel_sample_playtest]]
+modId = "ixchel_sample"
+mandatory = true
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "CLIENT"

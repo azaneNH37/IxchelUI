@@ -2,7 +2,7 @@ package com.azane.ixchel.forge;
 
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.UiHud;
-import com.azane.ixchel.mc.check.Checks;
+import com.azane.ixchel.mc.playtest.Playtests;
 import com.azane.ixchel.mc.source.WorldProjection;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
@@ -17,7 +17,7 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Forge 1.20.1 glue for host mods: registers the mc layer's hosts with Forge and drives its checks. */
+/** Forge 1.20.1 glue for host mods: registers the mc layer's hosts with Forge and drives its playtests. */
 public final class IxchelForge {
     private static boolean worldProjectionInstalled;
 
@@ -83,16 +83,16 @@ public final class IxchelForge {
     }
 
     /**
-     * Installs the host's in-game checks ({@link Checks}): with {@code -Dixchel.check.<modid>=<name>[,…]|all}
+     * Installs the host's in-game playtests ({@link Playtests}): with {@code -Dixchel.playtest.<modid>=<name>[,…]|all}
      * a development client runs them unattended and quits; without it, nothing is registered. Call
      * once from the client side of the host's constructor, typically in a development-only mod.
      *
      * <pre>{@code
-     * IxchelForge.installChecks("examplemod", checks -> checks.resetPlayer().register("panel", PanelCheck::run));
+     * IxchelForge.installPlaytests("examplemod", playtests -> playtests.resetPlayer().register("panel", PanelPlaytest::run));
      * }</pre>
      */
-    public static void installChecks(String modid, Consumer<Checks> scenarios) {
-        Checks.install(modid, IxchelForge::pump, scenarios);
+    public static void installPlaytests(String modid, Consumer<Playtests> playtests) {
+        Playtests.install(modid, IxchelForge::pump, playtests);
     }
 
     /** Calls {@code frame} at the end of each client tick that follows a drawn frame. */

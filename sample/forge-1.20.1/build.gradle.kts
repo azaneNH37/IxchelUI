@@ -5,12 +5,12 @@
 // Two source sets, two mods:
 // - `main` is `ixchel_sample`, laid out as a normal mod (registry/, network/, client/ and one package
 //   per sample, templates under assets/ixchel_sample/ui/<package>/<stem>.{html,css}).
-// - `check` is `ixchel_sample_check`, the unattended functional checks (package `sample.check`) on
-//   the library's check runner (`IxchelForge.installChecks`). It is loaded only with
-//   `-Pcheck=<name>[,<name>…]|all` (no value: `all`): the run then enters the dev world (created if
-//   missing), runs the selected checks in order through the samples' public entry classes, writes
-//   `run/checks/ixchel_sample/report.txt`, a dump per failure and screenshots, and quits, failing on
-//   a failed check. It is never packaged.
+// - `playtest` is `ixchel_sample_playtest`, the in-game playtests (package `sample.playtest`) on
+//   the library's playtest runner (`IxchelForge.installPlaytests`). It is loaded only with
+//   `-Pplaytest=<name>[,<name>…]|all` (no value: `all`): the run then enters the dev world (created
+//   if missing), runs the selected playtests in order through the samples' public entry classes,
+//   writes `run/playtests/ixchel_sample/` (report.txt, a dump per failed assertion, screenshots) and
+//   quits, failing on a failed assertion. It is never packaged.
 plugins {
     id("ixchel.java-conventions")
     id("net.neoforged.moddev.legacyforge")
@@ -33,11 +33,11 @@ legacyForge {
 
 ixchel {
     mod("ixchel_sample", "com.azane.ixchel.sample.shadow")
-    checks("ixchel_sample_check")
+    playtests("ixchel_sample_playtest")
 }
 
 // Slot compatibility (L2): `-Pslotcompat=jei` loads JEI and Mouse Tweaks, `-Pslotcompat=emi` loads EMI
-// and Mouse Tweaks, next to the machine panel (`-Pcheck=machine`).
+// and Mouse Tweaks, next to the machine panel (`-Pplaytest=machine`).
 val slotCompat = providers.gradleProperty("slotcompat")
 if (slotCompat.isPresent) {
     repositories {

@@ -139,15 +139,15 @@ public final class Bindings {
     }
 
     /**
-     * Checks every binding under {@code root} as {@link #compile} does, against a view model class
+     * Lints every binding under {@code root} as {@link #compile} does, against a view model class
      * instead of an instance: each member stands for a value of its declared type. Nothing is read
      * and no value is written into the DOM, so problems that depend on values are not found.
      *
      * @param shape the view model's shape, or {@code null} for a document without one
      */
-    public static void check(Element root, ModelShape shape, Map<String, ComponentDef> components,
-                             TextConverter text, TagRegistry tags, PropertyRegistry properties,
-                             TopLayer topLayer, Diagnostics diag) {
+    public static void lint(Element root, ModelShape shape, Map<String, ComponentDef> components,
+                            TextConverter text, TagRegistry tags, PropertyRegistry properties,
+                            TopLayer topLayer, Diagnostics diag) {
         ViewModel stub = new ViewModel() {
         };
         String owner = shape != null ? shape.type().getSimpleName() : NO_MODEL;

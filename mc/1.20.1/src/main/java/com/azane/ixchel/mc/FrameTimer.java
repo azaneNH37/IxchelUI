@@ -1,19 +1,19 @@
 package com.azane.ixchel.mc;
 
-import com.azane.ixchel.core.check.Driver;
-import com.azane.ixchel.core.check.FrameStats;
+import com.azane.ixchel.core.playtest.PlaytestDriver;
+import com.azane.ixchel.core.playtest.FrameBudget;
 import net.minecraft.client.gui.screens.Screen;
 
 import java.util.Arrays;
 
 /**
  * CPU time per frame of one Ixchel host's {@code render}: a {@link UiHud}, or whichever
- * {@link UiScreen} or {@link UiContainerScreen} is open, submission included, GPU not; for checks
+ * {@link UiScreen} or {@link UiContainerScreen} is open, submission included, GPU not; for playtests
  * that hold a document to a frame budget. Client thread only.
  *
  * <pre>{@code
  * s.run(() -> FrameTimer.screen(4096)).pause(100)
- *  .run(() -> FrameTimer.report(s, "list standing still", 8000));
+ *  .run(() -> FrameTimer.expect(s, "list standing still", 8000));
  * }</pre>
  */
 public final class FrameTimer {
@@ -38,10 +38,10 @@ public final class FrameTimer {
         begin(SCREENS, frames);
     }
 
-    /** Stops timing and records the frames timed since the start against {@code budgetUs} ({@link FrameStats}). */
-    public static void report(Driver<?> driver, String what, double budgetUs) {
+    /** Stops timing and asserts the frames timed since the start against {@code budgetUs} ({@link FrameBudget}). */
+    public static void expect(PlaytestDriver<?> driver, String what, double budgetUs) {
         target = null;
-        FrameStats.report(driver, what, Arrays.copyOf(samples, count), budgetUs);
+        FrameBudget.expect(driver, what, Arrays.copyOf(samples, count), budgetUs);
     }
 
     private static void begin(Object timed, int frames) {

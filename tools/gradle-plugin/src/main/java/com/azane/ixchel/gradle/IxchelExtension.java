@@ -36,10 +36,10 @@ import java.util.Properties;
  *     game libraries, and taffy, a plain Java library, is added to the runs;</li>
  * <li>makes the shaded jar the mod's jar ({@code shadowJar}, no classifier; the plain jar becomes
  *     {@code -slim}), reobfuscated on Forge 1.20.1;</li>
- * <li>registers {@code lintUi}, the offline template check, on {@code check}.</li>
+ * <li>registers {@code ixchelLint}, the offline template lint, on {@code check}.</li>
  * </ul>
- * {@link #mod} names the mod and where the library is relocated; {@link #checks} adds the
- * in-game checks.
+ * {@link #mod} names the mod and where the library is relocated; {@link #playtests} adds the
+ * in-game playtests.
  */
 public abstract class IxchelExtension {
     private static final String GROUP = "com.azane.ixchel";
@@ -81,32 +81,33 @@ public abstract class IxchelExtension {
     }
 
     /**
-     * Adds the in-game checks: a {@code check} source set that sees {@code main} and holds the mod
-     * {@code checkModId}, compiled on every {@code check}. With {@code -Pcheck=<name>[,<name>…]|all}
-     * (no value: {@code all}) the check mod is loaded, client runs start from the check source set
-     * and {@code ixchel.check.<modId>} carries the selection.
+     * Adds the in-game playtests: a {@code playtest} source set that sees {@code main} and holds the
+     * mod {@code playtestModId}, compiled on every {@code check}. With
+     * {@code -Pplaytest=<name>[,<name>…]|all} (no value: {@code all}) the playtest mod is loaded,
+     * client runs start from the playtest source set and {@code ixchel.playtest.<modId>} carries the
+     * selection.
      */
-    public void checks(String checkModId) {
+    public void playtests(String playtestModId) {
         if (modId == null) {
-            throw new GradleException("call ixchel.mod(…) before ixchel.checks(…)");
+            throw new GradleException("call ixchel.mod(…) before ixchel.playtests(…)");
         }
         SourceSet main = sourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
-        SourceSet check = sourceSets().create("check", s -> {
+        SourceSet playtest = sourceSets().create("playtest", s -> {
             s.setCompileClasspath(s.getCompileClasspath().plus(main.getOutput()).plus(main.getCompileClasspath()));
             s.setRuntimeClasspath(s.getRuntimeClasspath().plus(main.getOutput()).plus(main.getRuntimeClasspath()));
         });
-        modDev.addModdingDependenciesTo(check);
-        project.getTasks().named("check", t -> t.dependsOn(check.getClassesTaskName()));
+        modDev.addModdingDependenciesTo(playtest);
+        project.getTasks().named("check", t -> t.dependsOn(playtest.getClassesTaskName()));
 
-        Provider<String> selection = project.getProviders().gradleProperty("check");
+        Provider<String> selection = project.getProviders().gradleProperty("playtest");
         if (!selection.isPresent()) {
             return;
         }
-        modDev.getMods().register(checkModId, m -> m.sourceSet(check));
-        Map<String, String> property = Map.of("ixchel.check." + modId, selection.get().isEmpty() ? "all" : selection.get());
+        modDev.getMods().register(playtestModId, m -> m.sourceSet(playtest));
+        Map<String, String> property = Map.of("ixchel.playtest." + modId, selection.get().isEmpty() ? "all" : selection.get());
         modDev.getRuns().configureEach(run -> {
             Provider<Boolean> client = run.getType().map("client"::equals).orElse(false);
-            run.getSourceSet().set(client.map(c -> c ? check : main));
+            run.getSourceSet().set(client.map(c -> c ? playtest : main));
             run.getSystemProperties().putAll(client.map(c -> c ? property : Map.of()));
         });
     }
@@ -181,9 +182,9 @@ public abstract class IxchelExtension {
 
     private void registerLint(Configuration kit) {
         SourceSet main = sourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
-        TaskProvider<JavaExec> lint = project.getTasks().register("lintUi", JavaExec.class, t -> {
+        TaskProvider<JavaExec> lint = project.getTasks().register("ixchelLint", JavaExec.class, t -> {
             t.setGroup("verification");
-            t.setDescription("Checks the UI templates against their view models.");
+            t.setDescription("Lints the UI templates against their view models.");
             t.setClasspath(kit);
             t.getMainClass().set("com.azane.ixchel.kit.Main");
             FileCollection runtime = main.getRuntimeClasspath();

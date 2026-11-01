@@ -63,7 +63,7 @@ flowchart LR
 | 打包 | 6 个发布模块（含 kit） | `jar`、`sourcesJar`、`javadocJar`；1.20.1 两个库的 `jar` 自动 reobf 为 SRG；core、mc、loader 的 jar 清单带 `FMLModType: GAMELIBRARY`（#024） | **javadoc 的 doclint 错误**（`withJavadocJar()` 使 javadoc 成为隐含检查） |
 | 打包 | 2 个 sample | 经 `com.azane.ixchel` 插件（#025）的 `shadowJar`（relocate Ixchel 与 taffy），Forge 侧再 reobf | 插件接线失效：配置属性、relocate、shadow 产物的 reobf |
 | 构建 | Gradle 插件（included build） | 根 `build` 依赖其 `build`；两个 sample 应用它即在配置期编译 | 插件编译错误 |
-| 检查 | 2 个 sample | `lintUi`；Forge 侧另编译 `check` sourceSet | 模板与 ViewModel 不符；检查代码随业务改动失修 |
+| 检查 | 2 个 sample | `ixchelLint`；Forge 侧另编译 `playtest` sourceSet | 模板与 ViewModel 不符；游戏内测试代码随业务改动失修 |
 | 测试 | core | JUnit，含弹药 HUD 黄金测试 | 行为回归 |
 
 `build` 不包含：`runClient`、gametest、格式化与静态分析（仓库未配）、shade 副本在游戏内的共存（只在生产实例手动验证）。

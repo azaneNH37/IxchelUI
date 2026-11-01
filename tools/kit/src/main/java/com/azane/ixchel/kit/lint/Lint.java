@@ -77,7 +77,7 @@ public final class Lint {
                 }
                 for (String id : ids) {
                     claimed.add(id);
-                    out.addAll(check(project, tags, id, shape).entries());
+                    out.addAll(lint(project, tags, id, shape).entries());
                 }
             }
         }
@@ -85,7 +85,7 @@ public final class Lint {
             if (claimed.contains(id) || componentFiles.contains(id)) {
                 continue;
             }
-            for (Diagnostic d : check(project, tags, id, null).entries()) {
+            for (Diagnostic d : lint(project, tags, id, null).entries()) {
                 if (d.code() != BindingCode.UNKNOWN_NAME) {
                     out.add(d);
                 }
@@ -101,7 +101,7 @@ public final class Lint {
         return sorted;
     }
 
-    private static Diagnostics check(Project project, TagRegistry tags, String id, ModelShape shape) {
-        return UiDocument.check(project.read(id), id, project::read, tags, shape);
+    private static Diagnostics lint(Project project, TagRegistry tags, String id, ModelShape shape) {
+        return UiDocument.lint(project.read(id), id, project::read, tags, shape);
     }
 }

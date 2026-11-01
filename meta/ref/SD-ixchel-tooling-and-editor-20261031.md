@@ -5,11 +5,11 @@ origin: E1 的 S8 模板三轮加载错误都要进游戏（每轮约 50 s）才
 related: [ref/D-ixchel-roadmap-20261029.md, ref/SD-ixchel-template-and-style-language-20261029.md, ref/SD-ixchel-context-model-and-components-20261030.md, ref/D-ixchel-ci-workflows-20261026.md, DECISIONS.md#004, DECISIONS.md#010, DECISIONS.md#021, DECISIONS.md#022, DECISIONS.md#023]
 ---
 
-# Ixchel UI: Tooling, In-game Checks and Editor
+# Ixchel UI: Tooling, In-game Playtests and Editor
 
 ## Summary
 
-游戏外只做静态检查，运行时验证一律在游戏内，不做无头运行（#022）。静态检查由只依赖 core 的 `ixchel-kit`（`tools/kit`）提供：lint（结构 + 类型）与 schema，类型检查的输入是 ViewModel 类上的 `@UiTemplate` 与类反射得到的成员表（#021），编译器改为读成员表；诊断带稳定的符号错误码（#023）；原生元素声明改为 mc 层的数据文件。游戏内检查从 sample 提取进库：core 驱动、mc 层输入与转储、加载器层两个钩子，开发期属性开启。可视化编辑器排在最后，Node 从那一步才引入。
+游戏外只做静态检查，运行时验证一律在游戏内，不做无头运行（#022）。静态检查由只依赖 core 的 `ixchel-kit`（`tools/kit`）提供：lint（结构 + 类型）与 schema，类型检查的输入是 ViewModel 类上的 `@UiTemplate` 与类反射得到的成员表（#021），编译器改为读成员表；诊断带稳定的符号错误码（#023）；原生元素声明改为 mc 层的数据文件。游戏内测试（playtest）从 sample 提取进库：core 驱动、mc 层输入与转储、加载器层两个钩子，开发期属性开启。命名：游戏外一律称 lint，游戏内一律称 playtest（#026）。可视化编辑器排在最后，Node 从那一步才引入。
 
 ## Detail
 
@@ -29,7 +29,7 @@ E1 写 S8 时三轮失败都是结构错误：组件文件含多个 `<template>`
 
 不做无头运行（在游戏外实例化 ViewModel、跑 binding 与事件）：它要求宿主把 ViewModel 与 MC 类解耦，代价落在作者的架构上，能覆盖的范围又被 β 与 δ 夹住（#022）。
 
-| | 游戏外静态检查 | 游戏内检查 |
+| | 游戏外静态检查（lint） | 游戏内测试（playtest） |
 |---|---|---|
 | 提供者 | `ixchel-kit` | 库（core + mc + 加载器层） |
 | 宿主接入 | 一个 JavaExec 任务挂在 `check` 上 | 一个开发期 sourceSet（自己的 `@Mod`，注册场景）+ run 配置属性 |
@@ -135,26 +135,26 @@ diag.error(BindingCode.UNKNOWN_NAME, pos, msg);
 | 项目外（T3） | `java -jar`：结构检查与 schema，`--target` 选内置声明；资源包作者的类型检查用导出的 `models.json` |
 | `lint` | 结构 + 类型，`file:line:col` + 错误码 + hint，`--json`；有错误退出码非 0。注解列出的模板不存在报错；没有注解认领的模板只做结构检查并提示"未关联模型" |
 | `schema` | 当前目标的标签、属性、CSS 属性与取值；主题变量 `--ix-*`；本项目组件（参数、事件、插槽）；各 ViewModel 成员表 |
-| `--explain` | 错误码说明 |
+| `explain <码>` | 错误码说明 |
 
 包按契约：`project`（资源根、宿主 classpath、注解扫描、声明读取、成员表构建）、`lint`、`schema`，入口 `Main`。
 
-lint 任务由 Gradle 插件 `com.azane.ixchel` 注册为 `lintUi` 并挂在 `check` 上（#025）；两个 sample 应用同一个插件，不收进 `build-logic` 约定插件：自家用的就是外部作者的写法，坏了第一时间暴露。
+lint 任务由 Gradle 插件 `com.azane.ixchel` 注册为 `ixchelLint` 并挂在 `check` 上（#025、#026）；两个 sample 应用同一个插件，不收进 `build-logic` 约定插件：自家用的就是外部作者的写法，坏了第一时间暴露。
 
-### 8. 游戏内检查
+### 8. 游戏内测试（playtest）
 
 现状：sample 的 `src/check`（`Script` 约 440 行、`Checks`、`BenchWorld`、`FrameTimer` 与 10 个场景）只服务 sample；`Checks.finish()` 调 `mc.stop()`，退出码不反映失败；testmod-neoforge-1.21.1 没有检查框架。
 
 | 层 | 内容 |
 |---|---|
-| core（新包，如 `core.check`） | `Driver`：步骤队列、选择器操作、读取、结果记录；运行器：按名选择、报告文本；端口 `InputPort`、`Pump`；帧耗时统计（median/p95）。`paintedCenter` 公开、放在 `EventDispatcher.hitTest` 旁，保证"算出的坐标"与"命中的元素"一致 |
+| core（`core.playtest`） | `PlaytestDriver`：步骤队列、选择器操作、读取、断言记录（`record`）；`PlaytestRun`：按名选择、汇总文本（`summary`）；端口 `InputPort`、`Pump`；帧预算断言 `FrameBudget`（median/p95）。`paintedCenter` 公开、放在 `EventDispatcher.hitTest` 旁，保证"算出的坐标"与"命中的元素"一致 |
 | mc 层 | 经 vanilla `Screen` 实现 `InputPort`；`hoverAt`、截图、服务端步骤、槽位、开发世界引导、可选玩家重置；失败时转储文档树与布局（也可按键或命令手动转储）；`UiScreen` 与 HUD 内计时；有失败时非 0 退出 |
 | 加载器层 | `Pump`：tick 结束且该帧已画完 |
-| 宿主 | 开发期 sourceSet：自己的 `@Mod` 调 `IxchelChecks.install(modid, …)` 注册场景；属性 `ixchel.check.<modid>=名字[,…]|all`。sourceSet 与 `-Pcheck` 接线由插件的 `ixchel { checks(…) }` 提供（#025） |
+| 宿主 | 开发期 sourceSet `playtest`：自己的 `@Mod` 调 `IxchelForge.installPlaytests(modid, …)` 注册测试项；属性 `ixchel.playtest.<modid>=名字[,…]|all`。sourceSet 与 `-Pplaytest` 接线由插件的 `ixchel { playtests(…) }` 提供（#025） |
 
-- 随现有 mc / 加载器制品发布，不另出按版本的制品，也无第二份 SRG 配方；代价是 `Driver` 等成为 core 的公开 API。
+- 随现有 mc / 加载器制品发布，不另出按版本的制品，也无第二份 SRG 配方；代价是 `PlaytestDriver` 等成为 core 的公开 API。
 - 等待单位为帧；转储与 `-Dixchel.devResources.<modid>` 同类，属性开启、仅开发期。
-- sample 迁移只做等价重构，`-Pcheck=all` 结果不变为验收。
+- sample 迁移只做等价重构，全部测试项结果不变为验收。
 - 1.21.1 暂不做适配，记为缺项（#005）。
 
 ### 9. 编辑器（T4）
@@ -170,7 +170,7 @@ lint 任务由 Gradle 插件 `com.azane.ixchel` 注册为 `lintUi` 并挂在 `ch
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| T1 静态检查 | §3–§7：`@UiTemplate` 与挂载 API（sample、testmod 迁移）、成员表编译、原生元素声明数据、错误码、kit 的 `lint`/`schema`/`--explain`（项目内）；sample 与 testmod 各一个挂在 `check` 上的 lint 任务 | E1 三类错误与未知绑定、`bind:value` 指向只读 `Cell`、`<for>` 遍历非列表、组件参数不符均由 lint 报出并带位置与码；现有模板零错误；`-Pcheck=all` 不变 |
+| T1 静态检查 | §3–§7：`@UiTemplate` 与挂载 API（sample、testmod 迁移）、成员表编译、原生元素声明数据、错误码、kit 的 `lint`/`schema`/`explain`（项目内）；sample 与 testmod 各一个挂在 `check` 上的 lint 任务 | E1 三类错误与未知绑定、`bind:value` 指向只读 `Cell`、`<for>` 遍历非列表、组件参数不符均由 lint 报出并带位置与码；现有模板零错误；`-Pcheck=all` 不变 |
 | T2 游戏内检查 | §8（仅 1.20.1） | `-Pcheck=all` 160 项结果不变；人为制造失败时非 0 退出并产出转储 |
 | T3 对外 | 项目外 CLI（fat jar）；导出 `models.json`；容器槽位检查（模板与 menu 的槽位数） | 随 Doc 阶段发布 |
 | T4 编辑器 | §9：转储与 `render`、`serve`、前端 | — |

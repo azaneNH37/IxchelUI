@@ -134,8 +134,8 @@
 ## #022 游戏外只做静态检查，运行时验证只在游戏内，游戏内检查随库发布
 - **decided**: 2026-10-31
 - **context**: agent 写 UI 需要离线校验与可重复的游戏内验证；sample 的检查框架只服务 sample，且退出码不反映失败
-- **decision**: 静态检查由只依赖 core 的 `ixchel-kit` 提供（lint、schema）；游戏内检查从 sample 提取：core 放驱动、运行器与端口，mc 层实现输入、转储与退出码，加载器层提供 tick/帧钩子，随现有 mc/加载器制品发布，`-Dixchel.check.<modid>` 开启；1.21.1 暂不适配。细节见 `ref/SD-ixchel-tooling-and-editor-20261031.md` §2、§7、§8
-- **rejected**: 无头 testkit（游戏外实例化 ViewModel 跑 binding 与事件）——迫使宿主把 ViewModel 与 MC 解耦，覆盖面又被静态检查与游戏内检查夹住；按版本单独发布检查制品——多一套制品与 SRG 配方。检查的 Gradle 接线（`check` sourceSet、`-Pcheck`）后由 #025 的插件提供
+- **decision**: 静态检查由只依赖 core 的 `ixchel-kit` 提供（lint、schema）；游戏内检查从 sample 提取：core 放驱动、运行器与端口，mc 层实现输入、转储与退出码，加载器层提供 tick/帧钩子，随现有 mc/加载器制品发布，`-Dixchel.playtest.<modid>` 开启（命名见 #026）；1.21.1 暂不适配。细节见 `ref/SD-ixchel-tooling-and-editor-20261031.md` §2、§7、§8
+- **rejected**: 无头 testkit（游戏外实例化 ViewModel 跑 binding 与事件）——迫使宿主把 ViewModel 与 MC 解耦，覆盖面又被静态检查与游戏内检查夹住；按版本单独发布检查制品——多一套制品与 SRG 配方。检查的 Gradle 接线（`playtest` sourceSet、`-Pplaytest`）后由 #025 的插件提供
 
 ## #023 诊断带稳定的符号错误码
 - **decided**: 2026-10-31
@@ -152,6 +152,11 @@
 ## #025 ModDevGradle 宿主的构建由 Gradle 插件 `com.azane.ixchel` 完成
 - **decided**: 2026-11-01
 - **context**: 使用方要抄的构建配方（shade 配置属性、relocate 每个库包、Forge 1.20.1 的重映射与 reobf、kit 的 lint 任务、devResources 与检查接线）有五十多行，sample 脚本也因此难读
-- **decision**: `tools/gradle-plugin`（included build，Java，随库同 group 与版本发布 `ixchel-gradle-plugin` 与插件标记）。只支持 MDG：与 `net.neoforged.moddev.legacyforge` 同用即 Forge 1.20.1，与 `net.neoforged.moddev` 同用即 NeoForge 1.21.1；应用即建 `shade`、加库依赖与 taffy、配 shadowJar（无 classifier，`jar` 改 `-slim`，1.20.1 另 reobf）、注册 `lintUi`。DSL：`ixchel { mod(modid, shadePackage); checks(checkModid) }`，`mod` 注册 MDG mod、按库包 relocate、给所有 run 设 `ixchel.devResources.<modid>`；`checks` 建 `check` sourceSet，`-Pcheck` 时加载检查 mod 并设 `ixchel.check.<modid>`。根项目存在 `:ixchel-core` 时用项目依赖，否则用插件内嵌版本的坐标。两个 sample 应用它
+- **decision**: `tools/gradle-plugin`（included build，Java，随库同 group 与版本发布 `ixchel-gradle-plugin` 与插件标记）。只支持 MDG：与 `net.neoforged.moddev.legacyforge` 同用即 Forge 1.20.1，与 `net.neoforged.moddev` 同用即 NeoForge 1.21.1；应用即建 `shade`、加库依赖与 taffy、配 shadowJar（无 classifier，`jar` 改 `-slim`，1.20.1 另 reobf）、注册 `ixchelLint`。DSL：`ixchel { mod(modid, shadePackage); playtests(playtestModid) }`，`mod` 注册 MDG mod、按库包 relocate、给所有 run 设 `ixchel.devResources.<modid>`；`playtests` 建 `playtest` sourceSet，`-Pplaytest` 时加载测试 mod 并设 `ixchel.playtest.<modid>`（命名见 #026）。根项目存在 `:ixchel-core` 时用项目依赖，否则用插件内嵌版本的坐标。两个 sample 应用它
 - **rejected**: 适配层接口兼容 ForgeGradle、Loom——没有使用方；继续给配方——配方长且易抄错，sample 不能当示例读；插件校验 MC 版本——未见误用
 
+## #026 游戏外检查统称 lint，游戏内测试统称 playtest
+- **decided**: 2026-11-01
+- **context**: 两套检查沿用了临时脚本的命名："check" 同时指整个游戏内系统、一个具名测试项、一条断言、Gradle 生命周期任务 `check`、sourceSet `check`、`-Pcheck`、`ixchel.check.<modid>` 与 core 的静态入口 `UiDocument.check`；日志标签 `[ixchel-bench]` 来自早期基准脚本；`scenarios` 参数与 sample 场景 S1–S9 同名；`report` 有四种含义；日志的 "N passed" 数的是断言，用户按名选的却是测试项
+- **decision**: 两个词根互不重叠。游戏外：lint——kit 的 `lint`/`schema`/`explain` 不变，插件任务 `ixchelLint`（插件注册的任务带 `ixchel` 前缀），core 入口 `UiDocument.lint`、`Bindings.lint`，错误码不变（#023）。游戏内：playtest——术语 playtest（具名测试项，如 `machine`）、assertion（一条 PASS/FAIL）、run（一次启动跑完所选测试项）、step（队列一步）；包 `core.playtest`（`PlaytestDriver`、`PlaytestRun`、`FrameBudget`、`Pump`、`InputPort`、`Dump`）与 `mc.playtest`（`Playtests` 注册表、`Playtest` 步骤 API），`IxchelForge.installPlaytests`，断言记录 `record`、汇总文本 `summary`、帧预算断言 `FrameBudget.expect`/`FrameTimer.expect`；插件 DSL `playtests(modid)`、sourceSet `playtest`、`-Pplaytest`、`-Dixchel.playtest.<modid>`；日志 `[ixchel-playtest] <测试项> <断言>: PASS|FAIL`，结尾 `<modid> done: <n> playtests, <p> passed, <f> failed`；输出集中在 `playtests/<modid>/`（`report.txt`、`dumps/`、`screenshots/`）；sample 测试 mod `ixchel_sample_playtest`，每场景一个 `*Playtest` 类。"场景"只指 sample 场景
+- **rejected**: 保留 check 加限定（`ingameCheck`）——名字长，仍与 Gradle `check` 同根；`e2e`——看不出在游戏内；`probe`——已删除的 testmod 用过；`scenario`——与 sample 场景冲突；`lintUi`——插件任务无统一前缀；截图留在 `run/screenshots/`——与手动 F2 截图混在一起

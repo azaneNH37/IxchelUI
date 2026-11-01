@@ -181,8 +181,8 @@ class UiDocumentTest {
         final Value<Integer> count = state(0);
     }
 
-    private static List<String> check(String html, String css, ModelShape shape) {
-        return DiagCodes.of(UiDocument.check(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML, shape));
+    private static List<String> lint(String html, String css, ModelShape shape) {
+        return DiagCodes.of(UiDocument.lint(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML, shape));
     }
 
     private static List<String> loadFailure(String html, ViewModel model) {
@@ -191,30 +191,30 @@ class UiDocumentTest {
     }
 
     @Test
-    void checkReportsAnUnknownNameAsLoadDoes() {
+    void lintReportsAnUnknownNameAsLoadDoes() {
         String html = "<span bind:text=\"missing\"></span>";
-        List<String> checked = check(html, "", ModelShape.of(Counter.class));
-        assertEquals(List.of("binding/unknown-name@t.html:2:18"), checked);
-        assertEquals(loadFailure(html, new Counter()), checked);
+        List<String> linted = lint(html, "", ModelShape.of(Counter.class));
+        assertEquals(List.of("binding/unknown-name@t.html:2:18"), linted);
+        assertEquals(loadFailure(html, new Counter()), linted);
     }
 
     @Test
-    void checkReportsATypeErrorAsLoadDoes() {
+    void lintReportsATypeErrorAsLoadDoes() {
         String html = "<div bind:class:x=\"count\"></div>";
-        List<String> checked = check(html, "", ModelShape.of(Counter.class));
-        assertEquals(List.of("binding/value-type@t.html:2:20"), checked);
-        assertEquals(loadFailure(html, new Counter()), checked);
+        List<String> linted = lint(html, "", ModelShape.of(Counter.class));
+        assertEquals(List.of("binding/value-type@t.html:2:20"), linted);
+        assertEquals(loadFailure(html, new Counter()), linted);
     }
 
     @Test
-    void checkWithoutAShapeSeesOnlyLocalStates() {
+    void lintWithoutAShapeSeesOnlyLocalStates() {
         assertEquals(List.of("binding/unknown-name@t.html:2:62"),
-                check("<div state:n=\"1\"><span bind:text=\"n\"></span><span bind:text=\"count\"></span></div>", "", null));
+                lint("<div state:n=\"1\"><span bind:text=\"n\"></span><span bind:text=\"count\"></span></div>", "", null));
     }
 
     @Test
-    void checkDoesNoLayoutSoAnInlineBoxPropertyIsNotReported() {
-        assertEquals(List.of(), check("<div>a <span class=\"p\">b</span></div>", "div { display: block } .p { padding: 2px }",
+    void lintDoesNoLayoutSoAnInlineBoxPropertyIsNotReported() {
+        assertEquals(List.of(), lint("<div>a <span class=\"p\">b</span></div>", "div { display: block } .p { padding: 2px }",
                 null));
     }
 }

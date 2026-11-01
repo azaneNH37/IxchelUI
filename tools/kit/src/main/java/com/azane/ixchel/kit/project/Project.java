@@ -87,7 +87,7 @@ public final class Project {
 
     /**
      * The text of file id {@code id}, {@code null} if there is no such file; the {@code files}
-     * function of {@link com.azane.ixchel.core.runtime.UiDocument#check}.
+     * function of {@link com.azane.ixchel.core.runtime.UiDocument#lint}.
      *
      * @throws UncheckedIOException if the file exists but cannot be read
      */

@@ -130,18 +130,18 @@ public final class UiDocument {
     }
 
     /**
-     * Checks a template as {@link #load} would load it, without a view model instance and without
+     * Lints a template as {@link #load} would load it, without a view model instance and without
      * laying it out: the template, every linked file, every binding against {@code shape}'s declared
      * types, and the cascade. Never throws for problems; they are all in the result. Problems that
      * need values or a viewport are not found.
      *
      * @param shape the view model class's shape, or {@code null} for a document without one
      */
-    public static Diagnostics check(String template, String templateFile, Function<String, String> files,
-                                    TagRegistry tags, ModelShape shape) {
+    public static Diagnostics lint(String template, String templateFile, Function<String, String> files,
+                                   TagRegistry tags, ModelShape shape) {
         Diagnostics diag = new Diagnostics();
         Parsed p = parse(template, templateFile, files, tags, diag);
-        Bindings.check(p.root, shape, p.loaded.components(), Bindings.PLAIN_TEXT, tags, CssProperties.REGISTRY,
+        Bindings.lint(p.root, shape, p.loaded.components(), Bindings.PLAIN_TEXT, tags, CssProperties.REGISTRY,
                 p.topLayer, diag);
         p.style(tags, diag, new Transitions(CssProperties.REGISTRY, p.root)).restyle(p.root);
         return diag;
