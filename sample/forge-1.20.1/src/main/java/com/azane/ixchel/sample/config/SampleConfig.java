@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The sample's client settings ({@code ixchelsample-client.toml}), edited in game by the config
+ * The sample's client settings ({@code ixchel_sample-client.toml}), edited in game by the config
  * panel through {@link ConfigEntries}. Four categories cover every value kind the panel edits:
  * toggles, bounded numbers, enums, a free string, an item id list and RGB colors.
  */

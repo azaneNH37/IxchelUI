@@ -20,7 +20,7 @@ import java.util.Map;
  * reach the config only on {@link #save}; {@link #undo} steps back through draft changes, each frame's
  * changes as one step.
  */
-@UiTemplate("ixchelsample:ui/config/panel.html")
+@UiTemplate("ixchel_sample:ui/config/panel.html")
 final class ConfigView extends ViewModel {
     /** Presets the list dialog offers, for the item id lists. */
     static final List<String> PRESETS = List.of("minecraft:rotten_flesh", "minecraft:poisonous_potato",

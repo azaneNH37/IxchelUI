@@ -18,7 +18,7 @@ import java.util.function.Supplier;
  * view model. A development run also reloads on save. Client thread only.
  *
  * <pre>{@code
- * @UiTemplate("ixcheltest:ui/ammo_hud.html")
+ * @UiTemplate("ixchel_sample:ui/ammo_hud.html")
  * class AmmoHudView extends ViewModel { ... }
  *
  * UiHud hud = IxchelNeoForge.registerHud(modBus, AmmoHudView.class, AmmoHudView::new);

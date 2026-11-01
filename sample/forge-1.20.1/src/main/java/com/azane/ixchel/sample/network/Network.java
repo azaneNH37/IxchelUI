@@ -30,7 +30,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * The sample's one channel, {@code ixchelsample:main}, and the replicated kinds; like {@code registry},
+ * The sample's one channel, {@code ixchel_sample:main}, and the replicated kinds; like {@code registry},
  * it lists what the features declare. State reaches clients only through {@link Replication}. Clients
  * act through intent packets, records in their feature's package with {@code encode}, {@code decode}
  * and {@code handle}, handled on the server thread with the sender's player and dropped when there is

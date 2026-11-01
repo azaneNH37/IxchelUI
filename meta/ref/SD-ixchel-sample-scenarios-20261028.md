@@ -191,7 +191,7 @@ sample 改为 9 个场景，对标常见 mod UI 家族：角色面板、机器�
 - 驱动 API 改为按选择器操作：`click(sel)`、`hover(sel)`、`scroll(sel, dy)`、`drag(sel, dx, dy)`、`key(k)`、`type(text)`、`waitUntil(cond, maxTicks)`。坐标取自 `querySelectorAll` 得到的 box。固定 tick 等待只用在确实要等时间流逝的地方（例如效果倒计时）。
 - 一次启动按顺序跑多个检查。每个检查在开始时自行重置状态（清背包、清空 sample 数据），不依赖前一个检查留下的状态。
 - 结果：日志行格式不变，另外写 `run/checks/report.txt`（每项 PASS/FAIL 与汇总）。截图留在 `run/screenshots/`，只供人工核对，不做像素比对。
-- 代码位置：sample 的 `src/check` 第二个 mod，业务代码不得引用它，它只经业务的公开入口与网络包驱动。shade-a 的 `ContainerCheck` 在 relocate 后也要用，等第二个消费方真正需要时再抽成开发期共享源码，不发布（AGENTS §4）。
+- 代码位置：sample 的 `src/check` 第二个 mod，业务代码不得引用它，它只经业务的公开入口与网络包驱动。（shade-a 及其 `ContainerCheck` 已删除，sample 自身即 shade 产物，见 #024。）
 - 约定：每个场景都有检查；每个检查项写明它要发现的失败（AGENTS §6）。§2 中各场景的交互描述就是它的检查清单起点。
 - CI：暂不跑游戏内检查，每次都要启动客户端并截图，成本太高（2026-10-28 决定）。core 的黄金测试继续放在 `build` 里。
 

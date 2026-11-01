@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.GameRules;
@@ -25,10 +26,11 @@ import java.util.function.Consumer;
 /**
  * A host mod's unattended in-game checks, run in a development client when
  * {@code -Dixchel.check.<modid>=<name>[,<name>…]|all} is set ({@code all}: every check, in
- * registration order). The run enters the dev world from the title screen, creating a creative
- * superflat {@value #WORLD} when the game directory has none; runs the selected checks one after
- * another, each a {@link Script}; writes {@code checks/<modid>/report.txt} under the game directory
- * (and a {@linkplain Script dump} per failure); and quits, with exit status 1 when a check failed.
+ * registration order). The run turns the tutorial off and enters the dev world from the title
+ * screen, creating a creative superflat {@value #WORLD} when the game directory has none; runs the
+ * selected checks one after another, each a {@link Script}; writes {@code checks/<modid>/report.txt}
+ * under the game directory (and a {@linkplain Script dump} per failure); and quits, with exit status
+ * 1 when a check failed.
  * Results are logged as {@code [ixchel-bench] <check> check <what>: PASS|FAIL}.
  *
  * <p>The loader layer installs it: {@code IxchelForge.installChecks(modid, checks -> ...)}.
@@ -130,6 +132,9 @@ public final class Checks {
     }
 
     private static void openWorld(Minecraft mc, TitleScreen title) {
+        // The tutorial starts from this option once a level is loaded; its movement hint would sit
+        // in every screenshot's top-right corner.
+        mc.options.tutorialStep = TutorialSteps.NONE;
         if (mc.getLevelSource().levelExists(WORLD)) {
             mc.createWorldOpenFlows().loadLevel(title, WORLD);
         } else {

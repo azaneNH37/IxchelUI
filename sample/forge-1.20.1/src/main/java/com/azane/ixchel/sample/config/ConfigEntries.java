@@ -219,7 +219,7 @@ public final class ConfigEntries {
      */
     public static ConfigEntries load() {
         if (!isLoaded()) {
-            throw new IllegalStateException("The ixchelsample client config is not loaded yet");
+            throw new IllegalStateException("The ixchel_sample client config is not loaded yet");
         }
         List<Category> categories = new ArrayList<>();
         collect(SampleConfig.SPEC.getSpec(), new ArrayList<>(), categories);

@@ -24,7 +24,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
  * the slot items is chosen by {@link SlotItemRendering}.
  *
  * <pre>{@code
- * @UiTemplate("ixchelsample:ui/machine/panel.html")
+ * @UiTemplate("ixchel_sample:ui/machine/panel.html")
  * class MachineView extends ViewModel { ... }
  *
  * MenuScreens.register(MENU, (menu, inv, title) -> new UiContainerScreen<>(menu, inv, title, new MachineView(menu)));

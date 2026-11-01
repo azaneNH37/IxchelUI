@@ -23,7 +23,7 @@ import java.util.Locale;
  * (and {@link #SPARE_ROWS} more) become elements; a content box as tall as all rows keeps the scroll
  * range, and its top padding puts the built rows where they belong.
  */
-@UiTemplate("ixchelsample:ui/storage/terminal.html")
+@UiTemplate("ixchel_sample:ui/storage/terminal.html")
 final class TerminalView extends ViewModel {
     static final int COLUMNS = 9;
     static final int VISIBLE_ROWS = 6;

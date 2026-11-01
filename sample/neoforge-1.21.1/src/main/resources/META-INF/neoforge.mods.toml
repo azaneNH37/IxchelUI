@@ -1,0 +1,9 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "ixchel_sample"
+version = "0.0.0"
+displayName = "Ixchel UI Sample"
+description = "Samples for Ixchel UI on NeoForge 1.21.1. Not distributed."

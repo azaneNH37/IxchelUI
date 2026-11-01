@@ -18,7 +18,7 @@ import java.util.function.Supplier;
  * view model. A development run also reloads on save. Client thread only.
  *
  * <pre>{@code
- * @UiTemplate("ixchelsample:ui/env/hud.html")
+ * @UiTemplate("ixchel_sample:ui/env/hud.html")
  * class EnvView extends ViewModel { ... }
  *
  * UiHud hud = IxchelForge.registerHud(modBus, EnvView.class, EnvView::new);

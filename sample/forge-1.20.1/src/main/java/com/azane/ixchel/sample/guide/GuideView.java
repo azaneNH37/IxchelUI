@@ -23,7 +23,7 @@ import java.util.List;
  * the items they draw through {@link #icons} and {@link #recipes}: an {@code <mc-item>} takes its stack
  * only from a binding. A recipe cell with several accepted items shows the next one every second.
  */
-@UiTemplate({"ixchelsample:ui/guide/contents.html", "ixchelsample:ui/guide/entries/*.html"})
+@UiTemplate({"ixchel_sample:ui/guide/contents.html", "ixchel_sample:ui/guide/entries/*.html"})
 final class GuideView extends ViewModel {
     private static final long ROTATION_NANOS = 1_000_000_000L;
 

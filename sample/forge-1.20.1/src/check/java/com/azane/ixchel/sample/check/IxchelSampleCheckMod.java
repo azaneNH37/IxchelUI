@@ -25,7 +25,7 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
  */
 @Mod(IxchelSampleCheckMod.MOD_ID)
 public final class IxchelSampleCheckMod {
-    public static final String MOD_ID = "ixchelsamplecheck";
+    public static final String MOD_ID = "ixchel_sample_check";
 
     public IxchelSampleCheckMod() {
         if (!FMLEnvironment.dist.isClient()) {

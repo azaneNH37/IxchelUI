@@ -27,7 +27,7 @@ import java.util.Locale;
  * model lives and sends intents; a click shows its effect once the server's next snapshot arrives.
  * Intents set values rather than toggle them, so a repeated or late one does no harm.
  */
-@UiTemplate("ixchelsample:ui/machine/panel.html")
+@UiTemplate("ixchel_sample:ui/machine/panel.html")
 final class MachineView extends ViewModel {
     /** A stonecutting result; recomputed only when the input item or the choice changes. */
     record RecipeRow(int index, ItemStack icon, String name, boolean selected) {

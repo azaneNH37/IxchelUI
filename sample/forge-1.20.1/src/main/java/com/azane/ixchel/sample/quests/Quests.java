@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The quest graph, read from {@code data/ixchelsample/quests.json} in the mod jar, so the client that
+ * The quest graph, read from {@code data/ixchel_sample/quests.json} in the mod jar, so the client that
  * draws it and the server that checks a claim read the same file. A quest asks the player to hold
  * {@code count} of {@code item} once every quest in {@code deps} is claimed, and gives
  * {@code rewardCount} of {@code reward} when claimed.
@@ -54,9 +54,9 @@ public final class Quests {
 
     private static void load() {
         JsonObject root;
-        try (InputStream in = Quests.class.getResourceAsStream("/data/ixchelsample/quests.json")) {
+        try (InputStream in = Quests.class.getResourceAsStream("/data/ixchel_sample/quests.json")) {
             if (in == null) {
-                throw new IllegalStateException("data/ixchelsample/quests.json is missing from the jar");
+                throw new IllegalStateException("data/ixchel_sample/quests.json is missing from the jar");
             }
             root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
         } catch (IOException e) {

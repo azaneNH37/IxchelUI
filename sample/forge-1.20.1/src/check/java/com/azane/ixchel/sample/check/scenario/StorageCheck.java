@@ -119,9 +119,9 @@ public final class StorageCheck {
                     Script.text(".summary").equals(kinds[1] + " / " + kinds[0])
                             && shownStacks().stream().allMatch(st -> mod(st).equals("minecraft")), Script.WAIT);
             s.key(GLFW.GLFW_KEY_A, Keys.MOD_CTRL);
-            s.type("@ixchelsample");
-            s.waitUntil("'@ixchelsample' lists the sample's items", () ->
-                    shownStacks().stream().allMatch(st -> mod(st).equals("ixchelsample")) && shownStacks().size() == 2, Script.WAIT);
+            s.type("@ixchel_sample");
+            s.waitUntil("'@ixchel_sample' lists the sample's items", () ->
+                    shownStacks().stream().allMatch(st -> mod(st).equals("ixchel_sample")) && shownStacks().size() == 2, Script.WAIT);
             s.key(GLFW.GLFW_KEY_A, Keys.MOD_CTRL);
             s.key(GLFW.GLFW_KEY_BACKSPACE);
 
@@ -136,7 +136,7 @@ public final class StorageCheck {
             s.waitUntil("by mod, descending: minecraft first", () -> Script.text(".sort span").equals("Mod")
                     && mod(shownStacks().get(0)).equals("minecraft"), Script.WAIT);
             s.click(".direction");
-            s.waitUntil("by mod, ascending: the sample's items first", () -> mod(shownStacks().get(0)).equals("ixchelsample"), Script.WAIT);
+            s.waitUntil("by mod, ascending: the sample's items first", () -> mod(shownStacks().get(0)).equals("ixchel_sample"), Script.WAIT);
             s.click(".sort");
             s.waitUntil("back to by name", () -> Script.text(".sort span").equals("Name"), Script.WAIT);
 

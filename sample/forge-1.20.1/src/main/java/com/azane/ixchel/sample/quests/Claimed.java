@@ -17,7 +17,7 @@ import java.util.Set;
  */
 public record Claimed(Set<String> ids) {
     public static final Claimed NONE = new Claimed(Set.of());
-    private static final String TAG = "ixchelsample_quests";
+    private static final String TAG = "ixchel_sample_quests";
 
     public boolean has(String id) {
         return ids.contains(id);

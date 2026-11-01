@@ -21,3 +21,9 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+// A host that depends on this jar in development (unshaded) gets it loaded into FML's game layer,
+// next to Minecraft and the other Ixchel jars.
+tasks.jar {
+    manifest.attributes("FMLModType" to "GAMELIBRARY")
+}

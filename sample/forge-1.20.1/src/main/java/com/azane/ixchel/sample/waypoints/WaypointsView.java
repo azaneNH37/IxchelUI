@@ -20,7 +20,7 @@ import java.util.List;
  * The session's {@link Waypoints}: add the player's position, select a row (click, or Up/Down from
  * the template's key filters), remove the selected one. Distances follow the player every frame.
  */
-@UiTemplate("ixchelsample:ui/waypoints/list.html")
+@UiTemplate("ixchel_sample:ui/waypoints/list.html")
 final class WaypointsView extends ViewModel {
     record Row(int id, String name, int x, int y, int z, long distance) {
     }

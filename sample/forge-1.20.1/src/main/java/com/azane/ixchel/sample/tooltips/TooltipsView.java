@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 /** The page's data: a few stacks, two form values, a list long enough to scroll and a cooldown that counts down. */
-@UiTemplate("ixchelsample:ui/tooltips/page.html")
+@UiTemplate("ixchel_sample:ui/tooltips/page.html")
 final class TooltipsView extends ViewModel {
     /** The cooldown restarts every this many seconds. */
     static final int COOLDOWN_SECONDS = 10;

@@ -19,7 +19,7 @@ import java.util.List;
  * while the order changes; a rarity filter; a pick-up button, disabled out of
  * {@link PickUpDropPacket#PICK_RANGE} (the server checks again).
  */
-@UiTemplate("ixchelsample:ui/loot/list.html")
+@UiTemplate("ixchel_sample:ui/loot/list.html")
 final class LootListView extends ViewModel {
     /**
      * A drop's row. {@code icon} is a copy: the entity's stack shrinks in place as it is picked up,

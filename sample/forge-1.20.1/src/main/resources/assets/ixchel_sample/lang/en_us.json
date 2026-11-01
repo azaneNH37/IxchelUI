@@ -1,0 +1,9 @@
+{
+  "block.ixchel_sample.powered_stonecutter": "Powered Stonecutter",
+  "item.ixchel_sample.storage_terminal": "Storage Terminal",
+  "key.categories.ixchel_sample": "Ixchel UI Samples",
+  "key.ixchel_sample.index": "Sample index",
+  "key.ixchel_sample.character": "Character panel",
+  "key.ixchel_sample.loot": "Loot radar list",
+  "key.ixchel_sample.waypoints": "Waypoints"
+}

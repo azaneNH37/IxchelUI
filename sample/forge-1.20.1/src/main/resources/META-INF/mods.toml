@@ -3,7 +3,7 @@ loaderVersion = "[47,)"
 license = "All Rights Reserved"
 
 [[mods]]
-modId = "ixchelsample"
+modId = "ixchel_sample"
 version = "0.0.0"
 displayName = "Ixchel UI Sample"
 description = "Samples and development host for Ixchel UI. Not distributed."

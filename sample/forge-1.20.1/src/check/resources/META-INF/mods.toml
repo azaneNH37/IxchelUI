@@ -3,13 +3,13 @@ loaderVersion = "[47,)"
 license = "All Rights Reserved"
 
 [[mods]]
-modId = "ixchelsamplecheck"
+modId = "ixchel_sample_check"
 version = "0.0.0"
 displayName = "Ixchel UI Sample Checks"
 description = "Unattended functional checks of the Ixchel UI samples (-Pcheck). Not distributed."
 
-[[dependencies.ixchelsamplecheck]]
-modId = "ixchelsample"
+[[dependencies.ixchel_sample_check]]
+modId = "ixchel_sample"
 mandatory = true
 versionRange = "[0,)"
 ordering = "AFTER"

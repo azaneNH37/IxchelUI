@@ -12,6 +12,7 @@ import com.azane.ixchel.kit.schema.Schema;
 import java.io.File;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -23,29 +24,32 @@ import java.util.regex.Pattern;
  * The {@code ixchel-kit} command line:
  *
  * <pre>
- * lint --resources &lt;dir&gt;... --classes &lt;dir&gt;... [--classpath &lt;entry&gt;...] [--json]
- * schema [--resources &lt;dir&gt;...] [--classes &lt;dir&gt;...] [--classpath &lt;entry&gt;...] [--json]
+ * lint --resources &lt;dir&gt;... --classpath &lt;entry&gt;... [--json]
+ * schema [--resources &lt;dir&gt;...] [--classpath &lt;entry&gt;...] [--json]
  * explain &lt;code-id&gt; [--classpath &lt;entry&gt;...]
  * </pre>
  *
- * A resource directory holds {@code assets/<namespace>/…}; a classes directory holds the compiled
- * view models; the classpath entries, directories and jars, are the rest of the project's runtime
- * classpath (Minecraft, the Ixchel mc layer). Project classes load through a
- * {@link ProjectClassLoader} over the classes directories and the classpath entries. Exit status:
- * 0 success, 1 the lint found errors, 2 bad usage or a failure to read the project.
+ * A resource directory holds {@code assets/<namespace>/…}, the sources that diagnostics point at.
+ * The classpath is the project's runtime classpath: its directories are the project's own output,
+ * scanned for view models, and its jars are everything else (Minecraft, the Ixchel mc layer). All
+ * of it loads through a {@link ProjectClassLoader}. Exit status: 0 success, 1 the lint found
+ * errors, 2 bad usage or a failure to read the project.
  */
 public final class Main {
     private static final String USAGE = """
             usage:
-              lint --resources <dir>... --classes <dir>... [--classpath <entry>...] [--json]
+              lint --resources <dir>... --classpath <entry>... [--json]
                   checks every template under <dir>/assets/<namespace>/; exits 1 on errors
-              schema [--resources <dir>...] [--classes <dir>...] [--classpath <entry>...] [--json]
+              schema [--resources <dir>...] [--classpath <entry>...] [--json]
                   tags, library stylesheets, CSS properties, components and view model members
               explain <code-id> [--classpath <entry>...]
                   describes a diagnostic code such as binding/unknown-name
             Every option takes several paths, separate or joined with the platform's path separator.
-            --classpath takes the project's runtime classpath: its view models' field types and the
-            Ixchel mc layer's native element declarations come from there.""";
+            --classpath takes the project's runtime classpath. Its directories are the project's
+            compiled output, where view models are looked for; its jars supply their field types
+            and the Ixchel mc layer's native element declarations. Pass it as an argument, not as
+            the kit's own classpath: the kit reads it through a loader that skips jar signatures,
+            which a patched development Minecraft jar fails.""";
 
     private Main() {
     }
@@ -57,15 +61,14 @@ public final class Main {
     }
 
     /** Parsed arguments: the command, its positionals and the paths of each option. */
-    private record Args(String command, List<String> positional, List<Path> resources, List<Path> classes,
-                        List<Path> classpath, boolean json) {
+    private record Args(String command, List<String> positional, List<Path> resources, List<Path> classpath,
+                        boolean json) {
         static Args parse(String[] args) {
             if (args.length == 0) {
                 throw new IllegalArgumentException("no command");
             }
             List<String> positional = new ArrayList<>();
             List<Path> resources = new ArrayList<>();
-            List<Path> classes = new ArrayList<>();
             List<Path> classpath = new ArrayList<>();
             boolean json = false;
             List<Path> target = null;
@@ -73,7 +76,6 @@ public final class Main {
                 String a = args[i];
                 switch (a) {
                     case "--resources" -> target = resources;
-                    case "--classes" -> target = classes;
                     case "--classpath" -> target = classpath;
                     case "--json" -> {
                         json = true;
@@ -96,14 +98,12 @@ public final class Main {
                     }
                 }
             }
-            return new Args(args[0], positional, resources, classes, classpath, json);
+            return new Args(args[0], positional, resources, classpath, json);
         }
 
-        /** The loader of the project's classes: the classes directories, then the classpath entries. */
-        ProjectClassLoader loader() {
-            List<Path> entries = new ArrayList<>(classes);
-            entries.addAll(classpath);
-            return new ProjectClassLoader(entries, Main.class.getClassLoader());
+        /** The project's own compiled output: the directories of its classpath. */
+        List<Path> classes() {
+            return classpath.stream().filter(Files::isDirectory).toList();
         }
     }
 
@@ -113,8 +113,8 @@ public final class Main {
             args = Args.parse(argv);
             switch (args.command()) {
                 case "lint" -> {
-                    if (args.resources().isEmpty() || !args.positional().isEmpty()) {
-                        throw new IllegalArgumentException("lint takes --resources <dir>... and --classes <dir>...");
+                    if (args.resources().isEmpty() || args.classpath().isEmpty() || !args.positional().isEmpty()) {
+                        throw new IllegalArgumentException("lint takes --resources <dir>... and --classpath <entry>...");
                     }
                 }
                 case "schema" -> {
@@ -134,7 +134,7 @@ public final class Main {
             err.println(USAGE);
             return 2;
         }
-        try (ProjectClassLoader loader = args.loader()) {
+        try (ProjectClassLoader loader = new ProjectClassLoader(args.classpath(), Main.class.getClassLoader())) {
             Project project = new Project(args.resources(), args.classes(), loader);
             return switch (args.command()) {
                 case "lint" -> lint(project, args.json(), out);

@@ -131,7 +131,7 @@ diag.error(BindingCode.UNKNOWN_NAME, pos, msg);
 | | 内容 |
 |---|---|
 | 制品 | `:ixchel-kit`（`tools/kit/`），只依赖 core，与库同版本；T1 普通 jar，T3 再出 fat jar |
-| 项目内（主入口） | 宿主写 JavaExec：classpath = 宿主运行时 classpath + kit；读 `@UiTemplate` 构建成员表；原生元素声明从 mc 制品读，无需配置目标版本 |
+| 项目内（主入口） | 宿主写 JavaExec：classpath 只放 kit，宿主运行时 classpath 经 `--classpath` 传入（其中的目录即宿主编译输出，在其中找 ViewModel），源码资源目录经 `--resources` 传入；读 `@UiTemplate` 构建成员表；原生元素声明从 mc 制品读，无需配置目标版本 |
 | 项目外（T3） | `java -jar`：结构检查与 schema，`--target` 选内置声明；资源包作者的类型检查用导出的 `models.json` |
 | `lint` | 结构 + 类型，`file:line:col` + 错误码 + hint，`--json`；有错误退出码非 0。注解列出的模板不存在报错；没有注解认领的模板只做结构检查并提示"未关联模型" |
 | `schema` | 当前目标的标签、属性、CSS 属性与取值；主题变量 `--ix-*`；本项目组件（参数、事件、插槽）；各 ViewModel 成员表 |
@@ -139,7 +139,7 @@ diag.error(BindingCode.UNKNOWN_NAME, pos, msg);
 
 包按契约：`project`（资源根、宿主 classpath、注解扫描、声明读取、成员表构建）、`lint`、`schema`，入口 `Main`。
 
-sample 与 testmod 的 lint 任务原样照抄对外配方，不收进 `build-logic` 约定插件：自家用的就是外部作者的写法，配方坏了第一时间暴露。外部作者确有需要时再出 Gradle 插件。
+两个 sample 的 lint 任务原样照抄对外配方，不收进 `build-logic` 约定插件：自家用的就是外部作者的写法，配方坏了第一时间暴露。外部作者确有需要时再出 Gradle 插件。
 
 ### 8. 游戏内检查
 

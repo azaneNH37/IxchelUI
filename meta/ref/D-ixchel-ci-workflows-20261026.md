@@ -21,7 +21,7 @@ related: [DECISIONS.md#010, DECISIONS.md#001, ref/D-ixchel-module-breakdown-2026
 | 合入 | ruleset `master`（作用于默认分支）：禁止删除与强推、线性历史、必须走 PR 且只允许 squash、0 个必需 approve，必需检查 `build`（GitHub Actions）且要求分支与 `master` 同步；bypass：仓库 admin（`RepositoryRole` 5），`bypass_mode: pull_request`，只能在 PR 上越过检查，不能直推；维护者只有一人 | `check` 的 job 名 `build` 即必需检查的 context，改 job 名须同步改 ruleset。快速合入：`gh pr merge --squash --admin`，CI 仍在 PR 与 `master` 上运行，红了在 `master` 上补修；有协作者后撤销 bypass。注意：旧版分支保护接口（`branches/master/protection`）看不到 ruleset，查规则用 `rules/branches/master` |
 | 发布 | `ixchel.library` 已配 `maven-publish`；不发 Maven Central，开发期 `publishToMavenLocal` | 暂无远端仓库 |
 | 版本 | `gradle.properties` 中 `version=0.1.0-SNAPSHOT` | 发版版本以此为准（#010） |
-| 构建 | 已开 Gradle build cache 与 configuration cache；mc/loader/testmod 用 MDG（legacyforge / NeoForm）；toolchain 由 foojay 插件兜底下载 | 首次构建要下载并反编译 MC，须缓存 Gradle User Home |
+| 构建 | 已开 Gradle build cache 与 configuration cache；mc/loader/sample 用 MDG（legacyforge / NeoForm）；toolchain 由 foojay 插件兜底下载 | 首次构建要下载并反编译 MC，须缓存 Gradle User Home |
 | 本地耗时 | `:ixchel-core:test` 约 182 s（含 Gradle 启动与配置） | 无缓存时 PR 检查为分钟级（推断） |
 
 ### 2. 流程与触发器
@@ -58,11 +58,11 @@ flowchart LR
 | 阶段 | 项目 | 内容 | 能拦下的问题 |
 |---|---|---|---|
 | toolchain | 全部 | 解析 JDK 17 与 21（CI 中直接用 `setup-java` 装好的，实测无 foojay 下载） | — |
-| MC 产物 | mc、loader、testmod 共 8 个 | MDG `createMinecraftArtifacts`：下载、反混淆、反编译（不重编译 MC） | 版本号错、上游不可达 |
-| 编译 | 全部 9 个 | `compileJava` | 编译错误；core 引用 MC 类（编译期 classpath 没有 MC） |
-| 打包 | 5 个库 | `jar`、`sourcesJar`、`javadocJar`；1.20.1 两个库的 `jar` 自动 reobf 为 SRG | **javadoc 的 doclint 错误**（`withJavadocJar()` 使 javadoc 成为隐含检查） |
-| 打包 | 2 个 testmod | `jar`（Forge 侧也 reobf） | — |
-| 打包 | 2 个 shade testmod | `shadowJar`（relocate Ixchel 与 taffy）后 reobf | shade 配方失效：配置属性、relocate、shadow 产物的 reobf |
+| MC 产物 | mc、loader、sample 共 6 个 | MDG `createMinecraftArtifacts`：下载、反混淆、反编译（不重编译 MC） | 版本号错、上游不可达 |
+| 编译 | 全部 8 个 | `compileJava` | 编译错误；core 引用 MC 类（编译期 classpath 没有 MC） |
+| 打包 | 6 个发布模块（含 kit） | `jar`、`sourcesJar`、`javadocJar`；1.20.1 两个库的 `jar` 自动 reobf 为 SRG；core、mc、loader 的 jar 清单带 `FMLModType: GAMELIBRARY`（#024） | **javadoc 的 doclint 错误**（`withJavadocJar()` 使 javadoc 成为隐含检查） |
+| 打包 | 2 个 sample | `shadowJar`（relocate Ixchel 与 taffy），Forge 侧再 reobf | shade 配方失效：配置属性、relocate、shadow 产物的 reobf |
+| 检查 | 2 个 sample | `lintUi`；Forge 侧另编译 `check` sourceSet | 模板与 ViewModel 不符；检查代码随业务改动失修 |
 | 测试 | core | JUnit，含弹药 HUD 黄金测试 | 行为回归 |
 
 `build` 不包含：`runClient`、gametest、格式化与静态分析（仓库未配）、shade 副本在游戏内的共存（只在生产实例手动验证）。
@@ -165,7 +165,7 @@ GitHub 的平台防护：fork PR 不传 secret、token 只读、不能修改 `.g
 | 项 | 原因 | 何时加 |
 |---|---|---|
 | `runClient` 游戏内冒烟、Iris/ImmediatelyFast 共存 | 需要 GPU 与图形界面；M2 退出条件按手动验证 | 不计划 |
-| shade 双副本游戏内共存 | 需要真实启动器实例与图形界面；构建与 relocate 已由 `build` 中的 shade testmod 覆盖 | 不计划 |
+| shade 双副本游戏内共存 | 需要真实启动器实例与图形界面；构建与 relocate 已由 `build` 中 sample 的 shadowJar 覆盖 | 不计划 |
 | 定时构建 | 没有会悄悄变化的外部依赖 | 出现时再加 |
 | Windows runner | 见 §2 取舍 | 出现实际的字符集回归时再加；转公开后分钟数不再计费，可重新评估 |
 | 文档站部署 | 私有期间 Pages 需付费套餐，且站点本身会公开 | 仓库转公开后 |

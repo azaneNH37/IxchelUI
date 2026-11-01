@@ -53,7 +53,7 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#004, DECISIONS.md#007
 #### 2.1 文件
 
 ```
-assets/ixchelsample/ui/
+assets/ixchel_sample/ui/
   common/panel.html     common/panel.css      组件 ui-panel
   common/confirm.html   common/confirm.css    组件 ui-confirm
   waypoints/row.html    waypoints/row.css     组件 waypoint-row（只用一次，仅为示意）
@@ -273,7 +273,7 @@ final class WaypointsView extends ViewModel {
 
   ```java
   new UiScreen(template, view, parent,
-          Components.of("ixchelsample:ui/common/color-picker.html", ColorPickerView::new));
+          Components.of("ixchel_sample:ui/common/color-picker.html", ColorPickerView::new));
   ```
 
 #### 3.5 指令

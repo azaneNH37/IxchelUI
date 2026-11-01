@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** The sample index: one row per {@link Sample}; HUD rows show whether the HUD is on. */
-@UiTemplate("ixchelsample:ui/index/index.html")
+@UiTemplate("ixchel_sample:ui/index/index.html")
 final class SampleIndexView extends ViewModel {
     record Row(String id, String title, String description, ItemStack icon, String state, boolean on) {
     }

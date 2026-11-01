@@ -39,7 +39,7 @@ import java.util.Map;
  * (hearts, armor, food, experience). Every section is one source read per frame into a record, so a
  * frame where nothing changed compares equal and does no layout.
  */
-@UiTemplate("ixchelsample:ui/env/hud.html")
+@UiTemplate("ixchel_sample:ui/env/hud.html")
 final class EnvView extends ViewModel {
     /** One icon of a row of ten (hearts, armor, food), each standing for two points. */
     record Icon(int index, boolean full, boolean half) {

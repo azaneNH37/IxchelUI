@@ -20,7 +20,7 @@ import java.util.Optional;
  * arrow with a count per screen edge for the drops out of view, and the pickup toasts. Labels follow
  * the drops every frame through {@link WorldProjection}.
  */
-@UiTemplate("ixchelsample:ui/loot/hud.html")
+@UiTemplate("ixchel_sample:ui/loot/hud.html")
 final class LootView extends ViewModel {
     /** Drops labeled at most, nearest first. */
     static final int MAX_LABELS = 24;

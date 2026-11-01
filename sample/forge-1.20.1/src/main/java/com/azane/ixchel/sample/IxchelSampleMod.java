@@ -21,7 +21,7 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
  */
 @Mod(IxchelSampleMod.MOD_ID)
 public final class IxchelSampleMod {
-    public static final String MOD_ID = "ixchelsample";
+    public static final String MOD_ID = "ixchel_sample";
 
     public IxchelSampleMod(FMLJavaModLoadingContext context) {
         IEventBus modBus = context.getModEventBus();

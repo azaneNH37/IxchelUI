@@ -22,7 +22,7 @@ import net.minecraft.util.StringUtil;
  * serves several templates, or none, is mounted with the template id:
  *
  * <pre>{@code
- * @UiTemplate("ixcheltest:ui/refit.html")
+ * @UiTemplate("ixchel_sample:ui/refit.html")
  * class RefitView extends ViewModel { ... }
  *
  * mc.setScreen(new UiScreen(new RefitView(slot)));

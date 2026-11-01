@@ -1,9 +1,0 @@
-modLoader = "javafml"
-loaderVersion = "[47,)"
-license = "All Rights Reserved"
-
-[[mods]]
-modId = "ixchelshadeb"
-version = "0.0.0"
-displayName = "Ixchel Shade Check B"
-description = "Shades a relocated copy of Ixchel UI. Not distributed."

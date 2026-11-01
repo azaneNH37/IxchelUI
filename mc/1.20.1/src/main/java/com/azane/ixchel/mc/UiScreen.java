@@ -22,7 +22,7 @@ import net.minecraft.resources.ResourceLocation;
  * serves several templates, or none, is mounted with the template id:
  *
  * <pre>{@code
- * @UiTemplate("ixchelsample:ui/waypoints/list.html")
+ * @UiTemplate("ixchel_sample:ui/waypoints/list.html")
  * class WaypointsView extends ViewModel { ... }
  *
  * mc.setScreen(new UiScreen(new WaypointsView()));

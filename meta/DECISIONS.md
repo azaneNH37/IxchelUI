@@ -68,7 +68,7 @@
 ## #011 1.20.1 库模块发布 SRG 产物
 - **decided**: 2026-10-27
 - **context**: Forge 1.20.1 运行时为 SRG；宿主要 shade、relocate 后再 reobf 整个 jar，库产物的命名决定了消费方要不要先重映射
-- **decision**: 沿用 legacyforge 默认，`ixchel-mc-1.20.1` 与 `ixchel-forge-1.20.1` 的 `jar` 发布为 SRG。消费方用 `obfuscation.createRemappingConfiguration(shade)` 把这两个模块重映射回 mojmap，`ixchel-core` 直接 shade，shadowJar 之后 `obfuscation.reobfuscate(tasks.shadowJar, …)`。reobf 变体不带依赖声明，所以三个模块要逐个列出。配方见 `testmod/shade-b-forge-1.20.1/build.gradle.kts`，已在生产实例中与另一份不同版本的副本共存运行
+- **decision**: 沿用 legacyforge 默认，`ixchel-mc-1.20.1` 与 `ixchel-forge-1.20.1` 的 `jar` 发布为 SRG。消费方用 `obfuscation.createRemappingConfiguration(shade)` 把这两个模块重映射回 mojmap，`ixchel-core` 直接 shade，shadowJar 之后 `obfuscation.reobfuscate(tasks.shadowJar, …)`。reobf 变体不带依赖声明，所以三个模块要逐个列出。配方见 `sample/forge-1.20.1/build.gradle.kts`（外部写法在 `external mods` 注释中），已在生产实例中与另一份不同版本的副本共存运行
 - **rejected**: 发布 mojmap 产物——legacyforge 下要额外关掉默认 reobf 并另配发布变体；消费方的 reobf 本来就要对 shade 后的整个 jar 再做一次，不会更省事，且未实测
 
 ## #012 文本输入与事件过滤语义
@@ -142,3 +142,9 @@
 - **context**: lint 的 `--json`、文档、agent 修复与编辑器都需要不依赖消息原文的错误标识，而 `Diagnostic` 只有严重级别、消息与位置
 - **decision**: 错误码为英文符号名 `领域/名称`（如 `binding/unknown-name`），由报告它的包内实现 `DiagCode` 的 enum 定义，严重级别由码决定，可附 hint；码是公开契约，不改名、不复用；测试断言码与位置，不断言消息原文。细节见 `ref/SD-ixchel-tooling-and-editor-20261031.md` §6
 - **rejected**: 数字码（如 `IX0123`）——对 agent 与读者不透明；集中在 core 的单一码表——mc 层的码要回流 core，违反依赖方向
+
+## #024 sample 即使用方形态，库 jar 声明 GAMELIBRARY
+- **decided**: 2026-11-01
+- **context**: sample 把库源码并入自己的 mod 运行，使用方"以 jar 依赖开发、shade 发布"的路径从未运行过，shade 只由两个独立测试宿主覆盖，sample 构建脚本也不能当配方看
+- **decision**: core、mc、loader 的 jar 清单写 `FMLModType: GAMELIBRARY`，宿主开发期以普通依赖接入（FML 把它载入 game 层）；两个 sample 按使用方写法构建（shade + relocate，1.20.1 另 reobf），仓库内写法与外部只差依赖坐标，差异写在 `external mods` 注释；不再保留独立 shade 宿主
+- **rejected**: 库源码 sourceSet 并入宿主——使用方的开发期路径无人运行；保留 shade-a/b——两份副本共存已在生产实例验证，重复确认没有新信息；代价是 IDE 中不能热替换库类（模板与 CSS 热重载不受影响）

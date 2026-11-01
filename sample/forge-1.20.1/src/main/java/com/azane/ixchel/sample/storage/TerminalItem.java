@@ -29,6 +29,6 @@ public final class TerminalItem extends Item {
     static void open(ServerPlayer player, InteractionHand hand) {
         NetworkHooks.openScreen(player, new SimpleMenuProvider(
                 (id, inventory, p) -> TerminalMenu.server(id, inventory, player, hand),
-                Component.translatable("item.ixchelsample.storage_terminal")));
+                Component.translatable("item.ixchel_sample.storage_terminal")));
     }
 }
