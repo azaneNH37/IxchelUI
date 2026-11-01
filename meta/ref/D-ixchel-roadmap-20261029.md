@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I；接下来是 Doc（用户文档）。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I；接下来是 Doc（用户文档）；UI 特效 FX1–FX3 已排期。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
 
 ## Detail
 
@@ -40,8 +40,11 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
 | T1 | 完成 | 2026-10-31 | 静态检查：`@UiTemplate`、成员表编译、原生元素声明数据、错误码、`ixchel-kit` 的 lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
 | T2 | 完成 | 2026-10-31 | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
+| FX1 | 待做 | — | 私有图层与 shader 注册；`opacity` 整组语义 |
+| FX2 | 待做 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
+| FX3 | 待做 | — | `.effect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028） |
 
-依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
+依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()`，与 Doc 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
 #### D0 改名与清理
 
@@ -131,6 +134,26 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 验收：切换游戏语言（`zh_cn`）后界面文本随之变化，写成 playtest；缺键与参数不符在加载期或首次取值时报告，core 单元测试覆盖；sample `ixchelLint` 打开字面文本警告为 0；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
 - 结果（2026-11-02）：按已定完成，引擎、工具与 sample 的结果见 `ref/SD-ixchel-i18n-20261102.md` §7；偏差：S8 的排版样张条目 `typesetting` 不翻译（`translate="no" lang="en"`），其正文就是多文种排版样本。
 
+#### FX1 私有图层与 shader 注册
+
+- 设计依据：`ref/SD-ixchel-ui-effects-20261102.md` §3、§4（#028）。
+- 引擎：mc 层 classpath `ResourceProvider` 与 `ShaderInstance` 构造，程序名 `<宿主modid>_fx_<名>`；加载器胶水层经 `RegisterShadersEvent` 注册、随资源重载重建；私有图层栈（`TextureTarget` 带深度，进出时 flush 并保存、恢复 FBO、viewport、投影、scissor、混合、深度状态，帧内按尺寸复用、用完释放）；`opacity` < 1 的元素走图层，改为整组语义，原生元素随之淡出。两个 mc 版本。
+- 验收：重叠子元素半透明与带 `<mc-item>` 的淡出写成 playtest 截图；F3+T 资源重载后绘制正常；其余现有截图不变；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
+
+#### FX2 标准滤镜与混合
+
+- 先定：`filter` 函数与 `mix-blend-mode` 模式的首批子集（倾向颜色矩阵类函数与 `blur`；`drop-shadow` 是否同批）。
+- 引擎：`filter` 走 `layer` 机制，`backdrop-filter` 走背景快照（降采样 + 两遍模糊），`mix-blend-mode` 合成时读父目标；core 解析与开发期报错，不支持的函数报码。两个 mc 版本。
+- 验收：每个函数与模式各一张 playtest 截图；带 `backdrop-filter` 的 HUD 进 `FrameTimer` 预算。
+
+#### FX3 具名特效
+
+- 先定：首批内置特效的范围；离场过渡（`<if>` 卸载立即移除、无 `transitionend`）是否同阶段做。
+- 引擎：`.effect` 解析（`kind`、类型化 `param`）、uniform 与 fsh/vsh/json 生成、GLSL 原语库；`<link rel="effect">`；`background-image: paint(名)`、`filter: -ix-paint(名)`、`backdrop-filter` 中的特效；参数自定义属性按声明类型校验并可 `transition`；错误码 `effect/*`，GLSL 编译错误行号映射回 `.effect`；内置特效经 `@ixchel/effects/…` 引入。
+- 工具：kit lint 覆盖 CSS 一侧的检查；schema 列出特效与参数。
+- sample：一个场景用一个 `box` 特效与一个 `layer` 特效，其中一个参数由 `bind:style:--x` 驱动。
+- 验收：上述用法写成 playtest 截图；错误用法逐项由 lint 报码；改动 `.effect` 后 F3+T 生效；在生产实例装 Oculus + 光影包 + ImmediatelyFast + Embeddium 实测截图并与不装时对比；1.21.1 `runClient` 冒烟。
+
 #### Doc 用户文档
 
 - 先定：站点结构按 Diátaxis 四类（教程、操作指南、参考、原理）；哪些参考页由代码生成（CI 文档 §2：属性注册表、元素注册表）。
@@ -181,6 +204,9 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | 错误码迁移触及约 195 个报错调用点与大量断言消息的测试 | T1 | 按包逐个迁移，调用点与测试同提交，测试只改断言对象不改场景 |
 | 成员表改造影响运行时绑定 | T1 | 实例反射来源保持现有行为，`-Pcheck=all` 与 core 测试为回归网 |
 | 提取检查框架时改变时序（两步之间先画一帧） | T2 | `Pump` 保留"tick 结束且该帧已画完"语义，场景断言不改 |
+| 私有图层改动绘制主路径 | FX1 | 只有 `opacity` < 1 的元素走图层，其余绘制不变；现有 playtest 截图为回归网 |
+| 光影、ImmediatelyFast 等渲染 mod 共存 | FX1–FX3 | 遵守渲染约定（flush、`GlStateManager`、状态原样归还）；FX3 在生产实例实测 |
+| 每帧离屏绘制的开销 | FX2、FX3 | 进 `FrameTimer` 预算；超标时缓存未变脏子树的图层、只重跑合成 |
 
 ### 4. 不排期
 

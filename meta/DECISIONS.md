@@ -166,3 +166,9 @@
 - **context**: 原定 `t="语言键"` 只是保留名；属性、参数、依赖数据的文本与句中样式词都没有写法，MC 汉化生态只认语言 JSON
 - **decision**: `t="键"` 由译文给出元素内容，`t:<属性>="键"` 给属性值；译文在 MC 语言 JSON 中，`%s`/`%n$s` 按位置插入不带 `mark` 的子元素，`<名>…</名>` 复制带 `mark="名"` 的空子元素并填入文字（0..n 次，不嵌套、不带属性），`\n` 强制换行；加载期展开、先于绑定编译，切换语言随资源重载重建；外观只由模板与 CSS 决定，`:lang()` 按游戏语言区分；依赖数据的文本由 Java 返回 `Component`；原文只在 `en_us.json`；字面文本警告只在 kit、默认关闭。细节见 `ref/SD-ixchel-i18n-20261102.md`
 - **rejected**: `$t()` 表达式函数与动态键——违反加载期检查与"不提供内置函数"；样式词各自取键——词形与范围脱离句子；`§` 码——样式交给译者、绕过 CSS；编号标签——译者看不懂；模板内写原文——两份原文漂移
+
+## #028 UI 特效 = 资源文件定义的具名效果，经 CSS 引用
+- **decided**: 2026-11-02
+- **context**: 流光、溶解、CRT 等效果没有 Web 标准写法，库以 shade 分发、不带固定 namespace 的 assets、不用 mixin，而 MC 的 shader 程序按名字全局缓存
+- **decision**: 特效为 `.effect` 文件（`kind box|layer|backdrop` + 类型化 `param` + GLSL `effect()`，用库内原语库组合），由 `<link rel="effect">` 按资源路径引入；`box` 写 `background-image: paint(名)`，`layer` 写 `filter: -ix-paint(名)`，`backdrop` 写在 `backdrop-filter` 中；参数为自定义属性 `--名-参数`，按声明类型校验、可过渡；程序名为 `<宿主modid>_fx_<名>`，经加载器胶水层随资源重载注册；内置特效同格式，从 `@ixchel/effects/…` 引入。标准 CSS 能表达的效果走标准属性。细节见 `ref/SD-ixchel-ui-effects-20261102.md`
+- **rejected**: 位置参数 `paint(名, 参数…)`——不能单独覆盖或过渡；包裹元素 `<ix-effect>`——特效属于样式，包裹会改结构且不能与标准 filter 串链；运行时节点图或万能 shader——调试与缓存成本高、无需求；全局特效注册表——多宿主下撞名（同 #015）；`PostChain`——只读固定资源路径
