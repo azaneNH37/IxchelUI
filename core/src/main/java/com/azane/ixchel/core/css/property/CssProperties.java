@@ -20,7 +20,17 @@ import com.azane.ixchel.core.css.property.Keywords.WhiteSpace;
 
 import java.util.List;
 
-import static com.azane.ixchel.core.css.property.Syntaxes.backgroundImage;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.backgroundImages;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.backgroundPositions;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.borderImage;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.borderImageRepeat;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.borderImageSlice;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.borderImageWidth;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.borderRadius;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.boxShadow;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.cornerRadius;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.imageSource;
+import static com.azane.ixchel.core.css.property.BoxSyntaxes.content;
 import static com.azane.ixchel.core.css.property.Syntaxes.backgroundSize;
 import static com.azane.ixchel.core.css.property.Syntaxes.color;
 import static com.azane.ixchel.core.css.property.Syntaxes.commaList;
@@ -122,18 +132,55 @@ public final class CssProperties {
     public static final PropertyDef<Integer> BORDER_BOTTOM_COLOR = R.register("border-bottom-color", color(), 0xFFFFFFFF, false, false, true);
     public static final PropertyDef<Integer> BORDER_LEFT_COLOR = R.register("border-left-color", color(), 0xFFFFFFFF, false, false, true);
     public static final PropertyDef<Integer> BACKGROUND_COLOR = R.register("background-color", color(), 0x00000000, false, false, true);
-    /** The image's resource location, or an empty string for {@code none}. */
-    public static final PropertyDef<String> BACKGROUND_IMAGE = R.register("background-image", backgroundImage(), "", false, false, false);
-    public static final PropertyDef<Length> BACKGROUND_POSITION_X =
-            R.register("background-position-x", BACKGROUND_OFFSET, Length.percent(0), false, false, false);
-    public static final PropertyDef<Length> BACKGROUND_POSITION_Y =
-            R.register("background-position-y", BACKGROUND_OFFSET, Length.percent(0), false, false, false);
-    public static final PropertyDef<BackgroundSize> BACKGROUND_SIZE =
-            R.register("background-size", backgroundSize(), BackgroundSize.AUTO, false, false, false);
-    public static final PropertyDef<BackgroundRepeat> BACKGROUND_REPEAT =
-            R.register("background-repeat", keyword(BackgroundRepeat.class), BackgroundRepeat.REPEAT, false, false, false);
-    public static final PropertyDef<BackgroundBlendMode> BACKGROUND_BLEND_MODE =
-            R.register("background-blend-mode", keyword(BackgroundBlendMode.class), BackgroundBlendMode.NORMAL, false, false, false);
+    /**
+     * The background layers, top first; the other {@code background-*} lists are matched to them by
+     * index and repeated when shorter, as in CSS.
+     */
+    public static final PropertyDef<List<CssImage>> BACKGROUND_IMAGE =
+            R.register("background-image", backgroundImages(), List.of(CssImage.NONE), false, false, false);
+    public static final PropertyDef<List<Length>> BACKGROUND_POSITION_X =
+            R.register("background-position-x", commaList(BACKGROUND_OFFSET), List.of(Length.percent(0)), false, false, false);
+    public static final PropertyDef<List<Length>> BACKGROUND_POSITION_Y =
+            R.register("background-position-y", commaList(BACKGROUND_OFFSET), List.of(Length.percent(0)), false, false, false);
+    public static final PropertyDef<List<BackgroundSize>> BACKGROUND_SIZE =
+            R.register("background-size", commaList(backgroundSize()), List.of(BackgroundSize.AUTO), false, false, false);
+    public static final PropertyDef<List<BackgroundRepeat>> BACKGROUND_REPEAT =
+            R.register("background-repeat", commaList(keyword(BackgroundRepeat.class)), List.of(BackgroundRepeat.REPEAT), false, false, false);
+    public static final PropertyDef<List<BackgroundBlendMode>> BACKGROUND_BLEND_MODE =
+            R.register("background-blend-mode", commaList(keyword(BackgroundBlendMode.class)), List.of(BackgroundBlendMode.NORMAL),
+                    false, false, false);
+    /**
+     * Rounds the background, the border and {@code box-shadow}; children are not clipped to the curve,
+     * an {@code overflow} clip stays rectangular. Percentages are of the border box's width (horizontal
+     * radius) and height (vertical radius).
+     */
+    public static final PropertyDef<CornerRadius> BORDER_TOP_LEFT_RADIUS =
+            R.register("border-top-left-radius", cornerRadius(), CornerRadius.ZERO, false, false, true);
+    public static final PropertyDef<CornerRadius> BORDER_TOP_RIGHT_RADIUS =
+            R.register("border-top-right-radius", cornerRadius(), CornerRadius.ZERO, false, false, true);
+    public static final PropertyDef<CornerRadius> BORDER_BOTTOM_RIGHT_RADIUS =
+            R.register("border-bottom-right-radius", cornerRadius(), CornerRadius.ZERO, false, false, true);
+    public static final PropertyDef<CornerRadius> BORDER_BOTTOM_LEFT_RADIUS =
+            R.register("border-bottom-left-radius", cornerRadius(), CornerRadius.ZERO, false, false, true);
+    /** Shadows, top first; outer ones are not drawn under the border box, inset ones only inside the padding box. */
+    public static final PropertyDef<List<BoxShadow>> BOX_SHADOW = R.register("box-shadow", boxShadow(), List.of(), false, false, true);
+    /** Replaces the border's own drawing while it is not {@code none}; the border widths still lay out the box. */
+    public static final PropertyDef<CssImage> BORDER_IMAGE_SOURCE =
+            R.register("border-image-source", imageSource(), CssImage.NONE, false, false, false);
+    public static final PropertyDef<BorderImageSlice> BORDER_IMAGE_SLICE =
+            R.register("border-image-slice", borderImageSlice(), BorderImageSlice.INITIAL, false, false, false);
+    public static final PropertyDef<BorderImageWidth> BORDER_IMAGE_WIDTH =
+            R.register("border-image-width", borderImageWidth(), BorderImageWidth.INITIAL, false, false, false);
+    /** Horizontal then vertical. */
+    public static final PropertyDef<List<Keywords.ImageTiling>> BORDER_IMAGE_REPEAT =
+            R.register("border-image-repeat", borderImageRepeat(), List.of(Keywords.ImageTiling.STRETCH, Keywords.ImageTiling.STRETCH),
+                    false, false, false);
+    /** Inherited, as in CSS; applies to {@code <img>}, background images and the border image. */
+    public static final PropertyDef<Keywords.ImageRendering> IMAGE_RENDERING =
+            R.register("image-rendering", keyword(Keywords.ImageRendering.class), Keywords.ImageRendering.AUTO, true, false, false);
+    /** Whether a {@code ::before} or {@code ::after} box exists; see {@link Keywords.Content}. */
+    public static final PropertyDef<Keywords.Content> CONTENT =
+            R.register("content", content(), Keywords.Content.NORMAL, false, false, false);
     public static final PropertyDef<Integer> COLOR = R.register("color", color(), 0xFFFFFFFF, true, false, true);
     /** The check mark of a checked checkbox and the filled track and thumb of a range input; no {@code auto}. */
     public static final PropertyDef<Integer> ACCENT_COLOR = R.register("accent-color", color(), 0xFF3C78D8, true, false, true);
@@ -178,8 +225,12 @@ public final class CssProperties {
         R.registerShorthand("border-bottom", border(1), BORDER_BOTTOM_WIDTH, BORDER_BOTTOM_STYLE, BORDER_BOTTOM_COLOR);
         R.registerShorthand("border-left", border(1), BORDER_LEFT_WIDTH, BORDER_LEFT_STYLE, BORDER_LEFT_COLOR);
         R.registerShorthand("gap", Shorthand.pair(GAP), ROW_GAP, COLUMN_GAP);
-        R.registerShorthand("background-position", Shorthand.position(BACKGROUND_OFFSET),
+        R.registerShorthand("background-position", backgroundPositions(BACKGROUND_OFFSET),
                 BACKGROUND_POSITION_X, BACKGROUND_POSITION_Y);
+        R.registerShorthand("border-radius", borderRadius(), BORDER_TOP_LEFT_RADIUS, BORDER_TOP_RIGHT_RADIUS,
+                BORDER_BOTTOM_RIGHT_RADIUS, BORDER_BOTTOM_LEFT_RADIUS);
+        R.registerShorthand("border-image", borderImage(), BORDER_IMAGE_SOURCE, BORDER_IMAGE_SLICE, BORDER_IMAGE_WIDTH,
+                BORDER_IMAGE_REPEAT);
         R.registerShorthand("transition", Shorthand.transition(R),
                 TRANSITION_PROPERTY, TRANSITION_DURATION, TRANSITION_TIMING_FUNCTION, TRANSITION_DELAY);
         R.freeze();

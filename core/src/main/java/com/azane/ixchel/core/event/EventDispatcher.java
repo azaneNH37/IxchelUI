@@ -685,6 +685,10 @@ public final class EventDispatcher {
             }
         }
         float childY = y + e.scrollTop();
+        // A pseudo-element's box counts as its element's: events and :hover go to the element.
+        if (e.after() != null && hit(e.after(), x, childY) != null) {
+            return e;
+        }
         List<Node> children = e.children();
         for (int i = children.size() - 1; i >= 0; i--) {
             if (children.get(i) instanceof Element c && !c.rendersInTopLayer()) {
@@ -693,6 +697,9 @@ public final class EventDispatcher {
                     return h;
                 }
             }
+        }
+        if (e.before() != null && hit(e.before(), x, childY) != null) {
+            return e;
         }
         return inside ? e : null;
     }

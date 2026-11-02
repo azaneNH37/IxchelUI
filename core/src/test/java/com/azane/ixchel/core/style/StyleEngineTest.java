@@ -85,6 +85,51 @@ class StyleEngineTest {
     }
 
     @Test
+    void logicalPseudoClassesMatchTheirListsAndWhereAddsNoSpecificity() {
+        Diagnostics diag = new Diagnostics();
+        StyleEngine engine = engine("""
+                div:not(.a, .b) { width: 1px }
+                :is(.warn > span, #x) { width: 2px }
+                :where(#y) { height: 3px }
+                span { height: 4px }
+                :is(#y) { min-width: 5px }
+                span { min-width: 6px }
+                """, diag);
+        Element root = new Element(ElementType.plain("#root"), POS);
+        Element plain = el(root, "div");
+        Element a = el(root, "div", "a");
+        Element warn = el(root, "p", "warn");
+        Element inner = el(warn, "span");
+        inner.setAttribute("id", "y");
+        engine.restyle(root);
+
+        assertEquals(List.of(), diag.entries());
+        assertEquals(Length.px(1), plain.computed().get(CssProperties.WIDTH), ":not() with no item matching");
+        assertEquals(Length.AUTO, a.computed().get(CssProperties.WIDTH), ":not() with one item matching");
+        assertEquals(Length.px(2), inner.computed().get(CssProperties.WIDTH), "a complex selector inside :is()");
+        assertEquals(Length.px(4), inner.computed().get(CssProperties.HEIGHT), ":where(#id) loses to a tag");
+        assertEquals(Length.px(5), inner.computed().get(CssProperties.MIN_WIDTH), ":is(#id) counts as an id");
+
+        warn.removeClass("warn");
+        engine.restyle(root);
+        assertEquals(Length.AUTO, inner.computed().get(CssProperties.WIDTH), "an ancestor change inside :is() restyles");
+    }
+
+    @Test
+    void misplacedPseudoElementsAndEmptyLogicalListsDropTheRule() {
+        Diagnostics diag = new Diagnostics();
+        engine("""
+                div::before span {}
+                :not(::after) {}
+                :is() {}
+                div::first-line {}
+                div::before {}
+                """, diag);
+        assertEquals(List.of("css/misplaced-pseudo-element@t.css:1:13", "css/misplaced-pseudo-element@t.css:2:6",
+                "css/invalid-logical-pseudo@t.css:3:2", "css/unsupported-pseudo@t.css:4:6"), DiagCodes.of(diag));
+    }
+
+    @Test
     void parentClassChangeRestylesInheritedValuesButLeavesCleanSiblingsAlone() {
         Diagnostics diag = new Diagnostics();
         StyleEngine engine = engine("""

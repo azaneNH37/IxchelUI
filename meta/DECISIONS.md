@@ -176,7 +176,7 @@
 ## #029 圆角、阴影、渐变走路径 C，圆角只做外观
 - **decided**: 2026-11-02
 - **context**: V1 要补圆角、`box-shadow`、线性渐变，路径 C 一直是推荐未定；圆角裁剪依赖 FX1 的私有图层，MC 界面又很少需要裁剪圆角子元素
-- **decision**: 三者由 CPU 生成覆盖率/SDF 纹理放入单张图集，经 `POSITION_TEX_COLOR` 九宫格绘制，纹理以宿主 modid 注册；`<img>` 图集共用这条路径。V1 的 `border-radius` 只影响背景、边框与阴影，子元素不裁圆角；FX1 落地前 `overflow` 配圆角按矩形裁剪并由 lint 警告
+- **decision**: 三者由 CPU 生成覆盖率/SDF 纹理放入单张图集，经 `POSITION_TEX_COLOR` 九宫格绘制，纹理以宿主 modid 注册；`<img>` 图集共用这条路径。V1 的 `border-radius` 只影响背景、边框与阴影，子元素不裁圆角；FX1 落地前 `overflow` 配圆角按矩形裁剪并由 lint 警告。注：`<img>` 共用图集未随 V1 落地
 - **rejected**: SDF shader（路径 B）——V1 就要 shader 注册，且 Painter 按顶点 API 时代分叉；CPU 三角化（路径 A）——无抗锯齿，阴影只能近似；把 FX1 提到 V1 之前——为少用的裁剪提前引入图层
 
 ## #030 宿主原生元素 = 实现类声明 + 按 modid 注册

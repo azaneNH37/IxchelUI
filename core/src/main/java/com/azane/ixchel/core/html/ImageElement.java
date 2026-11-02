@@ -8,6 +8,7 @@ import com.azane.ixchel.core.layout.LayoutFacet;
 import com.azane.ixchel.core.paint.PaintFacet;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.core.paint.Painter;
 import com.azane.ixchel.core.template.ContentModel;
 import com.azane.ixchel.core.template.TemplateCode;
 
@@ -24,7 +25,8 @@ final class ImageElement {
     static final PaintFacet PAINT = new PaintFacet() {
         @Override public void paint(Element e, float y, DisplayList out, Context context) {
             LayoutBox b = e.box();
-            out.add(new DrawCommand.Image(b.x(), y, b.width(), b.height(), e.attribute("src"), 0, 0, 1, 1, context.fade(0xFFFFFFFF)));
+            out.add(new DrawCommand.Image(b.x(), y, b.width(), b.height(), e.attribute("src"), 0, 0, 1, 1, context.fade(0xFFFFFFFF),
+                    Painter.filter(e.computed())));
         }
     };
     static final ElementType TYPE = ElementType.builder("img", "src")

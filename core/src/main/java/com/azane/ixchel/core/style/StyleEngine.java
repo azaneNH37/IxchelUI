@@ -1,6 +1,8 @@
 package com.azane.ixchel.core.style;
 
 import com.azane.ixchel.core.css.property.ComputedStyle;
+import com.azane.ixchel.core.css.property.CssProperties;
+import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.css.selector.Selector;
@@ -34,6 +36,11 @@ import java.util.WeakHashMap;
  * a custom property whose {@code var()} cannot be resolved, or that refers to itself through others,
  * is not defined on the element; a longhand that cannot be resolved or parsed after substitution
  * takes its inherited value if it inherits, else its initial value, and is reported once.
+ *
+ * <p>An element gets a {@linkplain Element#before() ::before} or {@linkplain Element#after() ::after}
+ * box while a rule for it matches and its {@code content} is {@code ""}. The box cascades only
+ * those rules, matched against its element, and inherits from its element; it has no inline style.
+ * It is restyled whenever its element is.
  */
 public final class StyleEngine {
     private static final int USER_AGENT = 0;
@@ -65,10 +72,9 @@ public final class StyleEngine {
     private final PropertyRegistry registry;
     private final Hook hook;
     private final Diagnostics diag;
-    private final Map<String, List<Entry>> byId = new HashMap<>();
-    private final Map<String, List<Entry>> byClass = new HashMap<>();
-    private final Map<String, List<Entry>> byTag = new HashMap<>();
-    private final List<Entry> universal = new ArrayList<>();
+    private final Index elements = new Index();
+    private final Index before = new Index();
+    private final Index after = new Index();
     /** Weakly keyed, so entries leave with their elements; a new inline style replaces its element's entry. */
     private final Map<Element, Inline> inlineCache = new WeakHashMap<>();
     private final List<Entry> scratch = new ArrayList<>();
@@ -104,15 +110,10 @@ public final class StyleEngine {
             for (StyleSheet.StyleRule r : sheet.rules()) {
                 Entry e = new Entry(r.selector(), r.declarations(), origin, r.selector().specificity(), base + r.order());
                 order = Math.max(order, e.order + 1);
-                Selector.Compound key = r.selector().rightmost();
-                if (key.id() != null) {
-                    byId.computeIfAbsent(key.id(), k -> new ArrayList<>()).add(e);
-                } else if (!key.classes().isEmpty()) {
-                    byClass.computeIfAbsent(key.classes().get(0), k -> new ArrayList<>()).add(e);
-                } else if (key.tag() != null) {
-                    byTag.computeIfAbsent(key.tag(), k -> new ArrayList<>()).add(e);
-                } else {
-                    universal.add(e);
+                switch (r.selector().pseudoElement()) {
+                    case NONE -> elements.add(e);
+                    case BEFORE -> before.add(e);
+                    case AFTER -> after.add(e);
                 }
             }
         }
@@ -139,36 +140,55 @@ public final class StyleEngine {
             }
             boolean self = force || e.isStyleDirty();
             if (self) {
-                ComputedStyle next = compute(e, parent.computed());
+                elements.collect(e, false, scratch);
+                ComputedStyle next = compute(e, inline(e), parent.computed());
                 hook.computed(e, e.computed(), next);
                 e.setComputed(next);
             }
             if (self || e.hasStyleDirtyDescendant()) {
+                restylePseudo(e, false, self);
+                restylePseudo(e, true, self);
                 restyleChildren(e, self);
             }
             e.clearStyleDirty();
         }
     }
 
-    private ComputedStyle compute(Element e, ComputedStyle parent) {
+    /** Generates, restyles or drops {@code host}'s {@code ::before} or {@code ::after} box. */
+    private void restylePseudo(Element host, boolean isAfter, boolean force) {
+        Element p = isAfter ? host.after() : host.before();
+        if (!force && (p == null || !p.isStyleDirty())) {
+            return;
+        }
+        (isAfter ? after : before).collect(host, true, scratch);
+        if (scratch.isEmpty()) {
+            host.dropPseudo(isAfter);
+            return;
+        }
+        ComputedStyle next = compute(null, Declarations.Compiled.EMPTY, host.computed());
+        if (next.get(CssProperties.CONTENT) != Keywords.Content.EMPTY) {
+            host.dropPseudo(isAfter);
+            return;
+        }
+        p = host.generatePseudo(isAfter);
+        hook.computed(p, p.computed(), next);
+        p.setComputed(next);
+        p.clearStyleDirty();
+    }
+
+    /**
+     * Cascades the rules in {@link #scratch}, which it sorts and then clears, over {@code inline}
+     * and {@code e}'s bound values; {@code e} is {@code null} for a pseudo-element, which has neither.
+     */
+    private ComputedStyle compute(Element e, Declarations.Compiled inline, ComputedStyle parent) {
         List<Entry> matched = scratch;
-        matched.clear();
-        String id = e.attribute("id");
-        if (id != null) {
-            collect(byId.get(id), e, matched);
-        }
-        for (String c : e.classes()) {
-            collect(byClass.get(c), e, matched);
-        }
-        collect(byTag.get(e.tag()), e, matched);
-        collect(universal, e, matched);
         matched.sort(CASCADE_ORDER);
 
-        Declarations.Compiled inline = inline(e);
-        Map<PropertyDef<?>, Object> bound = e.boundStyle();
+        Map<PropertyDef<?>, Object> bound = e == null ? Map.of() : e.boundStyle();
+        Map<String, List<ComponentValue>> boundCustom = e == null ? Map.of() : e.boundCustom();
         boolean anyBound = !bound.isEmpty();
 
-        ComputedStyle cs = ComputedStyle.inheriting(registry, parent, custom(e, matched, inline, parent.custom()));
+        ComputedStyle cs = ComputedStyle.inheriting(registry, parent, custom(boundCustom, matched, inline, parent.custom()));
         for (int pass = 0; pass < 2; pass++) {
             boolean important = pass == 1;
             if (important) {
@@ -200,12 +220,11 @@ public final class StyleEngine {
     }
 
     /**
-     * The element's custom properties: {@code inherited} overridden by its cascaded declarations,
+     * An element's custom properties: {@code inherited} overridden by its cascaded declarations and {@code bound} values,
      * each with its {@code var()}s substituted; {@code inherited} itself when nothing declares one.
      */
-    private Map<String, List<ComponentValue>> custom(Element e, List<Entry> matched, Declarations.Compiled inline,
-                                                     Map<String, List<ComponentValue>> inherited) {
-        Map<String, List<ComponentValue>> bound = e.boundCustom();
+    private Map<String, List<ComponentValue>> custom(Map<String, List<ComponentValue>> bound, List<Entry> matched,
+                                                     Declarations.Compiled inline, Map<String, List<ComponentValue>> inherited) {
         Map<String, List<ComponentValue>> declared = null;
         for (int pass = 0; pass < 2; pass++) {
             boolean important = pass == 1;
@@ -304,13 +323,53 @@ public final class StyleEngine {
         return inlineCache.size();
     }
 
-    private static void collect(List<Entry> candidates, Element e, List<Entry> out) {
-        if (candidates == null) {
-            return;
+    /** Rules by their rightmost compound's id, else first class, else tag, else none. */
+    private static final class Index {
+        private final Map<String, List<Entry>> byId = new HashMap<>();
+        private final Map<String, List<Entry>> byClass = new HashMap<>();
+        private final Map<String, List<Entry>> byTag = new HashMap<>();
+        private final List<Entry> universal = new ArrayList<>();
+        private boolean empty = true;
+
+        void add(Entry e) {
+            empty = false;
+            Selector.Compound key = e.selector.rightmost();
+            if (key.id() != null) {
+                byId.computeIfAbsent(key.id(), k -> new ArrayList<>()).add(e);
+            } else if (!key.classes().isEmpty()) {
+                byClass.computeIfAbsent(key.classes().get(0), k -> new ArrayList<>()).add(e);
+            } else if (key.tag() != null) {
+                byTag.computeIfAbsent(key.tag(), k -> new ArrayList<>()).add(e);
+            } else {
+                universal.add(e);
+            }
         }
-        for (Entry c : candidates) {
-            if (c.selector.matches(e)) {
-                out.add(c);
+
+        /** Replaces {@code out} with the rules matching {@code e}, or with {@code origin}, the pseudo-element rules whose element it is. */
+        void collect(Element e, boolean origin, List<Entry> out) {
+            out.clear();
+            if (empty) {
+                return;
+            }
+            String id = e.attribute("id");
+            if (id != null) {
+                collect(byId.get(id), e, origin, out);
+            }
+            for (String c : e.classes()) {
+                collect(byClass.get(c), e, origin, out);
+            }
+            collect(byTag.get(e.tag()), e, origin, out);
+            collect(universal, e, origin, out);
+        }
+
+        private static void collect(List<Entry> candidates, Element e, boolean origin, List<Entry> out) {
+            if (candidates == null) {
+                return;
+            }
+            for (Entry c : candidates) {
+                if (origin ? c.selector.matchesOrigin(e) : c.selector.matches(e)) {
+                    out.add(c);
+                }
             }
         }
     }

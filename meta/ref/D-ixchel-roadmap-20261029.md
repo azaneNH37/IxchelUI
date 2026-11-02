@@ -44,7 +44,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | U2 | 完成 | S7、S6 | 拖拽：`draggable`、`dragstart`/`drag`/`dragend`/`drop`、`<ix-drag-preview>` |
 | U3 | 完成 | — | 宿主自定义原生元素入口（#030） |
 | N1–N2 | 完成 | — | 原生声明随实现类注册；元素定义按消费阶段切面组合（#030、#031），结果见下文 |
-| V1 | 待做 | — | `::before`/`::after`（只做装饰）、多层背景、线性渐变、`border-image` 与 `image-rendering: pixelated`、`border-radius`（只做圆角外观）、`box-shadow`、`:not`/`:is`/`:where` |
+| V1 | 完成 | — | `::before`/`::after`（只做装饰）、多层背景、线性渐变、`border-image` 与 `image-rendering: pixelated`、`border-radius`（只做圆角外观）、`box-shadow`、`:not`/`:is`/`:where` |
 | V2 | 待做 | — | `calc()` 与 `min()`/`max()`/`clamp()`、em/rem/vw/vh、`line-height`、`align-content`、grid、标准块布局（放宽 `display: block` 含块级子元素的限制） |
 | V3 | 待做 | — | `@keyframes` 与 `animation-*`、`on:animationend`、`@starting-style`、`<if>`/`<for>` 的 `leave` |
 | U4 | 待做 | — | `ix-` 组件库：tabs、tree、进度条等 |
@@ -182,6 +182,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - `border-image`：source、slice、width、`fill`、stretch/repeat/round；`image-rendering: pixelated` 同批做（MC 九宫格贴图多为像素风）。
   - `:not`/`:is`/`:where` 的参数为完整选择器列表（可带组合子），优先级按标准。
 - 验收：每项有 core 黄金测试；sample 选现有场景页加一处使用并写成 playtest 截图（多层背景、渐变、阴影、圆角、`border-image` 像素风、伪元素）；`-Pplaytest=all`；两个 mc 版本，1.21.1 `runClient` 冒烟。
+- 结果（2026-11-03）：按已定完成。伪元素挂在宿主上、不进 `children()`，块容器中按 inline-block 原子排布，绝对定位或块级伪元素在文本块内仍报 `layout/block-in-inline`（V2 匿名块后放开）；不排布子元素的原生元素忽略伪元素。`border-image` 只收 `url()`、不做 outset，图片尺寸未知时报 `paint/border-image-unsized` 并画普通边框。圆角裁剪警告为样式钩子（`paint/rounded-overflow-clip`），lint 与加载期都报。遮罩按 1/8 像素量化缓存，非整数像素。`<img>` 未入图集。`background-*` 改为列表后，绑定的裸数字按一层 px 处理（machine 页回归）。sample：1.20.1 quests 详情面板（截图 `quests-detail`），1.21.1 弹药 HUD。Forge `-Pplaytest=all` 13 项、202 项断言通过；1.21.1 经 quickPlay 进入世界截图确认 HUD。
 
 #### V2 尺寸与排版
 

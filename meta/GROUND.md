@@ -37,7 +37,7 @@ ixchel-kit（工具，不进游戏）                                    → ixc
 
 ## In progress
 
-- 双平台构建骨架已就绪（`build` 与两个 sample 的 `runClient` 通过）；M1–M5 完成，结果见 `ref/D-ixchel-module-breakdown-20261026.md` §9 与 `ref/SDG-ixchel-container-slot-integration-20261026.md` §8。`@keyframes` 未做。图片图集推迟到圆角路径 C 落地（两者共用一张图集），`<img>` 仍须在 CSS 中写宽高。M1 已知限制见模块拆解 §3。M5 及之后的示例只在 Forge 1.20.1 侧。
+- 双平台构建骨架已就绪（`build` 与两个 sample 的 `runClient` 通过）；M1–M5 完成，结果见 `ref/D-ixchel-module-breakdown-20261026.md` §9 与 `ref/SDG-ixchel-container-slot-integration-20261026.md` §8。`@keyframes` 未做。圆角路径 C 已落地（V1）：每个宿主 modid 一张遮罩图集（`<modid>:ixchel/mask_atlas`）；`<img>` 未入图集，仍须在 CSS 中写宽高。M1 已知限制见模块拆解 §3。M5 及之后的示例只在 Forge 1.20.1 侧。
 - 生产环境实例（portablemc，Forge 1.20.1-47.3.19）已验证两件事：两个不同版本的 shade 副本共存；与 ImmediatelyFast 1.5.5 共存。方法见模块拆解 §9 "M4 shade"。
 - 2026-10-28 宿主 API 重做（单路径模板引用、`<link>`、键过滤、`registerHud` 收口、ItemStack 等值）与 sample 普通 mod 布局重构已合入（#47）。refit/手写原版对照基准已删除，性能基线由 S4/S5 游戏内测试的 `FrameTimer` 预算承担。
 - 样例场景阶段 0、A、B、C 完成（C1：S3 存储终端、文本输入、虚拟网格、按重叠分层；C2：S6 配置面板、表单控件、顶层与对话框、Tab 焦点），结果见 `ref/SD-ixchel-sample-scenarios-20261028.md` §3。

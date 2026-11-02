@@ -81,12 +81,12 @@ public final class LibrarySheets {
 
     /** Whether {@code s} is exactly {@code :root}. */
     private static boolean isRoot(Selector s) {
-        if (s.compounds().size() != 1) {
+        if (s.compounds().size() != 1 || s.pseudoElement() != Selector.PseudoElement.NONE) {
             return false;
         }
         Selector.Compound c = s.compounds().get(0);
         return c.root() && c.tag() == null && c.id() == null && c.classes().isEmpty() && c.attributes().isEmpty()
-                && c.stateMask() == 0;
+                && c.stateMask() == 0 && c.logical().isEmpty();
     }
 
     static StyleSheet sheet(String file) {

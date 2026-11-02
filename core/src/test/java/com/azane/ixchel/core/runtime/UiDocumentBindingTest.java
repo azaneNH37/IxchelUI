@@ -567,7 +567,9 @@ class UiDocumentBindingTest {
                 <div bind:style:margin="w"></div>
                 <div bind:style:width="flag"></div>
                 <div bind:style:color="n"></div>
+                <div bind:style:background-position-y="n"></div>
                 """, "", new Styled()));
+        // A number on a layered property is one layer in px.
         assertEquals(List.of("binding/unknown-style-property@t.html:2:6", "binding/shorthand-style@t.html:3:6",
                 "binding/value-type@t.html:4:24", "binding/value-type@t.html:5:24"), DiagCodes.of(e));
     }

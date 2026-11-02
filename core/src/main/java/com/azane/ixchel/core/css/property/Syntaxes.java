@@ -111,22 +111,33 @@ public final class Syntaxes {
         };
     }
 
-    /** One or more {@code item} values separated by commas; the result is unmodifiable. */
+    /**
+     * One or more {@code item} values separated by commas; the result is unmodifiable. A bound number
+     * is one item, in {@code item}'s {@link Syntax#numberUnit()}.
+     */
     public static <T> Syntax<List<T>> commaList(Syntax<T> item) {
-        return (value, pos, diag) -> {
-            List<List<ComponentValue>> items = splitCommas(value, pos, diag);
-            if (items == null) {
-                return null;
-            }
-            List<T> out = new ArrayList<>(items.size());
-            for (List<ComponentValue> i : items) {
-                T t = item.parse(i, i.get(0).pos(), diag);
-                if (t == null) {
+        return new Syntax<>() {
+            @Override
+            public List<T> parse(List<ComponentValue> value, SourcePos pos, Diagnostics diag) {
+                List<List<ComponentValue>> items = splitCommas(value, pos, diag);
+                if (items == null) {
                     return null;
                 }
-                out.add(t);
+                List<T> out = new ArrayList<>(items.size());
+                for (List<ComponentValue> i : items) {
+                    T t = item.parse(i, i.get(0).pos(), diag);
+                    if (t == null) {
+                        return null;
+                    }
+                    out.add(t);
+                }
+                return List.copyOf(out);
             }
-            return List.copyOf(out);
+
+            @Override
+            public String numberUnit() {
+                return item.numberUnit();
+            }
         };
     }
 
@@ -157,47 +168,6 @@ public final class Syntaxes {
                 out.add(name);
             }
             return List.copyOf(out);
-        };
-    }
-
-    /**
-     * {@code background-image}: {@code none} (an empty string) or one {@code url()}, quoted or not,
-     * naming an image by resource location, e.g. {@code url("minecraft:textures/gui/icons.png")}, or
-     * a sprite of the host's texture atlas by {@link #SPRITE} and the sprite's resource location,
-     * e.g. {@code url("sprite:minecraft:block/water_still")}.
-     */
-    public static Syntax<String> backgroundImage() {
-        return (value, pos, diag) -> {
-            for (ComponentValue v : value) {
-                if (v instanceof Token t && t.is(Token.Kind.COMMA)) {
-                    diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "multiple background layers are not supported");
-                    return null;
-                }
-            }
-            ComponentValue v = single(value, pos, diag);
-            if (v == null) {
-                return null;
-            }
-            if (v instanceof Token t) {
-                if (t.isIdent("none")) {
-                    return "";
-                }
-                if (t.is(Token.Kind.URL)) {
-                    return resourceLocation(t.value(), t.pos(), diag);
-                }
-                if (t.is(Token.Kind.BAD_URL)) {
-                    return null; // the tokenizer reported it
-                }
-            } else if (v instanceof ComponentValue.Function f && f.name().equalsIgnoreCase("url")) {
-                List<ComponentValue> args = significant(f.args());
-                if (args.size() == 1 && args.get(0) instanceof Token s && s.is(Token.Kind.STRING)) {
-                    return resourceLocation(s.value(), s.pos(), diag);
-                }
-                diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), "url() takes one string");
-                return null;
-            }
-            diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected none or url()");
-            return null;
         };
     }
 
@@ -305,7 +275,7 @@ public final class Syntaxes {
                 null);
     }
 
-    private static boolean isLengthToken(ComponentValue v) {
+    static boolean isLengthToken(ComponentValue v) {
         return v instanceof Token t && (t.is(Token.Kind.DIMENSION) || t.is(Token.Kind.NUMBER));
     }
 
@@ -394,7 +364,7 @@ public final class Syntaxes {
     }
 
     /** Degrees. */
-    private static Float angle(ComponentValue v, Diagnostics diag) {
+    static Float angle(ComponentValue v, Diagnostics diag) {
         if (v instanceof Token t) {
             if (t.is(Token.Kind.NUMBER) && t.number() == 0) {
                 return 0f;
@@ -483,7 +453,7 @@ public final class Syntaxes {
     public static final String SPRITE = "sprite:";
 
     /** A {@code namespace:path} resource location, or a bare path, optionally after {@link #SPRITE}; lower-case as Minecraft requires. */
-    private static String resourceLocation(String src, SourcePos pos, Diagnostics diag) {
+    static String resourceLocation(String src, SourcePos pos, Diagnostics diag) {
         String s = src.startsWith(SPRITE) ? src.substring(SPRITE.length()) : src;
         int colon = s.indexOf(':');
         String namespace = colon < 0 ? "minecraft" : s.substring(0, colon);
@@ -507,12 +477,12 @@ public final class Syntaxes {
     }
 
     @FunctionalInterface
-    private interface Mixer<T> {
+    interface Mixer<T> {
         T mix(T from, T to, float p);
     }
 
     /** {@code numberUnit} as in {@link Syntax#numberUnit()}. */
-    private static <T> Syntax<T> interpolating(Syntax<T> parser, Mixer<T> mixer, String numberUnit) {
+    static <T> Syntax<T> interpolating(Syntax<T> parser, Mixer<T> mixer, String numberUnit) {
         return new Syntax<>() {
             @Override
             public T parse(List<ComponentValue> value, SourcePos pos, Diagnostics diag) {
@@ -531,11 +501,11 @@ public final class Syntaxes {
         };
     }
 
-    private static float mix(float a, float b, float p) {
+    static float mix(float a, float b, float p) {
         return a + (b - a) * p;
     }
 
-    private static Integer mixColor(Integer from, Integer to, float p) {
+    static Integer mixColor(Integer from, Integer to, float p) {
         int a = from;
         int b = to;
         float fromAlpha = (a >>> 24) / 255f;

@@ -150,11 +150,48 @@ class UiDocumentBackgroundTest {
     }
 
     @Test
+    void layersPaintBottomFirstAndCycleTheShorterLists() {
+        UiDocument doc = load("<div></div>", """
+                div { width: 20px; height: 10px; background-color: #000;
+                      background-image: url(x:top.png), linear-gradient(to right, #f00, #00f);
+                      background-size: 10px 10px; background-repeat: no-repeat, repeat-x }
+                """, GoldenTest.NO_IMAGES);
+        assertEquals("""
+                rect 0 0 20 10 #FF000000
+                fill 0 0 20 10 clip 0 0 10 10 gradient 0 5 10 5 0:#FFFF0000 1:#FF0000FF
+                fill 0 0 20 10 clip 10 0 10 10 gradient 10 5 20 5 0:#FFFF0000 1:#FF0000FF
+                image 0 0 10 10 x:top.png uv 0 0 1 1 #FFFFFFFF""", frame(doc));
+    }
+
+    @Test
+    void gradientLineReachesTheCornersAndFadesInPremultipliedColor() {
+        UiDocument doc = load("<div class=\"corner\"></div><div class=\"fade\"></div>", """
+                .corner { width: 20px; height: 10px; background-image: linear-gradient(to top right, #fff, #000) }
+                .fade { width: 10px; height: 16px; background-image: linear-gradient(180deg, #f00, transparent 8px) }
+                """, GoldenTest.NO_IMAGES);
+        String[] lines = frame(doc).split("\n");
+        assertEquals("fill 0 0 20 10 clip 0 0 20 10 gradient 6 13 14 -3 0:#FFFFFFFF 1:#FF000000", lines[0]);
+        // Red stays red as it fades out instead of darkening through transparent black.
+        assertEquals("fill 0 10 10 16 clip 0 10 10 16 gradient 5 10 5 26 0:#FFFF0000 0.0625:#DFFF0000 0.125:#BFFF0000"
+                + " 0.1875:#9FFF0000 0.25:#80FF0000 0.3125:#60FF0000 0.375:#40FF0000 0.4375:#20FF0000 0.5:#00000000", lines[1]);
+    }
+
+    @Test
+    void onlyTheBottomLayerMayMultiply() {
+        UiDocument doc = load("<div></div>", """
+                div { width: 10px; height: 10px; background-image: url(x:a.png), url(x:b.png);
+                      background-size: 10px 10px; background-blend-mode: multiply, normal }
+                """, GoldenTest.NO_IMAGES);
+        frame(doc);
+        assertEquals(List.of("paint/blend-not-bottom@t.html:2:1"), DiagCodes.of(doc.diagnostics()));
+    }
+
+    @Test
     void unsupportedBackgroundValuesAreLoadErrors() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div class=\"a\"></div>", """
                 .a { background-image: url("Minecraft:Textures/x.png") }
-                .b { background-image: url(x:a.png), url(x:b.png) }
-                .c { background-image: linear-gradient(red, blue) }
+                .b { background-image: url(x:a.png), radial-gradient(red, blue) }
+                .c { background-image: linear-gradient(red) }
                 .d { background-image: url("") }
                 .e { background-size: cover }
                 .f { background-size: -1px 2px }
@@ -162,10 +199,13 @@ class UiDocumentBackgroundTest {
                 .h { background-position: left top }
                 .i { background-repeat: space }
                 .j { transition: background-position-x 1s }
+                .k { background-image: linear-gradient(red, 50%, blue) }
+                .l { background-image: linear-gradient(to left left, red, blue) }
                 """, GoldenTest.NO_IMAGES));
-        assertEquals(List.of("css/invalid-resource-location@t.css:1:28", "css/unsupported-value@t.css:2:36",
-                "css/invalid-value@t.css:3:24", "css/invalid-resource-location@t.css:4:28", "css/unsupported-value@t.css:5:23",
+        assertEquals(List.of("css/invalid-resource-location@t.css:1:28", "css/unsupported-value@t.css:2:38",
+                "css/function-arguments@t.css:3:24", "css/invalid-resource-location@t.css:4:28", "css/unsupported-value@t.css:5:23",
                 "css/negative-value@t.css:6:23", "css/value-count@t.css:7:31", "css/invalid-value@t.css:8:27",
-                "css/invalid-value@t.css:9:25", "css/not-animatable@t.css:10:18"), DiagCodes.of(e));
+                "css/invalid-value@t.css:9:25", "css/not-animatable@t.css:10:18", "css/unsupported-value@t.css:11:45",
+                "css/function-arguments@t.css:12:48"), DiagCodes.of(e));
     }
 }

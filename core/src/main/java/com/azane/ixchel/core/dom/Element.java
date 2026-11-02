@@ -49,6 +49,10 @@ public final class Element extends Node {
     public static final int CHECKED = 1 << 4;
     /** A {@code <select>} or {@code <dialog>} in the {@link TopLayer}, or its shown tooltip or drag preview; {@code :open}. */
     public static final int OPEN = 1 << 5;
+    /** The type of every {@code ::before} box; see {@link #before()}. */
+    public static final ElementType BEFORE = ElementType.plain("::before");
+    /** The type of every {@code ::after} box; see {@link #after()}. */
+    public static final ElementType AFTER = ElementType.plain("::after");
 
     private static final int STYLE_DIRTY = 1;
     private static final int DESCENDANT_STYLE_DIRTY = 1 << 1;
@@ -82,6 +86,8 @@ public final class Element extends Node {
     /** Created on first use, once the template has set {@code type}. */
     private FormControl control;
     private boolean controlResolved;
+    private Element before;
+    private Element after;
 
     private record Registration(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
     }
@@ -157,6 +163,51 @@ public final class Element extends Node {
     /** Unmodifiable live view. */
     public List<Node> children() {
         return childrenView;
+    }
+
+    /**
+     * The {@code ::before} box the style pass generated for this element, or {@code null}. A
+     * pseudo-element is not among the {@link #children()}, so queries, templates and bindings never
+     * see it; its {@link #parent()} is this element, so it inherits from it and layout and paint
+     * place it before the first child.
+     */
+    public Element before() {
+        return before;
+    }
+
+    /** The {@code ::after} box, placed after the last child; see {@link #before()}. */
+    public Element after() {
+        return after;
+    }
+
+    /** Called by the style pass: the {@code ::before} or {@code ::after} box, created when it was not generated. */
+    public Element generatePseudo(boolean isAfter) {
+        Element p = isAfter ? after : before;
+        if (p == null) {
+            p = new Element(isAfter ? AFTER : BEFORE, pos());
+            p.parent = this;
+            if (isAfter) {
+                after = p;
+            } else {
+                before = p;
+            }
+            markTreeChanged();
+        }
+        return p;
+    }
+
+    /** Called by the style pass when the {@code ::before} or {@code ::after} box is no longer generated. */
+    public void dropPseudo(boolean isAfter) {
+        Element p = isAfter ? after : before;
+        if (p != null) {
+            p.parent = null;
+            if (isAfter) {
+                after = null;
+            } else {
+                before = null;
+            }
+            markTreeChanged();
+        }
     }
 
     /** The text of every descendant text node, in document order, as in the DOM. */

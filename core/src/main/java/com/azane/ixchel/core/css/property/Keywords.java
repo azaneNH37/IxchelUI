@@ -41,16 +41,33 @@ public final class Keywords {
      */
     public enum Overflow { VISIBLE, HIDDEN, SCROLL, AUTO }
 
-    /** {@code background-repeat}, one keyword for both axes; {@code space} and {@code round} are not supported. */
+    /** {@code background-repeat}, one keyword per layer for both axes; {@code space} and {@code round} are not supported. */
     public enum BackgroundRepeat { REPEAT, REPEAT_X, REPEAT_Y, NO_REPEAT }
 
     /**
-     * {@code background-blend-mode}, one keyword for the single background image. {@code multiply}
-     * tints the image with the background color (the image's own alpha is kept) and the color is not
-     * painted under it, so where the image is transparent the parent shows through; CSS would show
-     * the color there. Other modes are not supported.
+     * {@code background-blend-mode}, one keyword per layer. Only the bottom layer may {@code multiply}:
+     * it is then an image tinted with the background color (the image's own alpha is kept) and the
+     * color is not painted under it, so where the image is transparent the parent shows through; CSS
+     * would show the color there. Other modes are not supported.
      */
     public enum BackgroundBlendMode { NORMAL, MULTIPLY }
+
+    /** {@code border-image-repeat}, per axis; {@code space} is not supported. */
+    public enum ImageTiling { STRETCH, REPEAT, ROUND }
+
+    /**
+     * {@code image-rendering}: how images are scaled. {@code auto} keeps the texture's own filtering,
+     * which for Minecraft's GUI textures is nearest-neighbour; {@code smooth} filters linearly;
+     * {@code pixelated} and {@code crisp-edges} take the nearest texel.
+     */
+    public enum ImageRendering { AUTO, SMOOTH, PIXELATED, CRISP_EDGES }
+
+    /**
+     * {@code content}, read only on {@code ::before} and {@code ::after}: {@link #EMPTY} is the empty
+     * string {@code ""}, which generates the box; {@code normal} computes to {@code none} there.
+     * Text is not supported: a pseudo-element is decoration, not a place for words that bypass translation.
+     */
+    public enum Content { NORMAL, NONE, EMPTY }
 
     /** {@code border-style}; {@code none} makes the used border width 0, as in CSS. Other styles are not supported. */
     public enum BorderStyle { NONE, SOLID }

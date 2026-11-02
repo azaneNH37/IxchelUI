@@ -13,18 +13,25 @@ import java.util.Locale;
 /**
  * Supported: type, {@code *}, {@code .class}, {@code #id}, {@code [attr]}, {@code [attr=value]},
  * {@code :hover/:active/:focus/:disabled/:checked/:open}, {@code :root}, {@code :lang(range, …)},
- * descendant and child combinators, selector lists. Anything else is a dev-time error.
+ * {@code :not()}, {@code :is()} and {@code :where()} of selector lists (combinators allowed),
+ * {@code ::before} and {@code ::after} at the end of a selector, descendant and child combinators,
+ * selector lists. Anything else is a dev-time error.
  */
 public final class SelectorParser {
     private final List<ComponentValue> in;
     private final SourcePos rulePos;
     private final Diagnostics diag;
+    /** Inside a logical pseudo-class, where pseudo-elements are not allowed. */
+    private final boolean nested;
     private int i;
+    /** Set by {@link #compound} on reading a pseudo-element, which must end the selector. */
+    private Selector.PseudoElement pseudo = Selector.PseudoElement.NONE;
 
-    private SelectorParser(List<ComponentValue> in, SourcePos rulePos, Diagnostics diag) {
+    private SelectorParser(List<ComponentValue> in, SourcePos rulePos, Diagnostics diag, boolean nested) {
         this.in = in;
         this.rulePos = rulePos;
         this.diag = diag;
+        this.nested = nested;
     }
 
     /**
@@ -32,7 +39,11 @@ public final class SelectorParser {
      * CSS). {@code rulePos} locates errors when the prelude is empty.
      */
     public static List<Selector> parseList(List<ComponentValue> prelude, SourcePos rulePos, Diagnostics diag) {
-        SelectorParser p = new SelectorParser(prelude, rulePos, diag);
+        return parse(prelude, rulePos, diag, false);
+    }
+
+    private static List<Selector> parse(List<ComponentValue> prelude, SourcePos rulePos, Diagnostics diag, boolean nested) {
+        SelectorParser p = new SelectorParser(prelude, rulePos, diag, nested);
         List<Selector> out = new ArrayList<>();
         int errors = diag.errorCount();
         do {
@@ -54,6 +65,7 @@ public final class SelectorParser {
 
     private Selector complex() {
         skipWs();
+        pseudo = Selector.PseudoElement.NONE;
         List<Selector.Compound> compounds = new ArrayList<>();
         List<Selector.Combinator> combinators = new ArrayList<>();
         while (true) {
@@ -67,6 +79,10 @@ public final class SelectorParser {
                 break;
             }
             ComponentValue v = in.get(i);
+            if (pseudo != Selector.PseudoElement.NONE) {
+                diag.report(SelectorCode.MISPLACED_PSEUDO_ELEMENT, v.pos(), "a pseudo-element must end the selector");
+                return null;
+            }
             if (v instanceof Token t && t.isDelim('>')) {
                 i++;
                 skipWs();
@@ -81,13 +97,15 @@ public final class SelectorParser {
                 return null;
             }
         }
-        return new Selector(List.copyOf(compounds), List.copyOf(combinators), Selector.specificity(compounds));
+        return new Selector(List.copyOf(compounds), List.copyOf(combinators), pseudo,
+                Selector.specificity(compounds, pseudo));
     }
 
     private Selector.Compound compound() {
         String tag = null, id = null;
         List<String> classes = new ArrayList<>();
         List<Selector.AttributeMatch> attributes = new ArrayList<>();
+        List<Selector.LogicalMatch> logical = new ArrayList<>();
         int state = 0;
         boolean root = false;
         List<String> langs = List.of();
@@ -102,6 +120,11 @@ public final class SelectorParser {
         }
         while (i < in.size()) {
             ComponentValue v = in.get(i);
+            if (pseudo != Selector.PseudoElement.NONE && !(v instanceof Token w && w.is(Token.Kind.WHITESPACE))
+                    && !(v instanceof Token c && c.is(Token.Kind.COMMA))) {
+                diag.report(SelectorCode.MISPLACED_PSEUDO_ELEMENT, v.pos(), "a pseudo-element must end the selector");
+                return null;
+            }
             if (v instanceof ComponentValue.Block b && b.open() == Token.Kind.LBRACKET) {
                 Selector.AttributeMatch m = attribute(b);
                 if (m == null) {
@@ -136,6 +159,12 @@ public final class SelectorParser {
                 i += 2;
             } else if (t.is(Token.Kind.COLON)) {
                 ComponentValue after = i + 1 < in.size() ? in.get(i + 1) : null;
+                if (after instanceof Token c && c.is(Token.Kind.COLON)) {
+                    if (!pseudoElement(t)) {
+                        return null;
+                    }
+                    continue;
+                }
                 if (after instanceof Token n && n.isIdent("root")) {
                     root = true;
                     i += 2;
@@ -150,6 +179,17 @@ public final class SelectorParser {
                     if (langs == null) {
                         return null;
                     }
+                    i += 2;
+                    continue;
+                }
+                Selector.Logical kind = after instanceof ComponentValue.Function f ? logicalKind(f.name()) : null;
+                if (kind != null) {
+                    ComponentValue.Function f = (ComponentValue.Function) after;
+                    Selector.LogicalMatch m = logical(kind, f);
+                    if (m == null) {
+                        return null;
+                    }
+                    logical.add(m);
                     i += 2;
                     continue;
                 }
@@ -168,7 +208,61 @@ public final class SelectorParser {
             diag.report(SelectorCode.EXPECTED_SELECTOR, i < in.size() ? in.get(i).pos() : endPos(), "expected a selector");
             return null;
         }
-        return new Selector.Compound(tag, id, List.copyOf(classes), List.copyOf(attributes), state, root, langs);
+        return new Selector.Compound(tag, id, List.copyOf(classes), List.copyOf(attributes), state, root, langs,
+                List.copyOf(logical));
+    }
+
+    /** Reads {@code ::before} or {@code ::after} at {@code colon}; false once reported. */
+    private boolean pseudoElement(Token colon) {
+        ComponentValue name = i + 2 < in.size() ? in.get(i + 2) : null;
+        if (!(name instanceof Token n && n.is(Token.Kind.IDENT))) {
+            diag.report(SelectorCode.MISSING_PSEUDO_NAME, colon.pos(), "expected a pseudo-element name after '::'");
+            return false;
+        }
+        Selector.PseudoElement p = switch (n.value().toLowerCase(Locale.ROOT)) {
+            case "before" -> Selector.PseudoElement.BEFORE;
+            case "after" -> Selector.PseudoElement.AFTER;
+            default -> null;
+        };
+        if (p == null) {
+            diag.report(SelectorCode.UNSUPPORTED_PSEUDO, n.pos(), "unsupported pseudo-element ::" + n.value(),
+                    "only ::before and ::after are supported");
+            return false;
+        }
+        if (nested) {
+            diag.report(SelectorCode.MISPLACED_PSEUDO_ELEMENT, colon.pos(), "a pseudo-element cannot appear inside :not(), :is() or :where()");
+            return false;
+        }
+        pseudo = p;
+        i += 3;
+        return true;
+    }
+
+    private static Selector.Logical logicalKind(String name) {
+        return switch (name.toLowerCase(Locale.ROOT)) {
+            case "not" -> Selector.Logical.NOT;
+            case "is" -> Selector.Logical.IS;
+            case "where" -> Selector.Logical.WHERE;
+            default -> null;
+        };
+    }
+
+    /** The selector list inside a logical pseudo-class; {@code null} once reported. */
+    private Selector.LogicalMatch logical(Selector.Logical kind, ComponentValue.Function f) {
+        boolean empty = true;
+        for (ComponentValue v : f.args()) {
+            if (!(v instanceof Token t && t.is(Token.Kind.WHITESPACE))) {
+                empty = false;
+                break;
+            }
+        }
+        if (empty) {
+            diag.report(SelectorCode.INVALID_LOGICAL, f.pos(), ":" + f.name() + "() needs a selector list");
+            return null;
+        }
+        int errors = diag.errorCount();
+        List<Selector> list = parse(f.args(), f.pos(), diag, true);
+        return diag.errorCount() != errors ? null : new Selector.LogicalMatch(kind, list);
     }
 
     /** The comma-separated identifiers or strings of {@code :lang()}, lowercase; {@code null} once reported. */
@@ -244,8 +338,10 @@ public final class SelectorParser {
     }
 
     private void reportPseudo(ComponentValue after, SourcePos at) {
-        if (after instanceof Token n && n.is(Token.Kind.COLON)) {
-            diag.report(SelectorCode.UNSUPPORTED_PSEUDO, at, "pseudo-elements are not supported");
+        if (after instanceof Token n && n.is(Token.Kind.IDENT)
+                && (n.isIdent("before") || n.isIdent("after"))) {
+            diag.report(SelectorCode.UNSUPPORTED_PSEUDO, at, "unsupported pseudo-class :" + n.value(),
+                    "write the pseudo-element with two colons: ::" + n.value().toLowerCase(Locale.ROOT));
         } else if (after instanceof Token n && n.is(Token.Kind.IDENT)) {
             diag.report(SelectorCode.UNSUPPORTED_PSEUDO, at, "unsupported pseudo-class :" + n.value());
         } else if (after instanceof ComponentValue.Function f) {

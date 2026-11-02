@@ -37,15 +37,15 @@ AUI 的 `snow` 分支 README 自称只维护 Forge 1.16.5，其他 target 保留
 | 富文本 `Component` | ● | ◐ 不渲染样式 | ● |
 | 自定义字体 | ○ | ● `@font-face` | ◐ SDF 渲染 |
 | i18n | ● 译文内标记 | ◐ | ◐ |
-| 选择器 | ◐ 8 个伪类，无伪元素 | ● 约 30 个伪类，有伪元素 | ◐ 无属性选择器 |
+| 选择器 | ◐ 8 个伪类与 `:not`/`:is`/`:where`，伪元素仅装饰 | ● 约 30 个伪类，有伪元素 | ◐ 无属性选择器 |
 | `var()` | ● | ● | ○ |
 | CSS 嵌套 | ● | ○ | ○ |
 | 不支持写法 | ● 开发期报错 | ◐ 警告后忽略 | ◐ 日志后跳过 |
-| 圆角 | ○ | ● | ◐ 经 `rect()`/`sdf()` |
-| 渐变、box-shadow | ○ | ● | ○ |
+| 圆角 | ◐ 仅外观，不裁剪 | ● | ◐ 经 `rect()`/`sdf()` |
+| 渐变、box-shadow | ◐ 仅线性渐变 | ● | ○ |
 | opacity 整组语义 | ○ | ● | ● |
 | filter、backdrop、blend、mask、clip-path | ○ | ● | ◐ 仅 overflow 遮罩 |
-| 九宫格 | ○ | ● | ● |
+| 九宫格 | ● `border-image` | ● | ● |
 | 用户 shader | ○ | ○ | ● |
 | transition | ● | ● | ● |
 | `@keyframes` | ○ | ● | ◐ 仅 Java、Compose |
@@ -85,9 +85,9 @@ AUI 18 套主题（15.3k 行 CSS）的正则计数。主题是 Web 风格，会�
 | `var()` | 12112 | ● |
 | 属性选择器（带运算符的仅 16） | 4984 | ● |
 | `:hover` | 3017 | ● |
-| `::before`、`::after` | 2705 | ○ |
-| `box-shadow` | 1581 | ○ |
-| `border-radius` | 489 | ○ |
+| `::before`、`::after` | 2705 | ◐ 仅装饰 |
+| `box-shadow` | 1581 | ● |
+| `border-radius` | 489 | ◐ 不裁剪 |
 | `font-family` | 419 | ○ |
 | `line-height` | 406 | ○ |
 | 渐变 | 265 | ○ |

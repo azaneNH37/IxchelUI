@@ -9,13 +9,20 @@ import com.azane.ixchel.core.dom.StyledText;
  * keeps the exhaustiveness check when a command type is added.
  */
 public sealed interface DrawCommand
-        permits DrawCommand.Rect, DrawCommand.Text, DrawCommand.Image, DrawCommand.Custom,
-        DrawCommand.PushClip, DrawCommand.PopClip, DrawCommand.PushTransform, DrawCommand.PopTransform {
+        permits DrawCommand.Rect, DrawCommand.Fill, DrawCommand.Border, DrawCommand.Shadow, DrawCommand.Text,
+        DrawCommand.Image, DrawCommand.Custom, DrawCommand.PushClip, DrawCommand.PopClip, DrawCommand.PushTransform,
+        DrawCommand.PopTransform {
 
     <R> R accept(Visitor<R> v);
 
     interface Visitor<R> {
         R visitRect(Rect c);
+
+        R visitFill(Fill c);
+
+        R visitBorder(Border c);
+
+        R visitShadow(Shadow c);
 
         R visitText(Text c);
 
@@ -36,6 +43,45 @@ public sealed interface DrawCommand
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitRect(this);
+        }
+    }
+
+    /**
+     * Paints {@code shape} where it overlaps the clip rectangle, in {@code color} or, when
+     * {@code gradient} is not {@code null}, in the gradient's colors. Hosts draw these through
+     * {@link ShapeTessellator}.
+     */
+    record Fill(RoundRect shape, float clipX, float clipY, float clipWidth, float clipHeight, int color,
+                Gradient gradient) implements DrawCommand {
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitFill(this);
+        }
+    }
+
+    /**
+     * A rounded border: the ring between {@code outer} and its inner edge {@code top}, {@code right},
+     * {@code bottom} and {@code left} pixels inside. Where two sides of different colors meet, the
+     * corner is split along the line from the outer to the inner corner of the border edges.
+     */
+    record Border(RoundRect outer, float top, float right, float bottom, float left,
+                  int topColor, int rightColor, int bottomColor, int leftColor) implements DrawCommand {
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitBorder(this);
+        }
+    }
+
+    /**
+     * {@code shape} blurred by a Gaussian of standard deviation {@code sigma} (half the CSS blur
+     * radius) in {@code color}. An outer shadow is drawn only outside {@code clip} (the border box),
+     * an inset one only inside it (the padding box), where it is the shadow of the area around
+     * {@code shape}.
+     */
+    record Shadow(RoundRect shape, float sigma, int color, boolean inset, RoundRect clip) implements DrawCommand {
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitShadow(this);
         }
     }
 
@@ -64,10 +110,13 @@ public sealed interface DrawCommand
     /**
      * Draws the texture region {@code (u0, v0)}-{@code (u1, v1)}, in fractions of the whole image, into
      * the rectangle. {@code src} is a resource location such as {@code modid:textures/gui/icon.png};
-     * {@code tint} multiplies it.
+     * {@code tint} multiplies it; {@code filter} is how it is sampled when scaled.
      */
     record Image(float x, float y, float width, float height, String src, float u0, float v0, float u1, float v1,
-                 int tint) implements DrawCommand {
+                 int tint, Filter filter) implements DrawCommand {
+        /** {@code AUTO} keeps the texture's own setting; the others force linear or nearest-texel sampling. */
+        public enum Filter { AUTO, LINEAR, NEAREST }
+
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitImage(this);

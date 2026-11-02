@@ -2,8 +2,13 @@ package com.azane.ixchel.core.paint;
 
 import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.css.property.BackgroundSize;
+import com.azane.ixchel.core.css.property.BorderImageSlice;
+import com.azane.ixchel.core.css.property.BorderImageWidth;
+import com.azane.ixchel.core.css.property.BoxShadow;
 import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
+import com.azane.ixchel.core.css.property.CornerRadius;
+import com.azane.ixchel.core.css.property.CssImage;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Length;
 import com.azane.ixchel.core.css.property.ScrollbarColor;
@@ -21,17 +26,22 @@ import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.layout.Scrollbar;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
  * Turns the laid-out tree into draw commands in document order (later commands paint on top): per
- * element the background color, the background image, the border, the content; with
- * {@code background-blend-mode: multiply} the color tints the image instead of painting under it. A
- * background image becomes one {@link DrawCommand.Image} per visible tile, already clipped to the
- * border box, so the host only draws texture regions. A border side is one {@link DrawCommand.Rect} ({@code solid}
- * only); the top and bottom sides cover the corners.
+ * element the outer {@code box-shadow}s, the background color, the background layers bottom to top,
+ * the inset shadows, the border (or the border image in its place), the content, then its
+ * {@code ::before} box, its children and its {@code ::after} box; with
+ * a multiplying bottom image layer the color tints it instead of painting under it. An image layer
+ * becomes one {@link DrawCommand.Image} per visible tile, already clipped to the border box, so the
+ * host only draws texture regions; a gradient layer one {@link DrawCommand.Fill} per tile, clipped
+ * to the tile. A border side is one {@link DrawCommand.Rect} ({@code solid}
+ * only); the top and bottom sides cover the corners. With a rounded corner the background color is
+ * a {@link DrawCommand.Fill} and the border one {@link DrawCommand.Border}.
  *
  * <p>{@code opacity} multiplies the alpha of every color and image tint in the element's subtree, so
  * where two of its descendants overlap they blend with each other (a browser would flatten the group
@@ -125,8 +135,14 @@ public final class Painter implements PaintFacet.Context {
         }
     }
 
-    /** {@code dy}: how far scroll containers above move these children up. Colors are multiplied by {@link #alpha}. */
+    /**
+     * {@code dy}: how far scroll containers above move these children up. Colors are multiplied by
+     * {@link #alpha}. The {@code ::before} box paints under the children, {@code ::after} over them.
+     */
     private void paintChildren(Element e, float dy, DisplayList out) {
+        if (e.before() != null) {
+            paintElement(e.before(), dy, out);
+        }
         // Indexed: the unmodifiable view allocates two objects per for-each, on every repaint.
         List<Node> children = e.children();
         for (int i = 0; i < children.size(); i++) {
@@ -138,6 +154,9 @@ public final class Painter implements PaintFacet.Context {
             } else {
                 paintText((TextNode) c, e.computed(), dy, out);
             }
+        }
+        if (e.after() != null) {
+            paintElement(e.after(), dy, out);
         }
     }
 
@@ -164,16 +183,13 @@ public final class Painter implements PaintFacet.Context {
     private void paintBox(Element e, ComputedStyle cs, float dy, DisplayList out) {
         LayoutBox b = e.box();
         float y = b.y() - dy;
-        int bg = cs.get(CssProperties.BACKGROUND_COLOR);
-        boolean multiply = cs.get(CssProperties.BACKGROUND_BLEND_MODE) == Keywords.BackgroundBlendMode.MULTIPLY
-                && !cs.get(CssProperties.BACKGROUND_IMAGE).isEmpty();
-        if (multiply) {
-            paintBackgroundImage(e, cs, b, y, 0xFF000000 | bg, out);
-        } else {
-            rect(out, b.x(), y, b.width(), b.height(), bg);
-            paintBackgroundImage(e, cs, b, y, OPAQUE_WHITE, out);
+        RoundRect border = new RoundRect(b.x(), y, b.width(), b.height(), radii(cs, b.width(), b.height()));
+        paintShadows(cs, b, border, false, out);
+        paintBackground(e, cs, b, border, out);
+        paintShadows(cs, b, border, true, out);
+        if (!paintBorderImage(e, cs, b, y, out)) {
+            paintBorder(cs, b, border, y, out);
         }
-        paintBorder(cs, b, y, out);
         PaintFacet content = e.type().facet(PaintFacet.KEY);
         content.paint(e, y, out, this);
         if (!content.paintChildren()) return;
@@ -206,12 +222,79 @@ public final class Painter implements PaintFacet.Context {
         }
     }
 
-    /** Each side a rectangle inside the border box; top and bottom span the corners. */
-    private void paintBorder(ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
+    /**
+     * The outer or the inset shadows of {@code box-shadow}, bottom (last listed) first. An outer
+     * shadow is the border box grown by its spread and moved by its offset, drawn outside the border
+     * box; an inset one is the padding box shrunk by its spread and moved, darkening the padding box
+     * outside it. The blur radius is twice the Gaussian's standard deviation, as in CSS.
+     */
+    private void paintShadows(ComputedStyle cs, LayoutBox b, RoundRect border, boolean inset, DisplayList out) {
+        List<BoxShadow> shadows = cs.get(CssProperties.BOX_SHADOW);
+        if (shadows.isEmpty()) {
+            return;
+        }
+        RoundRect base = inset ? border.inset(b.borderTop(), b.borderRight(), b.borderBottom(), b.borderLeft()) : border;
+        for (int i = shadows.size() - 1; i >= 0; i--) {
+            BoxShadow s = shadows.get(i);
+            int color = fade(s.color());
+            if (s.inset() != inset || color >>> 24 == 0) {
+                continue;
+            }
+            RoundRect shape = spread(base, inset ? -s.spread() : s.spread());
+            if (!inset && (shape.width() <= 0 || shape.height() <= 0)) {
+                continue;
+            }
+            shape = new RoundRect(shape.x() + s.x(), shape.y() + s.y(), shape.width(), shape.height(), shape.radii());
+            out.add(new DrawCommand.Shadow(shape, s.blur() / 2, color, inset, base));
+        }
+    }
+
+    /**
+     * {@code r} grown by {@code s} on every side, or shrunk when it is negative. Growing keeps a sharp
+     * corner sharp and grows a small radius by less than {@code s} (CSS Backgrounds 3 §7.1.1).
+     */
+    private static RoundRect spread(RoundRect r, float s) {
+        if (s <= 0) {
+            return s == 0 ? r : r.inset(-s, -s, -s, -s);
+        }
+        RoundRect.Radii q = r.radii();
+        float w = r.width() + 2 * s;
+        float h = r.height() + 2 * s;
+        RoundRect.Radii grown = q.isZero() ? q : new RoundRect.Radii(grow(q.topLeftX(), s), grow(q.topLeftY(), s),
+                grow(q.topRightX(), s), grow(q.topRightY(), s), grow(q.bottomRightX(), s), grow(q.bottomRightY(), s),
+                grow(q.bottomLeftX(), s), grow(q.bottomLeftY(), s)).fit(w, h);
+        return new RoundRect(r.x() - s, r.y() - s, w, h, grown);
+    }
+
+    private static float grow(float radius, float s) {
+        if (radius <= 0) {
+            return 0;
+        }
+        float ratio = radius / s;
+        return radius + s * (ratio >= 1 ? 1 : 1 + (ratio - 1) * (ratio - 1) * (ratio - 1));
+    }
+
+    /**
+     * Each side a rectangle inside the border box; top and bottom span the corners. With a rounded
+     * corner, one {@link DrawCommand.Border} instead, the inner edge curving with the padding box.
+     */
+    private void paintBorder(ComputedStyle cs, LayoutBox b, RoundRect border, float y, DisplayList out) {
         float t = b.borderTop();
         float r = b.borderRight();
         float bt = b.borderBottom();
         float l = b.borderLeft();
+        if (!border.radii().isZero()) {
+            int tc = fade(cs.get(CssProperties.BORDER_TOP_COLOR));
+            int rc = fade(cs.get(CssProperties.BORDER_RIGHT_COLOR));
+            int bc = fade(cs.get(CssProperties.BORDER_BOTTOM_COLOR));
+            int lc = fade(cs.get(CssProperties.BORDER_LEFT_COLOR));
+            boolean visible = t > 0 && tc >>> 24 != 0 || r > 0 && rc >>> 24 != 0 || bt > 0 && bc >>> 24 != 0
+                    || l > 0 && lc >>> 24 != 0;
+            if (visible) {
+                out.add(new DrawCommand.Border(border, t, r, bt, l, tc, rc, bc, lc));
+            }
+            return;
+        }
         if (t > 0) {
             rect(out, b.x(), y, b.width(), t, cs.get(CssProperties.BORDER_TOP_COLOR));
         }
@@ -227,6 +310,174 @@ public final class Painter implements PaintFacet.Context {
         }
         if (r > 0) {
             rect(out, b.x() + b.width() - r, y + t, r, middle, cs.get(CssProperties.BORDER_RIGHT_COLOR));
+        }
+    }
+
+    /**
+     * CSS Backgrounds 3 §6 over the border box, without {@code border-image-outset}: the image is cut
+     * along the slice lines into corners, edges and a middle; corners are scaled into the corners of
+     * the border image widths, edges scaled to the width of their side and tiled along it per
+     * {@code border-image-repeat} ({@code repeat} centers the tiles, {@code round} fits a whole number),
+     * the middle drawn only with {@code fill}. Whether it painted: an image the host cannot measure is
+     * reported and the border is drawn as usual.
+     */
+    private boolean paintBorderImage(Element e, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
+        if (!(cs.get(CssProperties.BORDER_IMAGE_SOURCE) instanceof CssImage.Url url)) {
+            return false;
+        }
+        String src = url.src();
+        ImageMeasurer.Size natural = images.naturalSize(src);
+        if (natural == null) {
+            report(e, PaintCode.BORDER_IMAGE_UNSIZED, "cannot load border image '" + src + "' to slice it");
+            return false;
+        }
+        float iw = natural.width();
+        float ih = natural.height();
+        if (iw <= 0 || ih <= 0) {
+            return true;
+        }
+        BorderImageSlice slice = cs.get(CssProperties.BORDER_IMAGE_SLICE);
+        float st = slice(slice.top(), ih);
+        float sr = slice(slice.right(), iw);
+        float sb = slice(slice.bottom(), ih);
+        float sl = slice(slice.left(), iw);
+        BorderImageWidth width = cs.get(CssProperties.BORDER_IMAGE_WIDTH);
+        float w = b.width();
+        float h = b.height();
+        float wt = imageWidth(width.top(), b.borderTop(), h, st);
+        float wr = imageWidth(width.right(), b.borderRight(), w, sr);
+        float wb = imageWidth(width.bottom(), b.borderBottom(), h, sb);
+        float wl = imageWidth(width.left(), b.borderLeft(), w, sl);
+        float f = Math.min(1, Math.min(wl + wr > 0 ? w / (wl + wr) : 1, wt + wb > 0 ? h / (wt + wb) : 1));
+        wt *= f;
+        wr *= f;
+        wb *= f;
+        wl *= f;
+        List<Keywords.ImageTiling> repeat = cs.get(CssProperties.BORDER_IMAGE_REPEAT);
+        Keywords.ImageTiling across = repeat.get(0);
+        Keywords.ImageTiling down = repeat.get(1);
+        Keywords.ImageTiling stretch = Keywords.ImageTiling.STRETCH;
+        Slicer s = new Slicer(e, src, iw, ih, fade(OPAQUE_WHITE), filter(cs), out);
+        float x0 = b.x();
+        float x1 = x0 + w;
+        float y1 = y + h;
+        float midW = w - wl - wr;
+        float midH = h - wt - wb;
+        float srcW = iw - sl - sr;
+        float srcH = ih - st - sb;
+        s.draw(x0, y, wl, wt, 0, 0, sl, st, wl, wt, stretch, stretch);
+        s.draw(x1 - wr, y, wr, wt, iw - sr, 0, sr, st, wr, wt, stretch, stretch);
+        s.draw(x1 - wr, y1 - wb, wr, wb, iw - sr, ih - sb, sr, sb, wr, wb, stretch, stretch);
+        s.draw(x0, y1 - wb, wl, wb, 0, ih - sb, sl, sb, wl, wb, stretch, stretch);
+        s.draw(x0 + wl, y, midW, wt, sl, 0, srcW, st, srcW * scale(wt, st), wt, across, stretch);
+        s.draw(x0 + wl, y1 - wb, midW, wb, sl, ih - sb, srcW, sb, srcW * scale(wb, sb), wb, across, stretch);
+        s.draw(x0, y + wt, wl, midH, 0, st, sl, srcH, wl, srcH * scale(wl, sl), stretch, down);
+        s.draw(x1 - wr, y + wt, wr, midH, iw - sr, st, sr, srcH, wr, srcH * scale(wr, sr), stretch, down);
+        if (slice.fill()) {
+            // The middle scales like the top (else the bottom) edge across, like the left (else the right) one down.
+            float across1 = st > 0 && wt > 0 ? wt / st : sb > 0 && wb > 0 ? wb / sb : 1;
+            float down1 = sl > 0 && wl > 0 ? wl / sl : sr > 0 && wr > 0 ? wr / sr : 1;
+            s.draw(x0 + wl, y + wt, midW, midH, sl, st, srcW, srcH, srcW * across1, srcH * down1, across, down);
+        }
+        return true;
+    }
+
+    /** A slice offset in image pixels, at most the image's side. */
+    private static float slice(Length l, float side) {
+        float v = l.unit() == Length.Unit.PERCENT ? side * l.value() / 100 : l.value();
+        return Math.min(v, side);
+    }
+
+    /** A {@code border-image-width} side in GUI pixels; {@code area} is the border box's side along it. */
+    private static float imageWidth(BorderImageWidth.Side s, float border, float area, float slice) {
+        return switch (s.kind()) {
+            case PX -> s.value();
+            case PERCENT -> area * s.value() / 100;
+            case NUMBER -> s.value() * border;
+            case AUTO -> slice;
+        };
+    }
+
+    /** How much an edge drawn {@code width} wide from a slice {@code slice} image pixels wide is scaled; 0 when empty. */
+    private static float scale(float width, float slice) {
+        return slice > 0 ? width / slice : 0;
+    }
+
+    /** Draws the parts of one border image. */
+    private final class Slicer {
+        private final Element e;
+        private final String src;
+        private final float iw;
+        private final float ih;
+        private final int tint;
+        private final DrawCommand.Image.Filter filter;
+        private final DisplayList out;
+
+        Slicer(Element e, String src, float iw, float ih, int tint, DrawCommand.Image.Filter filter, DisplayList out) {
+            this.e = e;
+            this.src = src;
+            this.iw = iw;
+            this.ih = ih;
+            this.tint = tint;
+            this.filter = filter;
+            this.out = out;
+        }
+
+        /**
+         * The image region {@code (sx, sy, sw, sh)} in image pixels, as tiles {@code tw} by {@code th}
+         * over the area {@code (x, y, w, h)}, clipped to it; a {@code stretch} axis has one tile.
+         */
+        void draw(float x, float y, float w, float h, float sx, float sy, float sw, float sh, float tw, float th,
+                  Keywords.ImageTiling across, Keywords.ImageTiling down) {
+            if (tint >>> 24 == 0 || w <= 0 || h <= 0 || sw <= 0 || sh <= 0) {
+                return;
+            }
+            float[] ax = axis(x, w, tw, across);
+            float[] ay = axis(y, h, th, down);
+            if (ax == null || ay == null) {
+                return;
+            }
+            if ((long) ax[2] * (long) ay[2] > MAX_TILES) {
+                report(e, PaintCode.BORDER_IMAGE_TOO_MANY_TILES, "border image tiles would be drawn " + (long) ax[2] * (long) ay[2]
+                        + " times (at most " + MAX_TILES + "); use a larger slice or border-image-width");
+                return;
+            }
+            for (int row = 0; row < ay[2]; row++) {
+                float ty = ay[0] + row * ay[1];
+                float cy0 = Math.max(ty, y);
+                float cy1 = Math.min(ty + ay[1], y + h);
+                if (cy1 <= cy0) {
+                    continue;
+                }
+                for (int col = 0; col < ax[2]; col++) {
+                    float tx = ax[0] + col * ax[1];
+                    float cx0 = Math.max(tx, x);
+                    float cx1 = Math.min(tx + ax[1], x + w);
+                    if (cx1 <= cx0) {
+                        continue;
+                    }
+                    out.add(new DrawCommand.Image(cx0, cy0, cx1 - cx0, cy1 - cy0, src,
+                            (sx + sw * (cx0 - tx) / ax[1]) / iw, (sy + sh * (cy0 - ty) / ay[1]) / ih,
+                            (sx + sw * (cx1 - tx) / ax[1]) / iw, (sy + sh * (cy1 - ty) / ay[1]) / ih, tint, filter));
+                }
+            }
+        }
+
+        /** {@code {first tile's start, tile length, tile count}} along one axis; {@code null} when nothing shows. */
+        private static float[] axis(float start, float length, float tile, Keywords.ImageTiling mode) {
+            if (mode == Keywords.ImageTiling.STRETCH) {
+                return new float[]{start, length, 1};
+            }
+            if (!(tile > 0)) {
+                return null;
+            }
+            if (mode == Keywords.ImageTiling.ROUND) {
+                float n = Math.max(1, Math.round(length / tile));
+                return new float[]{start, length / n, n};
+            }
+            float free = (length - tile) / 2;
+            float first = start + free - tile * (float) Math.ceil(free / tile);
+            return new float[]{first, tile, (float) Math.ceil((start + length - first) / tile)};
         }
     }
 
@@ -258,22 +509,95 @@ public final class Painter implements PaintFacet.Context {
         rect(out, bar.x(), bar.thumbY() - dy, bar.width(), bar.thumbHeight(), colors.thumb());
     }
 
+    /** The corner radii of the border box of {@code cs}'s element, reduced to fit it. */
+    private static RoundRect.Radii radii(ComputedStyle cs, float w, float h) {
+        CornerRadius tl = cs.get(CssProperties.BORDER_TOP_LEFT_RADIUS);
+        CornerRadius tr = cs.get(CssProperties.BORDER_TOP_RIGHT_RADIUS);
+        CornerRadius br = cs.get(CssProperties.BORDER_BOTTOM_RIGHT_RADIUS);
+        CornerRadius bl = cs.get(CssProperties.BORDER_BOTTOM_LEFT_RADIUS);
+        if (tl.equals(CornerRadius.ZERO) && tr.equals(CornerRadius.ZERO) && br.equals(CornerRadius.ZERO)
+                && bl.equals(CornerRadius.ZERO)) {
+            return RoundRect.Radii.ZERO;
+        }
+        return new RoundRect.Radii(radius(tl.x(), w), radius(tl.y(), h), radius(tr.x(), w), radius(tr.y(), h),
+                radius(br.x(), w), radius(br.y(), h), radius(bl.x(), w), radius(bl.y(), h)).fit(w, h);
+    }
+
+    private static float radius(Length l, float side) {
+        return l.unit() == Length.Unit.PERCENT ? side * l.value() / 100 : l.value();
+    }
+
+    /** How {@code cs}'s element samples scaled images ({@code image-rendering}). */
+    public static DrawCommand.Image.Filter filter(ComputedStyle cs) {
+        return switch (cs.get(CssProperties.IMAGE_RENDERING)) {
+            case AUTO -> DrawCommand.Image.Filter.AUTO;
+            case SMOOTH -> DrawCommand.Image.Filter.LINEAR;
+            case PIXELATED, CRISP_EDGES -> DrawCommand.Image.Filter.NEAREST;
+        };
+    }
+
+    /** {@code list}'s item for layer {@code i}, repeating the list when it is shorter, as CSS does. */
+    private static <T> T layer(List<T> list, int i) {
+        return list.get(i % list.size());
+    }
+
     /**
-     * CSS Backgrounds 3 with the initial {@code background-origin} and {@code background-clip}: the
-     * image is sized and positioned in the padding box and tiles out to the border box edges.
-     * {@code top} is the border box top after scrolling; {@code tint} multiplies the image's texels.
+     * The background color, then the layers bottom to top. With the bottom layer an image that
+     * multiplies, the color tints it instead of painting under it.
      */
-    private void paintBackgroundImage(Element e, ComputedStyle cs, LayoutBox b, float top, int tint, DisplayList out) {
-        String src = cs.get(CssProperties.BACKGROUND_IMAGE);
-        float areaW = b.width() - b.borderLeft() - b.borderRight();
-        float areaH = b.height() - b.borderTop() - b.borderBottom();
-        if (src.isEmpty() || areaW <= 0 || areaH <= 0) {
+    private void paintBackground(Element e, ComputedStyle cs, LayoutBox b, RoundRect border, DisplayList out) {
+        List<CssImage> images = cs.get(CssProperties.BACKGROUND_IMAGE);
+        List<Keywords.BackgroundBlendMode> blends = cs.get(CssProperties.BACKGROUND_BLEND_MODE);
+        int bottom = images.size() - 1;
+        for (int i = 0; i < bottom; i++) {
+            if (layer(blends, i) == Keywords.BackgroundBlendMode.MULTIPLY && images.get(i) != CssImage.NONE) {
+                report(e, PaintCode.BLEND_NOT_BOTTOM, "background layer " + (i + 1) + " multiplies, but only the bottom layer may");
+            }
+        }
+        int bg = cs.get(CssProperties.BACKGROUND_COLOR);
+        boolean multiply = layer(blends, bottom) == Keywords.BackgroundBlendMode.MULTIPLY
+                && images.get(bottom) instanceof CssImage.Url;
+        if (!multiply) {
+            fill(out, border, bg);
+        }
+        for (int i = bottom; i >= 0; i--) {
+            paintLayer(e, cs, b, border, i, multiply && i == bottom ? 0xFF000000 | bg : OPAQUE_WHITE, out);
+        }
+    }
+
+    /** {@code shape} in a solid color: a plain rectangle when it has no rounded corner. */
+    private void fill(DisplayList out, RoundRect shape, int color) {
+        if (shape.radii().isZero()) {
+            rect(out, shape.x(), shape.y(), shape.width(), shape.height(), color);
             return;
         }
-        BackgroundSize size = cs.get(CssProperties.BACKGROUND_SIZE);
+        int c = fade(color);
+        if (c >>> 24 != 0) {
+            out.add(new DrawCommand.Fill(shape, shape.x(), shape.y(), shape.width(), shape.height(), c, null));
+        }
+    }
+
+    /**
+     * CSS Backgrounds 3 with the initial {@code background-origin} and {@code background-clip}: layer
+     * {@code i} is sized and positioned in the padding box and tiles out to the border box edges. A
+     * gradient has no natural size, so an {@code auto} side is the padding box's. {@code tint}
+     * multiplies an image's texels.
+     */
+    private void paintLayer(Element e, ComputedStyle cs, LayoutBox b, RoundRect border, int i, int tint, DisplayList out) {
+        CssImage image = cs.get(CssProperties.BACKGROUND_IMAGE).get(i);
+        float areaW = b.width() - b.borderLeft() - b.borderRight();
+        float areaH = b.height() - b.borderTop() - b.borderBottom();
+        if (image == CssImage.NONE || areaW <= 0 || areaH <= 0) {
+            return;
+        }
+        String src = image instanceof CssImage.Url u ? u.src() : null;
+        BackgroundSize size = layer(cs.get(CssProperties.BACKGROUND_SIZE), i);
         float w = side(size.width(), areaW);
         float h = side(size.height(), areaH);
-        if (Float.isNaN(w) || Float.isNaN(h)) {
+        if (src == null) {
+            w = Float.isNaN(w) ? areaW : w;
+            h = Float.isNaN(h) ? areaH : h;
+        } else if (Float.isNaN(w) || Float.isNaN(h)) {
             ImageMeasurer.Size natural = images.naturalSize(src);
             if (natural == null) {
                 report(e, PaintCode.BACKGROUND_IMAGE_UNSIZED, "cannot load background image '" + src + "' to size it (background-size: auto)");
@@ -294,14 +618,15 @@ public final class Painter implements PaintFacet.Context {
         if (w <= 0 || h <= 0) {
             return;
         }
-        Keywords.BackgroundRepeat repeat = cs.get(CssProperties.BACKGROUND_REPEAT);
+        Keywords.BackgroundRepeat repeat = layer(cs.get(CssProperties.BACKGROUND_REPEAT), i);
         boolean repeatX = repeat == Keywords.BackgroundRepeat.REPEAT || repeat == Keywords.BackgroundRepeat.REPEAT_X;
         boolean repeatY = repeat == Keywords.BackgroundRepeat.REPEAT || repeat == Keywords.BackgroundRepeat.REPEAT_Y;
         float left = b.x();
+        float top = border.y();
         float right = left + b.width();
         float bottom = top + b.height();
-        float x0 = left + b.borderLeft() + offset(cs.get(CssProperties.BACKGROUND_POSITION_X), areaW - w);
-        float y0 = top + b.borderTop() + offset(cs.get(CssProperties.BACKGROUND_POSITION_Y), areaH - h);
+        float x0 = left + b.borderLeft() + offset(layer(cs.get(CssProperties.BACKGROUND_POSITION_X), i), areaW - w);
+        float y0 = top + b.borderTop() + offset(layer(cs.get(CssProperties.BACKGROUND_POSITION_Y), i), areaH - h);
         int columns = 1;
         int rows = 1;
         if (repeatX) {
@@ -313,10 +638,11 @@ public final class Painter implements PaintFacet.Context {
             rows = (int) Math.ceil((bottom - y0) / h);
         }
         if ((long) columns * rows > MAX_TILES) {
-            report(e, PaintCode.BACKGROUND_TOO_MANY_TILES, "background image '" + src + "' would repeat " + (long) columns * rows
+            report(e, PaintCode.BACKGROUND_TOO_MANY_TILES, "background layer " + (i + 1) + " would repeat " + (long) columns * rows
                     + " times (at most " + MAX_TILES + "); use a larger background-size");
             return;
         }
+        DrawCommand.Image.Filter filter = filter(cs);
         for (int row = 0; row < rows; row++) {
             float ty = y0 + row * h;
             float cy0 = Math.max(ty, top);
@@ -331,10 +657,113 @@ public final class Painter implements PaintFacet.Context {
                 if (cx1 <= cx0) {
                     continue;
                 }
-                out.add(new DrawCommand.Image(cx0, cy0, cx1 - cx0, cy1 - cy0, src,
-                        (cx0 - tx) / w, (cy0 - ty) / h, (cx1 - tx) / w, (cy1 - ty) / h, fade(tint)));
+                if (src != null) {
+                    out.add(new DrawCommand.Image(cx0, cy0, cx1 - cx0, cy1 - cy0, src,
+                            (cx0 - tx) / w, (cy0 - ty) / h, (cx1 - tx) / w, (cy1 - ty) / h, fade(tint), filter));
+                } else {
+                    Gradient g = gradient((CssImage.LinearGradient) image, tx, ty, w, h);
+                    if (g != null) {
+                        out.add(new DrawCommand.Fill(border, cx0, cy0, cx1 - cx0, cy1 - cy0, 0, g));
+                    }
+                }
             }
         }
+    }
+
+    /** Steps inserted between two stops whose premultiplied blend differs from a straight one. */
+    private static final int PREMULTIPLIED_STEPS = 8;
+
+    /**
+     * {@code g} drawn in the tile {@code (x, y, w, h)} (CSS Images 3 §3.1): the gradient line runs
+     * through the center at the angle, long enough that the end stops' lines pass through the corners.
+     * Omitted stop positions are spread evenly, out-of-order ones raised to the largest before them.
+     */
+    private Gradient gradient(CssImage.LinearGradient g, float x, float y, float w, float h) {
+        double angle = Float.isNaN(g.angle()) ? Math.atan2(g.cornerX() * h, -g.cornerY() * w) : Math.toRadians(g.angle());
+        float dx = (float) Math.sin(angle);
+        float dy = (float) -Math.cos(angle);
+        float len = Math.abs(w * dx) + Math.abs(h * dy);
+        if (len <= 0) {
+            return null;
+        }
+        List<CssImage.LinearGradient.Stop> stops = g.stops();
+        int n = stops.size();
+        float[] at = new float[n];
+        for (int i = 0; i < n; i++) {
+            Length p = stops.get(i).position();
+            at[i] = p == null ? Float.NaN : p.unit() == Length.Unit.PERCENT ? p.value() / 100 : p.value() / len;
+        }
+        if (Float.isNaN(at[0])) {
+            at[0] = 0;
+        }
+        if (Float.isNaN(at[n - 1])) {
+            at[n - 1] = Math.max(1, maxDefined(at, n - 1));
+        }
+        float max = at[0];
+        for (int i = 1; i < n; i++) {
+            if (!Float.isNaN(at[i])) {
+                at[i] = Math.max(at[i], max);
+                max = at[i];
+            }
+        }
+        for (int i = 1; i < n; i++) {
+            if (Float.isNaN(at[i])) {
+                int j = i;
+                while (Float.isNaN(at[j])) {
+                    j++;
+                }
+                float step = (at[j] - at[i - 1]) / (j - i + 1);
+                for (int k = i; k < j; k++) {
+                    at[k] = at[i - 1] + step * (k - i + 1);
+                }
+            }
+        }
+        float[] offsets = new float[(n - 1) * PREMULTIPLIED_STEPS + 1];
+        int[] colors = new int[offsets.length];
+        int k = 0;
+        offsets[k] = at[0];
+        colors[k++] = fade(stops.get(0).color());
+        for (int i = 1; i < n; i++) {
+            int from = stops.get(i - 1).color();
+            int to = stops.get(i).color();
+            boolean straight = (from >>> 24) == (to >>> 24) || (from & 0xFFFFFF) == (to & 0xFFFFFF);
+            int steps = straight ? 1 : PREMULTIPLIED_STEPS;
+            for (int s = 1; s <= steps; s++) {
+                float p = s / (float) steps;
+                offsets[k] = at[i - 1] + (at[i] - at[i - 1]) * p;
+                colors[k++] = fade(s == steps ? to : premultipliedMix(from, to, p));
+            }
+        }
+        float cx = x + w / 2;
+        float cy = y + h / 2;
+        return new Gradient(cx - dx * len / 2, cy - dy * len / 2, cx + dx * len / 2, cy + dy * len / 2,
+                Arrays.copyOf(offsets, k), Arrays.copyOf(colors, k));
+    }
+
+    private static float maxDefined(float[] at, int end) {
+        float max = Float.NEGATIVE_INFINITY;
+        for (int i = 0; i < end; i++) {
+            if (!Float.isNaN(at[i])) {
+                max = Math.max(max, at[i]);
+            }
+        }
+        return max;
+    }
+
+    /** {@code from} to {@code to} at {@code p} in premultiplied ARGB, as CSS interpolates gradients. */
+    private static int premultipliedMix(int from, int to, float p) {
+        float fa = (from >>> 24) / 255f;
+        float ta = (to >>> 24) / 255f;
+        float alpha = fa + (ta - fa) * p;
+        if (alpha <= 0) {
+            return 0;
+        }
+        int out = Math.round(alpha * 255) << 24;
+        for (int shift = 16; shift >= 0; shift -= 8) {
+            float c = ((from >> shift & 0xFF) * fa * (1 - p) + (to >> shift & 0xFF) * ta * p) / alpha;
+            out |= Math.round(Math.max(0, Math.min(255, c))) << shift;
+        }
+        return out;
     }
 
     /** A {@code background-size} side in pixels; NaN for {@code auto}. */

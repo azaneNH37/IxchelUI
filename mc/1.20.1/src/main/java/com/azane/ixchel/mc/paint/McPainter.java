@@ -4,14 +4,17 @@ import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.core.paint.ShapeTessellator;
 import com.azane.ixchel.core.template.NativePayload;
 import com.azane.ixchel.core.template.TagRegistry;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -23,6 +26,8 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -34,6 +39,10 @@ import java.util.Map;
  * quads and submitted only when the render state (shader, texture, clip) changes or a text run
  * starts; text goes through {@link Font#drawInBatch} and is flushed before the next non-text command,
  * so paint order is kept. Native elements are drawn by their {@link NativePainter}.
+ *
+ * <p>Fills, borders and shadows are {@link ShapeTessellator} meshes over the host's mask atlas
+ * ({@link MaskTexture}), drawn with face culling off since their quads' winding varies. An image with a
+ * forced filter sets its texture's filters for its draw and restores them after.
  *
  * <p>Native drawings go through vanilla and write depth above the level they draw at. Each command
  * draws at the highest depth reached by the earlier commands it overlaps ({@link Layers}), so it
@@ -55,7 +64,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         }
     }
 
-    private enum Batch { NONE, COLOR, TEXTURE, TEXT }
+    private enum Batch { NONE, COLOR, TEXTURE, SHAPE, TEXT }
 
     private final Font font;
     private final TagRegistry tags;
@@ -74,15 +83,21 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     private BufferBuilder buffer;
     private Batch batch = Batch.NONE;
     private ResourceLocation texture;
+    private DrawCommand.Image.Filter filter = DrawCommand.Image.Filter.AUTO;
+    private final MaskTexture masks;
+    private final ShapeTessellator shapes;
     private final Layers layers = new Layers();
     private float pointerX = Float.NaN;
     private float pointerY = Float.NaN;
 
     /**
+     * @param modid   the host mod, whose mask atlas the shapes are drawn from
      * @param tags    the types of the native elements, whose payload types {@code natives} are handed
      * @param natives the painter of each native element kind ({@code DrawCommand.Custom#kind})
      */
-    public McPainter(Font font, TagRegistry tags, Map<String, NativePainter<?>> natives) {
+    public McPainter(String modid, Font font, TagRegistry tags, Map<String, NativePainter<?>> natives) {
+        this.masks = MaskTexture.forHost(modid);
+        this.shapes = new ShapeTessellator(masks.atlas);
         this.font = font;
         this.tags = tags;
         this.natives = Map.copyOf(natives);
@@ -102,8 +117,11 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         pose.set(base);
         buffer = Tesselator.getInstance().getBuilder();
         layers.clear();
+        masks.active = this;
         list.replay(this);
         flush();
+        masks.active = null;
+        shapes.endFrame();
         RenderSystem.disableBlend();
         graphics = null;
         base = null;
@@ -157,9 +175,9 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
             u1 = s.getU0() + u1 * du;
             v0 = s.getV0() + v0 * dv;
             v1 = s.getV0() + v1 * dv;
-            begin(Batch.TEXTURE, TextureAtlas.LOCATION_BLOCKS);
+            begin(Batch.TEXTURE, TextureAtlas.LOCATION_BLOCKS, c.filter());
         } else {
-            begin(Batch.TEXTURE, textures.computeIfAbsent(src, ResourceLocation::new));
+            begin(Batch.TEXTURE, textures.computeIfAbsent(src, ResourceLocation::new), c.filter());
         }
         int argb = c.tint();
         int a = argb >>> 24;
@@ -175,6 +193,47 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         buffer.vertex(pose, x0, y1, z).color(r, g, b, a).uv(u0, v1).endVertex();
         buffer.vertex(pose, x1, y1, z).color(r, g, b, a).uv(u1, v1).endVertex();
         buffer.vertex(pose, x1, y0, z).color(r, g, b, a).uv(u1, v0).endVertex();
+        return null;
+    }
+
+    @Override
+    public Void visitFill(DrawCommand.Fill c) {
+        return shape(c);
+    }
+
+    @Override
+    public Void visitBorder(DrawCommand.Border c) {
+        return shape(c);
+    }
+
+    @Override
+    public Void visitShadow(DrawCommand.Shadow c) {
+        return shape(c);
+    }
+
+    private Void shape(DrawCommand c) {
+        float[] m = shapes.mesh(c);
+        if (m.length == 0) {
+            return null;
+        }
+        // After the mesh: building it may have written masks, or reset the atlas and drawn the batch.
+        begin(Batch.SHAPE, masks.upload());
+        float x0 = Float.POSITIVE_INFINITY;
+        float y0 = Float.POSITIVE_INFINITY;
+        float x1 = Float.NEGATIVE_INFINITY;
+        float y1 = Float.NEGATIVE_INFINITY;
+        for (int i = 0; i < m.length; i += ShapeTessellator.STRIDE) {
+            x0 = Math.min(x0, m[i]);
+            y0 = Math.min(y0, m[i + 1]);
+            x1 = Math.max(x1, m[i]);
+            y1 = Math.max(y1, m[i + 1]);
+        }
+        float z = level(x0, y0, x1, y1);
+        for (int i = 0; i < m.length; i += ShapeTessellator.STRIDE) {
+            int argb = Float.floatToRawIntBits(m[i + 4]);
+            buffer.vertex(pose, m[i], m[i + 1], z).color((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF, argb >>> 24)
+                    .uv(m[i + 2], m[i + 3]).endVertex();
+        }
         return null;
     }
 
@@ -290,13 +349,18 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     }
 
     private void begin(Batch next, ResourceLocation nextTexture) {
-        if (batch == next && texture == nextTexture) {
+        begin(next, nextTexture, DrawCommand.Image.Filter.AUTO);
+    }
+
+    private void begin(Batch next, ResourceLocation nextTexture, DrawCommand.Image.Filter nextFilter) {
+        if (batch == next && texture == nextTexture && filter == nextFilter) {
             return;
         }
         flush();
         batch = next;
         texture = nextTexture;
-        if (next == Batch.COLOR || next == Batch.TEXTURE) {
+        filter = nextFilter;
+        if (next == Batch.COLOR || next == Batch.TEXTURE || next == Batch.SHAPE) {
             // A text or item flush runs a render type's cleanup, which turns blending off again.
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
@@ -306,7 +370,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
                 RenderSystem.setShader(GameRenderer::getPositionColorShader);
                 buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
             }
-            case TEXTURE -> {
+            case TEXTURE, SHAPE -> {
                 RenderSystem.setShaderTexture(0, nextTexture);
                 RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
                 buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -316,14 +380,54 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         }
     }
 
+    /** Draws the pending quads; for {@link MaskTexture}'s reset, which drops the masks they sample. */
+    void flushBatch() {
+        flush();
+    }
+
     private void flush() {
         switch (batch) {
-            case COLOR, TEXTURE -> BufferUploader.drawWithShader(buffer.end());
+            case COLOR -> BufferUploader.drawWithShader(buffer.end());
+            case TEXTURE -> {
+                if (filter == DrawCommand.Image.Filter.AUTO) {
+                    BufferUploader.drawWithShader(buffer.end());
+                } else {
+                    drawFiltered();
+                }
+            }
+            case SHAPE -> {
+                boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+                RenderSystem.disableCull();
+                BufferUploader.drawWithShader(buffer.end());
+                if (cull) {
+                    RenderSystem.enableCull();
+                }
+            }
             case TEXT -> graphics.flush();
             case NONE -> {
             }
         }
         batch = Batch.NONE;
         texture = null;
+        filter = DrawCommand.Image.Filter.AUTO;
+    }
+
+    /** Draws the texture batch with {@link #filter} as its texture's filters, then restores them. */
+    private void drawFiltered() {
+        int id = Minecraft.getInstance().getTextureManager().getTexture(texture).getId();
+        int unit = GlStateManager._getActiveTexture();
+        GlStateManager._activeTexture(GL13.GL_TEXTURE0);
+        GlStateManager._bindTexture(id);
+        int min = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER);
+        int mag = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER);
+        int f = filter == DrawCommand.Image.Filter.NEAREST ? GL11.GL_NEAREST : GL11.GL_LINEAR;
+        GlStateManager._texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, f);
+        GlStateManager._texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, f);
+        BufferUploader.drawWithShader(buffer.end());
+        GlStateManager._activeTexture(GL13.GL_TEXTURE0);
+        GlStateManager._bindTexture(id);
+        GlStateManager._texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, min);
+        GlStateManager._texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, mag);
+        GlStateManager._activeTexture(unit);
     }
 }

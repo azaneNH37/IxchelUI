@@ -33,7 +33,7 @@
 - 恢复 FBO 走 `GlStateManager` 或 `RenderTarget.bindWrite`，不直接调用原生 GL 绑定
 - 进出私有图层前先 `flush()`，恢复进入前绑定的 FBO 而非固定回 main
 - 圆角裁剪显式 opt-in，走私有图层 + 遮罩纹理；不使用主 target 模板缓冲
-- Painter 不逐条调用 `GuiGraphics.fill/blit/drawString`（每次调用都会提交一次）；自写顶点，只在渲染状态或纹理切换时提交；覆盖率纹理与图片共用一张图集
+- Painter 不逐条调用 `GuiGraphics.fill/blit/drawString`（每次调用都会提交一次）；自写顶点，只在渲染状态或纹理切换时提交；覆盖率纹理每宿主一张图集；图片暂不入图集
 
 ## 容器槽位
 - `Slot.x/y` 是槽位内部 16×16 物品区左上角，布局结果写回它；隐藏槽位须 `isActive=false` 且 `x=y=-2000`（REI 高亮不检查 `isActive`），见 `ref/SDG-ixchel-container-slot-integration-20261026.md`

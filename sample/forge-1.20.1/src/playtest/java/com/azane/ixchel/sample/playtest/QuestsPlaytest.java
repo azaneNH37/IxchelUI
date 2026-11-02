@@ -82,6 +82,9 @@ public final class QuestsPlaytest {
                 return near(p[0], detail.box().x() + detail.box().width() / 2) && hitsInside(detail, p);
             });
             s.expect("claim is disabled without the items", () -> Playtest.query(".claim:disabled").size() == 1);
+            // The screenshot shows the framed panel, its shadow, its gold rule and the selected quest's glow.
+            s.expect("the detail panel has its ::before rule", () -> Playtest.query(".detail").get(0).before() != null);
+            s.shot("quests-detail");
 
             // Fails if a ready quest cannot be claimed, the reward is not given, or its followers stay locked.
             s.server(p -> p.getInventory().add(new ItemStack(first.quests().get(0).item(), first.quests().get(0).count())));

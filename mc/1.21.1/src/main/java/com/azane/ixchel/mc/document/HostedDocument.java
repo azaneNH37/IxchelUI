@@ -94,8 +94,8 @@ public final class HostedDocument implements AutoCloseable {
         McElements.Hosted hosted = McElements.forHost(template.getNamespace(), tags);
         this.tags = hosted.tags();
         this.painters = hosted.painters();
-        this.painter = new McPainter(Minecraft.getInstance().font, this.tags, painters);
-        this.tooltipPainter = new McPainter(Minecraft.getInstance().font, this.tags, painters);
+        this.painter = new McPainter(template.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
+        this.tooltipPainter = new McPainter(template.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
         this.model = model;
         this.onReload = onReload;
         if (dev != null && model != null && !UiTemplate.Ids.covers(model.getClass(), template.toString())) {

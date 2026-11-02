@@ -82,6 +82,36 @@ class GoldenTest {
             }
 
             @Override
+            public String visitFill(DrawCommand.Fill c) {
+                String paint;
+                if (c.gradient() == null) {
+                    paint = argb(c.color());
+                } else {
+                    var g = c.gradient();
+                    StringBuilder s = new StringBuilder("gradient " + n(g.x0()) + " " + n(g.y0()) + " " + n(g.x1()) + " " + n(g.y1()));
+                    for (int i = 0; i < g.offsets().length; i++) {
+                        s.append(' ').append(n(g.offsets()[i])).append(':').append(argb(g.colors()[i]));
+                    }
+                    paint = s.toString();
+                }
+                return "fill " + shape(c.shape()) + " clip " + n(c.clipX()) + " " + n(c.clipY()) + " " + n(c.clipWidth()) + " "
+                        + n(c.clipHeight()) + " " + paint;
+            }
+
+            @Override
+            public String visitBorder(DrawCommand.Border c) {
+                return "border " + shape(c.outer()) + " widths " + n(c.top()) + " " + n(c.right()) + " " + n(c.bottom()) + " "
+                        + n(c.left()) + " " + argb(c.topColor()) + " " + argb(c.rightColor()) + " " + argb(c.bottomColor()) + " "
+                        + argb(c.leftColor());
+            }
+
+            @Override
+            public String visitShadow(DrawCommand.Shadow c) {
+                return (c.inset() ? "inset-shadow " : "shadow ") + shape(c.shape()) + " sigma " + n(c.sigma()) + " "
+                        + argb(c.color()) + " clip " + shape(c.clip());
+            }
+
+            @Override
             public String visitText(DrawCommand.Text c) {
                 return "text " + n(c.x()) + " " + n(c.y()) + " " + n(c.size()) + " " + argb(c.color()) + " \"" + c.text() + "\""
                         + (c.flags() != 0 ? " flags " + c.flags() : "");
@@ -90,7 +120,8 @@ class GoldenTest {
             @Override
             public String visitImage(DrawCommand.Image c) {
                 return "image " + n(c.x()) + " " + n(c.y()) + " " + n(c.width()) + " " + n(c.height()) + " " + c.src()
-                        + " uv " + n(c.u0()) + " " + n(c.v0()) + " " + n(c.u1()) + " " + n(c.v1()) + " " + argb(c.tint());
+                        + " uv " + n(c.u0()) + " " + n(c.v0()) + " " + n(c.u1()) + " " + n(c.v1()) + " " + argb(c.tint())
+                        + (c.filter() != DrawCommand.Image.Filter.AUTO ? " " + c.filter().name().toLowerCase(Locale.ROOT) : "");
             }
 
             @Override
@@ -126,6 +157,16 @@ class GoldenTest {
             sb.append(list.get(i).accept(v));
         }
         return sb.toString();
+    }
+
+    private static String shape(com.azane.ixchel.core.paint.RoundRect r) {
+        var q = r.radii();
+        String s = n(r.x()) + " " + n(r.y()) + " " + n(r.width()) + " " + n(r.height());
+        if (q.isZero()) {
+            return s;
+        }
+        return s + " radii " + n(q.topLeftX()) + "/" + n(q.topLeftY()) + " " + n(q.topRightX()) + "/" + n(q.topRightY()) + " "
+                + n(q.bottomRightX()) + "/" + n(q.bottomRightY()) + " " + n(q.bottomLeftX()) + "/" + n(q.bottomLeftY());
     }
 
     private static String n(float f) {

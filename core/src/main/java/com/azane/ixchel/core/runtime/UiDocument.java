@@ -22,6 +22,7 @@ import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.ImageMeasurer;
 import com.azane.ixchel.core.paint.Painter;
+import com.azane.ixchel.core.paint.RoundedClipCheck;
 import com.azane.ixchel.core.style.StyleEngine;
 import com.azane.ixchel.core.style.StyleSheet;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -166,7 +167,12 @@ public final class UiDocument {
         StyleEngine style(TagRegistry tags, Diagnostics diag, Transitions transitions) {
             List<StyleSheet> userAgent = new ArrayList<>(List.of(LibrarySheets.USER_AGENT));
             userAgent.addAll(LibrarySheets.nativeElements(tags));
-            return new StyleEngine(CssProperties.REGISTRY, userAgent, components, themes, author, diag, transitions);
+            RoundedClipCheck roundedClip = new RoundedClipCheck(diag);
+            StyleEngine.Hook hook = (e, previous, next) -> {
+                roundedClip.computed(e, previous, next);
+                transitions.computed(e, previous, next);
+            };
+            return new StyleEngine(CssProperties.REGISTRY, userAgent, components, themes, author, diag, hook);
         }
     }
 
