@@ -44,9 +44,9 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | U2 | 完成 | S7、S6 | 拖拽：`draggable`、`dragstart`/`drag`/`dragend`/`drop`、`<ix-drag-preview>` |
 | U3 | 完成 | — | 宿主自定义原生元素入口（#030） |
 | N1–N2 | 完成 | — | 原生声明随实现类注册；元素定义按消费阶段切面组合（#030、#031），结果见下文 |
-| V1 | 待做 | — | `::before`/`::after`、`border-image`、`border-radius`（只做圆角外观）、`box-shadow`、线性渐变、`:not`/`:is`/`:where` |
-| V2 | 待做 | — | `calc()`、em、`line-height`、`align-content`、grid、放宽 `display: block` 含块级子元素的限制 |
-| V3 | 待做 | — | `@keyframes`、`@starting-style`、`<if>`/`<for>` 的 `leave` |
+| V1 | 待做 | — | `::before`/`::after`（只做装饰）、多层背景、线性渐变、`border-image` 与 `image-rendering: pixelated`、`border-radius`（只做圆角外观）、`box-shadow`、`:not`/`:is`/`:where` |
+| V2 | 待做 | — | `calc()` 与 `min()`/`max()`/`clamp()`、em/rem/vw/vh、`line-height`、`align-content`、grid、标准块布局（放宽 `display: block` 含块级子元素的限制） |
+| V3 | 待做 | — | `@keyframes` 与 `animation-*`、`on:animationend`、`@starting-style`、`<if>`/`<for>` 的 `leave` |
 | U4 | 待做 | — | `ix-` 组件库：tabs、tree、进度条等 |
 | FX1 | 待做 | — | 私有图层与 shader 注册；`opacity` 整组语义 |
 | FX2 | 待做 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
@@ -173,12 +173,36 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 #### V1 盒子外观
 
-- 圆角只做外观（背景、边框、`box-shadow`），经路径 C 落地（#029）；圆角裁剪依赖 FX1，此前 `overflow` 配圆角按矩形裁剪，lint 警告。
+- 已定（2026-11-02，语言文档 §6-12）：
+  - 圆角只做外观（背景、边框、`box-shadow`），经路径 C 落地（#029）；圆角裁剪依赖 FX1，此前 `overflow` 配圆角按矩形裁剪，lint 警告。
+  - `::before`/`::after` 只做装饰：`content` 只接受 `""` 与 `none`，其它取值开发期报错（CSS 字符串会绕开 i18n 与 lint 的字面文本检查）。伪元素不进 `querySelector`，事件与 `:hover` 算在宿主元素上。
+  - 多层背景：`background-image` 与其余 `background-*` 改为逗号列表，前者在上，各列表按位置对应，短列表按标准循环补齐。层的取值为图片或渐变。
+  - 渐变：`linear-gradient`，角度或 `to <方向>`，色标可带位置；不做 `repeating-`、`radial-`、`conic-`。
+  - `box-shadow`：多重阴影，offset、blur、spread、color，含 `inset`；可过渡，生成的纹理按整数像素量化缓存。
+  - `border-image`：source、slice、width、`fill`、stretch/repeat/round；`image-rendering: pixelated` 同批做（MC 九宫格贴图多为像素风）。
+  - `:not`/`:is`/`:where` 的参数为完整选择器列表（可带组合子），优先级按标准。
+- 验收：每项有 core 黄金测试；sample 选现有场景页加一处使用并写成 playtest 截图（多层背景、渐变、阴影、圆角、`border-image` 像素风、伪元素）；`-Pplaytest=all`；两个 mc 版本，1.21.1 `runClient` 冒烟。
+
+#### V2 尺寸与排版
+
+- 已定（2026-11-02，语言文档 §6-13）：
+  - `display: block` 含块级子元素时用 taffy 标准块布局，含外边距折叠；块级与行内内容混排时生成匿名块，不再报 `BLOCK_IN_INLINE`。
+  - `line-height`：`normal`（等于现行行高，现有截图不变）、无单位、px、em、%。
+  - 单位：em、rem（根字号，初值 9px）、vw、vh（GUI 视口，即 `UiDocument.frame` 的尺寸），在计算样式时换算为 px。
+  - `calc()`：所有长度属性，`+ - * /`，同批 `min()`/`max()`/`clamp()`；含 % 的部分在布局时经 taffy `CalcExpression` 求值。`Length` 改为"百分比 + 像素"，px 与 % 之间的过渡按标准分量插值，不再跳变。
+  - grid：接上 taffy 支持的全部写法（模板行列、`fr`、`repeat` 含 auto-fill/auto-fit、`minmax`、命名线、areas、放置），不做 subgrid。
+- 验收：core 黄金测试覆盖块布局与外边距折叠、匿名块、各单位、calc 与过渡；现有截图不变；sample 选一处网格布局写成 playtest 截图；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
 
 #### V3 动画
 
-- `leave="class"` 是 `<if>`、`<for>` 的通用属性：卸载前给实例顶层元素加 class，子树过渡结束后才移除，没有过渡时立即移除；离场期间停止绑定更新、不参与命中与焦点；中途恢复时去掉 class，由 `Transitions` 反向。只有直接带 `leave` 的块延后，外层卸载不等内层。
+- 已定（2026-11-02，语言文档 §6-14）：
+  - `leave="class"` 是 `<if>`、`<for>` 的通用属性：卸载前给实例顶层元素加 class，子树过渡结束后才移除，没有过渡时立即移除；离场期间停止绑定更新、不参与命中与焦点；中途恢复时去掉 class，由 `Transitions` 反向。只有直接带 `leave` 的块延后，外层卸载不等内层。
+  - 时间：动画与过渡用墙钟（`System::nanoTime`），游戏暂停不冻结，视效不跟逻辑时间。
+  - `@keyframes` 与全部 `animation-*` 长写及简写，含 `animation-play-state` 与 `steps()`；与 `bind:style` 的优先级按标准层叠。
+  - 事件：`on:animationend`（播完移除提示、一次性强调后去掉 class）；不做 `animationiteration`（次数用 `animation-iteration-count`）。现无 `transitionend`，不同批补。
+  - `@starting-style` 按标准：元素首次得到样式时（含整页首次加载、`<if>`/`<for>` 新实例、从 `display: none` 恢复）从起始样式过渡。
 - 性能：无限动画使干净帧失效，开工时用 `FrameTimer` 预算核查，核查对象含 S3、S8。
+- 验收：core 测试用可替换时钟断言关键帧插值、`steps()`、暂停、`animationend`、`@starting-style` 与 `leave`；sample 一处入场与离场动画写成 playtest 截图序列；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
 
 #### FX1 私有图层与 shader 注册
 
@@ -194,7 +218,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 #### FX3 具名特效
 
-- 先定：首批内置特效的范围；离场过渡（`<if>` 卸载立即移除、无 `transitionend`）是否同阶段做。
+- 先定：首批内置特效的范围。
 - 引擎：`.effect` 解析（`kind`、类型化 `param`）、uniform 与 fsh/vsh/json 生成、GLSL 原语库；`<link rel="effect">`；`background-image: paint(名)`、`filter: -ix-paint(名)`、`backdrop-filter` 中的特效；参数自定义属性按声明类型校验并可 `transition`；错误码 `effect/*`，GLSL 编译错误行号映射回 `.effect`；内置特效经 `@ixchel/effects/…` 引入。
 - 工具：kit lint 覆盖 CSS 一侧的检查；schema 列出特效与参数。
 - sample：一个场景用一个 `box` 特效与一个 `layer` 特效，其中一个参数由 `bind:style:--x` 驱动。
@@ -260,8 +284,8 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 - 带 Java 逻辑的组件（语言文档 §3.4）。
 - `@import`（语言文档 §4.4）。
-- 性能，触发条件为 `FrameTimer` 预算超标或大列表（S3、S8）卡顿，按序做：Painter 按视口裁剪 > `contain` 与局部重排 > `Derived` 相等截断的代价 > tick 与帧两个时间域（动画用游戏时间，现为 `System::nanoTime`，暂停不冻结）。现状为首轮评审时的判断，开工前复核。
-- 游戏 UI 相对 Web 的缺口：`on:keydown` 指向按键绑定（`KeyMapping`，随玩家改键）；`image-rendering: pixelated`；声明式世界锚定（现需 Java 侧 `WorldProjection.toGui` 计算后绑定）。
+- 性能，触发条件为 `FrameTimer` 预算超标或大列表（S3、S8）卡顿，按序做：Painter 按视口裁剪 > `contain` 与局部重排 > `Derived` 相等截断的代价。现状为首轮评审时的判断，开工前复核。动画时间域已定为墙钟（V3），不再列入。
+- 游戏 UI 相对 Web 的缺口：`on:keydown` 指向按键绑定（`KeyMapping`，随玩家改键）；声明式世界锚定（现需 Java 侧 `WorldProjection.toGui` 计算后绑定）。
 - 控件与语言：`<textarea>`、IME（中文已可上屏，系统预编辑需平台 API，与零全局副作用冲突）、radio、结构伪类、`+`/`~`、table、横向滚动、`<dialog>`/`<select>` 离场、`drop-if`、`dragenter`/`dragleave`、拖拽边缘自动滚动。
 - 工具：游戏内调试桥（做 web editor 时先梳理 user 与 agent 的真实开发路径再设计）；JEI/EMI/REI 接入点（库只暴露查询，宿主写插件）；playtest 机器可读报告与元素截图、VS Code Custom Data、文本滚动。
 - 整合包可用的发行形态（另一个宿主 mod，未分析）。

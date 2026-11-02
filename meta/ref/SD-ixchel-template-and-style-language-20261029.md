@@ -440,6 +440,9 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 9. ~~tooltip 的写法~~ 已定（E2 前）：库元素 `<ix-tooltip>`，不用 `popover="hint"` + `interestfor` + anchor positioning，理由与语义见路线图 E2。
 10. ~~链接~~ 已定（E1 前）：标准 `<a>`，库不解释 `href`，导航由 ViewModel 动作完成。
 11. ~~i18n 写法~~ 已定（I 前）：元素级消息，`t`/`t:<属性>`，译文内 `%n$s` 插入参数子元素、`<名>…</名>` 复制 `mark` 子元素，`:lang()` 按语言区分外观；见 `ref/SD-ixchel-i18n-20261102.md`（#027）。
+12. ~~V1 盒子外观的语言范围~~ 已定（V1 前）：伪元素只做装饰，`content` 只收 `""`/`none`，因为 CSS 字符串会绕开 i18n 与字面文本 lint；背景按标准做多层列表，避免为叠图多套元素；渐变只做 `linear-gradient`；`box-shadow` 含 `inset` 且可过渡；`border-image` 与 `image-rendering: pixelated` 同批，因 MC 九宫格多为像素风；`:not`/`:is`/`:where` 收完整选择器列表。逐项范围见路线图 V1。
+13. ~~V2 尺寸与排版的语义~~ 已定（V2 前）：块容器用 taffy 标准块布局（外边距折叠、匿名块），不映射为 flex，符合 #003；`line-height: normal` 保持现行行高；vw/vh 以 GUI 视口为准；`Length` 改为"百分比 + 像素"，使 px 与 % 之间的过渡按标准插值；grid 接 taffy 的全部写法、不做 subgrid。逐项范围见路线图 V2。
+14. ~~V3 动画的时间与事件~~ 已定（V3 前）：用墙钟，游戏暂停不冻结，视效不跟逻辑时间；只加 `on:animationend`，`animationiteration` 无使用方；`@starting-style` 按标准含整页首次加载。逐项范围见路线图 V3。
 
 ### 7. 实现顺序
 
