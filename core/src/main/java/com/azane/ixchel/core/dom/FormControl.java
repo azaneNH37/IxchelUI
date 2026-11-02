@@ -35,6 +35,7 @@ public final class FormControl {
     private final TextField text;
     private String value;
     private boolean checked;
+    private String committedValue;
 
     FormControl(Element owner, Kind kind) {
         this.owner = owner;
@@ -44,6 +45,17 @@ public final class FormControl {
 
     public Kind kind() {
         return kind;
+    }
+
+    /** Starts an edit session; programmatic value writes do not dispatch events. */
+    public void beginEdit() { committedValue = value(); }
+
+    /** Advances the commit point and reports whether the edit changed the value. */
+    public boolean commitEdit() {
+        String current = value();
+        if (current.equals(committedValue)) return false;
+        committedValue = current;
+        return true;
     }
 
     /** The editing state of a text or number field; {@code null} for the other kinds. */
@@ -152,7 +164,7 @@ public final class FormControl {
 
     /** The {@code <option>} children of a select, in order. */
     public List<Element> options() {
-        return owner.children().stream().filter(n -> n instanceof Element e && e.tag().equals("option"))
+        return owner.children().stream().filter(n -> n instanceof Element e && e.type().facet(FormFacet.KEY).option())
                 .map(n -> (Element) n).toList();
     }
 
@@ -163,7 +175,7 @@ public final class FormControl {
     public Element selectedOption() {
         List<Node> children = owner.children();
         for (int i = 0; i < children.size(); i++) {
-            if (children.get(i) instanceof Element o && o.tag().equals("option")
+            if (children.get(i) instanceof Element o && o.type().facet(FormFacet.KEY).option()
                     && (value == null || value.equals(optionValue(o)))) {
                 return o;
             }

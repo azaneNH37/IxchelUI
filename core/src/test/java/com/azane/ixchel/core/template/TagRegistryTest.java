@@ -1,33 +1,59 @@
 package com.azane.ixchel.core.template;
 
+import com.azane.ixchel.core.dom.ElementType;
+import com.azane.ixchel.core.html.NativeElements;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TagRegistryTest {
-    @Test
-    void declareSkipsCommentsAndBlankLinesAndRegistersAttributesAndPayloads() {
-        TagRegistry tags = TagRegistry.HTML.extend().declare("""
-                # native elements
+    /** Stands in for an adapter interface such as the mc layer's painter. */
+    interface Painter<T> extends NativePayload<T> {
+    }
 
-                mc-item payload=item accepts=java.lang.String attrs=count
-                   # indented comment
-                mc-slot attrs=index,size
-                """, "tags.txt").build();
-        assertEquals(Set.of("count"), tags.attributes("mc-item"));
-        assertEquals("item", tags.payloadAttribute("mc-item"));
-        assertEquals(List.of("java.lang.String"), tags.payloadTypes("mc-item"));
-        assertEquals(Set.of("index", "size"), tags.attributes("mc-slot"));
-        assertEquals(TagRegistry.HTML.tags().size() + 2, tags.tags().size());
+    @NativeElement(tag = "x-item", payload = "item", attributes = "count")
+    static final class Item implements Painter<String> {
+    }
+
+    @NativeElement(tag = "x-lines", payload = "item", lines = true)
+    static final class Lines implements NativePayload<Integer> {
+    }
+
+    @NativeElement(tag = "x-slot", attributes = "index")
+    static final class Slot {
+    }
+
+    @NativeElement(tag = "x-bad", payload = "item")
+    static final class PayloadWithoutType {
+    }
+
+    @NativeElement(tag = "x-bad")
+    static final class TypeWithoutPayload implements NativePayload<String> {
     }
 
     @Test
-    void declareRejectsAnUnknownField() {
-        TagRegistry.Builder b = TagRegistry.HTML.extend();
-        assertThrows(IllegalArgumentException.class, () -> b.declare("mc-item colour=red", "tags.txt"));
+    void declareReadsTheTagAttributesAndPayloadTypeThroughAnAdapterInterface() {
+        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend()
+                .add(NativeElements.declare(Item.class)).add(NativeElements.declare(Lines.class))
+                .add(NativeElements.declare(Slot.class)).build();
+        ElementType item = tags.type("x-item");
+        assertEquals("item", item.payload());
+        assertEquals(String.class, item.payloadType());
+        assertEquals(Set.of("count"), item.attributes());
+        assertEquals(Integer.class, tags.type("x-lines").payloadType());
+        ElementType slot = tags.type("x-slot");
+        assertNull(slot.payload());
+        assertEquals(Set.of("index"), slot.attributes());
+    }
+
+    @Test
+    void declareRejectsAPayloadWithoutItsTypeAndTheOtherWayRound() {
+        assertThrows(IllegalArgumentException.class, () -> NativeElements.declare(PayloadWithoutType.class));
+        assertThrows(IllegalArgumentException.class, () -> NativeElements.declare(TypeWithoutPayload.class));
+        assertThrows(IllegalArgumentException.class, () -> NativeElements.declare(String.class));
     }
 }

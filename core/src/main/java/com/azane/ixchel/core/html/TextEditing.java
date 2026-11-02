@@ -1,6 +1,8 @@
-package com.azane.ixchel.core.event;
+package com.azane.ixchel.core.html;
 
 import com.azane.ixchel.core.dom.TextField;
+import com.azane.ixchel.core.event.Clipboard;
+import com.azane.ixchel.core.event.Keys;
 
 /**
  * Default actions of a focused {@code <input>}: caret movement, selection, deletion, the clipboard

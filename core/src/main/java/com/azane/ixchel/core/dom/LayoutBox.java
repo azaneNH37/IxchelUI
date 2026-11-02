@@ -89,6 +89,14 @@ public final class LayoutBox {
         paddingLeft = left;
     }
 
+    public float contentWidth() {
+        return width - borderLeft - paddingLeft - paddingRight - borderRight;
+    }
+
+    public float contentHeight() {
+        return height - borderTop - paddingTop - paddingBottom - borderBottom;
+    }
+
     public float paddingTop() {
         return paddingTop;
     }

@@ -23,7 +23,7 @@ class SchemaTest {
 
         Schema.Tag item = tag(schema, "mc-item");
         assertEquals("item", item.payload());
-        assertEquals(List.of("java.lang.Integer"), item.payloadTypes());
+        assertEquals("java.lang.Integer", item.payloadType());
         assertFalse(item.containerOnly());
         assertTrue(tag(schema, "mc-slot").containerOnly());
         assertTrue(tag(schema, "mc-slot").attributes().contains("index"));

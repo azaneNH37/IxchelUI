@@ -59,7 +59,7 @@ public final class Element extends Node {
     /** Only meaningful on the top element of a tree: some element below is {@link #SCROLLED}. */
     private static final int SCROLL_PENDING = 1 << 5;
 
-    private final String tag;
+    private final ElementType type;
     private final List<Node> children = new ArrayList<>();
     private final List<Node> childrenView = Collections.unmodifiableList(children);
     private final Set<String> classes = new LinkedHashSet<>();
@@ -86,13 +86,17 @@ public final class Element extends Node {
     private record Registration(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
     }
 
-    public Element(String tag, SourcePos pos) {
+    public Element(ElementType type, SourcePos pos) {
         super(pos);
-        this.tag = tag;
+        this.type = type;
+    }
+
+    public ElementType type() {
+        return type;
     }
 
     public String tag() {
-        return tag;
+        return type.tag();
     }
 
     /**
@@ -102,8 +106,7 @@ public final class Element extends Node {
     public FormControl control() {
         if (!controlResolved) {
             controlResolved = true;
-            FormControl.Kind kind = tag.equals("select") ? FormControl.Kind.SELECT
-                    : tag.equals("input") ? FormControl.Kind.ofInputType(attributes.get("type")) : null;
+            FormControl.Kind kind = type.facet(FormFacet.KEY).kind(this);
             control = kind == null ? null : new FormControl(this, kind);
         }
         return control;
@@ -131,22 +134,24 @@ public final class Element extends Node {
 
     /** An open dialog, the shown tooltip or drag preview, or an option of an open select: laid out against the viewport. */
     public boolean isPlaced() {
-        return rendersInTopLayer() ? hasState(OPEN)
-                : tag.equals("option") && parent != null && parent.tag.equals("select") && parent.hasState(OPEN);
+        if (rendersInTopLayer()) return hasState(OPEN);
+        if (parent == null || !parent.hasState(OPEN)) return false;
+        LayerFacet layer = parent.type.facet(LayerFacet.KEY);
+        return !layer.selfContent() && layer.contains(parent, this);
     }
 
     /**
-     * Whether the element is content of the {@link TopLayer} rather than of its parent's flow: a
-     * {@code <dialog>}, an {@code <ix-tooltip>} or an {@code <ix-drag-preview>}. Layout, paint, hit
+     * Whether the element is content of the {@link TopLayer} rather than of its parent's flow: its
+     * presentation hides it in normal flow. Layout, paint, hit
      * testing and focus order skip it where it sits in the tree.
      */
     public boolean rendersInTopLayer() {
-        return tag.equals("dialog") || isShownAtPointer();
+        return type.facet(LayerFacet.KEY).hiddenInFlow();
     }
 
-    /** An {@code <ix-tooltip>} or {@code <ix-drag-preview>}: shown by itself at the pointer, in a layout tree of its own. */
+    /** A tooltip or drag preview: shown by itself at the pointer, in a layout tree of its own. */
     public boolean isShownAtPointer() {
-        return tag.equals(TopLayer.TOOLTIP) || tag.equals(TopLayer.DRAG_PREVIEW);
+        return type.facet(LayerFacet.KEY).atPointer();
     }
 
     /** Unmodifiable live view. */
@@ -184,7 +189,7 @@ public final class Element extends Node {
         if (child instanceof Element e) {
             for (Element a = this; a != null; a = a.parent) {
                 if (a == e) {
-                    throw new IllegalArgumentException("<" + e.tag + "> cannot become its own descendant");
+                    throw new IllegalArgumentException(e.type + " cannot become its own descendant");
                 }
             }
         }
@@ -206,7 +211,7 @@ public final class Element extends Node {
 
     public void removeChild(Node child) {
         if (child.parent != this) {
-            throw new IllegalArgumentException("not a child of <" + tag + ">");
+            throw new IllegalArgumentException("not a child of " + type);
         }
         children.remove(child);
         child.parent = null;
@@ -215,7 +220,7 @@ public final class Element extends Node {
 
     @Override
     public Element copyTemplate() {
-        Element e = new Element(tag, pos());
+        Element e = new Element(type, pos());
         e.classes.addAll(classes);
         e.attributes.putAll(attributes);
         if (attributes.containsKey("disabled")) {
@@ -341,11 +346,7 @@ public final class Element extends Node {
         if ((stateBits & bit) != 0) {
             return true;
         }
-        if (bit == CHECKED && tag.equals("option") && parent != null) {
-            FormControl c = parent.control();
-            return c != null && c.kind() == FormControl.Kind.SELECT && c.selectedOption() == this;
-        }
-        return false;
+        return bit == CHECKED && type.facet(FormFacet.KEY).checked(this);
     }
 
     public void setState(int bit, boolean on) {

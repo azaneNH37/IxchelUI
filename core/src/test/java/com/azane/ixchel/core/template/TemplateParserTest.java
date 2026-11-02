@@ -39,7 +39,7 @@ class TemplateParserTest {
             source = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
         Diagnostics diag = new Diagnostics();
-        Template t = TemplateParser.parse(source, "hud.html", TagRegistry.HTML, diag);
+        Template t = TemplateParser.parse(source, "hud.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertTrue(diag.entries().isEmpty(), diag.entries().toString());
         assertEquals(1, t.roots().size());
         Element hand = el(t.roots().get(0));
@@ -65,21 +65,21 @@ class TemplateParserTest {
     @Test
     void mismatchedCloseTagIsReportedAtTheClosingTag() {
         Diagnostics diag = new Diagnostics();
-        TemplateParser.parse("<div>\n  <span>x</div>\n</div>", "t.html", TagRegistry.HTML, diag);
+        TemplateParser.parse("<div>\n  <span>x</div>\n</div>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertEquals("template/mismatched-closing-tag@t.html:2:10", DiagCodes.of(diag.entries().get(0)));
     }
 
     @Test
     void unquotedAttributeValueIsAnError() {
         Diagnostics diag = new Diagnostics();
-        TemplateParser.parse("<div class=hand></div>", "t.html", TagRegistry.HTML, diag);
+        TemplateParser.parse("<div class=hand></div>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertEquals(List.of("template/unquoted-attribute@t.html:1:6"), DiagCodes.of(diag));
     }
 
     @Test
     void unknownTagAndUnknownAttributeAreBothReported() {
         Diagnostics diag = new Diagnostics();
-        Template t = TemplateParser.parse("<div onclick=\"x\"><marquee>go</marquee></div>", "t.html", TagRegistry.HTML, diag);
+        Template t = TemplateParser.parse("<div onclick=\"x\"><marquee>go</marquee></div>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertEquals(List.of("template/unknown-attribute@t.html:1:6", "template/unknown-tag@t.html:1:18"), DiagCodes.of(diag));
         assertTrue(el(t.roots().get(0)).children().isEmpty());
     }
@@ -87,21 +87,21 @@ class TemplateParserTest {
     @Test
     void entitiesAreDecodedInTextAndAttributes() {
         Diagnostics diag = new Diagnostics();
-        Template t = TemplateParser.parse("<span id=\"a&amp;b&#x41;\">&lt;3 &#65;&quot;</span>", "t.html", TagRegistry.HTML, diag);
+        Template t = TemplateParser.parse("<span id=\"a&amp;b&#x41;\">&lt;3 &#65;&quot;</span>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertFalse(diag.hasErrors(), diag.entries().toString());
         Element span = el(t.roots().get(0));
         assertEquals("a&bA", span.attribute("id"));
         assertEquals("<3 A\"", text(span.children().get(0)));
 
         Diagnostics bad = new Diagnostics();
-        TemplateParser.parse("<span>a &nbsp; b</span>", "t.html", TagRegistry.HTML, bad);
+        TemplateParser.parse("<span>a &nbsp; b</span>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, bad);
         assertEquals(List.of("template/invalid-character-reference@t.html:1:9"), DiagCodes.of(bad));
     }
 
     @Test
     void styleContentIsCapturedRawWithStartPosition() {
         Diagnostics diag = new Diagnostics();
-        Template t = TemplateParser.parse("<style>\n  .a { color: red; }\n</style>\n<div/>", "t.html", TagRegistry.HTML, diag);
+        Template t = TemplateParser.parse("<style>\n  .a { color: red; }\n</style>\n<div/>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertFalse(diag.hasErrors(), diag.entries().toString());
         assertEquals(1, t.roots().size());
         Template.Inline s = (Template.Inline) t.styles().get(0);
@@ -117,7 +117,7 @@ class TemplateParserTest {
                 <style>.a {}</style>
                 <div/>
                 <link rel="stylesheet" href="../b.css"/>
-                """, "t.html", TagRegistry.HTML, diag);
+                """, "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertFalse(diag.hasErrors(), diag.entries().toString());
         assertEquals(1, t.roots().size());
         assertEquals(List.of(new Template.Link("a.css", new SourcePos("t.html", 1, 1)),
@@ -125,7 +125,7 @@ class TemplateParserTest {
                 new Template.Link("../b.css", new SourcePos("t.html", 4, 1))), t.styles());
 
         Diagnostics nested = new Diagnostics();
-        Template n = TemplateParser.parse("<div><link rel=\"stylesheet\" href=\"a.css\"/></div>", "t.html", TagRegistry.HTML, nested);
+        Template n = TemplateParser.parse("<div><link rel=\"stylesheet\" href=\"a.css\"/></div>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, nested);
         assertEquals(List.of("template/misplaced-element@t.html:1:6"), DiagCodes.of(nested));
         assertTrue(n.styles().isEmpty());
         assertTrue(el(n.roots().get(0)).children().isEmpty());
@@ -138,7 +138,7 @@ class TemplateParserTest {
                 <div><input> <ix-tooltip>a</ix-tooltip> </input>
                 <select><ix-tooltip>b</ix-tooltip><option value="x">X</option></select>
                 <img src="a.png"><ix-tooltip>c</ix-tooltip></img></div>
-                """, "t.html", TagRegistry.HTML, ok);
+                """, "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, ok);
         assertFalse(ok.hasErrors(), ok.entries().toString());
 
         Diagnostics bad = new Diagnostics();
@@ -147,7 +147,7 @@ class TemplateParserTest {
                 <div><ix-tooltip><span><ix-tooltip>nested</ix-tooltip></span></ix-tooltip></div>
                 <img src="a.png"><span>x</span></img>
                 <select><for each="xs" as="x" key="x"><ix-tooltip>c</ix-tooltip></for></select>
-                """, "t.html", TagRegistry.HTML, bad);
+                """, "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, bad);
         assertEquals(List.of("template/misplaced-element@t.html:1:1", "template/misplaced-element@t.html:2:24",
                 "template/invalid-children@t.html:3:18", "template/invalid-children@t.html:4:1"), DiagCodes.of(bad));
     }
@@ -156,7 +156,7 @@ class TemplateParserTest {
     void whitespaceCollapsesAndIsKeptOnlyBetweenSiblings() {
         Diagnostics diag = new Diagnostics();
         Template t = TemplateParser.parse("<div>\n  <span>  a \n\t b  </span>\n  <span>c</span>\n</div>\n<div></div>",
-                "t.html", TagRegistry.HTML, diag);
+                "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertEquals(2, t.roots().size(), "whitespace between top-level nodes is dropped");
         Element div = el(t.roots().get(0));
         assertEquals(3, div.children().size(), "leading and trailing whitespace is dropped, the gap stays");
@@ -169,7 +169,7 @@ class TemplateParserTest {
     @Test
     void bindAttributesWithSeveralColonsKeepNameAndValuePositions() {
         Diagnostics diag = new Diagnostics();
-        Template t = TemplateParser.parse("<div class=\"ammo\"\n     bind:class:empty=\"isEmpty\"></div>", "t.html", TagRegistry.HTML, diag);
+        Template t = TemplateParser.parse("<div class=\"ammo\"\n     bind:class:empty=\"isEmpty\"></div>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertFalse(diag.hasErrors(), diag.entries().toString());
         Element div = el(t.roots().get(0));
         assertEquals(List.of(new Directive("bind:class:empty", "isEmpty",
@@ -179,14 +179,14 @@ class TemplateParserTest {
 
     @Test
     void hostRegisteredTagParsesWhileUnregisteredOnesStillFail() {
-        TagRegistry tags = TagRegistry.HTML.extend().tag("item", "count").build();
+        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.dom.ElementType.plain("item", "count")).build();
         Diagnostics diag = new Diagnostics();
         Template t = TemplateParser.parse("<item count=\"3\"/><item stack=\"x\"/>", "t.html", tags, diag);
         assertEquals("3", el(t.roots().get(0)).attribute("count"));
         assertEquals(List.of("template/unknown-attribute@t.html:1:24"), DiagCodes.of(diag));
 
         Diagnostics plain = new Diagnostics();
-        TemplateParser.parse("<item/>", "t.html", TagRegistry.HTML, plain);
+        TemplateParser.parse("<item/>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, plain);
         assertEquals(List.of("template/unknown-tag@t.html:1:1"), DiagCodes.of(plain));
     }
 }

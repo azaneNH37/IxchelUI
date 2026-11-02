@@ -13,8 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class UiDocumentBorderTest {
     private static UiDocument load(String html, String css) {
-        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
-                GoldenTest.MONO, GoldenTest.NO_IMAGES);
+        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES);
     }
 
     @Test

@@ -4,6 +4,8 @@ import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.core.template.NativePayload;
+import com.azane.ixchel.core.template.TagRegistry;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -53,7 +55,8 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     private enum Batch { NONE, COLOR, TEXTURE, TEXT }
 
     private final Font font;
-    private final Map<String, NativePainter> natives;
+    private final TagRegistry tags;
+    private final Map<String, NativePainter<?>> natives;
     private final Map<String, ResourceLocation> textures = new HashMap<>();
     private final Matrix4f textMatrix = new Matrix4f();
     private final Matrix4f local = new Matrix4f();
@@ -72,9 +75,13 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     private float pointerX = Float.NaN;
     private float pointerY = Float.NaN;
 
-    /** @param natives the painter of each native element kind ({@code DrawCommand.Custom#kind}) */
-    public McPainter(Font font, Map<String, NativePainter> natives) {
+    /**
+     * @param tags    the types of the native elements, whose payload types {@code natives} are handed
+     * @param natives the painter of each native element kind ({@code DrawCommand.Custom#kind})
+     */
+    public McPainter(Font font, TagRegistry tags, Map<String, NativePainter<?>> natives) {
         this.font = font;
+        this.tags = tags;
         this.natives = Map.copyOf(natives);
     }
 
@@ -166,12 +173,17 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         return null;
     }
 
-    /** @throws IllegalStateException for a kind without a painter */
+    /** @throws IllegalStateException for a kind without a painter, or a payload value of another type */
     @Override
+    @SuppressWarnings("unchecked")
     public Void visitCustom(DrawCommand.Custom c) {
-        NativePainter p = natives.get(c.kind());
+        NativePainter<Object> p = (NativePainter<Object>) natives.get(c.kind());
         if (p == null) {
             throw new IllegalStateException("no painter for native element <" + c.kind() + ">");
+        }
+        Object value = NativePayload.valueOf(c.payload(), tags.type(c.kind()));
+        if (value == null) {
+            return null;
         }
         flush();
         boolean transformed = transform != Affine.IDENTITY;
@@ -181,7 +193,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         }
         bounds(c.x(), c.y(), c.x() + c.width(), c.y() + c.height());
         float z = layers.level(bx0, by0, bx1, by1);
-        layers.add(bx0, by0, bx1, by1, z + p.paint(graphics, c, z, pointerX, pointerY));
+        layers.add(bx0, by0, bx1, by1, z + p.paint(graphics, c, value, z, pointerX, pointerY));
         if (transformed) {
             graphics.pose().popPose();
         }

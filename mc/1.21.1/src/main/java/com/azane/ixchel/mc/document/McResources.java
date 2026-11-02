@@ -86,12 +86,6 @@ final class McResources {
         return readPacked(resources, ResourceLocation.fromNamespaceAndPath(hostModId, path));
     }
 
-    /** The packed file at {@code path}, or {@code null} when the host has none. */
-    public String readIfPresent(ResourceManager resources, String path) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(hostModId, path);
-        return resources.getResource(id).isPresent() ? readPacked(resources, id) : null;
-    }
-
     private static String readPacked(ResourceManager resources, ResourceLocation id) {
         try (InputStream in = resources.getResourceOrThrow(id).open()) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);

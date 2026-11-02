@@ -35,7 +35,7 @@ class UiDocumentQueryTest {
                 </div>
                 <if test="open"><div id="panel"><span id="inner" class="row"></span></div></if>
                 <span id="last" class="row"></span>
-                """, "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
+                """, "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         doc.frame(100, 100);
         assertEquals("span span last", names(doc.querySelectorAll(".row")));
         assertEquals("span span", names(doc.querySelectorAll(".list > .row")));
@@ -49,7 +49,7 @@ class UiDocumentQueryTest {
 
     @Test
     void invalidSelectorThrows() {
-        UiDocument doc = UiDocument.load("<div></div>", "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML, GoldenTest.MONO,
+        UiDocument doc = UiDocument.load("<div></div>", "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO,
                 GoldenTest.NO_IMAGES);
         assertThrows(IllegalArgumentException.class, () -> doc.querySelectorAll("div >"));
     }

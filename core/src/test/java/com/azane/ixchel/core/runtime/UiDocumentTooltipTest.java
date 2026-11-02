@@ -27,8 +27,7 @@ class UiDocumentTooltipTest {
                 <if test="shown"><button class="b">go<ix-tooltip class="tip"><span bind:text="hint"></span></ix-tooltip></button></if></div>
                 <div class="after"></div>
                 """), "t.html", GoldenTest.sheet(".list { height: 30px; overflow: auto } .pad { height: 18px; flex-shrink: 0 }"
-                + " .b { padding: 0; border-style: none; height: 9px } .after { height: 40px }"), TagRegistry.HTML,
-                GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
+                + " .b { padding: 0; border-style: none; height: 9px } .after { height: 40px }"), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
     }
 
     private static Element one(UiDocument doc, String selector) {

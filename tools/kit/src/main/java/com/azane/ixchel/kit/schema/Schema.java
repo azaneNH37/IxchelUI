@@ -4,6 +4,7 @@ import com.azane.ixchel.core.binding.ModelShape;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.PropertyDef;
+import com.azane.ixchel.core.dom.ElementType;
 import com.azane.ixchel.core.runtime.LibrarySheets;
 import com.azane.ixchel.core.template.ComponentDef;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -31,10 +32,11 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
     /**
      * @param attributes  the plain attributes the tag accepts, global ones included
      * @param payload     the attribute a native element's payload is bound to, or {@code null}
-     * @param payloadTypes the types the payload accepts, empty when unchecked or not a native element
+     * @param payloadType  the payload's type (a binding may also hand a {@code Supplier} of it), or
+     *                     {@code null} when unchecked or not a native element
      * @param containerOnly whether only container screens accept the tag
      */
-    public record Tag(String name, List<String> attributes, String payload, List<String> payloadTypes,
+    public record Tag(String name, List<String> attributes, String payload, String payloadType,
                       boolean containerOnly) {
     }
 
@@ -78,16 +80,15 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
         TagRegistry registry = elements.tags();
         List<Tag> tags = new ArrayList<>();
         for (String name : new TreeSet<>(registry.tags())) {
-            Set<String> attributes = new TreeSet<>();
-            if (name.equals("link")) {
-                attributes.addAll(TagRegistry.LINK_ATTRIBUTES);
-            } else if (!name.equals("style")) {
-                attributes.addAll(TagRegistry.GLOBAL_ATTRIBUTES);
-                attributes.addAll(registry.attributes(name));
-            }
-            tags.add(new Tag(name, List.copyOf(attributes), registry.payloadAttribute(name),
-                    registry.payloadTypes(name), elements.containerOnly().contains(name)));
+            ElementType type = registry.type(name);
+            Set<String> attributes = new TreeSet<>(type.attributes());
+            attributes.addAll(TagRegistry.GLOBAL_ATTRIBUTES);
+            tags.add(new Tag(name, List.copyOf(attributes), type.payload(),
+                    type.payloadType() == null ? null : type.payloadType().getName(), elements.containerOnly().contains(name)));
         }
+        com.azane.ixchel.core.template.TemplateParser.RESOURCE_TAGS.forEach((name, attrs) ->
+                tags.add(new Tag(name, attrs.stream().sorted().toList(), null, null, false)));
+        tags.sort(Comparator.comparing(Tag::name));
         List<Property> properties = new ArrayList<>();
         for (PropertyDef<?> p : CssProperties.REGISTRY.all()) {
             properties.add(new Property(p.name(), p.inherited(), p.animatable()));
@@ -138,7 +139,7 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("tags", tags.stream().map(t -> object(
                 "name", t.name(), "attributes", t.attributes(), "payload", t.payload(),
-                "payloadTypes", t.payloadTypes(), "containerOnly", t.containerOnly())).toList());
+                "payloadType", t.payloadType(), "containerOnly", t.containerOnly())).toList());
         out.put("librarySheets", librarySheets.stream().map(s -> object(
                 "name", s.name(), "variables", s.variables())).toList());
         out.put("cssProperties", properties.stream().map(p -> object(
@@ -164,8 +165,8 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
             sb.append("  <").append(t.name()).append('>');
             if (t.payload() != null) {
                 sb.append(" payload=").append(t.payload());
-                if (!t.payloadTypes().isEmpty()) {
-                    sb.append(" (").append(String.join(" | ", t.payloadTypes())).append(')');
+                if (t.payloadType() != null) {
+                    sb.append(" (").append(t.payloadType()).append(" or a Supplier of one)");
                 }
             }
             if (t.containerOnly()) {

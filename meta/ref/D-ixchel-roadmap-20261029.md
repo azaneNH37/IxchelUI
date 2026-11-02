@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3；接下来是 V1–V3（盒子外观、尺寸与排版、动画），然后 U4（组件库）、FX1–FX3；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3，以及原生声明与元素定义重构 N1–N2；接下来是 V1–V3（盒子外观、尺寸与排版、动画），然后 U4（组件库）、FX1–FX3；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -43,6 +43,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | U1 | 完成 | S7、S4 | `text-shadow`、`<for index>`、默认点击音、滚动条拖动与外观 |
 | U2 | 完成 | S7、S6 | 拖拽：`draggable`、`dragstart`/`drag`/`dragend`/`drop`、`<ix-drag-preview>` |
 | U3 | 完成 | — | 宿主自定义原生元素入口（#030） |
+| N1–N2 | 完成 | — | 原生声明随实现类注册；元素定义按消费阶段切面组合（#030、#031），结果见下文 |
 | V1 | 待做 | — | `::before`/`::after`、`border-image`、`border-radius`（只做圆角外观）、`box-shadow`、线性渐变、`:not`/`:is`/`:where` |
 | V2 | 待做 | — | `calc()`、em、`line-height`、`align-content`、grid、放宽 `display: block` 含块级子元素的限制 |
 | V3 | 待做 | — | `@keyframes`、`@starting-style`、`<if>`/`<for>` 的 `leave` |
@@ -162,7 +163,13 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 目标：宿主用 Java 写新标签，模板中与内置元素同样使用，绘制由宿主负责。
 - 宿主与库经重定位处在同一份类中，宿主代码可以直接实现库接口；#004 约束的是其它 mod。
 - 验收：sample 加一个宿主原生元素，kit lint 能识别其标签与载荷类型；两版 mc 同改。
-- 结果（2026-11-02）：见 #030。声明写在 `assets/<modid>/ui/elements.txt`，格式同 `TagRegistry.Builder.declare`；绘制由 `McElements.registerPainter(modid, tag, painter)` 注册；`HostedDocument` 按模板 namespace 合并。kit 读项目各 namespace 的同名文件。sample 为 `<sample-gauge bind:fraction>`（tooltips 页）；把载荷绑到 `String` 时 lint 报 `binding/payload-type` 且位置正确，截图确认填充比例与渐变。`-Pplaytest=all` 13 个测试项 201 项通过；1.21.1 同改，经 `build` 编译，`runClient` 到资源加载完成无报错，未进世界，也未跑宿主原生元素（1.21.1 sample 没有这类元素）。
+- 结果（2026-11-02）：宿主入口与 kit 类型检查已完成，声明形态由下面的 N1 替换。sample 为 `<sample-gauge bind:fraction>`（tooltips 页）；把载荷绑到 `String` 时 lint 报 `binding/payload-type` 且位置正确，截图确认填充比例与渐变。
+
+#### N1–N2 原生声明与元素定义重构
+
+- N1：原生标签、属性与载荷名由实现类的 `@NativeElement` 声明，载荷类型取 `NativePayload<T>` 泛型；宿主调用 `McElements.register(modid, painter)` 一次注册，kit 不初始化宿主类即可读取同一声明（#030）。两版 mc、容器槽位、sample 与 kit 一起迁移，删除资源声明文件与旧注册入口。
+- N2：按已定的切面组合方案完成（#031）；复杂元素的校验、测量、绘制与默认交互归同一元素定义，select/option 为一个单元。阶段不再按闭合元素种类分支；DOM 不依赖流水线实现。宿主自定义 interaction/layout 暂不开放。动机与包边界见模块拆解 §2，声明适配见工具文档 §5。
+- 验证（2026-11-02）：全量 `build`、core/kit 测试与两版 sample lint 通过。Forge `-Pplaytest=all`：13 个测试项、201 项断言通过，0 失败；检查了 select 弹层与宿主 gauge 截图。NeoForge 1.21.1 经临时入口实际打开 `UiScreen`，验证文本编辑、checkbox、双向绑定、select 弹层及键盘选择、dialog 模态显示、Escape 关闭回写；截图确认原生物品、下拉层与模态遮罩。首次启动停在无障碍引导页，修正临时入口后完成冒烟；入口和临时资源已移除。未进入世界，未新增 1.21.1 永久 playtest。
 
 #### V1 盒子外观
 
@@ -211,7 +218,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - 静态入口是 core 的 `UiDocument.check(template, file, files, tags, shape)`，用占位值编译、不写值、不排版；排版期错误（如 `layout/inline-box-property`）不在 lint 范围。
   - 模板 id 匹配放在 `UiTemplate.Ids`（`*` 不跨 `/` 与 `:`）；挂载点经包内 `mc.DeclaredTemplate` 取唯一具体 id，类上只有通配时须显式传 id（`GuideScreen`）。
   - 没有注解认领的页面不是只做结构检查，而是以空成员表完整检查后去掉 `binding/unknown-name`，另报 `model/unassociated-template`；组件文件按页面链接找出，不单独当页面。孤立（无人链接）的组件文件按页面检查，报 `template/misplaced-element`。
-  - `<mc-slot>` 声明在 `container/elements.txt` 单独成文件，不用 `host=` 字段；kit 记录哪些标签只属于容器界面。
+  - `<mc-slot>` 的容器限定现由 `ContainerLayout` 类上的 `@NativeElement(containerOnly = true)` 声明（N1），kit 记录哪些标签只属于容器界面。
   - `bind:<参数>` 编译失败时不再连带报 `binding/missing-parameter`（kit 冒烟时暴露的连锁误报）。
   - kit 不用 JavaExec 的 classpath 加载宿主类：ModDevGradle 打过补丁的 Forge jar 保留原签名，JDK 加载器报 SHA-384 digest error；改为 classpath 只放 kit，宿主运行时 classpath 经 `--classpath` 传入自建的不校验签名的加载器（父优先，core 类型不重复）。
   - schema 列出标签与载荷类型、longhand 与 shorthand、库样式表及其 `--ix-*` 变量（为此公开 `PropertyRegistry.shorthands()`、`LibrarySheets.names()`/`themeVariables()`）、组件、ViewModel 成员表；CSS 取值语法暂无公开描述，未列出。

@@ -1,14 +1,17 @@
 package com.azane.ixchel.kit.project;
 
 import com.azane.ixchel.core.binding.UiTemplate;
+import com.azane.ixchel.core.template.NativeElement;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -24,6 +27,10 @@ import java.util.stream.Stream;
  */
 public final class Project {
     private static final String ASSETS = "assets";
+
+    /** A class of the mc layer: where the library's own declared elements are found on the classpath. */
+    private static final String MC_LAYER_CLASS = "com/azane/ixchel/mc/element/McElements.class";
+    private static final String MC_LAYER_PACKAGES = "com/azane/ixchel/mc/";
 
     private final List<Path> resources;
     private final List<Path> classes;
@@ -178,6 +185,42 @@ public final class Project {
             }
         }
         out.sort((a, b) -> a.type().getName().compareTo(b.type().getName()));
+        return out;
+    }
+
+    /**
+     * Every class carrying {@link NativeElement}: those under the classes directories, then those of
+     * the mc layer on the classpath (each copy of it counted once), loaded without initialization, in
+     * class name order.
+     *
+     * @throws IllegalStateException if such a class cannot be loaded from the classpath
+     */
+    public List<Class<?>> elementClasses() {
+        Set<String> names = new TreeSet<>();
+        List<Path> roots = new ArrayList<>(classes);
+        int own = roots.size();
+        try {
+            Enumeration<URL> urls = loader.getResources(MC_LAYER_CLASS);
+            while (urls.hasMoreElements()) {
+                roots.add(ClassFiles.root(urls.nextElement(), MC_LAYER_CLASS));
+            }
+            for (int i = 0; i < roots.size(); i++) {
+                ClassFiles.scan(roots.get(i), i < own ? "" : MC_LAYER_PACKAGES, (name, bytes) -> {
+                    if (ClassFiles.mentions(bytes, NativeElement.class)) {
+                        names.add(name);
+                    }
+                });
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("cannot read classes: " + e.getMessage(), e);
+        }
+        List<Class<?>> out = new ArrayList<>();
+        for (String name : names) {
+            Class<?> type = load(name);
+            if (type.isAnnotationPresent(NativeElement.class)) {
+                out.add(type);
+            }
+        }
         return out;
     }
 

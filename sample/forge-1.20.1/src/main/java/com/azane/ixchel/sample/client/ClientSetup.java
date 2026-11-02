@@ -35,7 +35,7 @@ public final class ClientSetup {
     /** Client only; from the mod constructor. */
     public static void init(FMLJavaModLoadingContext context) {
         IEventBus modBus = context.getModEventBus();
-        McElements.registerPainter(IxchelSampleMod.MOD_ID, GaugeElement.TAG, new GaugeElement());
+        McElements.register(IxchelSampleMod.MOD_ID, new GaugeElement());
         modBus.addListener(KeyBindings::register);
         modBus.addListener((FMLClientSetupEvent e) -> e.enqueueWork(() -> {
             MachineScreen.registerScreen();

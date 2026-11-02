@@ -1,2 +1,0 @@
-# Test declarations standing in for the mc layer's.
-mc-item payload=item accepts=java.lang.Integer

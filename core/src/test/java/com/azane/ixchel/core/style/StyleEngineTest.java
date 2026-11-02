@@ -7,6 +7,7 @@ import com.azane.ixchel.core.css.syntax.CssParser;
 import com.azane.ixchel.core.runtime.DiagCodes;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
+import com.azane.ixchel.core.dom.ElementType;
 import com.azane.ixchel.core.dom.Element;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +27,7 @@ class StyleEngineTest {
     }
 
     private static Element el(Element parent, String tag, String... classes) {
-        Element e = new Element(tag, POS);
+        Element e = new Element(ElementType.plain(tag), POS);
         for (String c : classes) {
             e.addClass(c);
         }
@@ -44,7 +45,7 @@ class StyleEngineTest {
                 div.a { width: 4px }
                 .b { color: #f00 !important }
                 """, diag);
-        Element root = new Element("#root", POS);
+        Element root = new Element(ElementType.plain("#root"), POS);
         Element e = el(root, "div", "a", "b");
         e.setAttribute("id", "x");
         Element f = el(root, "div", "a");
@@ -68,7 +69,7 @@ class StyleEngineTest {
                 .a { height: 4px }
                 [disabled] { min-width: 5px }
                 """, diag);
-        Element root = new Element("#root", POS);
+        Element root = new Element(ElementType.plain("#root"), POS);
         Element e = el(root, "input", "a");
         e.setAttribute("type", "checkbox");
         engine.restyle(root);
@@ -90,7 +91,7 @@ class StyleEngineTest {
                 .warn { color: #ff0 }
                 .warn > span { font-size: 18px }
                 """, diag);
-        Element root = new Element("#root", POS);
+        Element root = new Element(ElementType.plain("#root"), POS);
         Element panel = el(root, "div");
         Element span = el(panel, "span");
         Element sibling = el(root, "div");
@@ -115,7 +116,7 @@ class StyleEngineTest {
                 .list > .item { height: 1px }
                 .item:hover { color: #000 }
                 """, diag);
-        Element root = new Element("#root", POS);
+        Element root = new Element(ElementType.plain("#root"), POS);
         Element list = el(root, "div", "list");
         Element direct = el(list, "div", "item");
         Element nested = el(el(list, "div"), "div", "item");
@@ -137,7 +138,7 @@ class StyleEngineTest {
                 .a + .b { width: 1px }
                 .c { widht: 1px; height: 10; color: #12 }
                 """, diag);
-        Element root = new Element("#root", POS);
+        Element root = new Element(ElementType.plain("#root"), POS);
         Element a = el(root, "div", "a");
         engine.restyle(root);
 
@@ -152,7 +153,7 @@ class StyleEngineTest {
     void boundValuesReplaceTheStyleAttributesDeclarationsButNotImportantRules() {
         Diagnostics diag = new Diagnostics();
         StyleEngine engine = engine(".a { width: 1px; height: 2px !important; color: #f00 }", diag);
-        Element root = new Element("#root", POS);
+        Element root = new Element(ElementType.plain("#root"), POS);
         Element a = el(root, "div", "a");
         a.setInlineStyle(CssParser.parseDeclarations("width: 9px !important; margin: 3px", POS, diag));
         a.setBoundStyle(CssProperties.WIDTH, Length.px(20));
@@ -179,7 +180,7 @@ class StyleEngineTest {
     void replacingTheInlineStyleKeepsOneCompiledEntryPerElement() {
         Diagnostics diag = new Diagnostics();
         StyleEngine engine = engine("", diag);
-        Element root = new Element("#root", POS);
+        Element root = new Element(ElementType.plain("#root"), POS);
         Element a = el(root, "div");
         Element b = el(root, "div");
         b.setInlineStyle(CssParser.parseDeclarations("height: 4px", POS, diag));
@@ -202,7 +203,7 @@ class StyleEngineTest {
                 .fb { width: var(--missing, 5px); background-color: var(--loop, #0f0) }
                 .bad { color: var(--missing); width: var(--fg) }
                 """, diag);
-        Element root = new Element("#root", POS);
+        Element root = new Element(ElementType.plain("#root"), POS);
         Element top = el(root, "div");
         top.setInlineStyle(CssParser.parseDeclarations("color: #0f0", POS, diag));
         Element row = el(top, "div", "row");

@@ -4,6 +4,7 @@ import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.selector.Selector;
 import com.azane.ixchel.core.css.syntax.CssParser;
 import com.azane.ixchel.core.diag.Diagnostics;
+import com.azane.ixchel.core.style.StyleFacet;
 import com.azane.ixchel.core.style.Declarations;
 import com.azane.ixchel.core.style.StyleSheet;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -97,10 +98,12 @@ public final class LibrarySheets {
      * inline elements like {@code <img>}; a column for those with line content, one line per row.
      */
     static List<StyleSheet> nativeElements(TagRegistry tags) {
-        String replaced = tags.tags().stream().filter(tags::isReplaced).sorted().collect(Collectors.joining(", "));
-        String lines = tags.tags().stream().filter(tags::hasLineContent).sorted().collect(Collectors.joining(", "));
-        String css = (replaced.isEmpty() ? "" : replaced + " { display: inline }\n")
-                + (lines.isEmpty() ? "" : lines + " { display: flex; flex-direction: column }\n");
+        StringBuilder declarations = new StringBuilder();
+        for (String tag : new TreeSet<>(tags.tags())) {
+            String style = tags.type(tag).facet(StyleFacet.KEY).declarations();
+            if (!style.isEmpty()) declarations.append(tag).append(" { ").append(style).append(" }\n");
+        }
+        String css = declarations.toString();
         if (css.isEmpty()) {
             return List.of();
         }
@@ -113,6 +116,7 @@ public final class LibrarySheets {
             return sheet;
         }));
     }
+
 
     private static StyleSheet compile(String file) {
         try (InputStream in = LibrarySheets.class.getResourceAsStream(file)) {

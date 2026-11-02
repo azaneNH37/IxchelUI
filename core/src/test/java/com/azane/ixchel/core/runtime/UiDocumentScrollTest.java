@@ -32,8 +32,7 @@ class UiDocumentScrollTest {
             """;
 
     private static UiDocument load(String html, String css) {
-        UiDocument doc = UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css),
-                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
+        UiDocument doc = UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES);
         doc.frame(100, 100);
         return doc;
     }
@@ -219,8 +218,7 @@ class UiDocumentScrollTest {
         UiDocument doc = UiDocument.load("""
                 <link rel="stylesheet" href="t.css"/>
                 <div id="list" on:wheel="swallow"><for each="rows" as="r" key="r"><div bind:text="r"></div></for></div><div id="free"></div>
-                """, "t.html", GoldenTest.sheet(LIST_CSS + "#free { height: 10px }"),
-                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
+                """, "t.html", GoldenTest.sheet(LIST_CSS + "#free { height: 10px }"), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         doc.frame(100, 100);
         return doc;
     }
@@ -291,8 +289,8 @@ class UiDocumentScrollTest {
         Scrolled m = new Scrolled();
         UiDocument doc = UiDocument.load(GoldenTest.linked("""
                 <div id="list" bind:scrolltop="scroll"><for each="rows" as="r" key="r"><div bind:text="r"></div></for></div>
-                """), "t.html", GoldenTest.sheet(LIST_CSS), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES,
-                m, Bindings.PLAIN_TEXT);
+                """), "t.html", GoldenTest.sheet(LIST_CSS), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES,
+        m, Bindings.PLAIN_TEXT);
         doc.frame(100, 100);
         Element list = byId(doc.root(), "list");
         assertEquals(20, list.scrollTop(), "30 is past the 20px range of the first layout");

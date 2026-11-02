@@ -16,7 +16,7 @@ import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.core.dom.FormControl;
+import com.azane.ixchel.core.dom.FormFacet;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
@@ -533,14 +533,7 @@ final class Compiler {
         if (ref == null) {
             return null;
         }
-        FormControl control = shell ? null : e.control();
-        boolean twoWay = switch (target) {
-            case "scrolltop" -> true;
-            case "value" -> control != null && control.kind() != FormControl.Kind.CHECKBOX;
-            case "checked" -> control != null && control.kind() == FormControl.Kind.CHECKBOX;
-            case "open" -> e.tag().equals("dialog");
-            default -> false;
-        };
+        boolean twoWay = target.equals("scrolltop") || !shell && e.type().facet(FormFacet.KEY).binds(e, target);
         if (twoWay) {
             return twoWay(e, a, parsed, ref, target);
         }
@@ -565,11 +558,11 @@ final class Compiler {
             e.appendChild(node);
             return new Binding.Text(ref.cell(), a, diag(), text, node);
         }
-        if (!shell && target.equals(tags.payloadAttribute(e.tag()))) {
-            List<String> accepted = tags.payloadTypes(e.tag());
-            if (!Types.acceptsAny(ref.type(), accepted)) {
+        if (!shell && target.equals(e.type().payload())) {
+            Class<?> accepted = e.type().payloadType();
+            if (!Types.acceptsPayload(ref.type(), accepted)) {
                 diag().report(BindingCode.PAYLOAD_TYPE, a.valuePos(), "<" + e.tag() + "> takes "
-                        + String.join(" or ", accepted) + ", but '" + a.value().trim() + "' is " + ref.type().getTypeName());
+                        + accepted.getName() + " or a Supplier of one, but '" + a.value().trim() + "' is " + ref.type().getTypeName());
                 return null;
             }
             return new Binding.Payload(ref.cell(), a, diag(), e);

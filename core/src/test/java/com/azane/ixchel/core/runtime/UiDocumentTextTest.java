@@ -15,8 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class UiDocumentTextTest {
     private static UiDocument load(String html, String css) {
-        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
-                GoldenTest.MONO, GoldenTest.NO_IMAGES);
+        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES);
     }
 
     private static String frame(String html, String css) {
@@ -111,8 +110,7 @@ class UiDocumentTextTest {
             }
         };
         UiDocument doc = UiDocument.load(GoldenTest.linked("<div><span class=\"u\" bind:text=\"'x'\"></span></div>"),
-                "t.html", GoldenTest.sheet("div { display: block; color: #0f0 } .u { text-decoration: underline }"),
-                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, null, styled);
+                "t.html", GoldenTest.sheet("div { display: block; color: #0f0 } .u { text-decoration: underline }"), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, null, styled);
         assertEquals("""
                 text 0 0 9 #FFFF0000 "ab" flags 5
                 text 14 0 9 #FF00FF00 "cd" flags 20""", GoldenTest.print(doc.frame(100, 100)));

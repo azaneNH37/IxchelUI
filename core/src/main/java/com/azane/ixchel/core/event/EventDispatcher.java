@@ -5,10 +5,9 @@ import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.core.dom.FormControl;
+import com.azane.ixchel.core.dom.LayerFacet;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
-import com.azane.ixchel.core.dom.TextField;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.dom.UiEvent;
 import com.azane.ixchel.core.layout.LayoutEngine;
@@ -62,7 +61,7 @@ import java.util.Map;
  * closing it gives focus back to the element that had it before.
  *
  * <p>Text input: while a text or number {@code <input>} is focused, a key event no listener consumed
- * edits it ({@link TextEditing}), and the input takes every key but Escape and Tab, so host shortcuts
+ * edits it through the element's interaction facet, and the input takes every key but Escape and Tab, so host shortcuts
  * (the inventory key, hotbar numbers) do not act while typing. {@link #charTyped} inserts at the caret
  * (a number field takes only {@code 0-9 . - + e E}); a left press places the caret (with Shift,
  * extends the selection). Up and Down step a number field by {@code step} within
@@ -116,14 +115,11 @@ public final class EventDispatcher {
     /** Open dialogs and the element focused before each opened, in opening order. */
     private final Map<Element, Element> returnFocus = new LinkedHashMap<>();
     private Element focused;
-    /** The focused text field's value when it got focus or last committed, for {@code change}. */
-    private String committed;
     private Element pressed;
     private int pressedButton = -1;
     /** A press that closed a select: its release dispatches nothing either. */
     private boolean swallowed;
     private Element dragging;
-    private String dragStart;
     /** The scroll container whose thumb the left button is dragging, and where on the thumb it holds. */
     private Element scrolling;
     private float grab;
@@ -150,6 +146,16 @@ public final class EventDispatcher {
         }
     };
     private ClickSound clickSound = () -> {
+    };
+
+    private final InteractionFacet.Actions actions = new InteractionFacet.Actions() {
+        @Override public void dispatch(UiEvent e) { EventDispatcher.this.dispatch(e); }
+        @Override public void clickSound(Element e) { EventDispatcher.this.clickSound(e); }
+        @Override public boolean isOpen(Element e) { return top.isOpen(e); }
+        @Override public void open(Element e) { top.open(e); }
+        @Override public void close(Element e) { top.close(e); }
+        @Override public Clipboard clipboard() { return clipboard; }
+        @Override public float textWidth(String text, float size) { return layout.textWidth(text, size); }
     };
 
     /**
@@ -186,19 +192,15 @@ public final class EventDispatcher {
         List<Element> entries = top.entries();
         for (int i = entries.size() - 1; i >= 0; i--) {
             Element entry = entries.get(i);
-            if (entry.tag().equals("dialog")) {
-                Element hit = hit(entry, x, y);
-                return hit == null ? entry : hit;
-            }
-            List<Node> options = entry.children();
-            for (int j = options.size() - 1; j >= 0; j--) {
-                if (options.get(j) instanceof Element o && o.tag().equals("option")) {
-                    Element hit = hit(o, x, y);
-                    if (hit != null) {
-                        return hit;
-                    }
+            LayerFacet presentation = entry.type().facet(LayerFacet.KEY);
+            for (int j = presentation.contentCount(entry) - 1; j >= 0; j--) {
+                Element child = presentation.contentAt(entry, j);
+                if (child != null) {
+                    Element hit = hit(child, x, y);
+                    if (hit != null) return hit;
                 }
             }
+            if (presentation.modal()) return entry;
         }
         Element hit = hit(root, x, y);
         return hit == null ? root : hit;
@@ -241,8 +243,8 @@ public final class EventDispatcher {
         mouseY = y;
         Element target = hitTest(x, y);
         setStatePath(hovered, target, Element.HOVER);
-        if (dragging != null && FormEditing.rangeAt(dragging, localX(dragging, x, y))) {
-            dispatch(UiEvent.of(UiEvent.Type.INPUT, dragging));
+        if (dragging != null) {
+            interaction(dragging).move(dragging, localX(dragging, x, y), actions);
         }
         Scrollbar bar = scrolling == null ? null : Scrollbar.of(scrolling);
         if (bar != null) {
@@ -277,14 +279,15 @@ public final class EventDispatcher {
         mouseMoved(x, y);
         Element target = hitTest(x, y);
         Element list = top.top();
-        if (list != null && list.tag().equals("select") && target.parent() != list) {
+        if (list != null && list.type().facet(LayerFacet.KEY).dismissOutside()
+                && !list.type().facet(LayerFacet.KEY).contains(list, target)) {
             top.remove(list);
             swallowed = true;
             pressed = null;
             pressedButton = -1;
             return true;
         }
-        if (top.isOpen(target) && target.tag().equals("dialog") && !inBox(target, localX(target, x, y), localY)) {
+        if (top.isOpen(target) && target.type().facet(LayerFacet.KEY).modal() && !inBox(target, localX(target, x, y), localY)) {
             // The backdrop: everything under it is inert, and focus stays inside the dialog.
             swallowed = true;
             pressed = null;
@@ -307,21 +310,15 @@ public final class EventDispatcher {
         focus(focusableAncestor(target));
         if (button == 0) {
             setStatePath(active, target, Element.ACTIVE);
-            if (target.textField() != null) {
-                placeCaret(target, localX(target, x, y), (modifiers & Keys.MOD_SHIFT) != 0);
-            }
+            interaction(target).beforePress(target, localX(target, x, y), modifiers, actions);
         }
         pressed = target;
         pressedButton = button;
         UiEvent e = UiEvent.mouse(UiEvent.Type.MOUSE_DOWN, target, x, y, button, modifiers);
         dispatch(e);
-        if (button == 0 && !e.isConsumed() && isKind(target, FormControl.Kind.RANGE)) {
+        if (button == 0 && !e.isConsumed() && interaction(target).press(target, localX(target, x, y), actions)) {
             dragging = target;
-            dragStart = target.control().value();
-            if (FormEditing.rangeAt(target, localX(target, x, y))) {
-                dispatch(UiEvent.of(UiEvent.Type.INPUT, target));
-            }
-        } else if (button == 0 && target.control() == null) {
+        } else if (button == 0 && interaction(target).dragSourceAllowed()) {
             dragCandidate = draggableOf(target);
             pressX = x;
             pressY = y;
@@ -369,7 +366,7 @@ public final class EventDispatcher {
     /** The source's own {@code <ix-drag-preview>} child, or {@code null}. */
     private static Element previewOf(Element source) {
         for (Node n : source.children()) {
-            if (n instanceof Element c && c.tag().equals(TopLayer.DRAG_PREVIEW)) {
+            if (n instanceof Element c && c.type().facet(LayerFacet.KEY).pointer() == LayerFacet.Pointer.DRAG_PREVIEW) {
                 return c;
             }
         }
@@ -430,11 +427,9 @@ public final class EventDispatcher {
             scrolling = null;
             setStatePath(active, root, Element.ACTIVE);
             if (dragging != null) {
-                Element range = dragging;
+                Element captured = dragging;
                 dragging = null;
-                if (!range.control().value().equals(dragStart)) {
-                    dispatch(UiEvent.of(UiEvent.Type.CHANGE, range));
-                }
+                interaction(captured).release(captured, actions);
             }
         }
         if (swallowed) {
@@ -460,7 +455,7 @@ public final class EventDispatcher {
                 dispatch(click);
                 consumed |= click.isConsumed();
                 if (button == 0 && !click.isConsumed()) {
-                    activate(clicked);
+                    interaction(clicked).click(clicked, actions);
                 }
             }
         }
@@ -469,37 +464,6 @@ public final class EventDispatcher {
         return consumed;
     }
 
-    /** The default action of a left click no listener consumed. */
-    private void activate(Element clicked) {
-        FormControl c = clicked.control();
-        if (c != null && c.kind() == FormControl.Kind.CHECKBOX) {
-            FormEditing.toggle(c);
-            clickSound(clicked);
-            commit(clicked);
-        } else if (c != null && c.kind() == FormControl.Kind.SELECT) {
-            open(clicked);
-        } else if (clicked.tag().equals("option") && clicked.parent() != null && top.isOpen(clicked.parent())) {
-            Element select = clicked.parent();
-            String before = select.control().value();
-            select.control().setValue(FormControl.optionValue(clicked));
-            top.close(select);
-            if (!select.control().value().equals(before)) {
-                commit(select);
-            }
-        }
-    }
-
-    /** {@code INPUT} then {@code CHANGE} at {@code control}. */
-    private void commit(Element control) {
-        dispatch(UiEvent.of(UiEvent.Type.INPUT, control));
-        dispatch(UiEvent.of(UiEvent.Type.CHANGE, control));
-    }
-
-    /** Opens a select's list, with the click sound. */
-    private void open(Element select) {
-        top.open(select);
-        clickSound(select);
-    }
 
     private void clickSound(Element control) {
         if (control.computed().get(CssProperties.CLICK_SOUND) == Keywords.ClickSound.AUTO) {
@@ -510,7 +474,7 @@ public final class EventDispatcher {
     /** The nearest {@code <button>} at or above {@code e}, or {@code null}. */
     private Element buttonOf(Element e) {
         for (Element a = e; a != null && a != root; a = a.parent()) {
-            if (a.tag().equals("button")) {
+            if (interaction(a).clickSoundBefore()) {
                 return a;
             }
         }
@@ -519,7 +483,7 @@ public final class EventDispatcher {
 
     public boolean mouseScrolled(float x, float y, double delta) {
         Element list = top.top();
-        if (list != null && list.tag().equals("select")) {
+        if (list != null && list.type().facet(LayerFacet.KEY).dismissOnScroll()) {
             // The list is placed where the select showed at the last layout; a scroll would leave it behind.
             top.remove(list);
         }
@@ -559,96 +523,22 @@ public final class EventDispatcher {
         if (focused == null || key == KEY_ESCAPE) {
             return false;
         }
-        if (focused.tag().equals("button")) {
-            if (key == FormEditing.KEY_SPACE || FormEditing.isEnter(key)) {
-                clickSound(focused);
-                dispatch(UiEvent.mouse(UiEvent.Type.CLICK, focused, Float.NaN, Float.NaN, 0, 0));
-                return true;
-            }
-            return false;
-        }
-        FormControl c = focused.control();
-        if (c == null) {
-            return false;
-        }
-        return switch (c.kind()) {
-            case TEXT, NUMBER -> textKey(c, key, modifiers);
-            case CHECKBOX -> {
-                if (key != FormEditing.KEY_SPACE) {
-                    yield false;
-                }
-                FormEditing.toggle(c);
-                clickSound(focused);
-                commit(focused);
-                yield true;
-            }
-            case RANGE -> {
-                boolean[] changed = new boolean[1];
-                if (!FormEditing.rangeKey(c, key, changed)) {
-                    yield false;
-                }
-                if (changed[0]) {
-                    commit(focused);
-                }
-                yield true;
-            }
-            case SELECT -> selectKey(c, key, modifiers);
-        };
-    }
-
-    private boolean textKey(FormControl c, int key, int modifiers) {
-        TextField field = c.text();
-        if (FormEditing.isEnter(key)) {
-            commitText();
-            return true;
-        }
-        if (c.kind() == FormControl.Kind.NUMBER && (key == FormEditing.KEY_UP || key == FormEditing.KEY_DOWN)) {
-            if (FormEditing.stepNumber(focused, key == FormEditing.KEY_UP ? 1 : -1)) {
-                dispatch(UiEvent.of(UiEvent.Type.INPUT, focused));
-            }
-            return true;
-        }
-        if (TextEditing.key(field, key, modifiers, clipboard, maxLength(focused), c.kind() == FormControl.Kind.NUMBER)) {
-            dispatch(UiEvent.of(UiEvent.Type.INPUT, focused));
-        }
-        return true;
-    }
-
-    private boolean selectKey(FormControl c, int key, int modifiers) {
-        boolean open = top.isOpen(focused);
-        if (key == FormEditing.KEY_UP || key == FormEditing.KEY_DOWN) {
-            if (!open && key == FormEditing.KEY_DOWN && (modifiers & Keys.MOD_ALT) != 0) {
-                open(focused);
-            } else if (FormEditing.stepSelect(c, key == FormEditing.KEY_UP ? -1 : 1)) {
-                commit(focused);
-            }
-            return true;
-        }
-        if (FormEditing.isEnter(key) || key == FormEditing.KEY_SPACE) {
-            if (open) {
-                top.close(focused);
-            } else {
-                open(focused);
-            }
-            return true;
-        }
-        return false;
+        return interaction(focused).key(focused, key, modifiers, actions);
     }
 
     /** Closes the topmost top-layer entry; a dialog dispatches {@code close}. */
     private void closeTop() {
         Element entry = top.top();
         top.close(entry);
-        if (entry.tag().equals("dialog")) {
-            dispatch(UiEvent.of(UiEvent.Type.CLOSE, entry));
-            restoreFocus();
-        }
+        interaction(entry).close(entry, actions);
+        if (entry.type().facet(LayerFacet.KEY).modal()) restoreFocus();
     }
 
     public boolean keyReleased(int key, int modifiers) {
         UiEvent e = UiEvent.key(UiEvent.Type.KEY_UP, focused != null ? focused : root, key, modifiers);
         dispatch(e);
-        return e.isConsumed() || focusedField() != null && key != KEY_ESCAPE && key != UiEvent.KEY_TAB;
+        return e.isConsumed() || focused != null && interaction(focused).capturesKeys(focused)
+                && key != KEY_ESCAPE && key != UiEvent.KEY_TAB;
     }
 
     /**
@@ -656,62 +546,7 @@ public final class EventDispatcher {
      * inserted at the caret of the focused text or number input; whether one took it.
      */
     public boolean charTyped(int codePoint, int modifiers) {
-        TextField field = focusedField();
-        if (field == null) {
-            return false;
-        }
-        boolean numeric = focused.control().kind() == FormControl.Kind.NUMBER;
-        if (TextEditing.insert(field, Character.toString(codePoint), maxLength(focused), numeric)) {
-            dispatch(UiEvent.of(UiEvent.Type.INPUT, focused));
-        }
-        return true;
-    }
-
-    private TextField focusedField() {
-        return focused == null ? null : focused.textField();
-    }
-
-    /** {@code change} at the focused text field if its value moved since it was last committed. */
-    private void commitText() {
-        TextField f = focusedField();
-        if (f != null && !f.value().equals(committed)) {
-            committed = f.value();
-            dispatch(UiEvent.of(UiEvent.Type.CHANGE, focused));
-        }
-    }
-
-    /** The {@code maxlength} attribute, or -1 when absent or not a number. */
-    private static int maxLength(Element input) {
-        String raw = input.attribute("maxlength");
-        if (raw == null) {
-            return -1;
-        }
-        try {
-            return Math.max(0, Integer.parseInt(raw.trim()));
-        } catch (NumberFormatException ex) {
-            return -1;
-        }
-    }
-
-    /** Puts the caret of {@code input} at the character boundary nearest to {@code x}, or extends the selection there. */
-    private void placeCaret(Element input, float x, boolean extend) {
-        TextField field = input.textField();
-        LayoutBox b = input.box();
-        float size = input.computed().get(CssProperties.FONT_SIZE).value();
-        float at = x - (b.x() + b.borderLeft() + b.paddingLeft()) + field.scrollX();
-        String v = field.value();
-        int best = 0;
-        float bestDistance = Math.abs(at);
-        for (int i = 0; i < v.length(); ) {
-            i = Character.offsetByCodePoints(v, i, 1);
-            float d = Math.abs(layout.textWidth(v.substring(0, i), size) - at);
-            if (d >= bestDistance) {
-                break;
-            }
-            best = i;
-            bestDistance = d;
-        }
-        field.select(extend ? field.anchor() : best, best);
+        return focused != null && interaction(focused).character(focused, codePoint, actions);
     }
 
     /**
@@ -723,7 +558,7 @@ public final class EventDispatcher {
     public void afterLayout() {
         Element modal = top.modal();
         for (Element entry : List.copyOf(top.entries())) {
-            if (entry.tag().equals("select") && (!isConnected(entry) || inDisabled(entry) || !isDisplayed(entry)
+            if (entry.type().facet(LayerFacet.KEY).dismissWhenInactive() && (!isConnected(entry) || inDisabled(entry) || !isDisplayed(entry)
                     || modal != null && !isInside(entry, modal))) {
                 top.remove(entry);
             }
@@ -838,7 +673,7 @@ public final class EventDispatcher {
         }
         // An inline element is hit on its line rectangles only, not across its bounding box.
         boolean inside = b.contains(x, y);
-        if (e.tag().equals("select")) {
+        if (!interaction(e).hitChildren()) {
             return inside ? e : null;
         }
         if (e.computed().get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE) {
@@ -906,17 +741,17 @@ public final class EventDispatcher {
             return;
         }
         if (focused != null) {
-            commitText();
+            interaction(focused).blur(focused, actions);
             focused.setState(Element.FOCUS, false);
             Element list = focused;
-            if (top.isOpen(list) && list.tag().equals("select")) {
+            if (top.isOpen(list) && list.type().facet(LayerFacet.KEY).dismissOnBlur()) {
                 top.remove(list);
             }
         }
         focused = next;
-        committed = next != null && next.textField() != null ? next.textField().value() : null;
         if (next != null) {
             next.setState(Element.FOCUS, true);
+            interaction(next).focus(next, actions);
         }
     }
 
@@ -949,7 +784,7 @@ public final class EventDispatcher {
         if (isFocusable(e)) {
             out.add(e);
         }
-        if (e.tag().equals("select")) {
+        if (!interaction(e).hitChildren()) {
             return;
         }
         for (Node n : e.children()) {
@@ -969,11 +804,11 @@ public final class EventDispatcher {
     }
 
     private static boolean isFocusable(Element e) {
-        return e.attribute("tabindex") != null || e.control() != null || e.tag().equals("button");
+        return e.attribute("tabindex") != null || interaction(e).focusable();
     }
 
-    private static boolean isKind(Element e, FormControl.Kind kind) {
-        return e.control() != null && e.control().kind() == kind;
+    private static InteractionFacet interaction(Element e) {
+        return e.type().facet(InteractionFacet.KEY);
     }
 
     private Element commonAncestor(Element a, Element b) {

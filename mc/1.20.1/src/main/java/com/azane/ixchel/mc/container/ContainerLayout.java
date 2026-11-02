@@ -7,15 +7,12 @@ import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.azane.ixchel.core.template.NativeElement;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.mc.element.McElements;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,21 +27,19 @@ import java.util.TreeSet;
  * slot written back to {@code Slot.x/y} from its {@code <mc-slot>} element (see
  * {@code ref/SDG-ixchel-container-slot-integration} for the rules). Client thread only.
  */
+@NativeElement(tag = ContainerLayout.SLOT_TAG, attributes = ContainerLayout.INDEX_ATTRIBUTE, containerOnly = true)
 public final class ContainerLayout {
     /** Tag of the slot element. */
     public static final String SLOT_TAG = "mc-slot";
     /** Attribute holding the menu slot index. */
     public static final String INDEX_ATTRIBUTE = "index";
-    /** The declaration file of {@link #TAGS}, a resource next to this class. */
-    private static final String DECLARATIONS = "elements.txt";
     /**
-     * {@link McElements#TAGS} plus {@code <mc-slot index="N">}: the projection of menu slot
-     * {@code N}. The slot's 16×16 item area is centered in the element's border box and written back
-     * to {@code Slot.x/y}; vanilla keeps drawing the item and handling clicks, drags and quick moves
-     * there. Use {@code bind:index} for slots from an {@code each} row. Declared in this package's
-     * {@code elements.txt}.
+     * {@link McElements#TAGS} plus {@code <mc-slot index="N">}, declared on this class: the projection
+     * of menu slot {@code N}. The slot's 16×16 item area is centered in the element's border box and
+     * written back to {@code Slot.x/y}; vanilla keeps drawing the item and handling clicks, drags and
+     * quick moves there. Use {@code bind:index} for slots from an {@code each} row.
      */
-    public static final TagRegistry TAGS = McElements.TAGS.extend().declare(declarations(), DECLARATIONS).build();
+    public static final TagRegistry TAGS = McElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.declare(ContainerLayout.class)).build();
 
     static final int ITEM_SIZE = 16;
 
@@ -280,18 +275,6 @@ public final class ContainerLayout {
     private void report(UiDocument d, Element at, ContainerCode code, String message) {
         if (reported.add(at.pos() + message)) {
             d.diagnostics().report(code, at.pos(), message);
-        }
-    }
-
-    /** The text of {@link #DECLARATIONS}, shipped with this class; missing is a packaging bug. */
-    private static String declarations() {
-        try (InputStream in = ContainerLayout.class.getResourceAsStream(DECLARATIONS)) {
-            if (in == null) {
-                throw new IllegalStateException("missing " + DECLARATIONS + " next to " + ContainerLayout.class.getName());
-            }
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            throw new UncheckedIOException(ex);
         }
     }
 

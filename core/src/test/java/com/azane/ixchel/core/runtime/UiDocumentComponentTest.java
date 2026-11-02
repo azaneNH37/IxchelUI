@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentComponentTest {
     private static UiDocument load(String html, Map<String, String> files, ViewModel model) {
-        return UiDocument.load(html, "t.html", files::get, TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES,
+        return UiDocument.load(html, "t.html", files::get, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES,
                 model, Bindings.PLAIN_TEXT);
     }
 

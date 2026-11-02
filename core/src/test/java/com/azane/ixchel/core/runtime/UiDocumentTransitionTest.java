@@ -18,8 +18,7 @@ class UiDocumentTransitionTest {
     private long nowMs;
 
     private UiDocument load(String html, String css) {
-        UiDocument doc = UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css),
-                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
+        UiDocument doc = UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES);
         doc.clock(() -> nowMs * 1_000_000);
         return doc;
     }
@@ -104,8 +103,7 @@ class UiDocumentTransitionTest {
     void aBoundValueChangeRunsTheTransition() {
         Fill m = new Fill();
         UiDocument doc = UiDocument.load(GoldenTest.linked("<div class=\"box\" bind:style:width=\"width\"></div>"), "t.html",
-                GoldenTest.sheet(".box { height: 10px; background-color: #fff; transition: width 100ms linear }"),
-                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
+                GoldenTest.sheet(".box { height: 10px; background-color: #fff; transition: width 100ms linear }"), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         doc.clock(() -> nowMs * 1_000_000);
         assertEquals("rect 0 0 10 10 #FFFFFFFF", frameAt(doc, 0));
 

@@ -76,22 +76,15 @@ IxchelForge.registerHud(modBus, EnvView.class, EnvView::new);  // HUD：类显�
 
 record 成员本来就按声明的组件类型解析（`Compiler.java:912-943`），无需改动。
 
-### 5. 原生元素声明数据化
+### 5. 原生元素声明（#030）
 
-原生元素：mc 层加进 HTML 子集、由 MC 绘制的元素（1.20.1：`<mc-item>`、`<mc-entity>`，容器界面另有 `<mc-slot>`；1.21.1：只有 `<mc-item>`）。现以代码登记在 `McElements.TAGS` / `ContainerLayout.TAGS`，同一个类还构建绘制器，kit 不能安全加载；载荷接受的类型（`ItemStack` 或 `Supplier<ItemStack>`）只写在 javadoc 里，运行时到绘制才发现。
+声明留在元素的 Java 实现类上，kit 用 `Class.forName(name, false, loader)` 读取注解与泛型，不创建元素实现、不运行游戏初始化。运行时与 kit 调用同一个声明适配器，构造同一种切面组合定义（#031）。
 
-每个 mc 层在包路径下放声明资源，`TAGS` 从它构建，kit 在项目内从 classpath 读、项目外用内置副本。core 不引入 JSON，用行格式，由 core 的 `TagRegistry` 解析，mc 层与 kit 共用：
+- 自绘元素：实现类声明 `@NativeElement(tag = "mc-item", payload = "item")`，实现 `NativePainter<ItemStack>`；绘制与 tooltip 同属该类。
+- 原版槽位：`ContainerLayout` 声明 `@NativeElement(tag = "mc-slot", attributes = "index", containerOnly = true)`，不伪造绘制载荷。
+- 文本行：实现类声明 `lines = true` 并实现 `NativePayload<ItemStack>`，由宿主把行填进子树，core 按普通文本绘制。
 
-```
-# mc/1.20.1/src/main/resources/com/azane/ixchel/mc/element/elements.txt
-mc-item    payload=item    accepts=net.minecraft.world.item.ItemStack,java.util.function.Supplier<net.minecraft.world.item.ItemStack>
-mc-entity  payload=entity  accepts=net.minecraft.world.entity.LivingEntity,java.util.function.Supplier<net.minecraft.world.entity.LivingEntity>
-
-# mc/1.20.1/src/main/resources/com/azane/ixchel/mc/container/elements.txt
-mc-slot    attrs=index     host=container
-```
-
-字段：标签名、载荷属性、载荷接受的类型（类名字符串）、额外属性、适用宿主。运行时也可在加载期检查载荷类型。
+载荷类型只写在泛型参数里；绑定接受 `T` 或 `Supplier<T>`。`containerOnly` 供 kit 限制适用界面；宿主注册仍按 modid 分开。声明格式不再要求作者维护资源文件，也不维护 kit 专用副本。内部布局与交互切面暂不向宿主开放。
 
 ### 6. 诊断错误码（#023）
 

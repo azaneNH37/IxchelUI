@@ -30,7 +30,7 @@ class UiDocumentTranslationTest {
                 return entries.get(key);
             }
         };
-        UiDocument doc = UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML, t,
+        UiDocument doc = UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), com.azane.ixchel.core.html.HtmlElements.TAGS, t,
                 GoldenTest.MONO, GoldenTest.NO_IMAGES, null, Bindings.PLAIN_TEXT);
         return GoldenTest.print(doc.frame(200, 100));
     }
@@ -61,7 +61,7 @@ class UiDocumentTranslationTest {
     @Test
     void aLangWithoutARangeOrASecondLangInOneCompoundIsReported() {
         Diagnostics diag = UiDocument.lint(GoldenTest.linked("<div></div>"), "t.html",
-                GoldenTest.sheet("div:lang() {}\ndiv:lang(en):lang(zh) {}"), TagRegistry.HTML, Translations.NONE, null, Set.of());
+                GoldenTest.sheet("div:lang() {}\ndiv:lang(en):lang(zh) {}"), com.azane.ixchel.core.html.HtmlElements.TAGS, Translations.NONE, null, Set.of());
         assertEquals(List.of("css/invalid-lang@t.css:1:5", "css/invalid-lang@t.css:2:14"), DiagCodes.of(diag));
     }
 }

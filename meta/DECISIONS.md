@@ -179,8 +179,14 @@
 - **decision**: 三者由 CPU 生成覆盖率/SDF 纹理放入单张图集，经 `POSITION_TEX_COLOR` 九宫格绘制，纹理以宿主 modid 注册；`<img>` 图集共用这条路径。V1 的 `border-radius` 只影响背景、边框与阴影，子元素不裁圆角；FX1 落地前 `overflow` 配圆角按矩形裁剪并由 lint 警告
 - **rejected**: SDF shader（路径 B）——V1 就要 shader 注册，且 Painter 按顶点 API 时代分叉；CPU 三角化（路径 A）——无抗锯齿，阴影只能近似；把 FX1 提到 V1 之前——为少用的裁剪提前引入图层
 
-## #030 宿主原生元素 = 资源文件声明 + 按 modid 注册绘制
+## #030 宿主原生元素 = 实现类声明 + 按 modid 注册
 - **decided**: 2026-11-02
 - **context**: 宿主要写自绘标签；kit 不运行游戏，标签与载荷类型必须能静态读取；shade 后同名类互不相通，但开发环境与未来的共用形态不应依赖这一点
-- **decision**: 宿主把标签写进 `assets/<modid>/ui/elements.txt`（格式同库内 `elements.txt`），文档加载时按模板 namespace 并入；绘制用 `McElements.registerPainter(modid, tag, painter)`，按 modid 分开存放。声明了但没注册绘制时，绘制到该元素才抛错。不与语言文档 §3.4 的带 Java 逻辑组件合并
-- **rejected**: 只在 Java 里注册标签——kit 读不到；放在包路径下——不同宿主的同路径资源会互相遮蔽，且 relocate 不改写资源路径；不分 modid 的全局表——多宿主下撞名（同 #015）
+- **decision**: 在实现类上用 `@NativeElement` 声明标签、普通属性与载荷名；载荷类型从 `NativePayload<T>`（绘制接口 `NativePainter<T>` 继承它）读取，绑定可传 `T` 或 `Supplier<T>`。宿主只调用 `McElements.register(modid, painter)`，声明与实现一起注册；kit 不初始化宿主类，读取同一注解和泛型信息。运行时与 kit 经同一个声明适配器构造元素定义；按模板 namespace 合并宿主登记。仍不与语言文档 §3.4 的 Java 组件合并
+- **rejected**: 要求作者手写资源声明——与实现重复，载荷类型会漂移，注册和声明易漏一边；不分 modid 的全局表——多宿主下撞名（同 #015）
+
+## #031 元素以消费阶段的切面组合定义
+- **decided**: 2026-11-02
+- **context**: 仅把标签比较换成 `Content`/`Layer` 枚举，仍要求解析、布局、绘制、输入各自维护元素种类分支；core、mc 与宿主会继续走不同定义路径
+- **decision**: `ElementType` 保存声明与类型安全的切面表；各阶段拥有消费接口，`html` 在其上装配内置定义，复杂元素的校验、测量、绘制、默认交互归同一个定义类，select 与 option 同属一个单元。DOM 不引用阶段或内置实现；通用 CSS 排版、事件路由、焦点与模态约束仍由引擎执行。原生声明也组合这些切面；宿主入口暂不接受自定义 interaction/layout，Java 跨包必须 public 的内部接口不代表宿主扩展承诺。`style`/`link` 属于模板资源语法，不再登记为运行时元素
+- **rejected**: 封闭枚举加分散分支——新元素迫使所有阶段同步修改；元素继承并直接引用引擎——使 DOM 反向依赖流水线；现在开放宿主布局与交互——暂无消费场景，不提前冻结测量、捕获与焦点契约

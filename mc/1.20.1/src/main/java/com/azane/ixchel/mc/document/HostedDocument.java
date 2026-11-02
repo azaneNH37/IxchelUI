@@ -58,6 +58,7 @@ public final class HostedDocument implements AutoCloseable {
     private final DevResources dev;
     private final String templatePath;
     private final TagRegistry tags;
+    private final Map<String, NativePainter<?>> painters;
     private final ViewModel model;
     private final Runnable onReload;
     private final McPainter painter;
@@ -81,7 +82,7 @@ public final class HostedDocument implements AutoCloseable {
      *
      * @param template the template; its namespace is the host mod id, its stylesheets are {@code <link>}ed
      * @param tags     the elements the template may use, such as {@link McElements#TAGS}; the host's
-     *                 own, from {@link McElements#HOST_DECLARATIONS}, are added to them
+     *                 own, {@linkplain McElements#register registered} under its mod id, are added to them
      * @param model    the view model the template binds to, or {@code null}; closed by {@link #close}
      * @param onReload runs after a later load replaced the document
      * @throws UiLoadException outside development when the document has errors
@@ -90,12 +91,11 @@ public final class HostedDocument implements AutoCloseable {
         this.dev = DevResources.forHost(template.getNamespace());
         this.resources = new McResources(template.getNamespace(), dev);
         this.templatePath = template.getPath();
-        String declared = resources.readIfPresent(Minecraft.getInstance().getResourceManager(), McElements.HOST_DECLARATIONS);
-        this.tags = declared == null ? tags : tags.extend()
-                .declare(declared, template.getNamespace() + ":" + McElements.HOST_DECLARATIONS).build();
-        Map<String, NativePainter> natives = McElements.painters(template.getNamespace());
-        this.painter = new McPainter(Minecraft.getInstance().font, natives);
-        this.tooltipPainter = new McPainter(Minecraft.getInstance().font, natives);
+        McElements.Hosted hosted = McElements.forHost(template.getNamespace(), tags);
+        this.tags = hosted.tags();
+        this.painters = hosted.painters();
+        this.painter = new McPainter(Minecraft.getInstance().font, this.tags, painters);
+        this.tooltipPainter = new McPainter(Minecraft.getInstance().font, this.tags, painters);
         this.model = model;
         this.onReload = onReload;
         if (dev != null && model != null && !UiTemplate.Ids.covers(model.getClass(), template.toString())) {
@@ -166,7 +166,7 @@ public final class HostedDocument implements AutoCloseable {
         }
         // While an element is dragged its preview takes the pointer: no tooltip, not even vanilla's.
         tooltipTarget = Float.isNaN(pointerX) || document.events().dragSource() != null ? null
-                : Tooltips.target(document.events().hitTest(pointerX, pointerY));
+                : Tooltips.target(document.events().hitTest(pointerX, pointerY), painters);
         document.setTooltip(tooltipTarget == null ? null : Tooltips.tooltipOf(tooltipTarget), pointerX, pointerY);
         lines.update(document);
         displayList = document.frame(width, height);
@@ -199,7 +199,7 @@ public final class HostedDocument implements AutoCloseable {
     /**
      * Draws what the last {@link #frame} shows at the pointer above everything the document drew: the
      * drag preview of a dragged element, the shown {@code <ix-tooltip>}, or the vanilla tooltip of the
-     * {@code <mc-item>} or {@code title}.
+     * native element's painter or the {@code title}.
      */
     public void drawTooltip(GuiGraphics g, int mouseX, int mouseY) {
         if (document == null) {
@@ -207,7 +207,7 @@ public final class HostedDocument implements AutoCloseable {
         }
         if (document.topLayer().atPointer() == null) {
             if (tooltipTarget != null) {
-                Tooltips.renderVanilla(g, Minecraft.getInstance().font, tooltipTarget, painter.topZ(), mouseX, mouseY);
+                Tooltips.renderVanilla(g, Minecraft.getInstance().font, tooltipTarget, painters, painter.topZ(), mouseX, mouseY);
             }
             return;
         }

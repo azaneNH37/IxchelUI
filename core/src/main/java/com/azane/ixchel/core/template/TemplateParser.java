@@ -5,10 +5,10 @@ import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.ElementType;
 import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
-import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.dom.UiEvent;
 import com.azane.ixchel.core.text.TextShaper;
 
@@ -40,6 +40,8 @@ import java.util.Set;
  * attribute to its translation (see {@link Translations}).
  */
 public final class TemplateParser {
+    /** Resource directives are template syntax, not runtime elements; also used by the schema. */
+    public static final Map<String, Set<String>> RESOURCE_TAGS = Map.of("style", Set.of(), "link", Set.of("rel", "href"));
     /** Element attributes replaced by the {@code <for>} and {@code <if>} blocks. */
     private static final Set<String> MOVED = Set.of("each", "as", "key", "if");
     /** Names a parameter or event cannot take: they are attributes or targets of the component's element. */
@@ -190,12 +192,12 @@ public final class TemplateParser {
         ComponentDef component = components.get(tag);
         boolean block = tag.equals("for") || tag.equals("if");
         boolean reserved = block || tag.equals("slot") || tag.equals("template");
-        boolean known = reserved || component != null || tags.isKnownTag(tag);
+        boolean isStyle = tag.equals("style");
+        boolean isLink = tag.equals("link");
+        boolean known = reserved || isStyle || isLink || component != null || tags.isKnownTag(tag);
         if (!known) {
             diag.report(TemplateCode.UNKNOWN_TAG, openPos, "unknown tag <" + tag + ">");
         }
-        boolean isStyle = tag.equals("style");
-        boolean isLink = tag.equals("link");
         if ((isStyle || isLink) && !topLevel) {
             diag.report(TemplateCode.MISPLACED_ELEMENT, openPos, "<" + tag + "> is only allowed at the top level");
         }
@@ -211,7 +213,10 @@ public final class TemplateParser {
         } else if (tag.equals("slot") && forInTemplateDepth > 0) {
             diag.report(TemplateCode.SLOT_IN_FOR, openPos, "<slot> cannot be inside <for>: each slot is filled once");
         }
-        Element element = new Element(tag, openPos);
+        ElementType registered = tags.type(tag);
+        ElementType type = registered != null ? registered : ElementType.plain(tag);
+        ContentModel content = type.facet(ContentModel.KEY);
+        Element element = new Element(type, openPos);
         Set<String> seen = new HashSet<>();
         List<Directive> messages = new ArrayList<>();
         boolean selfClosing = false;
@@ -241,14 +246,7 @@ public final class TemplateParser {
         if (known && reserved) {
             checkReservedAttributes(element);
         }
-        if (known && tag.equals("img") && element.attribute("src") == null
-                && element.directives().stream().noneMatch(b -> b.name().equals("bind:src"))) {
-            diag.report(TemplateCode.IMG_WITHOUT_SOURCE, openPos, "<img> requires a 'src' attribute or a 'bind:src' binding");
-        }
-        if (known && tag.equals("input") && FormControl.Kind.ofInputType(element.attribute("type")) == null) {
-            diag.report(TemplateCode.UNSUPPORTED_INPUT_TYPE, openPos, "unsupported <input type=\"" + element.attribute("type")
-                    + "\">; supported: text, number, checkbox, range");
-        }
+        if (known) content.attributes(element, diag);
         String translate = element.attribute("translate");
         if (translate != null && !translate.equals("yes") && !translate.equals("no")) {
             diag.report(TemplateCode.UNKNOWN_ATTRIBUTE, openPos, "translate takes \"yes\" or \"no\", not \"" + translate + "\"");
@@ -311,13 +309,8 @@ public final class TemplateParser {
             }
             return null;
         }
-        boolean atPointer = tag.equals(TopLayer.TOOLTIP) || tag.equals(TopLayer.DRAG_PREVIEW);
-        if (known && atPointer && (topLevel || tooltipDepth > 0)) {
-            String what = tag.equals(TopLayer.TOOLTIP) ? "the tooltip" : "the drag preview";
-            diag.report(TemplateCode.MISPLACED_ELEMENT, openPos, topLevel
-                    ? "<" + tag + "> is " + what + " of its parent element; it cannot be at the top level"
-                    : "<" + tag + "> cannot be inside an <ix-tooltip> or <ix-drag-preview>");
-        }
+        boolean atPointer = known && content.pointerBoundary();
+        if (known) content.placement(element, topLevel, tooltipDepth, diag);
         if (!selfClosing) {
             List<Node> children = new ArrayList<>();
             boolean inTemplate = tag.equals("template");
@@ -343,20 +336,10 @@ public final class TemplateParser {
                             + "> opened at " + openPos);
                 }
             }
-            Node notTooltip = known && (tag.equals("img") || tag.equals("input")) ? firstNonTooltip(children) : null;
-            if (notTooltip != null) {
-                diag.report(TemplateCode.INVALID_CHILDREN, notTooltip.pos(), "<" + tag + "> may only contain an <ix-tooltip>");
-            } else if (known && tags.hasLineContent(tag) && !children.stream().allMatch(TemplateParser::isBlank)) {
-                diag.report(TemplateCode.INVALID_CHILDREN, openPos, "<" + tag + "> must not have children: its lines are filled in");
-            } else if (known && tag.equals("select") && !onlyOptions(children, true)) {
-                diag.report(TemplateCode.INVALID_CHILDREN, openPos, "<select> may only contain <option> elements, directly or in <for> and <if>, and an <ix-tooltip>");
-            } else if (known && tag.equals("option") && children.stream().anyMatch(n -> !(n instanceof TextNode))) {
-                diag.report(TemplateCode.INVALID_CHILDREN, openPos, "<option> may only contain text");
-            } else {
+            if (content.children(element, children, diag)) {
                 checkSlotPlacement(children, component);
                 for (Node child : children) {
-                    if (!(known && (tag.equals("img") || tag.equals("input") || tags.isReplaced(tag) || tags.hasLineContent(tag))
-                            && isBlank(child))) {
+                    if (content.preserveWhitespace() || !isBlank(child)) {
                         element.appendChild(child);
                     }
                 }
@@ -375,28 +358,6 @@ public final class TemplateParser {
         return n instanceof TextNode t && t.text().isBlank();
     }
 
-    private static Node firstNonTooltip(List<Node> children) {
-        for (Node n : children) {
-            if (!isBlank(n) && !(n instanceof Element c && c.tag().equals(TopLayer.TOOLTIP))) {
-                return n;
-            }
-        }
-        return null;
-    }
-
-    /** Options, directly or in blocks; {@code direct}: also the select's own {@code <ix-tooltip>}. */
-    private static boolean onlyOptions(List<Node> children, boolean direct) {
-        for (Node n : children) {
-            if (isBlank(n)) {
-                continue;
-            }
-            if (!(n instanceof Element c) || !(c.tag().equals("option") || direct && c.tag().equals(TopLayer.TOOLTIP)
-                    || ((c.tag().equals("for") || c.tag().equals("if")) && onlyOptions(c.children(), false)))) {
-                return false;
-            }
-        }
-        return true;
-    }
 
     /** {@code slot=} only goes on a direct child, element or block, of a component's element. */
     private void checkSlotPlacement(List<Node> children, ComponentDef parent) {
@@ -490,10 +451,8 @@ public final class TemplateParser {
 
     /** Replaces the children of the element with {@code t} by its translation; see {@link Translations}. */
     private void expandMessage(Element element, Directive d, ComponentDef component) {
-        String tag = element.tag();
         String host = component != null ? "a component's element"
-                : tag.equals("img") || tag.equals("input") || tag.equals("select") || tags.isReplaced(tag) || tags.hasLineContent(tag)
-                ? "<" + tag + ">" : null;
+                : !element.type().facet(ContentModel.KEY).ownsText() ? "<" + element.tag() + ">" : null;
         if (host != null) {
             diag.report(TemplateCode.INVALID_MESSAGE_ELEMENT, d.namePos(), "t=\"…\" cannot go on " + host + ": its content is not its own");
             return;
@@ -516,7 +475,7 @@ public final class TemplateParser {
             }
             Element c = (Element) n;
             String mark = c.attribute("mark");
-            if (c.tag().equals(TopLayer.TOOLTIP)) {
+            if (c.type().facet(com.azane.ixchel.core.dom.LayerFacet.KEY).pointer() == com.azane.ixchel.core.dom.LayerFacet.Pointer.TOOLTIP) {
                 tooltips.add(c);
             } else if (c.tag().equals("for") || c.tag().equals("if") || c.tag().equals("slot")) {
                 diag.report(TemplateCode.INVALID_MESSAGE_CHILD, c.pos(), "<" + c.tag() + "> makes a varying number of elements;"
@@ -768,7 +727,8 @@ public final class TemplateParser {
         }
         if (reserved || isDirective(name)) {
             if (tag.equals("style") || tag.equals("link")) {
-                diag.report(TemplateCode.UNKNOWN_ATTRIBUTE, namePos, "<" + tag + "> takes no " + (tag.equals("style") ? "attributes" : "bindings"));
+                diag.report(TemplateCode.UNKNOWN_ATTRIBUTE, namePos, "<" + tag + "> takes no "
+                        + (tag.equals("style") ? "attributes" : "bindings"));
             } else {
                 element.addDirective(new Directive(name, decode(valueStart, end, false), namePos, pos(valueStart)));
             }
@@ -784,7 +744,8 @@ public final class TemplateParser {
             messages.add(new Directive(name, decode(valueStart, end, false), namePos, pos(valueStart)));
             return;
         }
-        boolean allowed = name.equals("slot") && !tag.equals("style") && !tag.equals("link")
+        boolean allowed = RESOURCE_TAGS.containsKey(tag) ? RESOURCE_TAGS.get(tag).contains(name)
+                : name.equals("slot")
                 || (component != null ? TagRegistry.GLOBAL_ATTRIBUTES.contains(name) || component.hasParam(name)
                 : tags.isAllowedAttribute(tag, name));
         if (!allowed) {

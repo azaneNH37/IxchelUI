@@ -27,7 +27,7 @@ class UiDocumentTest {
     }
 
     private static UiDocument load(String html, String css, TextMeasurer measurer) {
-        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML, measurer,
+        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), com.azane.ixchel.core.html.HtmlElements.TAGS, measurer,
                 GoldenTest.NO_IMAGES);
     }
 
@@ -89,7 +89,7 @@ class UiDocumentTest {
                 <style>.n { height: 4px; background-color: #0f0 }</style>
                 <link rel="stylesheet" href="b.css"/>
                 <div class="n"></div>
-                """, "t.html", sheets::get, TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
+                """, "t.html", sheets::get, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES);
         assertEquals("rect 0 0 10 4 #FF0000FF", frame(doc, 100, 100));
     }
 
@@ -102,7 +102,7 @@ class UiDocumentTest {
                 <link rel="icon" href="t.css"/>
                 <link rel="stylesheet"/>
                 <link rel="stylesheet" href="t.css" class="x" bind:href="t"></link>
-                """, "t.html", GoldenTest.sheet(""), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES));
+                """, "t.html", GoldenTest.sheet(""), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
         assertEquals(List.of("template/misplaced-element@t.html:3:6", "template/invalid-link@t.html:4:1",
                 "template/invalid-link@t.html:5:1", "template/unknown-attribute@t.html:6:37",
                 "template/unknown-attribute@t.html:6:47", "template/invalid-link@t.html:6:1",
@@ -111,9 +111,7 @@ class UiDocumentTest {
 
     @Test
     void aStylesheetTheHostCannotReadFailsTheLoadAtItsLink() {
-        UiLoadException failed = assertThrows(UiLoadException.class, () -> UiDocument.load(
-                "<link rel=\"stylesheet\" href=\"nope.css\"/>", "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML,
-                GoldenTest.MONO, GoldenTest.NO_IMAGES));
+        UiLoadException failed = assertThrows(UiLoadException.class, () -> UiDocument.load("<link rel=\"stylesheet\" href=\"nope.css\"/>", "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
         assertEquals(List.of("load/unreadable-file@t.html:1:1"), DiagCodes.of(failed));
     }
 
@@ -184,13 +182,12 @@ class UiDocumentTest {
     }
 
     private static List<String> lint(String html, String css, ModelShape shape) {
-        return DiagCodes.of(UiDocument.lint(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
-                Translations.NONE, shape, Set.of()));
+        return DiagCodes.of(UiDocument.lint(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), com.azane.ixchel.core.html.HtmlElements.TAGS, Translations.NONE, shape, Set.of()));
     }
 
     private static List<String> loadFailure(String html, ViewModel model) {
         return DiagCodes.of(assertThrows(UiLoadException.class, () -> UiDocument.load(GoldenTest.linked(html), "t.html",
-                GoldenTest.sheet(""), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, model, Bindings.PLAIN_TEXT)));
+                GoldenTest.sheet(""), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, model, Bindings.PLAIN_TEXT)));
     }
 
     @Test

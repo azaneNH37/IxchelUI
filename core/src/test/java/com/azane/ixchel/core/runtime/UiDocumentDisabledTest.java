@@ -33,7 +33,7 @@ class UiDocumentDisabledTest {
                 .b:disabled { background-color: #888 }
                 .in { width: 4px; height: 4px }
                 .other { width: 10px; height: 10px }
-                """), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
+                """), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         assertEquals("rect 0 0 10 10 #FF888888", GoldenTest.print(doc.frame(100, 100)));
         Element other = (Element) doc.root().children().get(1);
 

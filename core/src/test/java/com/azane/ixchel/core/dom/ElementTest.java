@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ElementTest {
     private static Element el(String tag) {
-        return new Element(tag, SourcePos.UNKNOWN);
+        return new Element(ElementType.plain(tag), SourcePos.UNKNOWN);
     }
 
     @Test

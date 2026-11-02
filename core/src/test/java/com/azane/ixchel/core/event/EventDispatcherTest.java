@@ -57,8 +57,7 @@ class EventDispatcherTest {
             """;
 
     private static UiDocument load() {
-        UiDocument doc = UiDocument.load(HTML, "t.html", Map.of("t.css", CSS)::get,
-                TagRegistry.HTML, MONO, src -> null);
+        UiDocument doc = UiDocument.load(HTML, "t.html", Map.of("t.css", CSS)::get, com.azane.ixchel.core.html.HtmlElements.TAGS, MONO, src -> null);
         doc.frame(100, 100);
         return doc;
     }

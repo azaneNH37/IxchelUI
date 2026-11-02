@@ -3,7 +3,7 @@ package com.azane.ixchel.core.binding.expr;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
-import java.util.List;
+import java.util.function.Supplier;
 
 /** The reflective type questions of binding checks. */
 public final class Types {
@@ -103,50 +103,24 @@ public final class Types {
     }
 
     /**
-     * Whether a value of type {@code t} can be one of {@code accepted}: binary class names, each
-     * optionally with one type argument ({@code java.util.function.Supplier<net.minecraft.world.item.ItemStack>}).
-     * True when {@code accepted} is empty, when {@code t} (or its type argument) is {@code Object} or
-     * unknown, and for a name no class loader near {@code t} can load, since nothing can be checked then.
+     * Whether a value of type {@code t} can be a native element's payload of type {@code payload}:
+     * a {@code payload} or a {@code Supplier} of one. True when {@code payload} is {@code null} or
+     * {@code Object}, and when {@code t} (or its type argument) is {@code Object} or unknown, since
+     * nothing can be checked then.
      */
-    public static boolean acceptsAny(Type t, List<String> accepted) {
+    public static boolean acceptsPayload(Type t, Class<?> payload) {
         Class<?> raw = boxed(t);
-        if (accepted.isEmpty() || raw == Object.class) {
+        if (payload == null || payload == Object.class || raw == Object.class || payload.isAssignableFrom(raw)) {
             return true;
         }
-        for (String spec : accepted) {
-            int lt = spec.indexOf('<');
-            Class<?> outer = load(lt < 0 ? spec : spec.substring(0, lt), raw);
-            if (outer == null) {
-                return true;
-            }
-            if (!outer.isAssignableFrom(raw)) {
-                continue;
-            }
-            if (lt < 0) {
-                return true;
-            }
-            Type arg = typeArgument(t);
-            if (arg instanceof WildcardType w) {
-                arg = w.getUpperBounds()[0];
-            }
-            Class<?> argRaw = arg == null ? Object.class : rawClass(arg);
-            Class<?> inner = load(spec.substring(lt + 1, spec.length() - 1).trim(), raw);
-            if (inner == null || argRaw == Object.class || inner.isAssignableFrom(argRaw)) {
-                return true;
-            }
+        if (!Supplier.class.isAssignableFrom(raw)) {
+            return false;
         }
-        return false;
-    }
-
-    private static Class<?> load(String name, Class<?> near) {
-        for (ClassLoader l : new ClassLoader[]{near.getClassLoader(), Thread.currentThread().getContextClassLoader(),
-                Types.class.getClassLoader()}) {
-            try {
-                return Class.forName(name, false, l);
-            } catch (ClassNotFoundException | LinkageError ex) {
-                // try the next loader
-            }
+        Type arg = typeArgument(t);
+        if (arg instanceof WildcardType w) {
+            arg = w.getUpperBounds()[0];
         }
-        return null;
+        Class<?> argRaw = arg == null ? Object.class : rawClass(arg);
+        return argRaw == Object.class || payload.isAssignableFrom(argRaw);
     }
 }

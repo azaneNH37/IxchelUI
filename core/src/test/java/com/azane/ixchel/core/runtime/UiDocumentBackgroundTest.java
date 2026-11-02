@@ -14,8 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class UiDocumentBackgroundTest {
     private static UiDocument load(String html, String css, ImageMeasurer images) {
-        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
-                GoldenTest.MONO, images);
+        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, images);
     }
 
     private static String frame(UiDocument doc) {

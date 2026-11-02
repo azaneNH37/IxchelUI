@@ -9,13 +9,12 @@ import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.StyledText;
+import com.azane.ixchel.core.dom.LayerFacet;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
-import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.text.TextShaper;
 import dev.vfyjxf.taffy.geometry.FloatSize;
 import dev.vfyjxf.taffy.geometry.TaffyPoint;
@@ -73,7 +72,7 @@ import java.util.Set;
  *
  * <p>An {@code <input>} has no intrinsic width (CSS or flex sizes it) and one line of its font size as
  * its intrinsic content height; its value does not take part in layout. A {@code <select>} is as wide
- * as its widest option's label plus {@value #SELECT_ARROW_SPACE} pixels for the arrow and one line
+ * as its widest option's label plus the element's arrow allowance, and one line
  * high; its options are not laid out inside it.
  *
  * <p>{@link TopLayer} entries are laid out after the document, each against the viewport: an open
@@ -93,8 +92,6 @@ import java.util.Set;
 public final class LayoutEngine {
     /** Floats per recorded measurement: known width, known height, available width, then the answer. */
     private static final int QUERY = 5;
-    /** Pixels a select reserves after its label for the arrow. */
-    public static final float SELECT_ARROW_SPACE = 10;
     /** Horizontal gap between the pointer and the tooltip's box, either side. */
     public static final float TOOLTIP_OFFSET = 8;
     /** How far above the pointer the tooltip's box starts. */
@@ -226,7 +223,6 @@ public final class LayoutEngine {
     private final TaffyTree tree = new TaffyTree();
     private final TextShaper shaper;
     private final int[] layoutIds;
-    private final TagRegistry tags;
     private final Diagnostics diag;
     private final Set<String> reported = new HashSet<>();
     private final Map<Node, Slot> slots = new IdentityHashMap<>();
@@ -241,11 +237,10 @@ public final class LayoutEngine {
     private final Map<Element, NodeId> layers = new IdentityHashMap<>();
     private final Map<Element, List<NodeId>> layerChildren = new IdentityHashMap<>();
 
-    /** {@code tags} tells native (replaced) elements apart; {@code diag} takes the inline content errors. */
-    public LayoutEngine(TextShaper shaper, PropertyRegistry registry, TagRegistry tags, Diagnostics diag) {
+    /** {@code diag} takes the inline content errors. */
+    public LayoutEngine(TextShaper shaper, PropertyRegistry registry, Diagnostics diag) {
         this.shaper = shaper;
         this.layoutIds = registry.layoutAffectingIds();
-        this.tags = tags;
         this.diag = diag;
         tree.enableRounding();
     }
@@ -337,7 +332,7 @@ public final class LayoutEngine {
         float py = top.pointerY();
         float x;
         float y;
-        if (top.dragPreview() != null) {
+        if (tip.type().facet(LayerFacet.KEY).placement() == LayerFacet.Placement.POINTER_CENTER) {
             x = Math.round(px - w / 2);
             y = Math.round(py - h / 2);
         } else {
@@ -357,7 +352,8 @@ public final class LayoutEngine {
      * in, a tooltip's a column its content shrinks to fit in, wrapping at the content's max-width.
      */
     private NodeId syncLayer(Element entry, boolean resized) {
-        boolean dialog = entry.tag().equals("dialog");
+        LayerFacet presentation = entry.type().facet(LayerFacet.KEY);
+        boolean centered = presentation.placement() == LayerFacet.Placement.CENTER;
         NodeId id = layers.get(entry);
         if (id == null) {
             id = tree.newLeaf(entry.isShownAtPointer() ? tooltipLayerStyle() : new TaffyStyle());
@@ -365,22 +361,16 @@ public final class LayoutEngine {
             changed = true;
             resized = true;
         }
-        if (dialog && resized) {
+        if (centered && resized) {
             TaffyStyle s = rootStyle(viewportWidth, viewportHeight);
             s.alignItems = AlignItems.CENTER;
             s.justifyContent = AlignContent.CENTER;
             tree.setStyle(id, s);
         }
         List<NodeId> ids = new ArrayList<>();
-        if (entry.rendersInTopLayer()) {
-            ids.add(sync(entry, false));
-        } else {
-            List<Node> children = entry.children();
-            for (int i = 0; i < children.size(); i++) {
-                if (children.get(i) instanceof Element o && o.tag().equals("option")) {
-                    ids.add(sync(o, false));
-                }
-            }
+        for (int i = 0; i < presentation.contentCount(entry); i++) {
+            Element child = presentation.contentAt(entry, i);
+            if (child != null) ids.add(sync(child, false));
         }
         if (!ids.equals(layerChildren.get(entry))) {
             layerChildren.put(entry, ids);
@@ -391,7 +381,8 @@ public final class LayoutEngine {
     }
 
     private void placeLayer(Element entry, NodeId id) {
-        if (entry.tag().equals("dialog")) {
+        LayerFacet presentation = entry.type().facet(LayerFacet.KEY);
+        if (presentation.placement() == LayerFacet.Placement.CENTER) {
             tree.computeLayout(id, TaffySize.of(AvailableSpace.definite(viewportWidth), AvailableSpace.definite(viewportHeight)));
             writeBoxes(entry, 0, 0);
             return;
@@ -410,11 +401,9 @@ public final class LayoutEngine {
             y = top - l.size().height;
         }
         float x = Math.max(0, Math.min(b.x(), viewportWidth - l.size().width));
-        List<Node> children = entry.children();
-        for (int i = 0; i < children.size(); i++) {
-            if (children.get(i) instanceof Element o && o.tag().equals("option")) {
-                writeBoxes(o, x, y);
-            }
+        for (int i = 0; i < presentation.contentCount(entry); i++) {
+            Element child = presentation.contentAt(entry, i);
+            if (child != null) writeBoxes(child, x, y);
         }
     }
 
@@ -456,13 +445,12 @@ public final class LayoutEngine {
             return syncText(t);
         }
         Element e = (Element) node;
+        LayoutFacet behavior = e.type().facet(LayoutFacet.KEY);
         Slot slot = slots.get(e);
         if (slot == null) {
             slot = new Slot();
-            FormControl control = e.control();
-            slot.id = control == null ? tree.newLeaf(new TaffyStyle())
-                    : tree.newLeafWithMeasure(new TaffyStyle(), control.kind() == FormControl.Kind.SELECT
-                    ? selectMeasure(slot) : inputMeasure(slot));
+            slot.id = behavior.measured() ? tree.newLeafWithMeasure(new TaffyStyle(), intrinsicMeasure(slot, behavior))
+                    : tree.newLeaf(new TaffyStyle());
             slots.put(e, slot);
             changed = true;
         }
@@ -473,7 +461,7 @@ public final class LayoutEngine {
                 changed = true;
             }
             slot.style = e.computed();
-            if (e.control() != null) {
+            if (behavior.measured()) {
                 float size = e.computed().get(CssProperties.FONT_SIZE).value();
                 if (size != slot.fontSize) {
                     slot.fontSize = size;
@@ -482,19 +470,16 @@ public final class LayoutEngine {
                 }
             }
         }
-        if (e.control() != null && e.control().kind() == FormControl.Kind.SELECT) {
-            // The options are laid out only in the top layer; their labels size the select.
-            StringBuilder labels = new StringBuilder();
-            for (Element o : e.control().options()) {
-                labels.append(o.textContent().strip()).append('\n');
-                clearTreeChanges(o);
+        if (!behavior.layoutChildren()) {
+            if (e.hasTreeChange()) {
+                String key = behavior.measureKey(e);
+                if (!key.equals(slot.labels)) {
+                    slot.labels = key;
+                    tree.markDirty(slot.id);
+                    changed = true;
+                }
             }
-            if (!labels.toString().equals(slot.labels)) {
-                slot.labels = labels.toString();
-                tree.markDirty(slot.id);
-                changed = true;
-            }
-            e.clearTreeChange();
+            clearTreeChanges(e);
             return slot.id;
         }
         boolean block = !isRoot && isBlockContainer(e);
@@ -537,15 +522,14 @@ public final class LayoutEngine {
         return slot.id;
     }
 
-    /** {@code <img>} and native elements the host draws: their content is their own, not a paragraph. */
-    private boolean isReplaced(Element e) {
-        return e.tag().equals("img") || tags.isReplaced(e.tag());
+    private static boolean isReplaced(Element e) {
+        return e.type().facet(LayoutFacet.KEY).atomic();
     }
 
     /** An element whose content is a paragraph, where flex layout or an inline formatting context lays out the element itself. */
     private boolean isBlockContainer(Element e) {
         Keywords.Display d = e.computed().get(CssProperties.DISPLAY);
-        return d != Keywords.Display.FLEX && d != Keywords.Display.NONE && e.control() == null && !isReplaced(e);
+        return d != Keywords.Display.FLEX && d != Keywords.Display.NONE && !isReplaced(e);
     }
 
     /** Clears the tree-change marks of a subtree layout skips, so later changes inside it are seen again. */
@@ -594,7 +578,7 @@ public final class LayoutEngine {
                 clearTreeChanges(e);
                 continue;
             }
-            if (d == Keywords.Display.INLINE && !isReplaced(e) && e.control() == null) {
+            if (d == Keywords.Display.INLINE && !isReplaced(e)) {
                 checkInlineBox(e, cs);
                 int start = p.items.size();
                 collect(p, e);
@@ -755,25 +739,11 @@ public final class LayoutEngine {
         return true;
     }
 
-    /** An {@code <input>}: no width of its own, one line high. */
-    private MeasureFunc inputMeasure(Slot slot) {
-        return (known, available) -> new FloatSize(Float.isNaN(known.width) ? 0 : known.width,
-                Float.isNaN(known.height) ? shaper.lineHeight(slot.fontSize) : known.height);
-    }
-
-    /** A {@code <select>}: its widest option label and the arrow, one line high. */
-    private MeasureFunc selectMeasure(Slot slot) {
-        return (known, available) -> {
-            float width = known.width;
-            if (Float.isNaN(width)) {
-                width = 0;
-                for (String label : slot.labels.split("\n", -1)) {
-                    width = Math.max(width, shaper.width(label, slot.fontSize, false));
-                }
-                width += SELECT_ARROW_SPACE;
-            }
-            return new FloatSize(width, Float.isNaN(known.height) ? shaper.lineHeight(slot.fontSize) : known.height);
-        };
+    /** The intrinsic measure contract is installed once for the node, not allocated per query. */
+    private MeasureFunc intrinsicMeasure(Slot slot, LayoutFacet behavior) {
+        return (known, available) -> new FloatSize(
+                Float.isNaN(known.width) ? behavior.width(slot.labels, slot.fontSize, shaper) : known.width,
+                Float.isNaN(known.height) ? behavior.height(slot.fontSize, shaper) : known.height);
     }
 
     private MeasureFunc paragraphMeasure(Slot slot) {
@@ -841,7 +811,7 @@ public final class LayoutEngine {
             List<Node> children = e.children();
             for (int i = 0; i < children.size(); i++) {
                 Node c = children.get(i);
-                if (c instanceof Element skipped && (skipped.rendersInTopLayer() || e.tag().equals("select"))) {
+                if (c instanceof Element skipped && (skipped.rendersInTopLayer() || !e.type().facet(LayoutFacet.KEY).layoutChildren())) {
                     continue; // top-layer content: placed by placeLayer, and no part of this scroll range
                 }
                 Slot cs = slots.get(c);

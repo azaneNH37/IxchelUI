@@ -32,8 +32,7 @@ class UiDocumentDragTest {
                      on:drag="note('drag ' + $event.movementX)" on:dragend="note('end')" on:mouseup="note('up')">
                   <span>s</span><ix-drag-preview class="ghost"><span>g</span></ix-drag-preview></div></if>
                 <div class="dst" on:drop="note('drop')"></div>
-                """), "t.html", GoldenTest.sheet(".src, .dst { height: 20px; flex-shrink: 0 } .ghost { width: 10px; height: 10px }"),
-                TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
+                """), "t.html", GoldenTest.sheet(".src, .dst { height: 20px; flex-shrink: 0 } .ghost { width: 10px; height: 10px }"), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         doc.frame(100, 100);
         return doc;
     }

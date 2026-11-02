@@ -4,6 +4,7 @@ import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.syntax.CssParser;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
+import com.azane.ixchel.core.dom.ElementType;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
@@ -42,14 +43,14 @@ class LayoutEngineTest {
     @Test
     void colorOnlyRestyleDoesNotRunTaffyButASizeChangeDoes() {
         Diagnostics diag = new Diagnostics();
-        Element root = new Element("#root", new SourcePos("t.html", 1, 1));
-        for (Node n : TemplateParser.parse("<div class=\"a\">x</div>", "t.html", TagRegistry.HTML, diag).roots()) {
+        Element root = new Element(ElementType.plain("#root"), new SourcePos("t.html", 1, 1));
+        for (Node n : TemplateParser.parse("<div class=\"a\">x</div>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
             root.appendChild(n);
         }
         StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(
                 ".a { width: 10px } .hot { color: #f00 } .wide { width: 20px }", "t.css", diag), CssProperties.REGISTRY, diag);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
-        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, TagRegistry.HTML, diag);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, diag);
         style.restyle(root);
         layout.layout(root, 100, 100, new TopLayer());
         assertEquals(1, layout.computeCount);
@@ -70,16 +71,16 @@ class LayoutEngineTest {
     @Test
     void equalWidthTextChangeSkipsTaffyButAWiderOneReflows() {
         Diagnostics diag = new Diagnostics();
-        Element root = new Element("#root", new SourcePos("t.html", 1, 1));
+        Element root = new Element(ElementType.plain("#root"), new SourcePos("t.html", 1, 1));
         for (Node n : TemplateParser.parse("<div class=\"row\"><span>x5</span><div class=\"mark\"></div></div>",
-                "t.html", TagRegistry.HTML, diag).roots()) {
+                "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
             root.appendChild(n);
         }
         StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(
                 ".row { flex-direction: row; align-items: flex-start } .mark { width: 2px; height: 2px }",
                 "t.css", diag), CssProperties.REGISTRY, diag);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
-        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, TagRegistry.HTML, diag);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, diag);
         style.restyle(root);
         layout.layout(root, 100, 100, new TopLayer());
         Element row = (Element) root.children().get(0);
@@ -105,15 +106,15 @@ class LayoutEngineTest {
     @Test
     void theTooltipIsPlacedAtThePointerFlipsAtTheEdgesAndNeverReflowsTheDocument() {
         Diagnostics diag = new Diagnostics();
-        Element root = new Element("#root", new SourcePos("t.html", 1, 1));
+        Element root = new Element(ElementType.plain("#root"), new SourcePos("t.html", 1, 1));
         for (Node n : TemplateParser.parse("<div class=\"a\">x<ix-tooltip class=\"tip\">t</ix-tooltip></div>",
-                "t.html", TagRegistry.HTML, diag).roots()) {
+                "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
             root.appendChild(n);
         }
         StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(
                 ".a { width: 10px } .tip { width: 30px; height: 30px }", "t.css", diag), CssProperties.REGISTRY, diag);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
-        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, TagRegistry.HTML, diag);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, diag);
         TopLayer top = new TopLayer();
         Element a = (Element) root.children().get(0);
         Element tip = (Element) a.children().get(1);
@@ -142,16 +143,16 @@ class LayoutEngineTest {
     @Test
     void aTooltipNarrowedByMaxWidthIsAsTallAsItsWrappedText() {
         Diagnostics diag = new Diagnostics();
-        Element root = new Element("#root", new SourcePos("t.html", 1, 1));
+        Element root = new Element(ElementType.plain("#root"), new SourcePos("t.html", 1, 1));
         for (Node n : TemplateParser.parse("<div>x<ix-tooltip class=\"tip\"><div class=\"text\">aaaa bbbb cccc</div></ix-tooltip></div>",
-                "t.html", TagRegistry.HTML, diag).roots()) {
+                "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
             root.appendChild(n);
         }
         StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(
                 ".tip { flex-direction: column; max-width: 30px } .text { display: block }", "t.css", diag),
                 CssProperties.REGISTRY, diag);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
-        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, TagRegistry.HTML, diag);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, diag);
         TopLayer top = new TopLayer();
         Element tip = (Element) ((Element) root.children().get(0)).children().get(1);
         Element text = (Element) tip.children().get(0);

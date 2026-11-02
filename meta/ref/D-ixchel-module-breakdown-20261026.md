@@ -41,10 +41,11 @@ flowchart LR
 | `text` | 文本测量接口与结果缓存、换行 | — |
 | `layout` | `Element` ↔ taffy 节点同步、布局结果查询（mc 层据此写回 `Slot.x/y`） | dom, css.property, text |
 | `paint` | DisplayList 生成、裁剪栈 | dom, css.property, layout, text |
-| `event` | 命中测试、三阶段派发、焦点（`tabindex`、Tab 切换）、hover/active/focus 状态位、`Keys` 键名表、`<input>` 的默认编辑行为（`TextEditing`，编辑状态 `dom.TextField`）与剪贴板端口 `Clipboard`（宿主提供，mc 层接原版 `keyboardHandler`）；`UiEvent` 与监听器存放在 `dom`（`Element` 持有监听器） | dom, layout, css.property |
+| `event` | 命中测试、三阶段派发、焦点、hover/active/focus 状态位、`Keys` 键名表与剪贴板端口；通过 `InteractionFacet` 调用元素默认行为，只把所需操作交给内部 `Actions`；`UiEvent` 与监听器存放在 `dom` | dom, layout, css.property |
 | `binding` | ViewModel 作者 API：ViewModel / Cell / Value / Derived / Source / Action / Scope / EventInfo；包内 Polled / Held / Flat；`ModelAccess` 是只发给 `binding.compile` 的内部接缝（#017） | — |
 | `binding.expr` | 表达式语言：`Expr` 语法树、`Parser`、`Expressions`（类型检查与编译为输入加求值函数）、`Types` 类型规则 | binding |
 | `binding.compile` | 模板绑定：`Bindings` 入口、`Compiler`（按名字表解析）、`Name`/`Ref`/`Part`/`Anchor`、`Block`/`IfBlock`/`EachBlock`、`Binding`/`StyleBinding`；双向 `bind:value`、`bind:scrolltop`；`on:keydown.<key>` 过滤查 `event.Keys`，鼠标与修饰键过滤（`.left`/`.right`/`.shift`…）精确匹配（#012） | binding, binding.expr, dom, template, event |
+| `html` | 内置元素定义的装配与各元素专有行为；原生元素声明转为同一种切面组合。切面接口归各消费阶段，阶段不反向依赖内置定义。选择组合而非元素继承，避免 DOM 反向依赖流水线；interaction/layout 暂不作为宿主扩展契约（#031） | dom, template, layout, paint, event, style |
 | `runtime` | `UiDocument`：组装上述阶段、帧驱动、热重载入口 | 全部 |
 
 `css.property` 是**唯一的支持清单**：解析、校验、开发期报错、特性文档与 VS Code `css.customData` 都由它生成，不另维护列表。
@@ -55,12 +56,13 @@ flowchart LR
 
 契约代码在 `com.azane.ixchel.core` 下：`dom.Node`/`Element`/`TextNode`/`LayoutBox`、`css.property.PropertyDef`/`PropertyRegistry`/`ComputedStyle`、`paint.DrawCommand`/`DisplayList`。读代码看不出的约定：
 
+- 元素定义用阶段切面组合而非 DOM 子类（#031）；切面实例跨节点共享，输入值、光标及提交点属于各节点的表单状态，不能放在共享定义里。语法资源标签由解析器处理，kit 的 schema 同时收录它们，但它们不进入运行时元素注册表。
 - `ComputedStyle` 放在 `css.property` 而不是 `style`：`Element` 持有它，放在 `style` 会形成 dom ↔ style 环。`LayoutBox` 同理放在 `dom`。
 - 树节点分 `Element` 与 `TextNode`：模板允许混排文本（如 `<span>a</span>/<span>b</span>`）。选择器只匹配 `Element`，`TextNode` 的样式取父元素。
 - 样式脏标记的粒度是子树：元素脏表示它与整棵子树都重算；祖先只记"有脏后代"，供样式阶段跳过干净子树。没有结构伪类与兄弟组合符，所以增删子节点不标父元素脏；属性选择器只有 `[a]`、`[a=v]`，只匹配元素自身。例外：改 `id` 标该元素脏（参与 `#id` 匹配），已算过样式的元素被挂到（新）父节点下时标该元素脏（继承值与组合选择器随祖先变化）。`class`/`style` 不走 `setAttribute`，分别用 `addClass`/`removeClass` 与 `setInlineStyle`。
 - 坐标是文档 GUI 像素，原点在视口左上；`LayoutBox` 存绝对坐标的 border box。模板顶层元素的父节点是尺寸等于视口的隐式根。
 - `font-size` 以 GUI 像素计，`9px` = vanilla 字体 1 倍（行高 9）；`DrawCommand.Text` 的 `(x, y)` 是行框左上角，基线对齐由 `McPainter` 处理。
-- `DrawCommand` 的子类型随实现加入，当前为 `Rect`/`Text`/`Image`/`Custom`/`PushClip`/`PopClip`；计划中的 `RoundRect`、`Border`、`NineSlice` 在对应功能落地时再定字段。物品不单设 `Item`，走 `Custom(kind, payload, x, y, w, h)`：原生元素由 `TagRegistry.Builder.nativeTag(tag, payload)` 注册，payload 只能经 `bind:<payload>` 写入（按引用判断变化），`Painter` 对有 payload 的原生元素输出 `Custom`，内核不解释 `payload`。mc 层 `<mc-item bind:item>` 用 vanilla `renderItem` 按元素尺寸缩放绘制；深度按重叠分层（§4）。
+- 物品不单设绘制命令类型，走 `Custom(kind, payload, x, y, w, h)`：原生元素由实现类上的 `@NativeElement` 声明，载荷类型从泛型取得；宿主经 `McElements.register(modid, painter)` 登记（#030）。payload 只能经 `bind:<payload>` 写入（按引用判断变化），原生元素的绘制切面输出 `Custom`，core 不解释宿主对象。mc 层 `<mc-item bind:item>` 用 vanilla `renderItem` 按元素尺寸缩放绘制；深度按重叠分层（§4）。
 - `Syntax.parse` 报错后返回 `null`，该声明整条丢弃；简写在解析期展开，`ComputedStyle` 只存长写属性。选择器列表中任一项非法则整条规则丢弃（同 CSS）。
 - 布局只在计算值中 `affectsLayout` 属性变化、文本、字号或子节点列表变化，或视口变化时才跑 taffy；只改颜色、背景等的重算不调用 taffy `setStyle`。
 - 干净帧：上一帧以来无重算、无文本与子节点变化、视口不变、未调用 `invalidateText()` 时，`UiDocument.frame` 跳过布局同步与绘制，沿用上一帧的 `DisplayList`，core 不分配。`DisplayList` 带版本号，只在重绘时递增，`McPainter` 据此复用顶点缓冲。

@@ -184,7 +184,7 @@
   "ixchel_sample.tooltips.badge": "组件提供的帮助",
   "ixchel_sample.tooltips.badge.text": "徽章把传给它的内容放进提示",
   "ixchel_sample.tooltips.native": "宿主自绘元素",
-  "ixchel_sample.tooltips.native.tip": "此元素由 mod 绘制，标签声明在 ui/elements.txt",
+  "ixchel_sample.tooltips.native.tip": "此元素由 mod 绘制，标签通过绘制类上的 @NativeElement 声明",
   "ixchel_sample.tooltips.open": "打开对话框",
   "ixchel_sample.tooltips.dialog": "提示绘制在对话框之上",
   "ixchel_sample.tooltips.close": "关闭",

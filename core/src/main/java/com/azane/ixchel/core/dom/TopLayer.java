@@ -18,11 +18,6 @@ import java.util.List;
  * {@link Element#OPEN} while shown.
  */
 public final class TopLayer {
-    /** The tag of tooltip elements. */
-    public static final String TOOLTIP = "ix-tooltip";
-    /** The tag of drag preview elements. */
-    public static final String DRAG_PREVIEW = "ix-drag-preview";
-
     private final List<Element> entries = new ArrayList<>();
     private final List<Element> view = Collections.unmodifiableList(entries);
     private Element atPointer;
@@ -42,12 +37,12 @@ public final class TopLayer {
 
     /** The shown {@code <ix-tooltip>}, or {@code null}. */
     public Element tooltip() {
-        return atPointer != null && atPointer.tag().equals(TOOLTIP) ? atPointer : null;
+        return atPointer != null && atPointer.type().facet(LayerFacet.KEY).pointer() == LayerFacet.Pointer.TOOLTIP ? atPointer : null;
     }
 
     /** The shown {@code <ix-drag-preview>}, or {@code null}. */
     public Element dragPreview() {
-        return atPointer != null && atPointer.tag().equals(DRAG_PREVIEW) ? atPointer : null;
+        return atPointer != null && atPointer.type().facet(LayerFacet.KEY).pointer() == LayerFacet.Pointer.DRAG_PREVIEW ? atPointer : null;
     }
 
     /** The pointer {@link #atPointer()} is placed at, in GUI pixels. */
@@ -130,7 +125,7 @@ public final class TopLayer {
     /** The topmost open dialog, or {@code null}: it and the entries above it are all that is not inert. */
     public Element modal() {
         for (int i = entries.size() - 1; i >= 0; i--) {
-            if (entries.get(i).tag().equals("dialog")) {
+            if (entries.get(i).type().facet(LayerFacet.KEY).modal()) {
                 return entries.get(i);
             }
         }

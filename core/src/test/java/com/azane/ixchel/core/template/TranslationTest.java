@@ -42,7 +42,7 @@ class TranslationTest {
     }
 
     private static Element parse(String html, Translations translations, Diagnostics diag) {
-        Template t = TemplateParser.parse(html, "t.html", TagRegistry.HTML, null, translations, false, diag);
+        Template t = TemplateParser.parse(html, "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, null, translations, false, diag);
         return (Element) t.roots().get(0);
     }
 
@@ -150,7 +150,7 @@ class TranslationTest {
                 </div>""";
         assertEquals(List.of(), codes(html, Translations.NONE));
         Diagnostics diag = new Diagnostics(Set.of(TemplateCode.LITERAL_TEXT));
-        TemplateParser.parse(html, "t.html", TagRegistry.HTML, diag);
+        TemplateParser.parse(html, "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertEquals(List.of("i18n/literal-text@t.html:1:1", "i18n/literal-text@t.html:2:9"), DiagCodes.of(diag));
     }
 }

@@ -1,11 +1,13 @@
 package com.azane.ixchel.mc.element;
 
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.LayerFacet;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.dom.TextNode;
-import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.azane.ixchel.core.template.NativeElement;
+import com.azane.ixchel.core.template.NativePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -23,7 +25,8 @@ import java.util.function.Function;
  * text child per line in its colors and formatting. A host runs it around each frame; only the
  * elements shown are read: those outside any {@code <ix-tooltip>} and those in the shown one.
  */
-public final class TooltipLines {
+@NativeElement(tag = TooltipLines.TAG, payload = "item", lines = true)
+public final class TooltipLines implements NativePayload<ItemStack> {
     static final String TAG = "mc-tooltip-lines";
     /** An empty line keeps its height. */
     private static final StyledText BLANK = new StyledText(List.of(new StyledText.Span("\u00A0", 0, 0)));
@@ -83,7 +86,7 @@ public final class TooltipLines {
     /** The nearest {@code <ix-tooltip>} around {@code e}, or {@code null}. */
     private static Element enclosingTooltip(Element e) {
         for (Element a = e.parent(); a != null; a = a.parent()) {
-            if (a.tag().equals(TopLayer.TOOLTIP)) {
+            if (a.type().facet(LayerFacet.KEY).pointer() == LayerFacet.Pointer.TOOLTIP) {
                 return a;
             }
         }
@@ -91,7 +94,8 @@ public final class TooltipLines {
     }
 
     private boolean fill(Element e) {
-        ItemStack stack = e.payload() == null ? ItemStack.EMPTY : ItemElement.stackOf(e.payload());
+        Object value = e.payload() == null ? null : NativePayload.valueOf(e.payload(), e.type());
+        ItemStack stack = value == null ? ItemStack.EMPTY : (ItemStack) value;
         List<Component> lines = stack.isEmpty() ? List.of() : Screen.getTooltipFromItem(Minecraft.getInstance(), stack);
         List<Component> before = filled.getOrDefault(e, List.of());
         if (lines.equals(before)) {

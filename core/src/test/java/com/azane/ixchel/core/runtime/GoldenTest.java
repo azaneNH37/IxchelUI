@@ -64,8 +64,7 @@ class GoldenTest {
     void displayListMatchesExpectation(String name) throws IOException {
         String dir = "golden/" + name + "/";
         UiDocument doc = UiDocument.load(resource(dir + "hud.html"), "hud.html",
-                Map.of("hud.css", resource(dir + "hud.css"))::get,
-                TagRegistry.HTML, MONO, NO_IMAGES);
+                Map.of("hud.css", resource(dir + "hud.css"))::get, com.azane.ixchel.core.html.HtmlElements.TAGS, MONO, NO_IMAGES);
         DisplayList out = doc.frame(480, 270);
 
         String expected = resource(dir + "expected.txt").lines()

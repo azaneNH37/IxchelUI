@@ -13,6 +13,8 @@ import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.ElementType;
+import com.azane.ixchel.core.dom.LayerFacet;
 import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TopLayer;
@@ -80,14 +82,14 @@ public final class UiDocument {
     int pipelineRuns;
 
     private UiDocument(Element root, List<String> files, Diagnostics diagnostics, StyleEngine style,
-                       LayoutEngine layout, Bindings bindings, TagRegistry tags, ImageMeasurer images,
+                       LayoutEngine layout, Bindings bindings, ImageMeasurer images,
                        Transitions transitions, TopLayer topLayer) {
         this.root = root;
         this.files = files;
         this.diagnostics = diagnostics;
         this.style = style;
         this.layout = layout;
-        this.painter = new Painter(layout, tags, images, diagnostics);
+        this.painter = new Painter(layout, images, diagnostics);
         this.bindings = bindings;
         this.topLayer = topLayer;
         this.events = new EventDispatcher(root, layout, topLayer);
@@ -133,8 +135,8 @@ public final class UiDocument {
         StyleEngine style = p.style(tags, diag, transitions);
         style.restyle(p.root);
         diag.throwIfErrors();
-        LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY, tags, diag);
-        return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, tags, images, transitions,
+        LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY, diag);
+        return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, images, transitions,
                 p.topLayer);
     }
 
@@ -174,7 +176,7 @@ public final class UiDocument {
         List<StyleSheet> components = sheets(loaded.componentSheets(), diag);
         List<StyleSheet> themes = library(loaded.library(), diag);
         List<StyleSheet> author = sheets(loaded.pageSheets(), diag);
-        Element root = new Element("#root", new SourcePos(templateFile, 1, 1));
+        Element root = new Element(ElementType.plain("#root"), new SourcePos(templateFile, 1, 1));
         if (translations.language() != null) {
             root.setAttribute("lang", translations.language());
         }
@@ -231,7 +233,7 @@ public final class UiDocument {
      * instead, and this does nothing.
      */
     public void setTooltip(Element tip, float x, float y) {
-        if (tip != null && !tip.tag().equals(TopLayer.TOOLTIP)) {
+        if (tip != null && tip.type().facet(LayerFacet.KEY).pointer() != LayerFacet.Pointer.TOOLTIP) {
             throw new IllegalArgumentException("not an <ix-tooltip>: <" + tip.tag() + ">");
         }
         if (events.dragSource() == null) {

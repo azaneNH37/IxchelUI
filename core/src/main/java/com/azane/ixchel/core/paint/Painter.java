@@ -11,16 +11,15 @@ import com.azane.ixchel.core.css.property.TextShadow;
 import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.LayerFacet;
 import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.StyledText;
-import com.azane.ixchel.core.dom.TextField;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.layout.Scrollbar;
-import com.azane.ixchel.core.template.TagRegistry;
 
 import java.util.HashSet;
 import java.util.List;
@@ -61,16 +60,13 @@ import java.util.Set;
  * and scroll offsets are not affected. Clips inside a transformed subtree are rectangles in its local
  * coordinates; under a rotation the host clips to their bounding box.
  */
-public final class Painter {
+public final class Painter implements PaintFacet.Context {
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     /** Bounds the commands one background may emit, so a tiny repeated tile cannot stall a frame. */
     private static final int MAX_TILES = 16384;
-    private static final int SELECTION_COLOR = 0x803399FF;
-    private static final int TRACK_COLOR_RANGE = 0xFF505050;
     private static final int BACKDROP_COLOR = 0x80000000;
 
     private final LayoutEngine layout;
-    private final TagRegistry tags;
     private final ImageMeasurer images;
     private final Diagnostics diag;
     private final Set<String> reported = new HashSet<>();
@@ -79,9 +75,8 @@ public final class Painter {
     private boolean caretVisible;
 
     /** @param diag receives paint-time errors (an image that cannot be measured), each reported once */
-    public Painter(LayoutEngine layout, TagRegistry tags, ImageMeasurer images, Diagnostics diag) {
+    public Painter(LayoutEngine layout, ImageMeasurer images, Diagnostics diag) {
         this.layout = layout;
-        this.tags = tags;
         this.images = images;
         this.diag = diag;
     }
@@ -95,6 +90,12 @@ public final class Painter {
         caretVisible = visible;
     }
 
+    @Override
+    public float textWidth(String text, float size) { return layout.textWidth(text, size); }
+
+    @Override
+    public float lineHeight(float size) { return layout.lineHeight(size); }
+
     /** Clears {@code out} and paints the children of the implicit root into it, then the top layer's entries. */
     public void paint(Element root, TopLayer top, DisplayList out) {
         out.clear();
@@ -103,16 +104,13 @@ public final class Painter {
         for (int i = 0; i < entries.size(); i++) {
             Element entry = entries.get(i);
             alpha = 1;
-            if (entry.tag().equals("dialog")) {
+            LayerFacet presentation = entry.type().facet(LayerFacet.KEY);
+            if (presentation.modal()) {
                 rect(out, 0, 0, root.box().width(), root.box().height(), BACKDROP_COLOR);
-                paintElement(entry, 0, out);
-            } else {
-                List<Node> options = entry.children();
-                for (int j = 0; j < options.size(); j++) {
-                    if (options.get(j) instanceof Element o && o.tag().equals("option")) {
-                        paintElement(o, 0, out);
-                    }
-                }
+            }
+            for (int j = 0; j < presentation.contentCount(entry); j++) {
+                Element child = presentation.contentAt(entry, j);
+                if (child != null) paintElement(child, 0, out);
             }
         }
         root.clearRepaint();
@@ -176,23 +174,9 @@ public final class Painter {
             paintBackgroundImage(e, cs, b, y, OPAQUE_WHITE, out);
         }
         paintBorder(cs, b, y, out);
-        FormControl control = e.control();
-        if (control != null) {
-            switch (control.kind()) {
-                case TEXT, NUMBER -> paintInput(e, cs, b, y, out);
-                case CHECKBOX -> paintCheckbox(e, cs, b, y, out);
-                case RANGE -> paintRange(control, cs, b, y, out);
-                case SELECT -> {
-                    paintSelect(control, cs, b, y, out);
-                    return;
-                }
-            }
-        }
-        if (e.tag().equals("img")) {
-            out.add(new DrawCommand.Image(b.x(), y, b.width(), b.height(), e.attribute("src"), 0, 0, 1, 1, fade(OPAQUE_WHITE)));
-        } else if (e.payload() != null && tags.isReplaced(e.tag())) {
-            out.add(new DrawCommand.Custom(e.tag(), e.payload(), b.x(), y, b.width(), b.height()));
-        }
+        PaintFacet content = e.type().facet(PaintFacet.KEY);
+        content.paint(e, y, out, this);
+        if (!content.paintChildren()) return;
         Keywords.Overflow overflow = cs.get(CssProperties.OVERFLOW);
         if (overflow == Keywords.Overflow.VISIBLE) {
             paintChildren(e, dy, out);
@@ -208,105 +192,9 @@ public final class Painter {
         out.add(DrawCommand.PopClip.INSTANCE);
     }
 
-    private void paintInput(Element e, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
-        float cx = b.x() + b.borderLeft() + b.paddingLeft();
-        float cy = y + b.borderTop() + b.paddingTop();
-        float cw = b.width() - b.borderLeft() - b.paddingLeft() - b.paddingRight() - b.borderRight();
-        float ch = b.height() - b.borderTop() - b.paddingTop() - b.paddingBottom() - b.borderBottom();
-        if (cw <= 0 || ch <= 0) {
-            return;
-        }
-        TextField f = e.textField();
-        String v = f.value();
-        float size = cs.get(CssProperties.FONT_SIZE).value();
-        float lh = layout.lineHeight(size);
-        int color = cs.get(CssProperties.COLOR);
-        boolean focused = e.hasState(Element.FOCUS);
-        float caretX = layout.textWidth(v.substring(0, f.caret()), size);
-        // Room for the 1px caret after the last character; no empty space past the end while scrolled.
-        float scroll = Math.min(f.scrollX(), Math.max(0, layout.textWidth(v, size) + 1 - cw));
-        if (caretX + 1 - scroll > cw) {
-            scroll = caretX + 1 - cw;
-        }
-        scroll = Math.round(Math.max(0, Math.min(scroll, caretX)));
-        f.setScrollX(scroll);
-        float tx = cx - scroll;
-        float ty = cy + Math.round((ch - lh) / 2);
-        out.add(new DrawCommand.PushClip(cx, cy, cw, ch));
-        String placeholder = e.attribute("placeholder");
-        if (!v.isEmpty()) {
-            if (focused && f.hasSelection()) {
-                float x0 = Math.round(tx + layout.textWidth(v.substring(0, f.selectionStart()), size));
-                float x1 = Math.round(tx + layout.textWidth(v.substring(0, f.selectionEnd()), size));
-                rect(out, x0, ty, x1 - x0, lh, SELECTION_COLOR);
-            }
-            text(out, cs, tx, ty, size, color, v);
-        } else if (placeholder != null && !placeholder.isEmpty()) {
-            text(out, cs, tx, ty, size, Math.round((color >>> 24) * 0.5f) << 24 | color & 0xFFFFFF, placeholder);
-        }
-        if (focused && caretVisible) {
-            rect(out, Math.round(tx + caretX), ty, 1, lh, color);
-        }
-        out.add(DrawCommand.PopClip.INSTANCE);
-    }
-
-    private void paintCheckbox(Element e, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
-        if (e.control().checked()) {
-            rect(out, b.x() + b.borderLeft() + b.paddingLeft(), y + b.borderTop() + b.paddingTop(),
-                    contentWidth(b), contentHeight(b), cs.get(CssProperties.ACCENT_COLOR));
-        }
-    }
-
-    private void paintRange(FormControl c, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
-        float cx = b.x() + b.borderLeft() + b.paddingLeft();
-        float cy = y + b.borderTop() + b.paddingTop();
-        float cw = contentWidth(b);
-        float ch = contentHeight(b);
-        if (cw <= FormControl.THUMB_WIDTH || ch <= 0) {
-            return;
-        }
-        int accent = cs.get(CssProperties.ACCENT_COLOR);
-        float trackY = cy + Math.round((ch - 2) / 2);
-        float thumbX = cx + Math.round(c.fraction() * (cw - FormControl.THUMB_WIDTH));
-        rect(out, cx, trackY, cw, 2, TRACK_COLOR_RANGE);
-        rect(out, cx, trackY, thumbX - cx, 2, accent);
-        rect(out, thumbX, cy, FormControl.THUMB_WIDTH, ch, accent);
-    }
-
-    private void paintSelect(FormControl c, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
-        float cx = b.x() + b.borderLeft() + b.paddingLeft();
-        float cy = y + b.borderTop() + b.paddingTop();
-        float cw = contentWidth(b);
-        float ch = contentHeight(b);
-        if (cw <= 0 || ch <= 0) {
-            return;
-        }
-        float size = cs.get(CssProperties.FONT_SIZE).value();
-        float lh = layout.lineHeight(size);
-        int color = cs.get(CssProperties.COLOR);
-        float ty = cy + Math.round((ch - lh) / 2);
-        float labelWidth = Math.max(0, cw - LayoutEngine.SELECT_ARROW_SPACE);
-        out.add(new DrawCommand.PushClip(cx, cy, labelWidth, ch));
-        text(out, cs, cx, ty, size, color, c.label());
-        out.add(DrawCommand.PopClip.INSTANCE);
-        // A 5px-wide down arrow: rows 5, 3, 1 wide, centered in the reserved space.
-        float ax = cx + cw - LayoutEngine.SELECT_ARROW_SPACE + 3;
-        float ay = cy + Math.round((ch - 3) / 2);
-        for (int row = 0; row < 3; row++) {
-            rect(out, ax + row, ay + row, 5 - 2 * row, 1, color);
-        }
-    }
-
-    private static float contentWidth(LayoutBox b) {
-        return b.width() - b.borderLeft() - b.paddingLeft() - b.paddingRight() - b.borderRight();
-    }
-
-    private static float contentHeight(LayoutBox b) {
-        return b.height() - b.borderTop() - b.paddingTop() - b.paddingBottom() - b.borderBottom();
-    }
 
     /** One line of a control's text, over the shadow of {@code cs}'s {@code text-shadow}. */
-    private void text(DisplayList out, ComputedStyle cs, float x, float y, float size, int color, String text) {
+    public void text(DisplayList out, ComputedStyle cs, float x, float y, float size, int color, String text) {
         TextShadow shadow = cs.get(CssProperties.TEXT_SHADOW);
         int s = fade(shadow.color());
         if (s >>> 24 != 0) {
@@ -342,7 +230,7 @@ public final class Painter {
         }
     }
 
-    private void rect(DisplayList out, float x, float y, float w, float h, int color) {
+    public void rect(DisplayList out, float x, float y, float w, float h, int color) {
         int c = fade(color);
         if (c >>> 24 != 0) {
             out.add(new DrawCommand.Rect(x, y, w, h, c));
@@ -350,7 +238,7 @@ public final class Painter {
     }
 
     /** {@code color} with its alpha multiplied by the opacity of the element being painted and its ancestors. */
-    private int fade(int color) {
+    public int fade(int color) {
         if (alpha >= 1) {
             return color;
         }

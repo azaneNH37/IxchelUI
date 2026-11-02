@@ -1,4 +1,4 @@
-package com.azane.ixchel.core.event;
+package com.azane.ixchel.core.html;
 
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.FormControl;
@@ -37,10 +37,10 @@ final class FormEditing {
 
     /**
      * A range's key: arrows step by {@code step} (Right and Up up), Page Up/Down by a tenth of the
-     * range (at least a step), Home and End to the ends. Returns whether the key is one of those;
-     * {@code changed[0]} tells whether the value moved.
+     * range (at least a step), Home and End to the ends. Returns -1 for an unrelated key, 0 when
+     * handled without changing the value, and 1 when changed.
      */
-    static boolean rangeKey(FormControl c, int key, boolean[] changed) {
+    static int rangeKey(FormControl c, int key) {
         double v = c.number();
         double step = c.step();
         double page = Math.max(step, (c.max() - c.min()) / 10);
@@ -53,11 +53,10 @@ final class FormEditing {
             case KEY_HOME -> next = c.min();
             case KEY_END -> next = c.max();
             default -> {
-                return false;
+                return -1;
             }
         }
-        changed[0] = setNumber(c, next);
-        return true;
+        return setNumber(c, next) ? 1 : 0;
     }
 
     /** Moves a range's value to where {@code x} falls on its track; whether it changed. */

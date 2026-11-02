@@ -19,7 +19,7 @@ class UiDocumentOpacityTest {
                 .inner { opacity: 0.5; height: 10px; background-color: #fff; color: #00ff00 }
                 .pic { width: 4px; height: 4px }
                 .gone { opacity: 0; width: 10px; height: 10px; background-color: #fff }
-                """), TagRegistry.HTML, GoldenTest.MONO, GoldenTest.NO_IMAGES);
+                """), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES);
         assertEquals("""
                 rect 0 0 100 14 #40FF0000
                 rect 0 0 100 10 #40FFFFFF

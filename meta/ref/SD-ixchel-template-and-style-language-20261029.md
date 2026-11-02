@@ -22,8 +22,8 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#004, DECISIONS.md#007
 | 元素（element） | 元素树中的节点，如一个 `div` | — |
 | 标签（tag） | 源码中的 `<div>`（开始标签）与 `</div>`（结束标签） | 不用"标签"指元素 |
 | 标签名（tag name） | `div`；`TagRegistry` 登记的就是标签名 | — |
-| HTML 元素 | core 实现的 HTML 子集（`TagRegistry.HTML`），按标准语义 | — |
-| 原生元素（native element） | 由 Java 绘制的元素，如 `mc-item`；`TagRegistry.nativeTag` 登记，绘制经 `NativePainter` | Web 语境的"原生"指内置 HTML 元素，本项目不这么用 |
+| HTML 元素 | core 的 `HtmlElements` 装配的 HTML 子集，按标准语义；定义模式见 #031 | — |
+| 原生元素（native element） | 宿主 Java 实现的元素，如 `mc-item`；实现类用 `@NativeElement` 声明，绘制经 `NativePainter<T>`，宿主用 `McElements.register` 登记（#030） | Web 语境的"原生"指内置 HTML 元素，本项目不这么用 |
 | 组件（component） | 由模板定义的自定义元素；定义在组件文件中 | — |
 | 自定义元素（custom element） | 原生元素与组件的统称：非 HTML、带连字符的元素 | — |
 | 组件实例 | 组件在模板中的一次使用 | — |

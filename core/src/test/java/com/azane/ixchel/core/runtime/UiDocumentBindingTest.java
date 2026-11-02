@@ -9,6 +9,7 @@ import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.ElementType;
 import com.azane.ixchel.core.event.Keys;
 import com.azane.ixchel.core.template.TagRegistry;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,8 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentBindingTest {
     private static UiDocument load(String html, String css, ViewModel model) {
-        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), TagRegistry.HTML,
-                GoldenTest.MONO, GoldenTest.NO_IMAGES, model, Bindings.PLAIN_TEXT);
+        return UiDocument.load(GoldenTest.linked(html), "t.html", GoldenTest.sheet(css), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, model, Bindings.PLAIN_TEXT);
     }
 
     static final class Ammo extends ViewModel {
@@ -133,8 +134,7 @@ class UiDocumentBindingTest {
     @Test
     void aNameInADocumentWithoutAViewModelIsUnknown() {
         UiLoadException none = assertThrows(UiLoadException.class,
-                () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", GoldenTest.NO_SHEETS, TagRegistry.HTML,
-                        GoldenTest.MONO, GoldenTest.NO_IMAGES));
+                () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
         assertEquals(List.of("binding/unknown-name@t.html:1:18"), DiagCodes.of(none));
     }
 
@@ -145,7 +145,7 @@ class UiDocumentBindingTest {
 
     @Test
     void aNativeElementPaintsItsBoundPayloadAndOnlyABindingCanSetIt() {
-        TagRegistry tags = TagRegistry.HTML.extend().nativeTag("item", "item").build();
+        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", null, false)).build();
         Held m = new Held();
         UiDocument doc = UiDocument.load(GoldenTest.linked("<item class=\"i\" bind:item=\"stack\"></item>"), "t.html",
                 GoldenTest.sheet(".i { width: 16px; height: 16px }"), tags,
@@ -160,7 +160,7 @@ class UiDocumentBindingTest {
 
     @Test
     void aNativeElementsPayloadIsNotAnAttribute() {
-        TagRegistry tags = TagRegistry.HTML.extend().nativeTag("item", "item").build();
+        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", null, false)).build();
         UiLoadException e = assertThrows(UiLoadException.class, () -> UiDocument.load(
                 "<item item=\"sword\"></item>", "t.html", GoldenTest.NO_SHEETS, tags, GoldenTest.MONO, GoldenTest.NO_IMAGES));
         assertEquals(List.of("template/unknown-attribute@t.html:1:7"), DiagCodes.of(e));
@@ -590,8 +590,8 @@ class UiDocumentBindingTest {
         assertEquals(List.of("model/undeclared-writable@t.html:1:1", "binding/two-way-target@t.html:2:20"), DiagCodes.of(e));
     }
 
-    private static final TagRegistry STRING_ITEM = TagRegistry.HTML.extend()
-            .declare("item payload=item accepts=java.lang.String", "t").build();
+    private static final TagRegistry STRING_ITEM = com.azane.ixchel.core.html.HtmlElements.TAGS.extend()
+            .add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", String.class, false)).build();
 
     private static UiDocument loadItem(TagRegistry tags, ViewModel model) {
         return UiDocument.load(GoldenTest.linked("<item bind:item=\"p\"></item>"), "t.html", GoldenTest.sheet(""), tags,
@@ -622,31 +622,19 @@ class UiDocumentBindingTest {
         assertEquals(List.of(), DiagCodes.of(doc.diagnostics()));
     }
 
-    private static final TagRegistry SUPPLIER_ITEM = TagRegistry.HTML.extend()
-            .declare("item payload=item accepts=java.util.function.Supplier<java.lang.String>", "t").build();
-
     @Test
-    void anAcceptedTypeArgumentIsChecked() {
-        UiDocument doc = loadItem(SUPPLIER_ITEM, new ViewModel() {
+    void aSupplierOfTheAcceptedTypeLoads() {
+        UiDocument doc = loadItem(STRING_ITEM, new ViewModel() {
             final Value<Supplier<String>> p = state(() -> "s");
         });
         assertEquals(List.of(), DiagCodes.of(doc.diagnostics()));
     }
 
     @Test
-    void aMismatchedTypeArgumentIsAPayloadTypeError() {
-        UiLoadException e = assertThrows(UiLoadException.class, () -> loadItem(SUPPLIER_ITEM, new ViewModel() {
+    void aSupplierOfAnotherTypeIsAPayloadTypeError() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> loadItem(STRING_ITEM, new ViewModel() {
             final Value<Supplier<Integer>> p = state(() -> 1);
         }));
         assertEquals(List.of("binding/payload-type@t.html:2:18"), DiagCodes.of(e));
-    }
-
-    @Test
-    void anUnloadableAcceptedClassSkipsTheCheck() {
-        TagRegistry tags = TagRegistry.HTML.extend().declare("item payload=item accepts=com.example.Missing", "t").build();
-        UiDocument doc = loadItem(tags, new ViewModel() {
-            final Value<Integer> p = state(1);
-        });
-        assertEquals(List.of(), DiagCodes.of(doc.diagnostics()));
     }
 }
