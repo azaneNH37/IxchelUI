@@ -192,6 +192,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - 单位：em、rem（根字号，初值 9px）、vw、vh（GUI 视口，即 `UiDocument.frame` 的尺寸），在计算样式时换算为 px。
   - `calc()`：所有长度属性，`+ - * /`，同批 `min()`/`max()`/`clamp()`；含 % 的部分在布局时经 taffy `CalcExpression` 求值。`Length` 改为"百分比 + 像素"，px 与 % 之间的过渡按标准分量插值，不再跳变。
   - grid：接上 taffy 支持的全部写法（模板行列、`fr`、`repeat` 含 auto-fill/auto-fit、`minmax`、命名线、areas、放置），不做 subgrid。
+  - 补定（2026-11-03）：含 % 的 `min()`/`max()`/`clamp()` 不是线性式，`Length` 另需表达式形态，过渡按标准 calc-mix 插值。vw/vh 在计算样式时换算，视口变化须重算用到视口单位的样式，不只重新布局。taffy 不生成匿名块，由 core 把连续行内内容包成段落叶子；只含行内内容的块仍是现行段落叶子。其余未写明处按标准：原生元素与表单控件认 `line-height`，`font-size` 收 %（相对父字号），grid 同批接 `justify-items`/`justify-self`、`place-*`、`grid-area`/`grid-row`/`grid-column` 简写与 `grid-auto-*`，`align-content` 对 flex 与 grid 都生效。
 - 验收：core 黄金测试覆盖块布局与外边距折叠、匿名块、各单位、calc 与过渡；现有截图不变；sample 选一处网格布局写成 playtest 截图；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
 
 #### V3 动画
@@ -202,6 +203,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - `@keyframes` 与全部 `animation-*` 长写及简写，含 `animation-play-state` 与 `steps()`；与 `bind:style` 的优先级按标准层叠。
   - 事件：`on:animationend`（播完移除提示、一次性强调后去掉 class）；不做 `animationiteration`（次数用 `animation-iteration-count`）。现无 `transitionend`，不同批补。
   - `@starting-style` 按标准：元素首次得到样式时（含整页首次加载、`<if>`/`<for>` 新实例、从 `display: none` 恢复）从起始样式过渡。
+  - 补定（2026-11-03）：`leave` 等子树内的过渡与有限次动画结束，无限动画不等。`<if>` 离场中恢复复用离场实例，不再重建。`<for>` 离场行原地不动、不参与重排，离场逻辑取最简实现。`@starting-style` 顶层与嵌套在规则内都收。其余按标准：离散属性在动画进度 50% 处切换，`animationend` 冒泡，伪元素上的动画以宿主为事件目标。
 - 性能：无限动画使干净帧失效，开工时用 `FrameTimer` 预算核查，核查对象含 S3、S8。
 - 验收：core 测试用可替换时钟断言关键帧插值、`steps()`、暂停、`animationend`、`@starting-style` 与 `leave`；sample 一处入场与离场动画写成 playtest 截图序列；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
 
