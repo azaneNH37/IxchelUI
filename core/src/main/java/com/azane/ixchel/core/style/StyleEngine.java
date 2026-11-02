@@ -3,6 +3,8 @@ package com.azane.ixchel.core.style;
 import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
+import com.azane.ixchel.core.css.property.LineHeight;
+import com.azane.ixchel.core.css.property.Length;
 import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.css.selector.Selector;
@@ -78,6 +80,13 @@ public final class StyleEngine {
     /** Weakly keyed, so entries leave with their elements; a new inline style replaces its element's entry. */
     private final Map<Element, Inline> inlineCache = new WeakHashMap<>();
     private final List<Entry> scratch = new ArrayList<>();
+    /** The longhands of the style being computed that the cascade left pending. */
+    private final List<PropertyDef<?>> deferred = new ArrayList<>();
+    private final Units units = new Units(0, 0, 0, 0);
+    /** The font size {@code rem} is of for the elements being restyled. */
+    private float rem;
+    /** Whether a computed style used {@code vw} or {@code vh}. */
+    private boolean usesViewport;
 
     /** {@code diag} receives errors from inline styles, compiled when an element is restyled with a new one. */
     public StyleEngine(PropertyRegistry registry, List<StyleSheet> sheets, Diagnostics diag) {
@@ -126,19 +135,35 @@ public final class StyleEngine {
     public void restyle(Element root) {
         if (root.isStyleDirty() || root.computed() == null) {
             root.setComputed(ComputedStyle.initial(registry));
-            restyleChildren(root, true);
+            restyleChildren(root, true, true);
         } else if (root.hasStyleDirtyDescendant()) {
-            restyleChildren(root, false);
+            restyleChildren(root, false, true);
         }
         root.clearStyleDirty();
     }
 
-    private void restyleChildren(Element parent, boolean force) {
+    /**
+     * Sets the viewport that {@code vw} and {@code vh} are of; {@code true} when it changed and a
+     * computed style used it, so everything must be restyled.
+     */
+    public boolean viewport(float width, float height) {
+        if (width == units.vw && height == units.vh) {
+            return false;
+        }
+        units.vw = width;
+        units.vh = height;
+        return usesViewport;
+    }
+
+    private void restyleChildren(Element parent, boolean force, boolean top) {
         for (Node n : parent.children()) {
             if (!(n instanceof Element e)) {
                 continue;
             }
             boolean self = force || e.isStyleDirty();
+            if (top) {
+                rem = parent.computed().get(CssProperties.FONT_SIZE).value();
+            }
             if (self) {
                 elements.collect(e, false, scratch);
                 ComputedStyle next = compute(e, inline(e), parent.computed());
@@ -146,9 +171,12 @@ public final class StyleEngine {
                 e.setComputed(next);
             }
             if (self || e.hasStyleDirtyDescendant()) {
+                if (top) {
+                    rem = e.computed().get(CssProperties.FONT_SIZE).value();
+                }
                 restylePseudo(e, false, self);
                 restylePseudo(e, true, self);
-                restyleChildren(e, self);
+                restyleChildren(e, self, false);
             }
             e.clearStyleDirty();
         }
@@ -215,6 +243,7 @@ public final class StyleEngine {
                 }
             }
         }
+        resolveDeferred(cs, parent);
         matched.clear();
         return cs;
     }
@@ -383,13 +412,56 @@ public final class StyleEngine {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> void set(ComputedStyle cs, PropertyDef<T> def, Object value, ComputedStyle parent) {
-        if (value instanceof Declarations.Pending p) {
-            value = p.resolve(cs.custom(), diag);
+    private void set(ComputedStyle cs, PropertyDef<?> def, Object value, ComputedStyle parent) {
+        if (value instanceof Declarations.Pending) {
+            deferred.add(def);
+            cs.set((PropertyDef<Object>) def, value);
+        } else {
+            setValue(cs, def, value, parent);
+        }
+    }
+
+    /**
+     * Resolves what the cascade left {@linkplain #set pending}, {@code font-size} first and the rest
+     * relative to it, and computes percentages of {@code font-size} and {@code line-height} to pixels.
+     */
+    private void resolveDeferred(ComputedStyle cs, ComputedStyle parent) {
+        float parentSize = parent.get(CssProperties.FONT_SIZE).value();
+        units.rem = rem;
+        units.em = parentSize;
+        resolve(cs, CssProperties.FONT_SIZE, parent);
+        Length size = cs.get(CssProperties.FONT_SIZE);
+        if (size.unit() != Length.Unit.PX) {
+            cs.set(CssProperties.FONT_SIZE, Length.px(size.resolve(parentSize)));
+        }
+        units.em = cs.get(CssProperties.FONT_SIZE).value();
+        for (PropertyDef<?> def : deferred) {
+            resolve(cs, def, parent);
+        }
+        deferred.clear();
+        LineHeight lh = cs.get(CssProperties.LINE_HEIGHT);
+        if (lh.kind() == LineHeight.Kind.LENGTH && lh.length().unit() != Length.Unit.PX) {
+            cs.set(CssProperties.LINE_HEIGHT, LineHeight.of(Length.px(lh.length().resolve(units.em))));
+        }
+        if (units.viewportUsed) {
+            usesViewport = true;
+            units.viewportUsed = false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void resolve(ComputedStyle cs, PropertyDef<?> def, ComputedStyle parent) {
+        if (cs.get((PropertyDef<Object>) def) instanceof Declarations.Pending p) {
+            Object value = p.resolve(cs.custom(), units, diag);
             if (value == null) {
                 value = def.inherited() ? Declarations.Wide.INHERIT : Declarations.Wide.INITIAL;
             }
+            setValue(cs, def, value, parent);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> void setValue(ComputedStyle cs, PropertyDef<T> def, Object value, ComputedStyle parent) {
         if (value == Declarations.Wide.INHERIT) {
             cs.set(def, parent.get(def));
         } else if (value == Declarations.Wide.INITIAL) {

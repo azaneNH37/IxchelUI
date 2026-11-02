@@ -355,6 +355,9 @@ public final class UiDocument {
         this.viewportHeight = viewportHeight;
         textInvalidated = false;
         pipelineRuns++;
+        if (style.viewport(viewportWidth, viewportHeight)) {
+            root.markStyleDirty();
+        }
         style.restyle(root);
         layout.layout(root, viewportWidth, viewportHeight, topLayer);
         painter.paint(root, topLayer, displayList);

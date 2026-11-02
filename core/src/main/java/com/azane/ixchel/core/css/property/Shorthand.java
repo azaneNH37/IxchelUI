@@ -46,20 +46,23 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
 
     /** {@code gap}: one value for both, or row then column. */
     public static Expander pair(Syntax<?> syntax) {
+        return pair(syntax, syntax);
+    }
+
+    /** {@code place-items} and the like: one value for both longhands, or the first's then the second's. */
+    public static Expander pair(Syntax<?> first, Syntax<?> second) {
         return (value, pos, diag) -> {
             List<ComponentValue> parts = Syntaxes.significant(value);
             if (parts.isEmpty() || parts.size() > 2) {
                 diag.report(PropertyCode.VALUE_COUNT, parts.size() > 2 ? parts.get(2).pos() : pos, "expected 1 or 2 values");
                 return null;
             }
-            Object a = syntax.parse(List.of(parts.get(0)), parts.get(0).pos(), diag);
+            Object a = first.parse(List.of(parts.get(0)), parts.get(0).pos(), diag);
             if (a == null) {
                 return null;
             }
-            if (parts.size() == 1) {
-                return new Object[]{a, a};
-            }
-            Object b = syntax.parse(List.of(parts.get(1)), parts.get(1).pos(), diag);
+            ComponentValue last = parts.get(parts.size() - 1);
+            Object b = second.parse(List.of(last), last.pos(), diag);
             return b == null ? null : new Object[]{a, b};
         };
     }

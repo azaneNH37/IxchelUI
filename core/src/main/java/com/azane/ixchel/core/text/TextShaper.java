@@ -17,7 +17,8 @@ import java.util.Map;
  * its end hang past it and are not drawn. A {@link #LINE_BREAK} always ends the line; it is not drawn.
  *
  * <p>Each line is as tall as the tallest of its pieces and the strut (an empty run in the paragraph's
- * own font), aligned on their baselines; an atomic box's baseline is given with it.
+ * own font and line height), aligned on their baselines; an atomic box's baseline is given with it. A
+ * run takes its line height, the font's own height split evenly above and below it (half-leading).
  */
 public final class TextShaper {
     public static final String ELLIPSIS = "\u2026";
@@ -28,8 +29,11 @@ public final class TextShaper {
     public sealed interface Item permits Run, Box {
     }
 
-    /** Text in one font, whitespace collapsed to single spaces; {@code nowrap}: no line breaks inside it. */
-    public record Run(String text, float size, boolean bold, boolean nowrap) implements Item {
+    /**
+     * Text in one font, whitespace collapsed to single spaces; {@code nowrap}: no line breaks inside it.
+     * {@code lineHeight} is in pixels.
+     */
+    public record Run(String text, float size, boolean bold, boolean nowrap, float lineHeight) implements Item {
     }
 
     /** An atomic box: the width of its margin box and how far that reaches above and below the baseline. */
@@ -75,7 +79,7 @@ public final class TextShaper {
     private record Unit(int item, int start, int end, float width, byte kind, boolean breakBefore) {
     }
 
-    private record Key(List<Item> items, float strut, float maxWidth) {
+    private record Key(List<Item> items, float strut, float strutLineHeight, float maxWidth) {
     }
 
     private final TextMeasurer measurer;
@@ -88,16 +92,17 @@ public final class TextShaper {
 
     /**
      * Breaks {@code items} into lines no wider than {@code maxWidth} where it can;
-     * {@link Float#POSITIVE_INFINITY} for no wrapping. {@code strut} is the paragraph's own font size.
+     * {@link Float#POSITIVE_INFINITY} for no wrapping. {@code strut} and {@code strutLineHeight} are the
+     * paragraph's own font size and line height.
      */
-    public Paragraph layout(List<Item> items, float strut, float maxWidth) {
-        Key key = new Key(items, strut, maxWidth);
+    public Paragraph layout(List<Item> items, float strut, float strutLineHeight, float maxWidth) {
+        Key key = new Key(items, strut, strutLineHeight, maxWidth);
         Paragraph p = paragraphs.get(key);
         if (p == null) {
             if (paragraphs.size() >= MAX_CACHE) {
                 paragraphs.clear();
             }
-            p = wrap(items, units(items), strut, maxWidth);
+            p = wrap(items, units(items), strut, strutLineHeight, maxWidth);
             paragraphs.put(key, p);
         }
         return p;
@@ -209,7 +214,7 @@ public final class TextShaper {
         return u;
     }
 
-    private Paragraph wrap(List<Item> items, List<Unit> units, float strut, float maxWidth) {
+    private Paragraph wrap(List<Item> items, List<Unit> units, float strut, float strutLineHeight, float maxWidth) {
         if (units.isEmpty()) {
             return EMPTY;
         }
@@ -245,7 +250,7 @@ public final class TextShaper {
                 w += u.width();
             }
             int end = forced ? j : j < n ? candidate : n;
-            Line line = line(items, units, start, end, strut);
+            Line line = line(items, units, start, end, strut, strutLineHeight);
             lines.add(line);
             widest = Math.max(widest, line.width());
             height += line.height();
@@ -255,12 +260,12 @@ public final class TextShaper {
     }
 
     /** The line of units {@code [start, end)}, trailing spaces dropped; consecutive units of one run form one piece. */
-    private Line line(List<Item> items, List<Unit> units, int start, int end, float strut) {
+    private Line line(List<Item> items, List<Unit> units, int start, int end, float strut, float strutLineHeight) {
         while (end > start && units.get(end - 1).kind() == SPACE) {
             end--;
         }
-        float ascent = measurer.baseline(strut);
-        float descent = measurer.lineHeight(strut) - ascent;
+        float ascent = ascent(strut, strutLineHeight);
+        float descent = strutLineHeight - ascent;
         List<Piece> pieces = new ArrayList<>();
         float x = 0;
         int k = start;
@@ -277,9 +282,9 @@ public final class TextShaper {
             Item item = items.get(first.item());
             if (item instanceof Run r) {
                 pieces.add(new Piece(first.item(), r.text().substring(first.start(), units.get(last).end()), x, w));
-                float a = measurer.baseline(r.size());
+                float a = ascent(r.size(), r.lineHeight());
                 ascent = Math.max(ascent, a);
-                descent = Math.max(descent, measurer.lineHeight(r.size()) - a);
+                descent = Math.max(descent, r.lineHeight() - a);
             } else {
                 Box b = (Box) item;
                 pieces.add(new Piece(first.item(), null, x, w));
@@ -290,6 +295,11 @@ public final class TextShaper {
             k = last + 1;
         }
         return new Line(List.copyOf(pieces), x, ascent + descent, ascent);
+    }
+
+    /** How far a run's line box reaches above its baseline: its font's ascent and half the leading. */
+    private float ascent(float size, float lineHeight) {
+        return measurer.baseline(size) + (lineHeight - measurer.lineHeight(size)) / 2;
     }
 
     /** Splits the items into units, each knowing whether a line may break before it. */

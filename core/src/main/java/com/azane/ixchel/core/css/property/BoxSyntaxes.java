@@ -259,10 +259,7 @@ final class BoxSyntaxes {
     }
 
     private static Length mixLength(Length a, Length b, float p) {
-        if (a.unit() != b.unit()) {
-            return null;
-        }
-        return new Length(Math.max(0, mix(a.value(), b.value(), p)), a.unit());
+        return Length.mix(a, b, p, true);
     }
 
     /**
@@ -474,18 +471,14 @@ final class BoxSyntaxes {
                     diag.report(PropertyCode.NEGATIVE_VALUE, t.pos(), "negative value not allowed");
                     return null;
                 }
-                s[i] = new BorderImageWidth.Side((float) t.number(), BorderImageWidth.Side.Kind.NUMBER);
+                s[i] = new BorderImageWidth.Side(null, (float) t.number());
                 continue;
             }
             Length l = lengthOf(v, true, true, false, diag);
             if (l == null) {
                 return null;
             }
-            s[i] = new BorderImageWidth.Side(l.value(), switch (l.unit()) {
-                case PX -> BorderImageWidth.Side.Kind.PX;
-                case PERCENT -> BorderImageWidth.Side.Kind.PERCENT;
-                case AUTO -> BorderImageWidth.Side.Kind.AUTO;
-            });
+            s[i] = new BorderImageWidth.Side(l, 0);
         }
         s = boxSides(s);
         return new BorderImageWidth(s[0], s[1], s[2], s[3]);

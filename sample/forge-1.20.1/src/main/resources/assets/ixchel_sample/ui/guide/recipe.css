@@ -6,9 +6,8 @@
 }
 
 .grid {
-  flex-direction: row;
-  flex-wrap: wrap;
-  width: 60px;
+  display: grid;
+  grid-template-columns: repeat(3, 20px);
 }
 
 .cell {

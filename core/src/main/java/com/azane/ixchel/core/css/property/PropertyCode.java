@@ -26,7 +26,7 @@ public enum PropertyCode implements DiagCode {
     MISSING_UNIT("css/missing-unit", Severity.ERROR,
             "A number that needs a unit, such as a non-zero length or a zero time, is written without one."),
     UNSUPPORTED_UNIT("css/unsupported-unit", Severity.ERROR,
-            "A length uses a unit other than px."),
+            "A length uses a unit other than px, em, rem, vw and vh."),
     FUNCTION_ARGUMENTS("css/function-arguments", Severity.ERROR,
             "A CSS function such as url(), rgb(), cubic-bezier() or a transform function is given the wrong number or kind of arguments."),
     INVALID_RESOURCE_LOCATION("css/invalid-resource-location", Severity.ERROR,

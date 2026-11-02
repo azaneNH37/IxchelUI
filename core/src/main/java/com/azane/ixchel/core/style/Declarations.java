@@ -20,7 +20,8 @@ import java.util.Objects;
 /**
  * Validates declarations against the registry, expanding shorthands into longhands. A value with
  * {@code var()} is checked only for well-formed {@code var()}s here; it is substituted and parsed
- * for each element when its style is computed ({@link Pending}).
+ * for each element when its style is computed ({@link Pending}). So is a value with a relative
+ * length unit ({@link Units}), which is checked here against stand-in sizes.
  */
 public final class Declarations {
     private Declarations() {
@@ -43,22 +44,23 @@ public final class Declarations {
     }
 
     /**
-     * The value of one longhand of a declaration that contains {@code var()}. The longhands of one
-     * shorthand share their {@link Source}, which substitutes and expands once per distinct input.
+     * The value of one longhand of a declaration that contains {@code var()} or a relative unit. The
+     * longhands of one shorthand share their {@link Source}, which substitutes and expands once per
+     * distinct input.
      */
     public record Pending(Source source, int index) {
         /**
-         * The value for an element whose custom properties are {@code custom}: the property's
-         * value type or a {@link Wide}; {@code null} when the value is invalid at computed-value
-         * time, reported once per declaration.
+         * The value for an element whose custom properties are {@code custom}, with relative units
+         * against {@code units}: the property's value type or a {@link Wide}; {@code null} when the
+         * value is invalid at computed-value time, reported once per declaration.
          */
-        public Object resolve(Map<String, List<ComponentValue>> custom, Diagnostics diag) {
-            Object[] values = source.resolve(custom, diag);
+        Object resolve(Map<String, List<ComponentValue>> custom, Units units, Diagnostics diag) {
+            Object[] values = source.resolve(custom, units, diag);
             return values == null ? null : values[index];
         }
     }
 
-    /** A declaration with {@code var()}, for {@link Pending}. */
+    /** A declaration with {@code var()} or a relative unit, for {@link Pending}. */
     public static final class Source {
         private final String name;
         private final List<ComponentValue> value;
@@ -77,13 +79,14 @@ public final class Declarations {
             this.shorthand = shorthand;
         }
 
-        Object[] resolve(Map<String, List<ComponentValue>> custom, Diagnostics diag) {
+        Object[] resolve(Map<String, List<ComponentValue>> custom, Units units, Diagnostics diag) {
             List<ComponentValue> substituted = Vars.substitute(value, custom::get);
             if (substituted == null) {
                 report(diag, StyleCode.UNDEFINED_VAR,
                         "'" + name + "' uses a custom property that is not defined here, without a fallback");
                 return null;
             }
+            substituted = units.rewrite(substituted);
             if (Objects.equals(substituted, lastInput)) {
                 return lastOutput;
             }
@@ -147,6 +150,14 @@ public final class Declarations {
             diag.report(PropertyCode.MISSING_VALUE, pos, "missing value for '" + property.name() + "'");
             return null;
         }
+        if (Units.contains(value)) {
+            return parse(property, Units.sample().rewrite(value), pos, diag) == null ? null
+                    : new Pending(new Source(property.name(), value, pos, property, null), 0);
+        }
+        return parse(property, value, pos, diag);
+    }
+
+    private static Object parse(PropertyDef<?> property, List<ComponentValue> value, SourcePos pos, Diagnostics diag) {
         Wide wide = wideKeyword(value);
         return wide != null ? wide : property.syntax().parse(value, pos, diag);
     }
@@ -190,6 +201,15 @@ public final class Declarations {
         if (wide != null) {
             for (PropertyDef<?> l : shorthand.longhands()) {
                 out.add(new Longhand(l, wide, d.important()));
+            }
+            return;
+        }
+        if (Units.contains(d.value())) {
+            if (shorthand.expander().expand(Units.sample().rewrite(d.value()), d.pos(), diag) != null) {
+                Source source = new Source(d.name(), d.value(), d.pos(), null, shorthand);
+                for (int i = 0; i < shorthand.longhands().size(); i++) {
+                    out.add(new Longhand(shorthand.longhands().get(i), new Pending(source, i), d.important()));
+                }
             }
             return;
         }

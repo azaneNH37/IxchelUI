@@ -54,7 +54,7 @@ public record Transform(List<Fn> functions) {
 
     /** {@code l} in px against {@code base} for a percentage. */
     public static float resolve(Length l, float base) {
-        return l.unit() == Length.Unit.PERCENT ? l.value() * base / 100 : l.value();
+        return l.resolve(base);
     }
 
     /**

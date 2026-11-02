@@ -81,7 +81,7 @@ class UiDocumentTransitionTest {
     }
 
     @Test
-    void valuesThatCannotInterpolateChangeAtOnce() {
+    void percentageAndPixelsInterpolateAsACalculationButAutoChangesAtOnce() {
         UiDocument doc = load("<div class=\"box\"></div>", """
                 .box { width: 50%; height: 10px; background-color: #fff; transition: all 100ms linear }
                 .px { width: 20px }
@@ -89,10 +89,11 @@ class UiDocumentTransitionTest {
                 """);
         frameAt(doc, 0);
         first(doc).addClass("px");
-        assertEquals("rect 0 0 20 10 #FFFFFFFF", frameAt(doc, 0));
+        frameAt(doc, 0);
+        assertEquals("rect 0 0 35 10 #FFFFFFFF", frameAt(doc, 50));
         first(doc).addClass("auto");
-        assertEquals("rect 0 0 100 10 #FFFFFFFF", frameAt(doc, 0));
-        assertEquals("rect 0 0 100 15 #FFFFFFFF", frameAt(doc, 50));
+        assertEquals("rect 0 0 100 10 #FFFFFFFF", frameAt(doc, 50));
+        assertEquals("rect 0 0 100 15 #FFFFFFFF", frameAt(doc, 100));
     }
 
     static final class Fill extends ViewModel {

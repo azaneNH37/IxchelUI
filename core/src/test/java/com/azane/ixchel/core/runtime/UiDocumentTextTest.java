@@ -38,6 +38,32 @@ class UiDocumentTextTest {
     }
 
     @Test
+    void lineHeightSplitsItsLeadingAroundTheGlyphsAFactorInheritsAsOneAPercentageAsPixels() {
+        // p: 18px strut lines; the 18px span inherits the factor, 36px. q: 27px, inherited as 27px by the 27px span.
+        assertEquals("""
+                text 0 16 9 #FFFFFFFF "ab"
+                text 12 9 18 #FFFFFFFF "c"
+                text 0 50 9 #FFFFFFFF "x"
+                text 6 36 27 #FFFFFFFF "y\"""", frame("""
+                <div class="p">ab<span class="s">c</span></div>
+                <div class="q">x<span class="t">y</span></div>
+                """, """
+                .p, .q { display: block }
+                .p { line-height: 2 }
+                .s { font-size: 18px; display: inline }
+                .q { line-height: 300% }
+                .t { font-size: 3em; display: inline }
+                """));
+    }
+
+    @Test
+    void formControlsAreAsTallAsTheirLineHeight() {
+        UiDocument doc = load("<input class=\"i\"/>", ".i { line-height: 15px; padding: 0; border: none }");
+        doc.frame(100, 100);
+        assertEquals(15, ((Element) doc.root().children().get(0)).box().height());
+    }
+
+    @Test
     void nowrapKeepsOneLineAndEllipsisCutsItAtThePaddingBoxOnlyWhenClipped() {
         // 40px boxes with a 1px border: 38px of room, six 6px glyphs; "…" is one glyph in MONO and a
         // fragment of its own, after the cut text.

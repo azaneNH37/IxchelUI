@@ -33,35 +33,35 @@ class TextShaperTest {
     }
 
     private static TextShaper.Run run(String text) {
-        return new TextShaper.Run(text, 9, false, false);
+        return new TextShaper.Run(text, 9, false, false, 10);
     }
 
     @Test
     void breaksAtSpacesAndGivesOverlongWordsTheirOwnLine() {
         TextShaper shaper = new TextShaper(ONE_PER_CHAR);
         List<TextShaper.Item> items = List.of(run("ab cd extraordinary e"));
-        TextShaper.Paragraph p = shaper.layout(items, 9, 5);
+        TextShaper.Paragraph p = shaper.layout(items, 9, 10, 5);
         assertEquals(List.of("ab cd", "extraordinary", "e"), lines(p));
         assertEquals(13, p.width());
         assertEquals(30, p.height());
-        assertEquals(List.of("ab cd extraordinary e"), lines(shaper.layout(items, 9, Float.POSITIVE_INFINITY)));
+        assertEquals(List.of("ab cd extraordinary e"), lines(shaper.layout(items, 9, 10, Float.POSITIVE_INFINITY)));
         assertEquals(13, shaper.minContentWidth(items));
     }
 
     @Test
     void breaksBetweenCjkCharactersButNotBeforeClosingPunctuation() {
         TextShaper shaper = new TextShaper(ONE_PER_CHAR);
-        assertEquals(List.of("今天天气很", "好。"), lines(shaper.layout(List.of(run("今天天气很好。")), 9, 6)));
+        assertEquals(List.of("今天天气很", "好。"), lines(shaper.layout(List.of(run("今天天气很好。")), 9, 10, 6)));
         assertEquals(2, shaper.minContentWidth(List.of(run("今天天气很好。"))));
     }
 
     @Test
     void runsBreakAcrossFontsAndNowrapRunsStayWhole() {
         TextShaper shaper = new TextShaper(ONE_PER_CHAR);
-        List<TextShaper.Item> items = List.of(run("aa "), new TextShaper.Run("bb cc", 9, true, true), run(" dd"));
+        List<TextShaper.Item> items = List.of(run("aa "), new TextShaper.Run("bb cc", 9, true, true, 10), run(" dd"));
         // the bold nowrap run is 10px wide and cannot break inside
-        assertEquals(List.of("aa", "bb cc", "dd"), lines(shaper.layout(items, 9, 8)));
-        assertEquals(List.of("aa |bb cc| dd"), lines(shaper.layout(items, 9, 100)));
+        assertEquals(List.of("aa", "bb cc", "dd"), lines(shaper.layout(items, 9, 10, 8)));
+        assertEquals(List.of("aa |bb cc| dd"), lines(shaper.layout(items, 9, 10, 100)));
     }
 
     @Test
@@ -69,14 +69,14 @@ class TextShaperTest {
         TextShaper shaper = new TextShaper(ONE_PER_CHAR);
         String br = String.valueOf(TextShaper.LINE_BREAK);
         List<TextShaper.Item> items = List.of(run("ab" + br + br + "cd ef"));
-        assertEquals(List.of("ab", "", "cd ef"), lines(shaper.layout(items, 9, 100)));
+        assertEquals(List.of("ab", "", "cd ef"), lines(shaper.layout(items, 9, 10, 100)));
         assertEquals(2, shaper.minContentWidth(List.of(run("ab" + br + "cd"))));
     }
 
     @Test
     void atomicBoxSitsOnTheBaselineAndRaisesTheLine() {
         TextShaper shaper = new TextShaper(ONE_PER_CHAR);
-        TextShaper.Paragraph p = shaper.layout(List.of(run("ab"), new TextShaper.Box(3, 20, 0), run("cd")), 9, 100);
+        TextShaper.Paragraph p = shaper.layout(List.of(run("ab"), new TextShaper.Box(3, 20, 0), run("cd")), 9, 10, 100);
         TextShaper.Line line = p.lines().get(0);
         assertEquals(20, line.baseline());
         assertEquals(22, line.height(), "the strut's 2px descent stays below the baseline");
@@ -88,7 +88,7 @@ class TextShaperTest {
     void ellipsizeCutsTheLineAndDropsTrailingSpaces() {
         TextShaper shaper = new TextShaper(ONE_PER_CHAR);
         List<TextShaper.Item> items = List.of(run("ab cdef"));
-        TextShaper.Line line = shaper.layout(items, 9, Float.POSITIVE_INFINITY).lines().get(0);
+        TextShaper.Line line = shaper.layout(items, 9, 10, Float.POSITIVE_INFINITY).lines().get(0);
         List<TextShaper.Piece> cut = shaper.ellipsize(line, items, 4);
         assertEquals(List.of("ab", TextShaper.ELLIPSIS), cut.stream().map(TextShaper.Piece::text).toList());
         assertEquals(2, cut.get(1).x());

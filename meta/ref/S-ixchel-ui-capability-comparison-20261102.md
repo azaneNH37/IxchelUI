@@ -29,9 +29,9 @@ AUI 的 `snow` 分支 README 自称只维护 Forge 1.16.5，其他 target 保留
 | 可视化编辑器 | ○ | ◐ DevTools 改 DOM 与样式并保存 | ● `UIEditor` |
 | 热重载 | ● 保留 ViewModel | ● 按依赖刷新 | ◐ 仅资源重载 |
 | flex | ● | ● | ● |
-| grid | ○ | ● 含 subgrid | ● |
+| grid | ◐ 无 subgrid | ● 含 subgrid | ● |
 | table | ○ | ● | ○ |
-| `calc()`、相对单位 | ○ | ◐ 线性 calc、min/max/clamp、em/rem/vw/vh | ○ |
+| `calc()`、相对单位 | ● calc（含 % 的 min/max/clamp）、em/rem/vw/vh | ◐ 线性 calc、min/max/clamp、em/rem/vw/vh | ○ |
 | 跨元素行内流 | ● | ● | ○ |
 | CJK 断行 | ● 含避头尾 | ◐ 无避头尾 | ◐ vanilla `font.split` |
 | 富文本 `Component` | ● | ◐ 不渲染样式 | ● |
@@ -89,17 +89,17 @@ AUI 18 套主题（15.3k 行 CSS）的正则计数。主题是 Web 风格，会�
 | `box-shadow` | 1581 | ● |
 | `border-radius` | 489 | ◐ 不裁剪 |
 | `font-family` | 419 | ○ |
-| `line-height` | 406 | ○ |
+| `line-height` | 406 | ● |
 | 渐变 | 265 | ○ |
 | `:not`、`:is`、`:where` | 261 | ○ |
-| `calc()` | 174 | ○ |
+| `calc()` | 174 | ● |
 | `letter-spacing` | 164 | ○ |
-| em、rem | 130 | ○ |
+| em、rem | 130 | ● |
 | `animation` | 126 | ○ |
 | `+`、`~` | 95 | ○ |
 | 结构伪类 | 90 | ○ |
 | mask | 32 | ○ |
-| grid | 31 | ○ |
+| grid | 31 | ◐ 无 subgrid |
 | clip-path | 23 | ○ |
 | `filter` | 17 | ○ |
 | `backdrop-filter` | 1 | ○ |

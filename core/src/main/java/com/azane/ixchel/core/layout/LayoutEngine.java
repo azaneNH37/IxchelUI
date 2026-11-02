@@ -114,6 +114,17 @@ public final class LayoutEngine {
         /** As an atomic box: its size and baseline as last laid out on its own; {@code null} to lay it out again. */
         TextShaper.Box atom;
         float fontSize;
+        float lineHeight;
+        /**
+         * A block container with block-level children: the anonymous blocks holding the inline content
+         * between them, in order; {@code null} for every other node.
+         */
+        List<Slot> anons;
+        /** As an anonymous block: the element it is in, and its content box in document coordinates. */
+        Element container;
+        float x;
+        float y;
+        float width;
         /** A select's option labels, joined by newlines, as last measured. */
         String labels = "";
         /**
@@ -156,6 +167,7 @@ public final class LayoutEngine {
         final List<Source> sources = new ArrayList<>();
         final List<InlineRange> inlines = new ArrayList<>();
         final float strut;
+        final float strutLineHeight;
         final boolean nowrap;
         final float align;
         final boolean ellipsis;
@@ -165,8 +177,9 @@ public final class LayoutEngine {
         float width;
         TextShaper.Paragraph shaped;
 
-        Para(ComputedStyle container) {
+        Para(ComputedStyle container, float lineHeight) {
             strut = container.get(CssProperties.FONT_SIZE).value();
+            strutLineHeight = lineHeight;
             nowrap = container.get(CssProperties.WHITE_SPACE) == Keywords.WhiteSpace.NOWRAP;
             align = switch (container.get(CssProperties.TEXT_ALIGN)) {
                 case START, LEFT -> 0;
@@ -178,7 +191,7 @@ public final class LayoutEngine {
         }
 
         /** Adds {@code text} with whitespace collapsed, across run boundaries too; a forced line break is kept and ends a space run. */
-        void addRun(String text, float size, boolean bold, boolean nowrapRun, Source source) {
+        void addRun(String text, float size, boolean bold, boolean nowrapRun, float lineHeight, Source source) {
             StringBuilder sb = new StringBuilder(text.length());
             for (int i = 0; i < text.length(); i++) {
                 char c = text.charAt(i);
@@ -196,7 +209,7 @@ public final class LayoutEngine {
                 }
             }
             if (!sb.isEmpty()) {
-                items.add(new TextShaper.Run(sb.toString(), size, bold, nowrapRun));
+                items.add(new TextShaper.Run(sb.toString(), size, bold, nowrapRun, lineHeight));
                 sources.add(source);
             }
         }
@@ -208,7 +221,7 @@ public final class LayoutEngine {
         }
 
         boolean sameLayout(Para o) {
-            return strut == o.strut && nowrap == o.nowrap && items.equals(o.items);
+            return strut == o.strut && strutLineHeight == o.strutLineHeight && nowrap == o.nowrap && items.equals(o.items);
         }
 
         boolean samePlacement(Para o) {
@@ -282,6 +295,7 @@ public final class LayoutEngine {
             Map.Entry<Node, Slot> en = it.next();
             if (en.getValue().seen != generation) {
                 changed |= !atPointer(en.getKey());
+                dropAnons(en.getValue(), 0);
                 tree.remove(en.getValue().id);
                 if (en.getKey() instanceof TextNode t) {
                     fragments.remove(t);
@@ -423,6 +437,12 @@ public final class LayoutEngine {
             s.para = null;
             s.atom = null;
             s.queryCount = 0;
+            if (s.anons != null) {
+                for (Slot a : s.anons) {
+                    a.para = null;
+                    a.queryCount = 0;
+                }
+            }
         }
     }
 
@@ -431,8 +451,15 @@ public final class LayoutEngine {
         return fragments.getOrDefault(node, List.of());
     }
 
-    public float lineHeight(float fontSize) {
-        return shaper.lineHeight(fontSize);
+    /** The height of the font's own lines at {@code size}. */
+    public float fontHeight(float size) {
+        return shaper.lineHeight(size);
+    }
+
+    /** The used {@code line-height} of {@code cs}'s element, in pixels. */
+    public float lineHeight(ComputedStyle cs) {
+        float size = cs.get(CssProperties.FONT_SIZE).value();
+        return cs.get(CssProperties.LINE_HEIGHT).resolve(size, shaper.lineHeight(size));
     }
 
     /** The advance of {@code text} on one line, in a regular-weight font. */
@@ -464,8 +491,10 @@ public final class LayoutEngine {
             slot.style = e.computed();
             if (behavior.measured()) {
                 float size = e.computed().get(CssProperties.FONT_SIZE).value();
-                if (size != slot.fontSize) {
+                float lh = lineHeight(e.computed());
+                if (size != slot.fontSize || lh != slot.lineHeight) {
                     slot.fontSize = size;
+                    slot.lineHeight = lh;
                     tree.markDirty(slot.id);
                     changed = true;
                 }
@@ -483,7 +512,8 @@ public final class LayoutEngine {
             clearTreeChanges(e);
             return slot.id;
         }
-        boolean block = !isRoot && isBlockContainer(e);
+        boolean flow = !isRoot && isBlockContainer(e) && hasBlockLevelChild(e);
+        boolean block = !isRoot && isBlockContainer(e) && !flow;
         if (block != (slot.para != null)) {
             tree.setMeasureFunc(slot.id, block ? paragraphMeasure(slot) : null);
             if (block) {
@@ -494,8 +524,12 @@ public final class LayoutEngine {
             slot.queryCount = 0;
             changed = true;
         }
+        if (!flow && slot.anons != null) {
+            dropAnons(slot, 0);
+            slot.anons = null;
+        }
         if (block) {
-            Para p = new Para(e.computed());
+            Para p = new Para(e.computed(), lineHeight(e.computed()));
             collect(p, e);
             syncParagraph(e, slot, p);
             e.clearTreeChange();
@@ -503,14 +537,18 @@ public final class LayoutEngine {
         }
         List<Node> children = e.children();
         List<NodeId> ids = new ArrayList<>(children.size() + 2);
-        if (e.before() != null) {
-            syncFlexItem(e.before(), ids);
-        }
-        for (Node c : children) {
-            syncFlexItem(c, ids);
-        }
-        if (e.after() != null) {
-            syncFlexItem(e.after(), ids);
+        if (flow) {
+            syncFlow(e, slot, ids);
+        } else {
+            if (e.before() != null) {
+                syncFlexItem(e.before(), ids);
+            }
+            for (Node c : children) {
+                syncFlexItem(c, ids);
+            }
+            if (e.after() != null) {
+                syncFlexItem(e.after(), ids);
+            }
         }
         if (!ids.equals(slot.children)) {
             slot.children = ids;
@@ -533,14 +571,115 @@ public final class LayoutEngine {
         }
     }
 
+    /**
+     * The children of a block container with block-level children: those boxes, and each run of inline
+     * content between them as an anonymous block. An absolutely positioned child does not end a run; it
+     * follows the run it sits in. A run with nothing to lay out (whitespace) makes no block.
+     */
+    private void syncFlow(Element e, Slot slot, List<NodeId> ids) {
+        if (slot.anons == null) {
+            slot.anons = new ArrayList<>();
+        }
+        ComputedStyle cs = e.computed();
+        float lh = lineHeight(cs);
+        int anon = 0;
+        Para run = null;
+        int absolute = 0;
+        List<Node> children = e.children();
+        for (int i = -1; i <= children.size(); i++) {
+            Node c = i < 0 ? e.before() : i == children.size() ? e.after() : children.get(i);
+            if (c == null) {
+                continue;
+            }
+            if (c instanceof Element d && (d.rendersInTopLayer() || d.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE)) {
+                syncFlexItem(d, ids);
+                continue;
+            }
+            if (c instanceof Element d && isFlowChild(d)) {
+                boolean outOfFlow = d.computed().get(CssProperties.POSITION) == Keywords.Position.ABSOLUTE;
+                if (!outOfFlow && run != null) {
+                    anon = flushRun(e, slot, run, anon, ids, absolute);
+                    run = null;
+                    absolute = 0;
+                }
+                ids.add(sync(d, false));
+                if (outOfFlow && run != null) {
+                    absolute++;
+                }
+                continue;
+            }
+            if (run == null) {
+                run = new Para(cs, lh);
+            }
+            collect(run, e, c);
+        }
+        if (run != null) {
+            anon = flushRun(e, slot, run, anon, ids, absolute);
+        }
+        dropAnons(slot, anon);
+    }
+
+    /** Adds {@code run}'s anonymous block before the {@code absolute} ids that came after it began; returns the next index. */
+    private int flushRun(Element e, Slot slot, Para run, int anon, List<NodeId> ids, int absolute) {
+        if (run.items.isEmpty()) {
+            return anon;
+        }
+        Slot a;
+        if (anon < slot.anons.size()) {
+            a = slot.anons.get(anon);
+        } else {
+            a = new Slot();
+            TaffyStyle s = new TaffyStyle();
+            s.display = TaffyDisplay.BLOCK;
+            a.id = tree.newLeafWithMeasure(s, paragraphMeasure(a));
+            a.container = e;
+            slot.anons.add(a);
+            changed = true;
+        }
+        ids.add(ids.size() - absolute, a.id);
+        syncParagraph(null, a, run);
+        return anon + 1;
+    }
+
+    /** Removes the slot's anonymous blocks from {@code from} on. */
+    private void dropAnons(Slot slot, int from) {
+        if (slot.anons == null) {
+            return;
+        }
+        while (slot.anons.size() > from) {
+            tree.remove(slot.anons.remove(slot.anons.size() - 1).id);
+            changed = true;
+        }
+    }
+
+    /** A box a block container lays out as a child of its own rather than in a line: block-level or absolutely positioned. */
+    private static boolean isFlowChild(Element e) {
+        ComputedStyle cs = e.computed();
+        Keywords.Display d = cs.get(CssProperties.DISPLAY);
+        return d == Keywords.Display.BLOCK || d == Keywords.Display.FLEX || d == Keywords.Display.GRID
+                || d != Keywords.Display.NONE && cs.get(CssProperties.POSITION) == Keywords.Position.ABSOLUTE;
+    }
+
+    private static boolean hasBlockLevelChild(Element e) {
+        if (e.before() != null && isFlowChild(e.before()) || e.after() != null && isFlowChild(e.after())) {
+            return true;
+        }
+        for (Node c : e.children()) {
+            if (c instanceof Element d && !d.rendersInTopLayer() && isFlowChild(d)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean isReplaced(Element e) {
         return e.type().facet(LayoutFacet.KEY).atomic();
     }
 
-    /** An element whose content is a paragraph, where flex layout or an inline formatting context lays out the element itself. */
+    /** An element whose content is a paragraph, where flex or grid layout or an inline formatting context lays out the element itself. */
     private boolean isBlockContainer(Element e) {
         Keywords.Display d = e.computed().get(CssProperties.DISPLAY);
-        return d != Keywords.Display.FLEX && d != Keywords.Display.NONE && !isReplaced(e);
+        return d != Keywords.Display.FLEX && d != Keywords.Display.GRID && d != Keywords.Display.NONE && !isReplaced(e);
     }
 
     /** Clears the tree-change marks of a subtree layout skips, so later changes inside it are seen again. */
@@ -573,7 +712,7 @@ public final class LayoutEngine {
         }
         slot.seen = generation;
         ComputedStyle parent = t.parent().computed();
-        Para p = new Para(parent);
+        Para p = new Para(parent, lineHeight(parent));
         addText(p, t, parent);
         syncParagraph(t, slot, p);
         return slot.id;
@@ -613,28 +752,29 @@ public final class LayoutEngine {
             e.clearTreeChange();
             return;
         }
-        if (d == Keywords.Display.FLEX || d == Keywords.Display.BLOCK) {
-            report(e, LayoutCode.BLOCK_IN_INLINE, "<" + e.tag() + "> has display: " + d.name().toLowerCase() + " inside the inline content of a block;"
-                    + " a block holds only text and inline content, so use display: inline-block");
+        if (d == Keywords.Display.FLEX || d == Keywords.Display.GRID || d == Keywords.Display.BLOCK) {
+            report(e, LayoutCode.BLOCK_IN_INLINE, "<" + e.tag() + "> has display: " + d.name().toLowerCase() + " inside <" + parent.tag() + ">, which is display: inline;"
+                    + " an inline element holds only text and inline content, so use display: inline-block");
         } else if (cs.get(CssProperties.POSITION) == Keywords.Position.ABSOLUTE) {
-            report(e, LayoutCode.ABSOLUTE_IN_INLINE, "<" + e.tag() + "> is absolutely positioned inside the inline content of a block, which is not supported");
+            report(e, LayoutCode.ABSOLUTE_IN_INLINE, "<" + e.tag() + "> is absolutely positioned inside <" + parent.tag() + ">, which is display: inline and cannot contain it");
         }
         p.addBox(atom(e), e);
     }
 
-    private static void addText(Para p, TextNode t, ComputedStyle cs) {
+    private void addText(Para p, TextNode t, ComputedStyle cs) {
         float size = cs.get(CssProperties.FONT_SIZE).value();
+        float lh = lineHeight(cs);
         boolean bold = cs.get(CssProperties.FONT_WEIGHT) == Keywords.FontWeight.BOLD;
         boolean nowrap = cs.get(CssProperties.WHITE_SPACE) == Keywords.WhiteSpace.NOWRAP;
         StyledText styled = t.styled();
         if (styled == null) {
-            p.addRun(t.text(), size, bold, nowrap, new Source(t, -1));
+            p.addRun(t.text(), size, bold, nowrap, lh, new Source(t, -1));
             return;
         }
         List<StyledText.Span> spans = styled.spans();
         for (int k = 0; k < spans.size(); k++) {
             StyledText.Span s = spans.get(k);
-            p.addRun(s.text(), size, bold || (s.flags() & StyledText.BOLD) != 0, nowrap, new Source(t, k));
+            p.addRun(s.text(), size, bold || (s.flags() & StyledText.BOLD) != 0, nowrap, lh, new Source(t, k));
         }
     }
 
@@ -674,7 +814,7 @@ public final class LayoutEngine {
     private static boolean nonZero(ComputedStyle cs, PropertyDef<Length>... sides) {
         for (PropertyDef<Length> side : sides) {
             Length l = cs.get(side);
-            if (l.unit() == Length.Unit.AUTO || l.value() != 0) {
+            if (l.unit() != Length.Unit.PX || l.value() != 0) {
                 return true;
             }
         }
@@ -725,8 +865,9 @@ public final class LayoutEngine {
     }
 
     /**
-     * Takes {@code p} as the paragraph of {@code owner}. When it measures the same as the old one (or is
-     * the same but for alignment), it is placed now in the owner's current box; otherwise taffy runs.
+     * Takes {@code p} as the paragraph of {@code owner} ({@code null}: of the anonymous block {@code slot}).
+     * When it measures the same as the old one (or is the same but for alignment), it is placed now in
+     * the owner's current box; otherwise taffy runs.
      */
     private void syncParagraph(Node owner, Slot slot, Para p) {
         Para old = slot.para;
@@ -735,14 +876,14 @@ public final class LayoutEngine {
             p.width = old.width;
             p.shaped = old.shaped;
             if (!old.samePlacement(p)) {
-                place(owner, p);
+                place(owner, slot, p);
             }
             return;
         }
         if (old != null && old.shaped != null && measuresAlike(slot, p)) {
             p.width = old.width;
-            p.shaped = shaper.layout(p.items, p.strut, p.wrapWidth(p.width));
-            place(owner, p);
+            p.shaped = shaper.layout(p.items, p.strut, p.strutLineHeight, p.wrapWidth(p.width));
+            place(owner, slot, p);
             return;
         }
         slot.queryCount = 0;
@@ -772,7 +913,7 @@ public final class LayoutEngine {
     private MeasureFunc intrinsicMeasure(Slot slot, LayoutFacet behavior) {
         return (known, available) -> new FloatSize(
                 Float.isNaN(known.width) ? behavior.width(slot.labels, slot.fontSize, shaper) : known.width,
-                Float.isNaN(known.height) ? behavior.height(slot.fontSize, shaper) : known.height);
+                Float.isNaN(known.height) ? slot.lineHeight : known.height);
     }
 
     private MeasureFunc paragraphMeasure(Slot slot) {
@@ -795,7 +936,7 @@ public final class LayoutEngine {
         } else {
             maxWidth = availableWidth;
         }
-        TextShaper.Paragraph s = shaper.layout(p.items, p.strut, p.wrapWidth(maxWidth));
+        TextShaper.Paragraph s = shaper.layout(p.items, p.strut, p.strutLineHeight, p.wrapWidth(maxWidth));
         return new FloatSize(Float.isNaN(knownWidth) ? s.width() : knownWidth,
                 Float.isNaN(knownHeight) ? s.height() : knownHeight);
     }
@@ -824,25 +965,40 @@ public final class LayoutEngine {
         Para p = slot.para;
         if (p != null) {
             p.width = tree.getUnroundedLayout(slot.id).contentBoxWidth();
-            p.shaped = shaper.layout(p.items, p.strut, p.wrapWidth(p.width));
+            p.shaped = shaper.layout(p.items, p.strut, p.strutLineHeight, p.wrapWidth(p.width));
         }
         if (node instanceof TextNode) {
-            place(node, p);
+            place(node, slot, p);
             return bottom;
         }
         Element e = (Element) node;
         float childrenEnd = y;
         float inFlowEnd = y;
         if (p != null) {
-            childrenEnd = place(e, p);
+            childrenEnd = place(e, slot, p);
             inFlowEnd = y + l.border().top + l.padding().top + p.shaped.height();
         } else {
+            if (slot.anons != null) {
+                for (Slot a : slot.anons) {
+                    Layout al = tree.getLayout(a.id);
+                    a.x = x + al.location().x;
+                    a.y = y + al.location().y;
+                    a.width = tree.getUnroundedLayout(a.id).size().width;
+                    a.para.width = a.width;
+                    a.para.shaped = shaper.layout(a.para.items, a.para.strut, a.para.strutLineHeight, a.para.wrapWidth(a.width));
+                    childrenEnd = Math.max(childrenEnd, place(null, a, a.para));
+                    inFlowEnd = Math.max(inFlowEnd, a.y + al.size().height);
+                }
+            }
             List<Node> children = e.children();
             // -1 and children.size() stand for the ::before and ::after boxes.
             for (int i = -1; i <= children.size(); i++) {
                 Node c = i < 0 ? e.before() : i == children.size() ? e.after() : children.get(i);
                 if (c == null || c instanceof Element skipped && (skipped.rendersInTopLayer() || !e.type().facet(LayoutFacet.KEY).layoutChildren())) {
                     continue; // top-layer content: placed by placeLayer, and no part of this scroll range
+                }
+                if (slot.anons != null && !(c instanceof Element ce && (isFlowChild(ce) || ce.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE))) {
+                    continue; // in an anonymous block, placed with its lines
                 }
                 Slot cs = slots.get(c);
                 if (cs == null) {
@@ -875,12 +1031,17 @@ public final class LayoutEngine {
      * Places the shaped paragraph of {@code owner} in its content box: text fragments, atomic boxes and
      * inline elements' line rectangles. Returns the bottom of its lines and atomic boxes' contributions.
      */
-    private float place(Node owner, Para p) {
+    private float place(Node owner, Slot slot, Para p) {
+        if (owner == null) {
+            return place(slot.container, slot.x, slot.y, slot.width, p);
+        }
         LayoutBox b = owner.box();
-        Element container = owner instanceof Element e ? e : owner.parent();
-        float cx = b.x() + b.borderLeft() + b.paddingLeft();
-        float cy = b.y() + b.borderTop() + b.paddingTop();
-        float boxWidth = b.width() - b.borderLeft() - b.paddingLeft() - b.paddingRight() - b.borderRight();
+        return place(owner instanceof Element e ? e : owner.parent(), b.x() + b.borderLeft() + b.paddingLeft(), b.y() + b.borderTop() + b.paddingTop(),
+                b.width() - b.borderLeft() - b.paddingLeft() - b.paddingRight() - b.borderRight(), p);
+    }
+
+    /** Places {@code p} in the content box at {@code (cx, cy)}, {@code boxWidth} wide, of a box in {@code container}. */
+    private float place(Element container, float cx, float cy, float boxWidth, Para p) {
         float limit = Float.POSITIVE_INFINITY;
         if (p.ellipsis) {
             LayoutBox cb = container.box();
@@ -989,8 +1150,13 @@ public final class LayoutEngine {
 
     static TaffyStyle toTaffy(ComputedStyle cs) {
         TaffyStyle s = new TaffyStyle();
-        // Every other display is a flex container to taffy: a block container has no taffy children.
-        s.display = cs.get(CssProperties.DISPLAY) == Keywords.Display.NONE ? TaffyDisplay.NONE : TaffyDisplay.FLEX;
+        // Every other display is a block container; one without block-level children is a leaf.
+        s.display = switch (cs.get(CssProperties.DISPLAY)) {
+            case NONE -> TaffyDisplay.NONE;
+            case FLEX -> TaffyDisplay.FLEX;
+            case GRID -> TaffyDisplay.GRID;
+            case BLOCK, INLINE, INLINE_BLOCK -> TaffyDisplay.BLOCK;
+        };
         s.position = cs.get(CssProperties.POSITION) == Keywords.Position.ABSOLUTE ? TaffyPosition.ABSOLUTE : TaffyPosition.RELATIVE;
         s.inset = rect(lpa(cs.get(CssProperties.LEFT)), lpa(cs.get(CssProperties.RIGHT)),
                 lpa(cs.get(CssProperties.TOP)), lpa(cs.get(CssProperties.BOTTOM)));
@@ -1017,6 +1183,11 @@ public final class LayoutEngine {
         s.alignItems = AlignItems.valueOf(cs.get(CssProperties.ALIGN_ITEMS).name());
         s.alignSelf = AlignItems.valueOf(cs.get(CssProperties.ALIGN_SELF).name());
         s.justifyContent = AlignContent.valueOf(cs.get(CssProperties.JUSTIFY_CONTENT).name());
+        Keywords.AlignContent ac = cs.get(CssProperties.ALIGN_CONTENT);
+        s.alignContent = ac == Keywords.AlignContent.NORMAL ? AlignContent.AUTO : AlignContent.valueOf(ac.name());
+        s.justifyItems = AlignItems.valueOf(cs.get(CssProperties.JUSTIFY_ITEMS).name());
+        s.justifySelf = AlignItems.valueOf(cs.get(CssProperties.JUSTIFY_SELF).name());
+        GridStyle.apply(cs, s);
         s.gap = TaffySize.of(lp(cs.get(CssProperties.COLUMN_GAP)), lp(cs.get(CssProperties.ROW_GAP)));
         s.overflow = switch (cs.get(CssProperties.OVERFLOW)) {
             case VISIBLE -> new TaffyPoint<>(Overflow.VISIBLE, Overflow.VISIBLE);
@@ -1046,6 +1217,7 @@ public final class LayoutEngine {
         return switch (l.unit()) {
             case PX -> TaffyDimension.length(l.value());
             case PERCENT -> TaffyDimension.percent(l.value() / 100f);
+            case CALC -> TaffyDimension.calc(l.calc()::resolve);
             case AUTO -> TaffyDimension.AUTO;
         };
     }
@@ -1054,14 +1226,16 @@ public final class LayoutEngine {
         return switch (l.unit()) {
             case PX -> LengthPercentageAuto.length(l.value());
             case PERCENT -> LengthPercentageAuto.percent(l.value() / 100f);
+            case CALC -> LengthPercentageAuto.calc(l.calc()::resolve);
             case AUTO -> LengthPercentageAuto.AUTO;
         };
     }
 
-    private static LengthPercentage lp(Length l) {
+    static LengthPercentage lp(Length l) {
         return switch (l.unit()) {
             case PX -> LengthPercentage.length(l.value());
             case PERCENT -> LengthPercentage.percent(l.value() / 100f);
+            case CALC -> LengthPercentage.calc(l.calc()::resolve);
             case AUTO -> throw new IllegalArgumentException("auto is not a valid length-percentage");
         };
     }

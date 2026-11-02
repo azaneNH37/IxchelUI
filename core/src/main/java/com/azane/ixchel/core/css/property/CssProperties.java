@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.css.property;
 
+import com.azane.ixchel.core.css.property.Keywords.AlignContent;
 import com.azane.ixchel.core.css.property.Keywords.AlignItems;
 import com.azane.ixchel.core.css.property.Keywords.AlignSelf;
 import com.azane.ixchel.core.css.property.Keywords.BackgroundBlendMode;
@@ -37,6 +38,7 @@ import static com.azane.ixchel.core.css.property.Syntaxes.commaList;
 import static com.azane.ixchel.core.css.property.Syntaxes.easing;
 import static com.azane.ixchel.core.css.property.Syntaxes.keyword;
 import static com.azane.ixchel.core.css.property.Syntaxes.length;
+import static com.azane.ixchel.core.css.property.Syntaxes.lineHeight;
 import static com.azane.ixchel.core.css.property.Syntaxes.number;
 import static com.azane.ixchel.core.css.property.Syntaxes.scrollbarColor;
 import static com.azane.ixchel.core.css.property.Syntaxes.textShadow;
@@ -47,8 +49,7 @@ import static com.azane.ixchel.core.css.property.Syntaxes.transitionProperty;
 
 /**
  * The supported property set. Departures from CSS initial values: {@code display} is {@code flex}
- * and {@code flex-direction} is {@code column} (no block flow: a {@code block} holds only inline content,
- * see {@link Display}), {@code color} is white, and sizes
+ * and {@code flex-direction} is {@code column} (see {@link Display}), {@code color} is white, and sizes
  * ({@code width}, {@code min-height}, ...) are border-box sizes, as with {@code box-sizing: border-box}.
  * Animatable properties are those whose values {@code anim} may interpolate; the
  * {@code transition-*} lists are cycled per property as in CSS.
@@ -101,8 +102,21 @@ public final class CssProperties {
     public static final PropertyDef<AlignItems> ALIGN_ITEMS = R.register("align-items", keyword(AlignItems.class), AlignItems.STRETCH, false, true, false);
     public static final PropertyDef<AlignSelf> ALIGN_SELF = R.register("align-self", keyword(AlignSelf.class), AlignSelf.AUTO, false, true, false);
     public static final PropertyDef<JustifyContent> JUSTIFY_CONTENT = R.register("justify-content", keyword(JustifyContent.class), JustifyContent.FLEX_START, false, true, false);
+    public static final PropertyDef<AlignContent> ALIGN_CONTENT = R.register("align-content", keyword(AlignContent.class), AlignContent.NORMAL, false, true, false);
+    public static final PropertyDef<AlignItems> JUSTIFY_ITEMS = R.register("justify-items", keyword(AlignItems.class), AlignItems.STRETCH, false, true, false);
+    public static final PropertyDef<AlignSelf> JUSTIFY_SELF = R.register("justify-self", keyword(AlignSelf.class), AlignSelf.AUTO, false, true, false);
     public static final PropertyDef<Length> ROW_GAP = R.register("row-gap", GAP, Length.ZERO, false, true, true);
     public static final PropertyDef<Length> COLUMN_GAP = R.register("column-gap", GAP, Length.ZERO, false, true, true);
+    public static final PropertyDef<GridTracks> GRID_TEMPLATE_ROWS = R.register("grid-template-rows", GridSyntaxes.template(), GridTracks.NONE, false, true, false);
+    public static final PropertyDef<GridTracks> GRID_TEMPLATE_COLUMNS = R.register("grid-template-columns", GridSyntaxes.template(), GridTracks.NONE, false, true, false);
+    public static final PropertyDef<GridAreas> GRID_TEMPLATE_AREAS = R.register("grid-template-areas", GridSyntaxes.areas(), GridAreas.NONE, false, true, false);
+    public static final PropertyDef<GridTracks> GRID_AUTO_ROWS = R.register("grid-auto-rows", GridSyntaxes.autoTracks(), GridTracks.NONE, false, true, false);
+    public static final PropertyDef<GridTracks> GRID_AUTO_COLUMNS = R.register("grid-auto-columns", GridSyntaxes.autoTracks(), GridTracks.NONE, false, true, false);
+    public static final PropertyDef<Keywords.GridAutoFlow> GRID_AUTO_FLOW = R.register("grid-auto-flow", GridSyntaxes.autoFlow(), Keywords.GridAutoFlow.ROW, false, true, false);
+    public static final PropertyDef<GridLine> GRID_ROW_START = R.register("grid-row-start", GridSyntaxes.line(), GridLine.AUTO, false, true, false);
+    public static final PropertyDef<GridLine> GRID_ROW_END = R.register("grid-row-end", GridSyntaxes.line(), GridLine.AUTO, false, true, false);
+    public static final PropertyDef<GridLine> GRID_COLUMN_START = R.register("grid-column-start", GridSyntaxes.line(), GridLine.AUTO, false, true, false);
+    public static final PropertyDef<GridLine> GRID_COLUMN_END = R.register("grid-column-end", GridSyntaxes.line(), GridLine.AUTO, false, true, false);
 
     public static final PropertyDef<Overflow> OVERFLOW = R.register("overflow", keyword(Overflow.class), Overflow.VISIBLE, false, true, false);
     /** Drawn over the content, so no layout change; see {@code layout.Scrollbar}. */
@@ -188,7 +202,9 @@ public final class CssProperties {
     public static final PropertyDef<TextAlign> TEXT_ALIGN = R.register("text-align", keyword(TextAlign.class), TextAlign.START, true, false, false);
     public static final PropertyDef<WhiteSpace> WHITE_SPACE = R.register("white-space", keyword(WhiteSpace.class), WhiteSpace.NORMAL, true, true, false);
     public static final PropertyDef<TextOverflow> TEXT_OVERFLOW = R.register("text-overflow", keyword(TextOverflow.class), TextOverflow.CLIP, false, false, false);
-    public static final PropertyDef<Length> FONT_SIZE = R.register("font-size", length(false, false, false), Length.px(9), true, true, true);
+    public static final PropertyDef<Length> FONT_SIZE = R.register("font-size", length(true, false, false), Length.px(9), true, true, true);
+    /** A factor inherits as one; a length or percentage computes to pixels of the element's font size. */
+    public static final PropertyDef<LineHeight> LINE_HEIGHT = R.register("line-height", lineHeight(), LineHeight.NORMAL, true, true, true);
     /** Bold text is wider in the vanilla font, so the weight affects layout. */
     public static final PropertyDef<FontWeight> FONT_WEIGHT = R.register("font-weight", keyword(FontWeight.class), FontWeight.NORMAL, true, true, false);
     public static final PropertyDef<FontStyle> FONT_STYLE = R.register("font-style", keyword(FontStyle.class), FontStyle.NORMAL, true, false, false);
@@ -225,6 +241,15 @@ public final class CssProperties {
         R.registerShorthand("border-bottom", border(1), BORDER_BOTTOM_WIDTH, BORDER_BOTTOM_STYLE, BORDER_BOTTOM_COLOR);
         R.registerShorthand("border-left", border(1), BORDER_LEFT_WIDTH, BORDER_LEFT_STYLE, BORDER_LEFT_COLOR);
         R.registerShorthand("gap", Shorthand.pair(GAP), ROW_GAP, COLUMN_GAP);
+        R.registerShorthand("place-content", Shorthand.pair(keyword(AlignContent.class), keyword(JustifyContent.class)),
+                ALIGN_CONTENT, JUSTIFY_CONTENT);
+        R.registerShorthand("place-items", Shorthand.pair(keyword(AlignItems.class), keyword(AlignItems.class)),
+                ALIGN_ITEMS, JUSTIFY_ITEMS);
+        R.registerShorthand("place-self", Shorthand.pair(keyword(AlignSelf.class), keyword(AlignSelf.class)),
+                ALIGN_SELF, JUSTIFY_SELF);
+        R.registerShorthand("grid-row", GridSyntaxes.placement(2), GRID_ROW_START, GRID_ROW_END);
+        R.registerShorthand("grid-column", GridSyntaxes.placement(2), GRID_COLUMN_START, GRID_COLUMN_END);
+        R.registerShorthand("grid-area", GridSyntaxes.placement(4), GRID_ROW_START, GRID_COLUMN_START, GRID_ROW_END, GRID_COLUMN_END);
         R.registerShorthand("background-position", backgroundPositions(BACKGROUND_OFFSET),
                 BACKGROUND_POSITION_X, BACKGROUND_POSITION_Y);
         R.registerShorthand("border-radius", borderRadius(), BORDER_TOP_LEFT_RADIUS, BORDER_TOP_RIGHT_RADIUS,

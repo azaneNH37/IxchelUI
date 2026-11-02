@@ -12,7 +12,10 @@ public interface PaintFacet {
 
     interface Context {
         float textWidth(String text, float size);
-        float lineHeight(float size);
+        /** The used {@code line-height} of an element with style {@code cs}, in pixels. */
+        float lineHeight(ComputedStyle cs);
+        /** The height of the font's own lines at {@code size}, {@code line-height: normal}. */
+        float fontHeight(float size);
         boolean caretVisible();
         int fade(int color);
         void rect(DisplayList out, float x, float y, float w, float h, int color);

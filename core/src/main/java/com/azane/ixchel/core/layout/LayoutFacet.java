@@ -12,5 +12,4 @@ public interface LayoutFacet {
     default boolean layoutChildren() { return true; }
     default String measureKey(Element e) { return ""; }
     default float width(String key, float fontSize, TextShaper text) { return 0; }
-    default float height(float fontSize, TextShaper text) { return text.lineHeight(fontSize); }
 }

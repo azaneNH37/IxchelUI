@@ -126,9 +126,9 @@ final class SelectElement {
             return;
         }
         float size = cs.get(CssProperties.FONT_SIZE).value();
-        float lh = context.lineHeight(size);
+        float lh = context.lineHeight(cs);
         int color = cs.get(CssProperties.COLOR);
-        float ty = cy + Math.round((ch - lh) / 2);
+        float ty = cy + Math.round((ch - lh) / 2) + Math.round((lh - context.fontHeight(size)) / 2);
         float labelWidth = Math.max(0, cw - ARROW_SPACE);
         out.add(new DrawCommand.PushClip(cx, cy, labelWidth, ch));
         context.text(out, cs, cx, ty, size, color, c.label());

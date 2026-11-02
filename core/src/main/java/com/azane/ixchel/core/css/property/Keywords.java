@@ -13,9 +13,10 @@ public final class Keywords {
      * {@code inline-block} elements, or {@code none}. {@code flex} is the initial value, so an element
      * without a {@code display} is a flex container; {@code <span>}, {@code <a>}, {@code <img>} and native
      * elements default to {@code inline}. {@code <img>} and native elements are replaced: their own
-     * children, if any, are laid out as in a flex container whatever their {@code display}.
+     * children, if any, are laid out as in a flex container whatever their {@code display}. {@code grid}
+     * is a grid container; like a flex container it blockifies its items.
      */
-    public enum Display { FLEX, NONE, BLOCK, INLINE, INLINE_BLOCK }
+    public enum Display { FLEX, NONE, BLOCK, INLINE, INLINE_BLOCK, GRID }
 
     public enum Position { RELATIVE, ABSOLUTE }
 
@@ -23,12 +24,17 @@ public final class Keywords {
 
     public enum FlexWrap { NOWRAP, WRAP, WRAP_REVERSE }
 
-    /** {@code align-items}; {@code align-self} adds {@code auto} via {@link AlignSelf}. */
-    public enum AlignItems { FLEX_START, FLEX_END, CENTER, BASELINE, STRETCH }
+    /** {@code align-items} and {@code justify-items}; {@code align-self}/{@code justify-self} add {@code auto} via {@link AlignSelf}. */
+    public enum AlignItems { START, END, FLEX_START, FLEX_END, CENTER, BASELINE, STRETCH }
 
-    public enum AlignSelf { AUTO, FLEX_START, FLEX_END, CENTER, BASELINE, STRETCH }
+    public enum AlignSelf { AUTO, START, END, FLEX_START, FLEX_END, CENTER, BASELINE, STRETCH }
 
-    public enum JustifyContent { FLEX_START, FLEX_END, CENTER, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY }
+    public enum JustifyContent { START, END, FLEX_START, FLEX_END, CENTER, STRETCH, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY }
+
+    /** {@code align-content}: {@code normal} stretches flex lines and leaves grid tracks at the start. */
+    public enum AlignContent { NORMAL, START, END, FLEX_START, FLEX_END, CENTER, STRETCH, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY }
+
+    public enum GridAutoFlow { ROW, COLUMN, ROW_DENSE, COLUMN_DENSE }
 
     /**
      * Every value but {@code visible} makes a scroll container: it clips its descendants to its padding

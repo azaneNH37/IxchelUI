@@ -54,13 +54,7 @@ public final class Syntaxes {
         return interpolating((value, pos, diag) -> {
             ComponentValue v = single(value, pos, diag);
             return v == null ? null : lengthOf(v, percent, auto, negative, diag);
-        }, (a, b, p) -> {
-            if (a.unit() != b.unit() || a.unit() == Length.Unit.AUTO) {
-                return null;
-            }
-            float v = mix(a.value(), b.value(), p);
-            return new Length(negative ? v : Math.max(0, v), a.unit());
-        }, "px");
+        }, (a, b, p) -> Length.mix(a, b, p, !negative), "px");
     }
 
     public static Syntax<Float> number(boolean negative) {
@@ -81,6 +75,34 @@ public final class Syntaxes {
         }, (a, b, p) -> {
             float v = mix(a, b, p);
             return negative ? v : Math.max(0, v);
+        }, "");
+    }
+
+    /** {@code line-height}: {@code normal}, a non-negative number, length or percentage. */
+    public static Syntax<LineHeight> lineHeight() {
+        return interpolating((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            if (v == null) {
+                return null;
+            }
+            if (v instanceof Token t && t.isIdent("normal")) {
+                return LineHeight.NORMAL;
+            }
+            if (v instanceof Token t && t.is(Token.Kind.NUMBER)) {
+                if (t.number() < 0) {
+                    diag.report(PropertyCode.NEGATIVE_VALUE, t.pos(), "negative value not allowed");
+                    return null;
+                }
+                return LineHeight.factor((float) t.number());
+            }
+            Length l = lengthOf(v, true, false, false, diag);
+            return l == null ? null : LineHeight.of(l);
+        }, (a, b, p) -> {
+            if (a.kind() != b.kind() || a.kind() == LineHeight.Kind.NORMAL) {
+                return null;
+            }
+            return a.kind() == LineHeight.Kind.FACTOR ? LineHeight.factor(Math.max(0, mix(a.factor(), b.factor(), p)))
+                    : LineHeight.of(Length.mix(a.length(), b.length(), p, true));
         }, "");
     }
 
@@ -276,7 +298,7 @@ public final class Syntaxes {
     }
 
     static boolean isLengthToken(ComponentValue v) {
-        return v instanceof Token t && (t.is(Token.Kind.DIMENSION) || t.is(Token.Kind.NUMBER));
+        return v instanceof Token t && (t.is(Token.Kind.DIMENSION) || t.is(Token.Kind.NUMBER)) || CalcParser.isMath(v);
     }
 
     /**
@@ -400,11 +422,10 @@ public final class Syntaxes {
             } else if (b == null) {
                 b = a.identity();
             }
-            if (a.kind() != b.kind() || a.x().unit() != b.x().unit() || a.y().unit() != b.y().unit()) {
+            if (a.kind() != b.kind()) {
                 return null;
             }
-            out.add(new Transform.Fn(a.kind(), new Length(mix(a.x().value(), b.x().value(), p), a.x().unit()),
-                    new Length(mix(a.y().value(), b.y().value(), p), a.y().unit())));
+            out.add(new Transform.Fn(a.kind(), Length.mix(a.x(), b.x(), p, false), Length.mix(a.y(), b.y(), p, false)));
         }
         return new Transform(List.copyOf(out));
     }
@@ -653,13 +674,16 @@ public final class Syntaxes {
     }
 
     static Length lengthOf(ComponentValue v, boolean percent, boolean auto, boolean negative, Diagnostics diag) {
+        if (v instanceof ComponentValue.Function f && CalcParser.isMath(f)) {
+            return CalcParser.length(f, percent, negative, diag);
+        }
         if (v instanceof Token t) {
             switch (t.kind()) {
                 case DIMENSION:
                     if (t.unit().equalsIgnoreCase("px")) {
                         return checkSign(Length.px((float) t.number()), t, negative, diag);
                     }
-                    diag.report(PropertyCode.UNSUPPORTED_UNIT, t.pos(), "unsupported unit '" + t.unit() + "'", "only px is supported");
+                    diag.report(PropertyCode.UNSUPPORTED_UNIT, t.pos(), "unsupported unit '" + t.unit() + "'", "use px, em, rem, vw or vh");
                     return null;
                 case NUMBER:
                     if (t.number() == 0) {

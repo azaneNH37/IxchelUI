@@ -104,7 +104,10 @@ public final class Painter implements PaintFacet.Context {
     public float textWidth(String text, float size) { return layout.textWidth(text, size); }
 
     @Override
-    public float lineHeight(float size) { return layout.lineHeight(size); }
+    public float lineHeight(ComputedStyle cs) { return layout.lineHeight(cs); }
+
+    @Override
+    public float fontHeight(float size) { return layout.fontHeight(size); }
 
     /** Clears {@code out} and paints the children of the implicit root into it, then the top layer's entries. */
     public void paint(Element root, TopLayer top, DisplayList out) {
@@ -384,18 +387,15 @@ public final class Painter implements PaintFacet.Context {
 
     /** A slice offset in image pixels, at most the image's side. */
     private static float slice(Length l, float side) {
-        float v = l.unit() == Length.Unit.PERCENT ? side * l.value() / 100 : l.value();
-        return Math.min(v, side);
+        return Math.min(l.resolve(side), side);
     }
 
     /** A {@code border-image-width} side in GUI pixels; {@code area} is the border box's side along it. */
     private static float imageWidth(BorderImageWidth.Side s, float border, float area, float slice) {
-        return switch (s.kind()) {
-            case PX -> s.value();
-            case PERCENT -> area * s.value() / 100;
-            case NUMBER -> s.value() * border;
-            case AUTO -> slice;
-        };
+        if (s.length() == null) {
+            return s.number() * border;
+        }
+        return s.length().isAuto() ? slice : s.length().resolve(area);
     }
 
     /** How much an edge drawn {@code width} wide from a slice {@code slice} image pixels wide is scaled; 0 when empty. */
@@ -524,7 +524,7 @@ public final class Painter implements PaintFacet.Context {
     }
 
     private static float radius(Length l, float side) {
-        return l.unit() == Length.Unit.PERCENT ? side * l.value() / 100 : l.value();
+        return l.resolve(side);
     }
 
     /** How {@code cs}'s element samples scaled images ({@code image-rendering}). */
@@ -691,7 +691,7 @@ public final class Painter implements PaintFacet.Context {
         float[] at = new float[n];
         for (int i = 0; i < n; i++) {
             Length p = stops.get(i).position();
-            at[i] = p == null ? Float.NaN : p.unit() == Length.Unit.PERCENT ? p.value() / 100 : p.value() / len;
+            at[i] = p == null ? Float.NaN : p.resolve(len) / len;
         }
         if (Float.isNaN(at[0])) {
             at[0] = 0;
@@ -768,16 +768,12 @@ public final class Painter implements PaintFacet.Context {
 
     /** A {@code background-size} side in pixels; NaN for {@code auto}. */
     private static float side(Length l, float area) {
-        return switch (l.unit()) {
-            case PX -> l.value();
-            case PERCENT -> area * l.value() / 100;
-            case AUTO -> Float.NaN;
-        };
+        return l.isAuto() ? Float.NaN : l.resolve(area);
     }
 
     /** A {@code background-position} side: a percentage aligns that point of the image with that point of the box. */
     private static float offset(Length l, float free) {
-        return l.unit() == Length.Unit.PERCENT ? free * l.value() / 100 : l.value();
+        return l.resolve(free);
     }
 
     private void report(Element e, PaintCode code, String message) {

@@ -45,7 +45,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | U3 | 完成 | — | 宿主自定义原生元素入口（#030） |
 | N1–N2 | 完成 | — | 原生声明随实现类注册；元素定义按消费阶段切面组合（#030、#031），结果见下文 |
 | V1 | 完成 | — | `::before`/`::after`（只做装饰）、多层背景、线性渐变、`border-image` 与 `image-rendering: pixelated`、`border-radius`（只做圆角外观）、`box-shadow`、`:not`/`:is`/`:where` |
-| V2 | 待做 | — | `calc()` 与 `min()`/`max()`/`clamp()`、em/rem/vw/vh、`line-height`、`align-content`、grid、标准块布局（放宽 `display: block` 含块级子元素的限制） |
+| V2 | 完成 | — | `calc()` 与 `min()`/`max()`/`clamp()`、em/rem/vw/vh、`line-height`、`align-content`、grid、标准块布局（放宽 `display: block` 含块级子元素的限制） |
 | V3 | 待做 | — | `@keyframes` 与 `animation-*`、`on:animationend`、`@starting-style`、`<if>`/`<for>` 的 `leave` |
 | U4 | 待做 | — | `ix-` 组件库：tabs、tree、进度条等 |
 | FX1 | 待做 | — | 私有图层与 shader 注册；`opacity` 整组语义 |
@@ -194,6 +194,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - grid：接上 taffy 支持的全部写法（模板行列、`fr`、`repeat` 含 auto-fill/auto-fit、`minmax`、命名线、areas、放置），不做 subgrid。
   - 补定（2026-11-03）：含 % 的 `min()`/`max()`/`clamp()` 不是线性式，`Length` 另需表达式形态，过渡按标准 calc-mix 插值。vw/vh 在计算样式时换算，视口变化须重算用到视口单位的样式，不只重新布局。taffy 不生成匿名块，由 core 把连续行内内容包成段落叶子；只含行内内容的块仍是现行段落叶子。其余未写明处按标准：原生元素与表单控件认 `line-height`，`font-size` 收 %（相对父字号），grid 同批接 `justify-items`/`justify-self`、`place-*`、`grid-area`/`grid-row`/`grid-column` 简写与 `grid-auto-*`，`align-content` 对 flex 与 grid 都生效。
 - 验收：core 黄金测试覆盖块布局与外边距折叠、匿名块、各单位、calc 与过渡；现有截图不变；sample 选一处网格布局写成 playtest 截图；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
+- 结果（2026-11-03）：按已定完成。相对单位在计算样式时逐元素换算为 px，顶层元素的 rem 取 9px；用到 vw/vh 后视口变化时整体重算样式。`calc()` 只在收 % 的属性上保留到布局，由 taffy 求值。`line-height` 按 CSS half-leading，`normal` 等于测量器行高，表单控件行盒垂直居中。块布局下 flex 与 grid 项是 BFC 根；`layout/block-in-inline` 只在 `display: inline` 内报。简化：流式布局中 inline-block 的基线取下外边距边。grid 属性不可动画；`justify-items` 初值按 stretch；`align-content: normal` 对应 taffy AUTO，flex 行为不变。taffy 限制：行方向 `minmax(定长, auto)` 的最小值被忽略；有 auto 重复时负线号只数非 auto 重复的轨道；auto 重复之内或之后的命名线报 `css/unsupported-value`。sample：1.20.1 guide 配方格改用 grid（截图 `guide-storage`，像素不变）。Forge `-Pplaytest=all` 13 项、202 项断言通过；1.21.1 经 quickPlay 冒烟通过。
 
 #### V3 动画
 

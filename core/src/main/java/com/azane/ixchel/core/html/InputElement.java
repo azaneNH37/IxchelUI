@@ -112,7 +112,7 @@ final class InputElement {
         TextField f = e.textField();
         String v = f.value();
         float size = cs.get(CssProperties.FONT_SIZE).value();
-        float lh = context.lineHeight(size);
+        float lh = context.lineHeight(cs);
         int color = cs.get(CssProperties.COLOR);
         boolean focused = e.hasState(Element.FOCUS);
         float caretX = context.textWidth(v.substring(0, f.caret()), size);
@@ -125,6 +125,7 @@ final class InputElement {
         f.setScrollX(scroll);
         float tx = cx - scroll;
         float ty = cy + Math.round((ch - lh) / 2);
+        float glyphY = ty + Math.round((lh - context.fontHeight(size)) / 2);
         out.add(new DrawCommand.PushClip(cx, cy, cw, ch));
         String placeholder = e.attribute("placeholder");
         if (!v.isEmpty()) {
@@ -133,9 +134,9 @@ final class InputElement {
                 float x1 = Math.round(tx + context.textWidth(v.substring(0, f.selectionEnd()), size));
                 context.rect(out, x0, ty, x1 - x0, lh, SELECTION_COLOR);
             }
-            context.text(out, cs, tx, ty, size, color, v);
+            context.text(out, cs, tx, glyphY, size, color, v);
         } else if (placeholder != null && !placeholder.isEmpty()) {
-            context.text(out, cs, tx, ty, size, Math.round((color >>> 24) * 0.5f) << 24 | color & 0xFFFFFF, placeholder);
+            context.text(out, cs, tx, glyphY, size, Math.round((color >>> 24) * 0.5f) << 24 | color & 0xFFFFFF, placeholder);
         }
         if (focused && context.caretVisible()) {
             context.rect(out, Math.round(tx + caretX), ty, 1, lh, color);
