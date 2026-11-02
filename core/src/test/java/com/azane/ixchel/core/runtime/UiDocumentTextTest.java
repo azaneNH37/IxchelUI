@@ -1,6 +1,7 @@
 package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.binding.compile.Bindings;
+import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -10,6 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class UiDocumentTextTest {
     private static UiDocument load(String html, String css) {
@@ -134,5 +136,31 @@ class UiDocumentTextTest {
         assertSame(a, doc.events().hitTest(4, 13));
         assertSame(div, doc.events().hitTest(4, 4), "inside the link's bounding box, before it starts");
         assertSame(div, doc.events().hitTest(20, 13), "inside the bounding box, after the link ends");
+    }
+
+    @Test
+    void textShadowDrawsAnInheritedOffsetCopyUnderTheTextInItsOwnColor() {
+        assertEquals("""
+                text 1 1 9 #FF3F3F3F "ab "
+                text 0 0 9 #FFFFFFFF "ab "
+                text 19 1 9 #FF3F3F3F "cd"
+                text 18 0 9 #FFFF0000 "cd\"""", frame("""
+                <div>ab <span class="r">cd</span></div>
+                """, """
+                div { display: block; text-shadow: #3F3F3F 1px 1px }
+                .r { color: #f00 }
+                """));
+    }
+
+    @Test
+    void blurSeveralShadowsAndAMissingColorAreReported() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", """
+                .a { text-shadow: 1px 1px 2px #000 }
+                .b { text-shadow: 1px 1px #000, 2px 2px #fff }
+                .c { text-shadow: 1px 1px }
+                .d { text-shadow: 1px 1px 0 #000 }
+                """));
+        assertEquals(List.of("css/unsupported-value@t.css:1:27", "css/unsupported-value@t.css:2:31",
+                "css/unsupported-value@t.css:3:19"), DiagCodes.of(e));
     }
 }

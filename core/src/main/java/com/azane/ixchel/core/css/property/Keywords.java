@@ -79,4 +79,14 @@ public final class Keywords {
      * CSS it is not inherited but drawn through the text of the element's inline descendants.
      */
     public enum TextDecoration { NONE, UNDERLINE, LINE_THROUGH }
+
+    /** {@code scrollbar-width}: a 4px or 2px bar, or none (the element still scrolls by wheel and code). */
+    public enum ScrollbarWidth { AUTO, THIN, NONE }
+
+    /**
+     * {@code -ix-click-sound}, inherited: whether a control plays the host's click sound
+     * ({@link com.azane.ixchel.core.event.ClickSound}). {@code none} silences it, e.g. for a button whose
+     * action plays its own sound.
+     */
+    public enum ClickSound { AUTO, NONE }
 }

@@ -172,3 +172,15 @@
 - **context**: 流光、溶解、CRT 等效果没有 Web 标准写法，库以 shade 分发、不带固定 namespace 的 assets、不用 mixin，而 MC 的 shader 程序按名字全局缓存
 - **decision**: 特效为 `.effect` 文件（`kind box|layer|backdrop` + 类型化 `param` + GLSL `effect()`，用库内原语库组合），由 `<link rel="effect">` 按资源路径引入；`box` 写 `background-image: paint(名)`，`layer` 写 `filter: -ix-paint(名)`，`backdrop` 写在 `backdrop-filter` 中；参数为自定义属性 `--名-参数`，按声明类型校验、可过渡；程序名为 `<宿主modid>_fx_<名>`，经加载器胶水层随资源重载注册；内置特效同格式，从 `@ixchel/effects/…` 引入。标准 CSS 能表达的效果走标准属性。细节见 `ref/SD-ixchel-ui-effects-20261102.md`
 - **rejected**: 位置参数 `paint(名, 参数…)`——不能单独覆盖或过渡；包裹元素 `<ix-effect>`——特效属于样式，包裹会改结构且不能与标准 filter 串链；运行时节点图或万能 shader——调试与缓存成本高、无需求；全局特效注册表——多宿主下撞名（同 #015）；`PostChain`——只读固定资源路径
+
+## #029 圆角、阴影、渐变走路径 C，圆角只做外观
+- **decided**: 2026-11-02
+- **context**: V1 要补圆角、`box-shadow`、线性渐变，路径 C 一直是推荐未定；圆角裁剪依赖 FX1 的私有图层，MC 界面又很少需要裁剪圆角子元素
+- **decision**: 三者由 CPU 生成覆盖率/SDF 纹理放入单张图集，经 `POSITION_TEX_COLOR` 九宫格绘制，纹理以宿主 modid 注册；`<img>` 图集共用这条路径。V1 的 `border-radius` 只影响背景、边框与阴影，子元素不裁圆角；FX1 落地前 `overflow` 配圆角按矩形裁剪并由 lint 警告
+- **rejected**: SDF shader（路径 B）——V1 就要 shader 注册，且 Painter 按顶点 API 时代分叉；CPU 三角化（路径 A）——无抗锯齿，阴影只能近似；把 FX1 提到 V1 之前——为少用的裁剪提前引入图层
+
+## #030 宿主原生元素 = 资源文件声明 + 按 modid 注册绘制
+- **decided**: 2026-11-02
+- **context**: 宿主要写自绘标签；kit 不运行游戏，标签与载荷类型必须能静态读取；shade 后同名类互不相通，但开发环境与未来的共用形态不应依赖这一点
+- **decision**: 宿主把标签写进 `assets/<modid>/ui/elements.txt`（格式同库内 `elements.txt`），文档加载时按模板 namespace 并入；绘制用 `McElements.registerPainter(modid, tag, painter)`，按 modid 分开存放。声明了但没注册绘制时，绘制到该元素才抛错。不与语言文档 §3.4 的带 Java 逻辑组件合并
+- **rejected**: 只在 Java 里注册标签——kit 读不到；放在包路径下——不同宿主的同路径资源会互相遮蔽，且 relocate 不改写资源路径；不分 modid 的全局表——多宿主下撞名（同 #015）

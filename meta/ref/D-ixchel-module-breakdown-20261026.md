@@ -57,7 +57,7 @@ flowchart LR
 
 - `ComputedStyle` 放在 `css.property` 而不是 `style`：`Element` 持有它，放在 `style` 会形成 dom ↔ style 环。`LayoutBox` 同理放在 `dom`。
 - 树节点分 `Element` 与 `TextNode`：模板允许混排文本（如 `<span>a</span>/<span>b</span>`）。选择器只匹配 `Element`，`TextNode` 的样式取父元素。
-- 样式脏标记的粒度是子树：元素脏表示它与整棵子树都重算；祖先只记"有脏后代"，供样式阶段跳过干净子树。没有结构伪类与属性选择器，所以增删子节点、改普通属性不标父元素脏；例外：改 `id` 标该元素脏（参与 `#id` 匹配），已算过样式的元素被挂到（新）父节点下时标该元素脏（继承值与组合选择器随祖先变化）。`class`/`style` 不走 `setAttribute`，分别用 `addClass`/`removeClass` 与 `setInlineStyle`。
+- 样式脏标记的粒度是子树：元素脏表示它与整棵子树都重算；祖先只记"有脏后代"，供样式阶段跳过干净子树。没有结构伪类与兄弟组合符，所以增删子节点不标父元素脏；属性选择器只有 `[a]`、`[a=v]`，只匹配元素自身。例外：改 `id` 标该元素脏（参与 `#id` 匹配），已算过样式的元素被挂到（新）父节点下时标该元素脏（继承值与组合选择器随祖先变化）。`class`/`style` 不走 `setAttribute`，分别用 `addClass`/`removeClass` 与 `setInlineStyle`。
 - 坐标是文档 GUI 像素，原点在视口左上；`LayoutBox` 存绝对坐标的 border box。模板顶层元素的父节点是尺寸等于视口的隐式根。
 - `font-size` 以 GUI 像素计，`9px` = vanilla 字体 1 倍（行高 9）；`DrawCommand.Text` 的 `(x, y)` 是行框左上角，基线对齐由 `McPainter` 处理。
 - `DrawCommand` 的子类型随实现加入，当前为 `Rect`/`Text`/`Image`/`Custom`/`PushClip`/`PopClip`；计划中的 `RoundRect`、`Border`、`NineSlice` 在对应功能落地时再定字段。物品不单设 `Item`，走 `Custom(kind, payload, x, y, w, h)`：原生元素由 `TagRegistry.Builder.nativeTag(tag, payload)` 注册，payload 只能经 `bind:<payload>` 写入（按引用判断变化），`Painter` 对有 payload 的原生元素输出 `Custom`，内核不解释 `payload`。mc 层 `<mc-item bind:item>` 用 vanilla `renderItem` 按元素尺寸缩放绘制；深度按重叠分层（§4）。
@@ -108,7 +108,7 @@ jsoup 的问题在 HTML5 容错建树（隐式闭合、adoption agency、foster 
 |---|---|---|
 | A | CPU 三角化 + `POSITION_COLOR` | 无 shader；无抗锯齿；阴影只能近似 |
 | B | SDF shader | 效果最好；MVP 即需 shader 注册与自定义 `ResourceProvider`，Painter 随顶点 API 时代分叉 |
-| **C（推荐，未定）** | CPU 生成覆盖率/SDF 纹理放入单张图集，自写 `POSITION_TEX_COLOR` 顶点，九宫格拉伸；纹理以宿主 modid 注册 `DynamicTexture` | 无 shader、有抗锯齿；与图片共用合批路径；纹理按"半径×边框×模糊"键缓存 |
+| **C（已定，#029）** | CPU 生成覆盖率/SDF 纹理放入单张图集，自写 `POSITION_TEX_COLOR` 顶点，九宫格拉伸；纹理以宿主 modid 注册 `DynamicTexture` | 无 shader、有抗锯齿；与图片共用合批路径；纹理按"半径×边框×模糊"键缓存 |
 
 ### 7. 性能
 

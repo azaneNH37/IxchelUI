@@ -48,9 +48,9 @@ import java.util.function.LongSupplier;
  * <p>Below the template's stylesheets sit the theme layer, the library stylesheets the page links
  * as {@code @ixchel/<name>}, the component layer, the stylesheets component files link, and a
  * user-agent stylesheet with the defaults of the inline elements, the native elements, the form
- * controls, {@code <dialog>} and {@code <ix-tooltip>} (see {@link LibrarySheets}). Open selects and
- * dialogs, and the shown tooltip, live in the document's {@link TopLayer}, which layout, paint and
- * input share.
+ * controls, {@code <dialog>}, {@code <ix-tooltip>} and {@code <ix-drag-preview>} (see
+ * {@link LibrarySheets}). Open selects and dialogs, and the tooltip or drag preview shown at the
+ * pointer, live in the document's {@link TopLayer}, which layout, paint and input share.
  */
 public final class UiDocument {
     static final long BLINK_MS = 500;
@@ -64,8 +64,7 @@ public final class UiDocument {
     private final Bindings bindings;
     private final TopLayer topLayer;
     private final DisplayList displayList = new DisplayList();
-    private final DisplayList tooltipList = new DisplayList();
-    private boolean tooltipMoved;
+    private final DisplayList atPointerList = new DisplayList();
     private final EventDispatcher events;
     private final Transitions transitions;
     private LongSupplier clock = System::nanoTime;
@@ -228,25 +227,25 @@ public final class UiDocument {
     /**
      * Shows {@code tip}, an {@code <ix-tooltip>} of this document, at the pointer {@code (x, y)} from the
      * next {@link #frame} on, or hides the tooltip when {@code null}. The host picks it before each frame;
-     * moving it only places it again.
+     * moving it only places it again. While an element is dragged the pointer shows its drag preview
+     * instead, and this does nothing.
      */
     public void setTooltip(Element tip, float x, float y) {
         if (tip != null && !tip.tag().equals(TopLayer.TOOLTIP)) {
             throw new IllegalArgumentException("not an <ix-tooltip>: <" + tip.tag() + ">");
         }
-        if (tip == topLayer.tooltip() && (tip == null || x == topLayer.tooltipX() && y == topLayer.tooltipY())) {
-            return;
+        if (events.dragSource() == null) {
+            topLayer.showAtPointer(tip, x, y);
         }
-        tooltipMoved |= tip == topLayer.tooltip();
-        topLayer.showTooltip(tip, x, y);
     }
 
     /**
-     * The shown tooltip's display list, painted above {@link #frame}'s; brought up to date by
-     * {@link #frame}, same instance every frame, empty while no tooltip is shown.
+     * The display list of the tooltip or drag preview shown at the pointer, painted above
+     * {@link #frame}'s; brought up to date by {@link #frame}, same instance every frame, empty while
+     * neither is shown.
      */
-    public DisplayList tooltipDisplayList() {
-        return tooltipList;
+    public DisplayList atPointerDisplayList() {
+        return atPointerList;
     }
 
     /** The implicit root; its children are the template's top-level elements. */
@@ -324,24 +323,24 @@ public final class UiDocument {
         boolean caret = caretVisible(now);
         boolean blinked = caret != painter.caretVisible();
         painter.setCaretVisible(caret);
-        Element tip = topLayer.tooltip();
-        if (tip != null && !isConnected(tip)) {
-            topLayer.showTooltip(null, 0, 0); // a binding removed it this frame
+        Element shown = topLayer.atPointer();
+        if (shown != null && !isConnected(shown)) {
+            topLayer.showAtPointer(null, 0, 0); // a binding removed it this frame
             dirty = true;
         }
+        boolean moved = topLayer.takeMoved();
         if (!dirty) {
             boolean repaint = root.needsRepaint() || blinked;
-            if (tooltipMoved) {
-                layout.placeTooltip(topLayer);
+            if (moved) {
+                layout.placeAtPointer(topLayer);
             }
             if (repaint) {
                 painter.paint(root, topLayer, displayList);
                 events.afterLayout();
             }
-            if (repaint || tooltipMoved) {
-                painter.paintTooltip(topLayer, tooltipList);
+            if (repaint || moved) {
+                painter.paintAtPointer(topLayer, atPointerList);
             }
-            tooltipMoved = false;
             return displayList;
         }
         this.viewportWidth = viewportWidth;
@@ -351,8 +350,7 @@ public final class UiDocument {
         style.restyle(root);
         layout.layout(root, viewportWidth, viewportHeight, topLayer);
         painter.paint(root, topLayer, displayList);
-        painter.paintTooltip(topLayer, tooltipList);
-        tooltipMoved = false;
+        painter.paintAtPointer(topLayer, atPointerList);
         events.afterLayout();
         return displayList;
     }

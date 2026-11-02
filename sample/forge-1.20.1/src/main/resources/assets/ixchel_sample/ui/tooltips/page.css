@@ -101,6 +101,11 @@ button {
   background-color: var(--ix-hover);
 }
 
+.gauge {
+  width: 100px;
+  height: 8px;
+}
+
 .open {
   margin-left: 4px;
 }

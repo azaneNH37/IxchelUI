@@ -31,6 +31,7 @@ public final class IxchelSamplePlaytestMod {
             WaypointsPlaytest.register(playtests);
             StoragePlaytest.register(playtests);
             ConfigPlaytest.register(playtests);
+            ConfigPlaytest.registerSort(playtests);
             QuestsPlaytest.register(playtests);
             GuidePlaytest.register(playtests);
             TooltipsPlaytest.register(playtests);

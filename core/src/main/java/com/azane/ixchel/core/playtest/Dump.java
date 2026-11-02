@@ -11,7 +11,8 @@ import java.util.Map;
 /**
  * A document's tree as text, for reading what a failed assertion saw: one line per node, indented by
  * depth; an element with its tag, attributes, classes and laid-out border box (x, y, width, height,
- * then the scroll offset when it has one), a text node quoted. The top layer's entries follow, then the shown tooltip.
+ * then the scroll offset when it has one), a text node quoted. The top layer's entries follow, then the
+ * tooltip or drag preview shown at the pointer.
  *
  * <pre>
  * &lt;div class="row" x=10.0 y=20.0 w=100.0 h=18.0&gt;
@@ -32,9 +33,9 @@ public final class Dump {
                 element(out, e);
             }
         }
-        if (d.topLayer().tooltip() != null) {
-            out.append("tooltip:\n  ");
-            element(out, d.topLayer().tooltip());
+        if (d.topLayer().atPointer() != null) {
+            out.append("at pointer:\n  ");
+            element(out, d.topLayer().atPointer());
         }
         return out.toString();
     }

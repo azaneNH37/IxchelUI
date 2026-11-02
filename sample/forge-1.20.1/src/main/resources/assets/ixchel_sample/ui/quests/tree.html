@@ -15,7 +15,7 @@
         </button></for>
       </div>
       <div class="stage">
-        <div class="view" on:mousedown="press" on:mousemove.left="drag($event)" on:wheel="wheel($event)">
+        <div class="view" draggable="true" on:drag="drag($event)" on:wheel="wheel($event)">
           <div class="world" bind:style:transform="'translate(' + panX + 'px, ' + panY + 'px) scale(' + zoom + ')'">
             <for each="edges" as="e" key="e.id"><div class="edge" bind:class:done="e.done"
                  bind:style:left="e.x" bind:style:top="e.y" bind:style:width="e.length"

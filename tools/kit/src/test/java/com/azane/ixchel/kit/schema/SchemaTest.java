@@ -19,7 +19,7 @@ class SchemaTest {
         Path resources = Path.of(SchemaTest.class.getResource("/fixture").toURI());
         Project project = new Project(List.of(resources), List.of(ClassFiles.root(SchemaTest.class)),
                 SchemaTest.class.getClassLoader());
-        Schema schema = Schema.of(project, ElementDeclarations.load(project.loader()));
+        Schema schema = Schema.of(project, ElementDeclarations.load(project));
 
         Schema.Tag item = tag(schema, "mc-item");
         assertEquals("item", item.payload());
@@ -42,7 +42,7 @@ class SchemaTest {
     @Test
     void listsShorthandsAndThemeVariables() {
         Project project = new Project(List.of(), List.of(), SchemaTest.class.getClassLoader());
-        Schema schema = Schema.of(project, ElementDeclarations.load(project.loader()));
+        Schema schema = Schema.of(project, ElementDeclarations.load(project));
 
         Schema.Shorthand margin = schema.shorthands().stream()
                 .filter(s -> s.name().equals("margin")).findFirst().orElseThrow();

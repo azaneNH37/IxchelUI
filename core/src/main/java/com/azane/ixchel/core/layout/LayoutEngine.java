@@ -82,12 +82,13 @@ import java.util.Set;
  * the select where it shows (its {@link Element#scrollOffset()} taken off), or above it when the
  * viewport has no room below, and moved left to stay inside. A closed dialog is not laid out.
  *
- * <p>The shown {@linkplain TopLayer#tooltip() tooltip} is laid out last at its max-content size, at
- * most the viewport's width, and placed at the pointer as vanilla places its tooltips: its box starts
- * {@value #TOOLTIP_OFFSET} pixels right of the pointer and {@value #TOOLTIP_RISE} above it, flips to
- * end {@value #TOOLTIP_OFFSET} pixels left of the pointer when it would leave the viewport's right
- * edge, and moves up to stay above the bottom edge; never past the left or top edge. Showing, hiding,
- * moving or changing it never lays out the document again.
+ * <p>The element shown at the pointer ({@link TopLayer#atPointer()}) is laid out last at its
+ * max-content size, at most the viewport's width. A tooltip is placed as vanilla places its tooltips:
+ * its box starts {@value #TOOLTIP_OFFSET} pixels right of the pointer and {@value #TOOLTIP_RISE} above
+ * it, flips to end {@value #TOOLTIP_OFFSET} pixels left of the pointer when it would leave the
+ * viewport's right edge, and moves up to stay above the bottom edge; never past the left or top edge.
+ * A drag preview is centered on the pointer. Showing, hiding, moving or changing either never lays
+ * out the document again.
  */
 public final class LayoutEngine {
     /** Floats per recorded measurement: known width, known height, available width, then the answer. */
@@ -265,7 +266,7 @@ public final class LayoutEngine {
         for (Element entry : entries) {
             layerIds.add(syncLayer(entry, resized));
         }
-        Element tip = top.tooltip();
+        Element tip = top.atPointer();
         if (tip != null) {
             // Its own tree: nothing in it moves the document.
             boolean documentChanged = changed;
@@ -275,7 +276,7 @@ public final class LayoutEngine {
         for (Iterator<Map.Entry<Element, NodeId>> it = layers.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Element, NodeId> en = it.next();
             if (!entries.contains(en.getKey()) && en.getKey() != tip) {
-                changed |= !en.getKey().tag().equals(TopLayer.TOOLTIP);
+                changed |= !en.getKey().isShownAtPointer();
                 tree.remove(en.getValue());
                 layerChildren.remove(en.getKey());
                 it.remove();
@@ -284,7 +285,7 @@ public final class LayoutEngine {
         for (Iterator<Map.Entry<Node, Slot>> it = slots.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Node, Slot> en = it.next();
             if (en.getValue().seen != generation) {
-                changed |= !inTooltip(en.getKey());
+                changed |= !atPointer(en.getKey());
                 tree.remove(en.getValue().id);
                 if (en.getKey() instanceof TextNode t) {
                     fragments.remove(t);
@@ -306,14 +307,14 @@ public final class LayoutEngine {
             }
         }
         if (tip != null) {
-            placeTooltip(top);
+            placeAtPointer(top);
         }
     }
 
-    /** Whether {@code n} is a tooltip or inside one: content of a tooltip's own tree, not the document's. */
-    private static boolean inTooltip(Node n) {
+    /** Whether {@code n} is shown at the pointer or inside such an element: content of its own tree, not the document's. */
+    private static boolean atPointer(Node n) {
         for (Node a = n; a != null; a = a.parent()) {
-            if (a instanceof Element e && e.tag().equals(TopLayer.TOOLTIP)) {
+            if (a instanceof Element e && e.isShownAtPointer()) {
                 return true;
             }
         }
@@ -321,25 +322,33 @@ public final class LayoutEngine {
     }
 
     /**
-     * Places the shown tooltip at {@code top}'s pointer, after a {@link #layout} that laid it out; the
-     * document is not touched. A host calls it alone when only the pointer moved.
+     * Places the element shown at {@code top}'s pointer, after a {@link #layout} that laid it out; the
+     * document is not touched. A host calls it alone when only the pointer moved. A tooltip goes beside
+     * the pointer as vanilla's do; a drag preview is centered on it.
      */
-    public void placeTooltip(TopLayer top) {
-        Element tip = top.tooltip();
+    public void placeAtPointer(TopLayer top) {
+        Element tip = top.atPointer();
         NodeId id = layers.get(tip);
         tree.computeLayout(id, TaffySize.of(AvailableSpace.definite(viewportWidth), AvailableSpace.maxContent()));
         Layout l = tree.getLayout(slots.get(tip).id);
         float w = l.size().width;
         float h = l.size().height;
-        float px = top.tooltipX();
-        float py = top.tooltipY();
-        float x = px + TOOLTIP_OFFSET;
-        if (x + w > viewportWidth) {
-            x = px - TOOLTIP_OFFSET - w;
+        float px = top.pointerX();
+        float py = top.pointerY();
+        float x;
+        float y;
+        if (top.dragPreview() != null) {
+            x = Math.round(px - w / 2);
+            y = Math.round(py - h / 2);
+        } else {
+            x = px + TOOLTIP_OFFSET;
+            if (x + w > viewportWidth) {
+                x = px - TOOLTIP_OFFSET - w;
+            }
+            y = Math.min(py - TOOLTIP_RISE, viewportHeight - h);
+            x = Math.round(Math.max(0, x));
+            y = Math.round(Math.max(0, y));
         }
-        float y = Math.min(py - TOOLTIP_RISE, viewportHeight - h);
-        x = Math.round(Math.max(0, x));
-        y = Math.round(Math.max(0, y));
         writeBoxes(tip, x - l.location().x, y - l.location().y);
     }
 
@@ -351,7 +360,7 @@ public final class LayoutEngine {
         boolean dialog = entry.tag().equals("dialog");
         NodeId id = layers.get(entry);
         if (id == null) {
-            id = tree.newLeaf(entry.tag().equals(TopLayer.TOOLTIP) ? tooltipLayerStyle() : new TaffyStyle());
+            id = tree.newLeaf(entry.isShownAtPointer() ? tooltipLayerStyle() : new TaffyStyle());
             layers.put(entry, id);
             changed = true;
             resized = true;

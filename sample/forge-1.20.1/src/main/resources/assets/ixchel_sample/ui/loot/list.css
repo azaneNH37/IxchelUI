@@ -60,6 +60,11 @@
   padding: 2px;
 }
 
+/* Every other row a shade darker, by its position in the sorted list. */
+.row.odd {
+  background-color: #00000018;
+}
+
 .row:hover {
   background-color: var(--ix-hover);
 }

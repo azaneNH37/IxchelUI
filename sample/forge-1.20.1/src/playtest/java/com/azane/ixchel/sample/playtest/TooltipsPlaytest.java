@@ -14,7 +14,8 @@ import java.util.List;
  * {@code -Pplaytest=tooltips}: every kind of element shows its own {@code <ix-tooltip>} under the pointer
  * (buttons, form controls, inline terms, items, a component's slot, a dialog's button), the deepest
  * element wins, a {@code title} and a bare item stay vanilla, item lines are read only while shown, a
- * live value updates in place, and a tooltip at the screen edge flips inside the screen.
+ * live value updates in place, a tooltip at the screen edge flips inside the screen, and the list's
+ * scrollbar thumb drags it to its end.
  */
 public final class TooltipsPlaytest {
     private static final String[] countdown = {""};
@@ -93,6 +94,11 @@ public final class TooltipsPlaytest {
             s.waitUntil("the badge's tooltip holds what it was given", () -> shows(".badge")
                     && Playtest.text(".badge-tip .tip-head").equals("Help from a component"), Playtest.WAIT);
 
+            // Fails if the host's element is unknown to the template, has no painter, or takes no pointer.
+            s.hover(".gauge");
+            s.waitUntil("the host-made element paints and shows its tooltip", () -> shows(".gauge"), Playtest.WAIT);
+            s.shot("tooltips-gauge");
+
             // Fails if an element in a dialog loses its tooltip to the dialog.
             s.click(".open");
             s.waitUntil("the dialog opens", () -> Playtest.query("dialog:open").size() == 1, Playtest.WAIT);
@@ -101,6 +107,14 @@ public final class TooltipsPlaytest {
             s.shot("tooltips-dialog");
             s.click(".close");
             s.waitUntil("the dialog closes", () -> Playtest.query("dialog:open").isEmpty(), Playtest.WAIT);
+
+            // Fails if the list's thumb cannot be dragged, or the drag stops at the list's edge.
+            s.dragScrollbar(".list", 200);
+            s.waitUntil("dragging the thumb past the bottom scrolls the list to its end", () -> {
+                Element list = Playtest.query(".list").get(0);
+                return list.maxScrollTop() > 0 && list.scrollTop() == list.maxScrollTop();
+            }, Playtest.WAIT);
+            s.shot("tooltips-scrolled");
             s.expect("the page still reports no errors", () -> Playtest.document().diagnostics().errorCount() == 0);
             s.run(() -> Minecraft.getInstance().setScreen(null));
         });

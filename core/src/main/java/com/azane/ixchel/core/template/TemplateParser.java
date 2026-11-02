@@ -44,7 +44,7 @@ public final class TemplateParser {
     private static final Set<String> MOVED = Set.of("each", "as", "key", "if");
     /** Names a parameter or event cannot take: they are attributes or targets of the component's element. */
     private static final Set<String> SHELL_NAMES = Set.of("class", "id", "style", "tabindex", "disabled", "title",
-            "lang", "translate", "mark", "text", "scrolltop", "slot", "t");
+            "lang", "translate", "mark", "draggable", "text", "scrolltop", "slot", "t");
     /** The attributes {@code t:<attribute>} translates, besides a component's parameters. */
     private static final Set<String> TRANSLATABLE = Set.of("title", "placeholder");
 
@@ -311,16 +311,18 @@ public final class TemplateParser {
             }
             return null;
         }
-        if (known && tag.equals(TopLayer.TOOLTIP) && (topLevel || tooltipDepth > 0)) {
+        boolean atPointer = tag.equals(TopLayer.TOOLTIP) || tag.equals(TopLayer.DRAG_PREVIEW);
+        if (known && atPointer && (topLevel || tooltipDepth > 0)) {
+            String what = tag.equals(TopLayer.TOOLTIP) ? "the tooltip" : "the drag preview";
             diag.report(TemplateCode.MISPLACED_ELEMENT, openPos, topLevel
-                    ? "<ix-tooltip> is the tooltip of its parent element; it cannot be at the top level"
-                    : "<ix-tooltip> cannot be inside another <ix-tooltip>");
+                    ? "<" + tag + "> is " + what + " of its parent element; it cannot be at the top level"
+                    : "<" + tag + "> cannot be inside an <ix-tooltip> or <ix-drag-preview>");
         }
         if (!selfClosing) {
             List<Node> children = new ArrayList<>();
             boolean inTemplate = tag.equals("template");
             boolean forInTemplate = tag.equals("for") && templateDepth > 0;
-            boolean inTooltip = tag.equals(TopLayer.TOOLTIP);
+            boolean inTooltip = atPointer;
             templateDepth += inTemplate ? 1 : 0;
             forInTemplateDepth += forInTemplate ? 1 : 0;
             tooltipDepth += inTooltip ? 1 : 0;
@@ -423,7 +425,7 @@ public final class TemplateParser {
 
     private void checkReservedAttributes(Element e) {
         List<String> allowed = switch (e.tag()) {
-            case "for" -> List.of("each", "as", "key", "slot");
+            case "for" -> List.of("each", "as", "key", "index", "slot");
             case "if" -> List.of("test", "slot");
             case "slot" -> List.of("name");
             default -> List.of("name", "params", "events");

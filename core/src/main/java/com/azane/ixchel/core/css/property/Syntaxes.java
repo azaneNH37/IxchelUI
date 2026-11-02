@@ -230,6 +230,85 @@ public final class Syntaxes {
         };
     }
 
+    /** {@code scrollbar-color}: {@code auto} or a thumb color then a track color. */
+    public static Syntax<ScrollbarColor> scrollbarColor() {
+        return (value, pos, diag) -> {
+            List<ComponentValue> parts = significant(value);
+            if (parts.size() == 1 && parts.get(0) instanceof Token t && t.isIdent("auto")) {
+                return ScrollbarColor.AUTO;
+            }
+            if (parts.size() != 2) {
+                diag.report(PropertyCode.VALUE_COUNT, parts.get(0).pos(), "expected auto or a thumb and a track color");
+                return null;
+            }
+            Integer thumb = colorOf(parts.get(0), diag);
+            Integer track = thumb == null ? null : colorOf(parts.get(1), diag);
+            return track == null ? null : new ScrollbarColor(thumb, track);
+        };
+    }
+
+    /**
+     * {@code text-shadow}: {@code none} or one shadow, two px offsets, an optional blur that must be 0,
+     * and a color before or after them. Several shadows, a blur and a missing color (CSS
+     * {@code currentcolor}) are not supported. Interpolates offsets and color, {@code none} counting as
+     * a transparent shadow at no offset.
+     */
+    public static Syntax<TextShadow> textShadow() {
+        return interpolating((value, pos, diag) -> {
+            List<ComponentValue> parts = significant(value);
+            if (parts.size() == 1 && parts.get(0) instanceof Token t && t.isIdent("none")) {
+                return TextShadow.NONE;
+            }
+            for (ComponentValue v : parts) {
+                if (v instanceof Token t && t.is(Token.Kind.COMMA)) {
+                    diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "several text shadows are not supported",
+                            "keep one shadow");
+                    return null;
+                }
+            }
+            int from = 0;
+            int to = parts.size();
+            ComponentValue color = null;
+            if (!isLengthToken(parts.get(0))) {
+                color = parts.get(from++);
+            } else if (!isLengthToken(parts.get(to - 1))) {
+                color = parts.get(--to);
+            }
+            if (to - from < 2 || to - from > 3) {
+                diag.report(PropertyCode.VALUE_COUNT, parts.get(0).pos(), "expected two offsets, an optional blur of 0 and a color");
+                return null;
+            }
+            if (color == null) {
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, parts.get(0).pos(), "a text-shadow without a color is not supported",
+                        "add the color, e.g. 1px 1px 0 #3F3F3F");
+                return null;
+            }
+            Length x = lengthOf(parts.get(from), false, false, true, diag);
+            Length y = x == null ? null : lengthOf(parts.get(from + 1), false, false, true, diag);
+            if (y == null) {
+                return null;
+            }
+            if (to - from == 3) {
+                Length blur = lengthOf(parts.get(from + 2), false, false, false, diag);
+                if (blur == null) {
+                    return null;
+                }
+                if (blur.value() != 0) {
+                    diag.report(PropertyCode.UNSUPPORTED_VALUE, parts.get(from + 2).pos(),
+                            "a blurred text-shadow is not supported", "use a blur of 0");
+                    return null;
+                }
+            }
+            Integer c = colorOf(color, diag);
+            return c == null ? null : new TextShadow(x.value(), y.value(), c);
+        }, (a, b, p) -> new TextShadow(mix(a.x(), b.x(), p), mix(a.y(), b.y(), p), mixColor(a.color(), b.color(), p)),
+                null);
+    }
+
+    private static boolean isLengthToken(ComponentValue v) {
+        return v instanceof Token t && (t.is(Token.Kind.DIMENSION) || t.is(Token.Kind.NUMBER));
+    }
+
     /**
      * {@code transform}: {@code none} or a list of {@code translate()}, {@code translateX()},
      * {@code translateY()}, {@code scale()}, {@code scaleX()}, {@code scaleY()} and {@code rotate()}

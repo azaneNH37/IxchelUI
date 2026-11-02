@@ -17,9 +17,16 @@ public final class UiEvent {
      * the pointer moved; while a button is held it goes to the element that button pressed, wherever the
      * pointer is, with {@link #button()} that button, else to the element under the pointer with
      * {@code button() == -1}.
+     *
+     * <p>Dragging an element with {@code draggable="true"}: once the left button pressed in it has moved
+     * the pointer past a threshold, {@code DRAG_START} goes to that source, then a {@code DRAG} per move
+     * (carrying the movement); on release {@code DROP} goes to the element under the pointer, and
+     * {@code DRAG_END} always comes last, at the source. A drag dispatches no {@code MOUSE_MOVE},
+     * {@code MOUSE_UP} or {@code CLICK}. All bubble.
      */
     public enum Type {
-        MOUSE_DOWN, MOUSE_UP, CLICK, MOUSE_MOVE, WHEEL, KEY_DOWN, KEY_UP, INPUT, CHANGE, CLOSE, SCROLL;
+        MOUSE_DOWN, MOUSE_UP, CLICK, MOUSE_MOVE, WHEEL, KEY_DOWN, KEY_UP, INPUT, CHANGE, CLOSE, SCROLL,
+        DRAG_START, DRAG, DRAG_END, DROP;
 
         /** The name used in templates: {@code on:<name>}. */
         public String templateName() {
@@ -92,6 +99,11 @@ public final class UiEvent {
         return new UiEvent(Type.MOUSE_MOVE, target, x, y, button, 0, -1, 0, movementX, movementY);
     }
 
+    /** A drag event at {@code (x, y)}, left button; {@code movement*} as {@link #movementX()} says. */
+    public static UiEvent drag(Type type, Element target, float x, float y, float movementX, float movementY) {
+        return new UiEvent(type, target, x, y, 0, 0, -1, 0, movementX, movementY);
+    }
+
     /** An event that carries nothing but its type and target: {@link Type#INPUT}, {@link Type#CHANGE}, {@link Type#CLOSE}, {@link Type#SCROLL}. */
     public static UiEvent of(Type type, Element target) {
         return new UiEvent(type, target, Float.NaN, Float.NaN, -1, 0, -1, 0);
@@ -140,7 +152,10 @@ public final class UiEvent {
         return wheelDelta;
     }
 
-    /** How far the pointer moved since the previous {@link Type#MOUSE_MOVE}, in GUI pixels; 0 for other events. */
+    /**
+     * How far the pointer moved since the previous {@link Type#MOUSE_MOVE} or {@link Type#DRAG}, in GUI
+     * pixels (the first {@code DRAG} of a drag: since the press); 0 for other events.
+     */
     public float movementX() {
         return movementX;
     }

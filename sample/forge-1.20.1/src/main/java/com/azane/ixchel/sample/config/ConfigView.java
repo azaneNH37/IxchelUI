@@ -72,11 +72,15 @@ final class ConfigView extends ViewModel {
     final Value<Component> listTitle = state(Component.empty());
     final Value<List<Item>> items = state(List.of());
     final Value<String> preset = state("");
+    /** The id of the list line being dragged, -1 while none is. */
+    final Value<Integer> grabbed = state(-1);
 
     final Action<Category> select;
     final Action<Row> reset;
     final Action<Row> editList;
     final Action<Item> removeItem;
+    /** Drops the line being dragged ({@link #grabbed}) on another. */
+    final Action<Item> moveTo;
     final Action<Void> addItem;
     final Action<Void> addPreset;
     final Action<Void> applyList;
@@ -131,6 +135,18 @@ final class ConfigView extends ViewModel {
             listOpen.set(true);
         });
         removeItem = action((Item i) -> items.set(items.get().stream().filter(x -> x != i).toList()));
+        moveTo = action((Item target) -> {
+            List<Item> list = new ArrayList<>(items.get());
+            Item moved = list.stream().filter(x -> x.id() == grabbed.get()).findFirst().orElse(null);
+            if (moved == null || moved == target) {
+                return;
+            }
+            // The dragged line takes the target's place: after it when moved down, before it when moved up.
+            int at = list.indexOf(target);
+            list.remove(moved);
+            list.add(at, moved);
+            items.set(List.copyOf(list));
+        });
         addItem = action(() -> addItem(""));
         addPreset = action(() -> {
             if (!preset.get().isEmpty()) {

@@ -113,6 +113,23 @@ public final class Project {
         }
     }
 
+    /** The namespaces under the resource roots, sorted. */
+    public Set<String> namespaces() {
+        Set<String> out = new TreeSet<>();
+        for (Path root : resources) {
+            Path assets = root.resolve(ASSETS);
+            if (!Files.isDirectory(assets)) {
+                continue;
+            }
+            try (Stream<Path> namespaces = Files.list(assets)) {
+                namespaces.filter(Files::isDirectory).forEach(ns -> out.add(ns.getFileName().toString()));
+            } catch (IOException e) {
+                throw new UncheckedIOException("cannot list " + assets + ": " + e.getMessage(), e);
+            }
+        }
+        return out;
+    }
+
     /** The ids of every {@code .html} file under {@code assets/<namespace>/} of the resource roots, sorted. */
     public List<String> templates() {
         Set<String> ids = new TreeSet<>();

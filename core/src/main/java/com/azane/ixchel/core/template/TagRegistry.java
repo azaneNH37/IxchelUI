@@ -26,11 +26,12 @@ public final class TagRegistry {
      * Attributes every element except {@code <style>} and {@code <link>} accepts; {@code tabindex} makes
      * an element focusable, {@code disabled} (a boolean attribute) blocks mouse buttons and focus inside
      * it, {@code title} is tooltip text for the host to show, {@code lang} is the language
-     * {@code :lang()} matches, {@code translate="no"} marks content that is not translated, and
-     * {@code mark} names a mark of the parent's translation.
+     * {@code :lang()} matches, {@code translate="no"} marks content that is not translated,
+     * {@code mark} names a mark of the parent's translation, and {@code draggable="true"} lets the left
+     * button drag the element.
      */
     public static final Set<String> GLOBAL_ATTRIBUTES = Set.of("class", "id", "style", "tabindex", "disabled", "title",
-            "lang", "translate", "mark");
+            "lang", "translate", "mark", "draggable");
 
     /** The only attributes of {@code <link rel="stylesheet" href="…"/>}. */
     public static final Set<String> LINK_ATTRIBUTES = Set.of("rel", "href");
@@ -42,7 +43,8 @@ public final class TagRegistry {
      * {@code range}; its value is {@code bind:value}, a checkbox's state {@code bind:checked}),
      * {@code select} of {@code option value} (its value is {@code bind:value}), {@code button},
      * {@code dialog} (open while {@code bind:open}), {@code style}, {@code link rel href}, and the
-     * library's {@code ix-tooltip} (its parent's tooltip, shown by the host).
+     * library's {@code ix-tooltip} (its parent's tooltip, shown by the host) and {@code ix-drag-preview}
+     * (shown at the pointer while its parent is dragged).
      */
     public static final TagRegistry HTML = new Builder(Map.of(), Map.of(), Map.of(), Set.of())
             .tag("div")
@@ -55,6 +57,7 @@ public final class TagRegistry {
             .tag("button")
             .tag("dialog")
             .tag("ix-tooltip")
+            .tag("ix-drag-preview")
             .tag("style")
             .tag("link")
             .build();

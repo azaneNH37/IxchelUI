@@ -13,7 +13,7 @@
     </div>
     <div class="list">
       <if test="rows.size == 0"><span class="empty" t="ixchel_sample.loot.empty"></span></if>
-      <for each="rows" as="r" key="r.id"><div class="row">
+      <for each="rows" as="r" key="r.id" index="i"><div class="row" bind:class:odd="i % 2 == 1">
         <div class="arrow" bind:style:transform="'rotate(' + (r.heading - 45) + 'deg)'"></div>
         <mc-item class="icon" bind:item="r.icon"></mc-item>
         <span class="name" bind:style:color="r.color" bind:text="r.name"></span>

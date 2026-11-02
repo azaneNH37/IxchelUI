@@ -230,4 +230,39 @@ class UiDocumentFormTest {
         doc.frame(100, 100);
         assertEquals("q", doc.querySelectorAll(".t").get(0).control().value(), "a model write reaches the row's input");
     }
+
+    static final class Clicker extends ViewModel {
+        final Action<Void> go = action(() -> {
+        });
+    }
+
+    @Test
+    void theClickSoundPlaysForButtonsCheckboxesAndOpeningSelectsUnlessDisabledOrSilenced() {
+        UiDocument doc = load("""
+                <button class="c" on:click="go"><span>go</span></button>
+                <button class="c q">quiet</button>
+                <button class="c" disabled="">off</button>
+                <input class="c" type="checkbox"/>
+                <select class="c"><option>A</option></select>
+                """, ".c { padding: 0; border-style: none; width: 40px; height: 10px; flex-shrink: 0 }"
+                + " .q { -ix-click-sound: none }", new Clicker());
+        doc.frame(100, 100);
+        EventDispatcher ev = doc.events();
+        int[] played = {0};
+        ev.setClickSound(() -> played[0]++);
+        click(ev, 5, 5);
+        assertEquals(1, played[0], "a click on the span inside a button, whose listener consumes it");
+        click(ev, 5, 15);
+        click(ev, 5, 25);
+        assertEquals(1, played[0], "neither the silenced nor the disabled button");
+        click(ev, 5, 35);
+        assertEquals(2, played[0], "the checkbox toggled");
+        click(ev, 5, 45);
+        assertEquals(3, played[0], "the select opened");
+        ev.keyPressed(ESCAPE, 0);
+        assertEquals(3, played[0], "closing plays nothing");
+        click(ev, 5, 5);
+        ev.keyPressed(ENTER, 0);
+        assertEquals(5, played[0], "Enter on the focused button");
+    }
 }

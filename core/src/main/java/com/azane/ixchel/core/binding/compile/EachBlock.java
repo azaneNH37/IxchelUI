@@ -7,36 +7,43 @@ import com.azane.ixchel.core.dom.Node;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-
-import static com.azane.ixchel.core.binding.compile.Bindings.MODEL;
 import java.util.Map;
 
+import static com.azane.ixchel.core.binding.compile.Bindings.MODEL;
+
 /**
- * {@code <for each="list" as="row" key="row.id">}: one copy of the content per element, matched to
- * the previous frame's copies by key. A kept copy keeps its nodes (and so hover, focus and layout
- * state) and only sees the new row value; copies are moved into list order.
+ * {@code <for each="list" as="row" key="row.id" index="i">}: one copy of the content per element, matched
+ * to the previous frame's copies by key. A kept copy keeps its nodes (and so hover, focus and layout
+ * state) and only sees the new row value and position; copies are moved into list order. The optional
+ * {@code index} names the row's position among the shown rows, from 0.
  */
 final class EachBlock extends Block {
     private final Cell<?> list;
     private final String alias;
     private final Type rowType;
+    /** The {@code index} name, or {@code null}. */
+    private final String indexName;
     private final Cell<Object> keyInput;
     private final Cell<?> key;
     private final Directive eachAttribute;
     private final Directive keyAttribute;
     private Map<Object, Instance> rows = new LinkedHashMap<>();
+    /** The index cell of each row while {@link #indexName} is set. */
+    private final Map<Instance, Cell<Object>> indexes = new IdentityHashMap<>();
     private boolean failing;
     private boolean reportedDuplicate;
 
     EachBlock(Compiler compiler, Compiler.Env env, List<Node> content, Element parent, Anchor prev, Cell<?> list,
-              String alias, Type rowType, Cell<Object> keyInput, Cell<?> key, Directive eachAttribute,
+              String alias, Type rowType, String indexName, Cell<Object> keyInput, Cell<?> key, Directive eachAttribute,
               Directive keyAttribute) {
         super(compiler, env, content, parent, prev);
         this.list = list;
         this.alias = alias;
         this.rowType = rowType;
+        this.indexName = indexName;
         this.keyInput = keyInput;
         this.key = key;
         this.eachAttribute = eachAttribute;
@@ -105,16 +112,30 @@ final class EachBlock extends Block {
                 if (row == null) {
                     Cell<Object> cell = MODEL.held(null);
                     MODEL.replace(cell, item);
+                    Compiler.Env rowEnv = env.with(alias, new Ref(cell, rowType));
+                    Cell<Object> index = null;
+                    if (indexName != null) {
+                        index = MODEL.held(null);
+                        MODEL.replace(index, next.size());
+                        rowEnv = rowEnv.with(indexName, new Ref(index, Integer.class));
+                    }
                     Instance[] self = new Instance[1];
-                    row = instantiate(env.with(alias, new Ref(cell, rowType)), cell, () -> lastBefore(self[0]));
+                    row = instantiate(rowEnv, cell, () -> lastBefore(self[0]));
                     self[0] = row;
+                    if (index != null) {
+                        indexes.put(row, index);
+                    }
                 } else {
                     MODEL.replace(row.row, item);
+                    if (indexName != null) {
+                        MODEL.replace(indexes.get(row), next.size());
+                    }
                 }
                 next.put(k, row);
             }
         }
         for (Instance gone : rows.values()) {
+            indexes.remove(gone);
             unmount(gone);
             wrote = true;
         }

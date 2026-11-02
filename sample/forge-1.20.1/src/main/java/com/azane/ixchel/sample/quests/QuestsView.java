@@ -38,8 +38,6 @@ final class QuestsView extends ViewModel {
     static final float MAX_ZOOM = 2;
     /** The size of {@code .node} in quests.css: lines join node centers. */
     private static final int NODE = 26;
-    /** A press that moved further than this, in GUI pixels, was a drag and opens nothing. */
-    private static final float CLICK_SLOP = 3;
 
     record ChapterRow(String id, String title, ItemStack icon) {
     }
@@ -56,7 +54,6 @@ final class QuestsView extends ViewModel {
     }
 
     private final Map<String, ItemStack> icons = new HashMap<>();
-    private float travel;
 
     final Value<List<ChapterRow>> chapters;
     final Value<String> chapter;
@@ -72,18 +69,14 @@ final class QuestsView extends ViewModel {
     /** The selected quest, {@code null} when none. */
     final Derived<Detail> detail;
 
-    final Action<Void> press = action(() -> travel = 0);
+    /** The first {@code drag} carries the movement since the press, so the canvas follows the pointer exactly. */
     final Action<EventInfo> drag = action((EventInfo e) -> {
-        travel += Math.abs(e.movementX()) + Math.abs(e.movementY());
         panX.set(round(panX.get() + e.movementX()));
         panY.set(round(panY.get() + e.movementY()));
     });
     final Action<EventInfo> wheel = action((EventInfo e) -> zoomBy(e.delta() > 0 ? 1.25f : 0.8f));
-    final Action<Node> open = action((Node n) -> {
-        if (travel <= CLICK_SLOP) {
-            selected.set(n.id());
-        }
-    });
+    /** A drag that started on a quest is the canvas's and dispatches no click, so this opens only on a click. */
+    final Action<Node> open = action((Node n) -> selected.set(n.id()));
     final Action<Void> claim = action(() -> Network.sendToServer(new ClaimQuestPacket(selected.get())));
 
     QuestsView() {

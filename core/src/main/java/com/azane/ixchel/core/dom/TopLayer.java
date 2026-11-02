@@ -11,52 +11,79 @@ import java.util.List;
  * the tree; opening one sets {@link Element#OPEN} on it, which restyles it and so runs layout, where
  * the entries are placed against the viewport.
  *
- * <p>Above every entry, outside {@link #entries()}, the {@linkplain #tooltip() tooltip}: at most one
- * {@code <ix-tooltip>} the host shows at the pointer. It is never hit, never focused and makes
- * nothing inert; it is also {@link Element#OPEN} while shown.
+ * <p>Above every entry, outside {@link #entries()}, one element shown at the pointer
+ * ({@link #atPointer()}): the {@linkplain #tooltip() tooltip}, an {@code <ix-tooltip>} the host shows,
+ * or, while an element is dragged, its {@linkplain #dragPreview() drag preview}, an
+ * {@code <ix-drag-preview>}. It is never hit, never focused and makes nothing inert; it is also
+ * {@link Element#OPEN} while shown.
  */
 public final class TopLayer {
     /** The tag of tooltip elements. */
     public static final String TOOLTIP = "ix-tooltip";
+    /** The tag of drag preview elements. */
+    public static final String DRAG_PREVIEW = "ix-drag-preview";
 
     private final List<Element> entries = new ArrayList<>();
     private final List<Element> view = Collections.unmodifiableList(entries);
-    private Element tooltip;
-    private float tooltipX;
-    private float tooltipY;
+    private Element atPointer;
+    private float pointerX;
+    private float pointerY;
+    private boolean moved;
 
     /** Bottom first; unmodifiable live view. */
     public List<Element> entries() {
         return view;
     }
 
+    /** The element shown at the pointer: a tooltip or a drag preview, or {@code null}. */
+    public Element atPointer() {
+        return atPointer;
+    }
+
     /** The shown {@code <ix-tooltip>}, or {@code null}. */
     public Element tooltip() {
-        return tooltip;
+        return atPointer != null && atPointer.tag().equals(TOOLTIP) ? atPointer : null;
     }
 
-    /** The pointer the tooltip is placed at, in GUI pixels. */
-    public float tooltipX() {
-        return tooltipX;
+    /** The shown {@code <ix-drag-preview>}, or {@code null}. */
+    public Element dragPreview() {
+        return atPointer != null && atPointer.tag().equals(DRAG_PREVIEW) ? atPointer : null;
     }
 
-    public float tooltipY() {
-        return tooltipY;
+    /** The pointer {@link #atPointer()} is placed at, in GUI pixels. */
+    public float pointerX() {
+        return pointerX;
     }
 
-    /** Shows {@code tip}, an {@code <ix-tooltip>}, at the pointer {@code (x, y)} instead of the current one; {@code null} hides it. */
-    public void showTooltip(Element tip, float x, float y) {
-        if (tip != tooltip) {
-            if (tooltip != null) {
-                tooltip.setState(Element.OPEN, false);
+    public float pointerY() {
+        return pointerY;
+    }
+
+    /**
+     * Shows {@code e}, an {@code <ix-tooltip>} or {@code <ix-drag-preview>}, at the pointer
+     * {@code (x, y)} instead of the current one; {@code null} hides it.
+     */
+    public void showAtPointer(Element e, float x, float y) {
+        if (e != atPointer) {
+            if (atPointer != null) {
+                atPointer.setState(Element.OPEN, false);
             }
-            tooltip = tip;
-            if (tip != null) {
-                tip.setState(Element.OPEN, true);
+            atPointer = e;
+            if (e != null) {
+                e.setState(Element.OPEN, true);
             }
+        } else if (e != null && (x != pointerX || y != pointerY)) {
+            moved = true;
         }
-        tooltipX = x;
-        tooltipY = y;
+        pointerX = x;
+        pointerY = y;
+    }
+
+    /** Whether the shown element only moved since the last call: it needs placing again, not layout. */
+    public boolean takeMoved() {
+        boolean m = moved;
+        moved = false;
+        return m;
     }
 
     public boolean isOpen(Element e) {

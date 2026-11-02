@@ -6,6 +6,8 @@ import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Length;
+import com.azane.ixchel.core.css.property.ScrollbarColor;
+import com.azane.ixchel.core.css.property.TextShadow;
 import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
@@ -17,6 +19,7 @@ import com.azane.ixchel.core.dom.TextField;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.layout.LayoutEngine;
+import com.azane.ixchel.core.layout.Scrollbar;
 import com.azane.ixchel.core.template.TagRegistry;
 
 import java.util.HashSet;
@@ -37,10 +40,8 @@ import java.util.Set;
  * element with opacity 0 paints nothing but still takes pointer events, as in CSS.
  *
  * <p>A scroll container ({@code overflow} other than {@code visible}) clips its descendants to its
- * padding box and paints them {@link Element#scrollTop()} higher. {@code overflow: scroll} always draws
- * a 4px scrollbar track along the padding box's right edge with a thumb on it; {@code auto}
- * draws only the thumb, and only while the content overflows. The scrollbar is drawn over the
- * content (no space is reserved for it) in fixed colors and cannot be dragged.
+ * padding box and paints them {@link Element#scrollTop()} higher, then its {@link Scrollbar} over
+ * them in {@code scrollbar-color}.
  *
  * <p>An {@code <input>} paints its value on one line, clipped to its content box and centered in it
  * vertically, scrolled sideways so the caret stays in view; empty, its {@code placeholder} at half
@@ -64,10 +65,6 @@ public final class Painter {
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     /** Bounds the commands one background may emit, so a tiny repeated tile cannot stall a frame. */
     private static final int MAX_TILES = 16384;
-    private static final float SCROLLBAR_WIDTH = 4;
-    private static final float MIN_THUMB = 8;
-    private static final int TRACK_COLOR = 0x80000000;
-    private static final int THUMB_COLOR = 0xFFA0A0A0;
     private static final int SELECTION_COLOR = 0x803399FF;
     private static final int TRACK_COLOR_RANGE = 0xFF505050;
     private static final int BACKDROP_COLOR = 0x80000000;
@@ -121,12 +118,12 @@ public final class Painter {
         root.clearRepaint();
     }
 
-    /** Clears {@code out} and paints {@code top}'s shown tooltip into it; empty when none is shown. */
-    public void paintTooltip(TopLayer top, DisplayList out) {
+    /** Clears {@code out} and paints {@code top}'s element at the pointer into it; empty when none is shown. */
+    public void paintAtPointer(TopLayer top, DisplayList out) {
         out.clear();
-        if (top.tooltip() != null) {
+        if (top.atPointer() != null) {
             alpha = 1;
-            paintElement(top.tooltip(), 0, out);
+            paintElement(top.atPointer(), 0, out);
         }
     }
 
@@ -207,7 +204,7 @@ public final class Painter {
         out.add(new DrawCommand.PushClip(clipX, clipY, b.width() - b.borderLeft() - b.borderRight(),
                 b.height() - b.borderTop() - b.borderBottom()));
         paintChildren(e, dy + e.scrollTop(), out);
-        paintScrollbar(e, overflow, clipY, out);
+        paintScrollbar(e, cs, dy, out);
         out.add(DrawCommand.PopClip.INSTANCE);
     }
 
@@ -243,9 +240,9 @@ public final class Painter {
                 float x1 = Math.round(tx + layout.textWidth(v.substring(0, f.selectionEnd()), size));
                 rect(out, x0, ty, x1 - x0, lh, SELECTION_COLOR);
             }
-            text(out, tx, ty, size, color, v);
+            text(out, cs, tx, ty, size, color, v);
         } else if (placeholder != null && !placeholder.isEmpty()) {
-            text(out, tx, ty, size, Math.round((color >>> 24) * 0.5f) << 24 | color & 0xFFFFFF, placeholder);
+            text(out, cs, tx, ty, size, Math.round((color >>> 24) * 0.5f) << 24 | color & 0xFFFFFF, placeholder);
         }
         if (focused && caretVisible) {
             rect(out, Math.round(tx + caretX), ty, 1, lh, color);
@@ -290,7 +287,7 @@ public final class Painter {
         float ty = cy + Math.round((ch - lh) / 2);
         float labelWidth = Math.max(0, cw - LayoutEngine.SELECT_ARROW_SPACE);
         out.add(new DrawCommand.PushClip(cx, cy, labelWidth, ch));
-        text(out, cx, ty, size, color, c.label());
+        text(out, cs, cx, ty, size, color, c.label());
         out.add(DrawCommand.PopClip.INSTANCE);
         // A 5px-wide down arrow: rows 5, 3, 1 wide, centered in the reserved space.
         float ax = cx + cw - LayoutEngine.SELECT_ARROW_SPACE + 3;
@@ -308,7 +305,13 @@ public final class Painter {
         return b.height() - b.borderTop() - b.paddingTop() - b.paddingBottom() - b.borderBottom();
     }
 
-    private void text(DisplayList out, float x, float y, float size, int color, String text) {
+    /** One line of a control's text, over the shadow of {@code cs}'s {@code text-shadow}. */
+    private void text(DisplayList out, ComputedStyle cs, float x, float y, float size, int color, String text) {
+        TextShadow shadow = cs.get(CssProperties.TEXT_SHADOW);
+        int s = fade(shadow.color());
+        if (s >>> 24 != 0) {
+            out.add(new DrawCommand.Text(x + shadow.x(), y + shadow.y(), size, s, text, 0));
+        }
         int c = fade(color);
         if (c >>> 24 != 0) {
             out.add(new DrawCommand.Text(x, y, size, c, text, 0));
@@ -354,22 +357,17 @@ public final class Painter {
         return Math.round((color >>> 24) * alpha) << 24 | color & 0xFFFFFF;
     }
 
-    /** The scrollbar runs along the right edge of the padding box; {@code y} is its top after scrolling. */
-    private void paintScrollbar(Element e, Keywords.Overflow overflow, float y, DisplayList out) {
-        float max = e.maxScrollTop();
-        boolean track = overflow == Keywords.Overflow.SCROLL;
-        if (!track && (overflow != Keywords.Overflow.AUTO || max <= 0)) {
+    /** {@code dy}: the scroll offset of the ancestors, as {@link #paintBox} takes it. */
+    private void paintScrollbar(Element e, ComputedStyle cs, float dy, DisplayList out) {
+        Scrollbar bar = Scrollbar.of(e);
+        if (bar == null) {
             return;
         }
-        LayoutBox b = e.box();
-        float h = b.height() - b.borderTop() - b.borderBottom();
-        float x = b.x() + b.width() - b.borderRight() - SCROLLBAR_WIDTH;
-        if (track) {
-            rect(out, x, y, SCROLLBAR_WIDTH, h, TRACK_COLOR);
+        ScrollbarColor colors = cs.get(CssProperties.SCROLLBAR_COLOR);
+        if (bar.track()) {
+            rect(out, bar.x(), bar.y() - dy, bar.width(), bar.height(), colors.track());
         }
-        float thumb = Math.min(h, Math.max(MIN_THUMB, Math.round(h * h / (h + max))));
-        float offset = max <= 0 ? 0 : Math.round((h - thumb) * e.scrollTop() / max);
-        rect(out, x, y + offset, SCROLLBAR_WIDTH, thumb, THUMB_COLOR);
+        rect(out, bar.x(), bar.thumbY() - dy, bar.width(), bar.thumbHeight(), colors.thumb());
     }
 
     /**
@@ -499,6 +497,8 @@ public final class Painter {
             }
         }
         int base = parent.get(CssProperties.COLOR);
+        TextShadow shadow = parent.get(CssProperties.TEXT_SHADOW);
+        int shadowColor = fade(shadow.color());
         StyledText styled = t.styled();
         for (int i = 0; i < fragments.size(); i++) {
             LayoutEngine.TextFragment f = fragments.get(i);
@@ -512,6 +512,9 @@ public final class Painter {
                 own |= s.flags();
             }
             color = fade(color);
+            if (shadowColor >>> 24 != 0) {
+                out.add(new DrawCommand.Text(f.x() + shadow.x(), f.y() - dy + shadow.y(), f.size(), shadowColor, f.text(), own));
+            }
             if (color >>> 24 != 0) {
                 out.add(new DrawCommand.Text(f.x(), f.y() - dy, f.size(), color, f.text(), own));
             }

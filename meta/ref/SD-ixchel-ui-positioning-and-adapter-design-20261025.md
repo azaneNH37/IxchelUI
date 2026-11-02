@@ -32,6 +32,8 @@ AUI 与 LDLib2 以独立 mod 交付，整局游戏一份引擎，分别服务 We
 
 ### 1. 证据基线
 
+能力覆盖的最新对比（AUI `snow@3201a95`、LDLib2 `1.21@f3c298a`，2026-11-02）见 `ref/S-ixchel-ui-capability-comparison-20261102.md`，下表保留 2026-10-25 的选型基线。
+
 | 项 | AUI（本地 fork，HEAD 2026-10-24，mod_version 1.2.8.1） | LDLib2（v2.2.40 / 发行 2.2.44） |
 |---|---|---|
 | 编写形态 | HTML + CSS + JS（kjs → rhino → 不执行，均为可选），"语法尽可能遵循 Web 标准" | XML（`ldlib2-ui.xsd`）+ LSS 方言 |
@@ -327,7 +329,7 @@ shade 带来的约束：
 
 平台取舍（#005）：第一消费方 TACZ-RESPAWN 为 Forge 1.20.1 / Java 17，因此 1.20.1 做完整 MVP；NeoForge 1.21.1 跑同一套验收模板，用来验证内核与适配层的边界能跨加载器（Forge/NeoForge）、跨顶点 API 时代、跨运行时命名（SRG/mojmap）成立。两个平台都做完整 MVP 会让功能工作量翻倍，对验证没有额外收益。
 
-圆角/阴影/渐变的实现路径（对比见 `ref/D-ixchel-module-breakdown-20261026.md` §6）：推荐但未定的是 C——CPU 生成覆盖率/SDF 纹理放入单张图集，自写 `POSITION_TEX_COLOR` 顶点做九宫格，纹理以宿主 modid 注册 `DynamicTexture`；无需注册 shader 且有抗锯齿。备选 A 为 CPU 三角化 + `POSITION_COLOR`（无 AA），B 为 SDF shader（MVP 即需 shader 注册，Painter 随顶点 API 时代分叉）。
+圆角/阴影/渐变的实现路径（对比见 `ref/D-ixchel-module-breakdown-20261026.md` §6）：采用 C（#029）——CPU 生成覆盖率/SDF 纹理放入单张图集，自写 `POSITION_TEX_COLOR` 顶点做九宫格，纹理以宿主 modid 注册 `DynamicTexture`；无需注册 shader 且有抗锯齿。备选 A 为 CPU 三角化 + `POSITION_COLOR`（无 AA），B 为 SDF shader（MVP 即需 shader 注册，Painter 随顶点 API 时代分叉）。
 
 验收场景为 TACZ 四个场景（`ref/SD-ixchel-viewmodel-and-binding-20261026.md` §1）：先弹药 HUD 与 Z 键改装 Screen，背包式改装验证 Slot 通道。里程碑见 `ref/D-ixchel-module-breakdown-20261026.md` §9。
 
@@ -346,7 +348,7 @@ shade 带来的约束：
 - 交互侧无 JS，LLM 生成的带脚本页面不可直接使用，需文档化边界。
 - 1.21.6+ 延迟 GUI 渲染下自定义着色器与 FBO 需走 PIP 或自定义 pipeline，物品与文本的层级交错是主要难点（AUI 26.1 已踩坑）。
 - 本库许可未定，倾向 MIT 或 Apache-2.0；须确保不引入 LGPL 代码。
-- 未决：1.20.1 库模块发布 mojmap 还是 SRG 产物（§11 验证第 3 步）；圆角/阴影/渐变是否正式采用路径 C（§11）；模板绑定语法中的提议项与 i18n 写法、来源轮询频率、动作重入策略（见数据绑定文档 §8）；ViewModel 结构描述格式（供预览与 VS Code 补全）；`@media` 的 MC 语义；jar-in-jar 模式是否作为正式支持的分发方式。
+- 未决：1.20.1 库模块发布 mojmap 还是 SRG 产物（§11 验证第 3 步）；模板绑定语法中的提议项与 i18n 写法、来源轮询频率、动作重入策略（见数据绑定文档 §8）；ViewModel 结构描述格式（供预览与 VS Code 补全）；`@media` 的 MC 语义；jar-in-jar 模式是否作为正式支持的分发方式。
 
 ### 13. 证据来源
 

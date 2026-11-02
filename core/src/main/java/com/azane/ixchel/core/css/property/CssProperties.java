@@ -28,6 +28,8 @@ import static com.azane.ixchel.core.css.property.Syntaxes.easing;
 import static com.azane.ixchel.core.css.property.Syntaxes.keyword;
 import static com.azane.ixchel.core.css.property.Syntaxes.length;
 import static com.azane.ixchel.core.css.property.Syntaxes.number;
+import static com.azane.ixchel.core.css.property.Syntaxes.scrollbarColor;
+import static com.azane.ixchel.core.css.property.Syntaxes.textShadow;
 import static com.azane.ixchel.core.css.property.Syntaxes.time;
 import static com.azane.ixchel.core.css.property.Syntaxes.transform;
 import static com.azane.ixchel.core.css.property.Syntaxes.transformOrigin;
@@ -93,6 +95,12 @@ public final class CssProperties {
     public static final PropertyDef<Length> COLUMN_GAP = R.register("column-gap", GAP, Length.ZERO, false, true, true);
 
     public static final PropertyDef<Overflow> OVERFLOW = R.register("overflow", keyword(Overflow.class), Overflow.VISIBLE, false, true, false);
+    /** Drawn over the content, so no layout change; see {@code layout.Scrollbar}. */
+    public static final PropertyDef<Keywords.ScrollbarWidth> SCROLLBAR_WIDTH =
+            R.register("scrollbar-width", keyword(Keywords.ScrollbarWidth.class), Keywords.ScrollbarWidth.AUTO, false, false, false);
+    /** Inherited, as in CSS. */
+    public static final PropertyDef<ScrollbarColor> SCROLLBAR_COLOR =
+            R.register("scrollbar-color", scrollbarColor(), ScrollbarColor.AUTO, true, false, false);
     /** A number; values above 1 act as 1. Percentages are not supported. */
     public static final PropertyDef<Float> OPACITY = R.register("opacity", number(false), 1f, false, false, true);
     /** Paint-time only: layout ignores it, painting and hit testing go through it. */
@@ -139,6 +147,10 @@ public final class CssProperties {
     public static final PropertyDef<FontStyle> FONT_STYLE = R.register("font-style", keyword(FontStyle.class), FontStyle.NORMAL, true, false, false);
     public static final PropertyDef<TextDecoration> TEXT_DECORATION =
             R.register("text-decoration", keyword(TextDecoration.class), TextDecoration.NONE, false, false, false);
+    /** One unblurred shadow under the text, in its own color; inherited and animatable as in CSS. */
+    public static final PropertyDef<TextShadow> TEXT_SHADOW = R.register("text-shadow", textShadow(), TextShadow.NONE, true, false, true);
+    public static final PropertyDef<Keywords.ClickSound> CLICK_SOUND =
+            R.register("-ix-click-sound", keyword(Keywords.ClickSound.class), Keywords.ClickSound.AUTO, true, false, false);
 
     public static final PropertyDef<List<String>> TRANSITION_PROPERTY =
             R.register("transition-property", transitionProperty(R), List.of("all"), false, false, false);

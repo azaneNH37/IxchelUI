@@ -12,6 +12,7 @@ import com.azane.ixchel.core.dom.TextField;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.dom.UiEvent;
 import com.azane.ixchel.core.layout.LayoutEngine;
+import com.azane.ixchel.core.layout.Scrollbar;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -39,6 +40,19 @@ import java.util.Map;
  * move that way, by {@link #WHEEL_STEP} (18) GUI pixels, two lines of vanilla text, per wheel unit; at its
  * limit the scroll goes to the next such ancestor, but not past an open dialog. Hover is then
  * re-tested under the pointer. A wheel event closes an open select first.
+ *
+ * <p>A left press on a {@link Scrollbar} (that of the target or of a scroll container above it) is
+ * taken by it and dispatches nothing, not even its release: on the thumb, the thumb follows the
+ * pointer until the button is released; on the track, the element scrolls by its padding box height
+ * towards the pointer. This works inside disabled elements too, as the wheel does.
+ *
+ * <p>Drag and drop: a left press in an element with {@code draggable="true"} (the nearest such
+ * ancestor; not on a form control) that then moves the pointer more than {@value #DRAG_THRESHOLD}
+ * pixels (|dx| + |dy|) starts dragging it: see {@link UiEvent.Type} for the events. While it lasts its
+ * {@code <ix-drag-preview>} child, if any, is shown at the pointer in place of any tooltip; hover
+ * follows the pointer as usual, so {@code :hover} marks the drop target. Escape, or the source leaving
+ * the tree, cancels it: no {@code drop}, the {@code dragend} still comes (a removed source's own
+ * listeners only) and the release dispatches nothing.
  *
  * <p>An element is focusable when it has a {@code tabindex} attribute or is a form control
  * ({@code <input>}, {@code <select>}) or a {@code <button>}. Pressing a mouse button focuses the
@@ -68,6 +82,11 @@ import java.util.Map;
  * key: a select's list, or a dialog, which then dispatches {@link UiEvent.Type#CLOSE} (its
  * {@code bind:open} writes {@code false}).
  *
+ * <p>The host's {@link ClickSound} plays when a left click lands in a {@code <button>} (before its
+ * {@code click} listeners run, whether they consume it or not) or Enter or Space activates one, when a
+ * checkbox toggles and when a select opens, unless that control's {@code -ix-click-sound} is
+ * {@code none}. Disabled controls take no clicks and so play nothing.
+ *
  * <p>{@link UiEvent.Type#SCROLL} is dispatched at each element whose scroll offset changed: right
  * after a wheel scroll (so the next frame's bindings see it) and after each layout or repaint, which
  * covers offsets set by code and offsets the layout clamped.
@@ -85,6 +104,8 @@ public final class EventDispatcher {
     public static final float WHEEL_STEP = 18;
 
     private static final int KEY_ESCAPE = 256;
+    /** How far a left press in a {@code draggable} element must move the pointer (|dx| + |dy|) to start a drag. */
+    public static final float DRAG_THRESHOLD = 3;
 
     private final Element root;
     private final LayoutEngine layout;
@@ -103,6 +124,14 @@ public final class EventDispatcher {
     private boolean swallowed;
     private Element dragging;
     private String dragStart;
+    /** The scroll container whose thumb the left button is dragging, and where on the thumb it holds. */
+    private Element scrolling;
+    private float grab;
+    /** The {@code draggable} element a left press landed in, while the press lasts and no drag started. */
+    private Element dragCandidate;
+    private float pressX;
+    private float pressY;
+    private Element dragSource;
     private float mouseX = Float.NaN;
     private float mouseY = Float.NaN;
     /** The second result of {@link #localX}. */
@@ -120,6 +149,8 @@ public final class EventDispatcher {
             this.text = text;
         }
     };
+    private ClickSound clickSound = () -> {
+    };
 
     /**
      * @param layout measures input text to place the caret where it is pressed
@@ -134,6 +165,16 @@ public final class EventDispatcher {
     /** The clipboard text inputs copy to and paste from. */
     public void setClipboard(Clipboard clipboard) {
         this.clipboard = clipboard;
+    }
+
+    /** The sound a control plays when clicked; see {@link ClickSound}. */
+    public void setClickSound(ClickSound clickSound) {
+        this.clickSound = clickSound;
+    }
+
+    /** The element being dragged ({@code draggable="true"}), or {@code null}. */
+    public Element dragSource() {
+        return dragSource;
     }
 
     public Element focused() {
@@ -172,8 +213,11 @@ public final class EventDispatcher {
      */
     public static float[] paintedCenter(Element e) {
         LayoutBox b = e.box();
-        float x = b.x() + b.width() / 2;
-        float y = b.y() + b.height() / 2;
+        return paintedPoint(e, b.x() + b.width() / 2, b.y() + b.height() / 2);
+    }
+
+    /** Where the point {@code (x, y)} of the coordinates {@code e}'s box is laid out in paints; see {@link #paintedCenter}. */
+    public static float[] paintedPoint(Element e, float x, float y) {
         for (Element a = e; a != null; a = a.parent()) {
             LayoutBox ab = a.box();
             Affine m = a.computed() == null ? null : Transform.of(a.computed(), ab.x(), ab.y(), ab.width(), ab.height());
@@ -199,6 +243,24 @@ public final class EventDispatcher {
         setStatePath(hovered, target, Element.HOVER);
         if (dragging != null && FormEditing.rangeAt(dragging, localX(dragging, x, y))) {
             dispatch(UiEvent.of(UiEvent.Type.INPUT, dragging));
+        }
+        Scrollbar bar = scrolling == null ? null : Scrollbar.of(scrolling);
+        if (bar != null) {
+            localX(scrolling, x, y);
+            scrolling.setScrollTop(bar.scrollTopFor(localY - grab, scrolling.maxScrollTop()));
+            dispatchScrollEvents();
+        }
+        if (dragCandidate != null && pressed != null
+                && Math.abs(x - pressX) + Math.abs(y - pressY) > DRAG_THRESHOLD) {
+            startDrag(x, y);
+            return true;
+        }
+        if (dragSource != null) {
+            if (movementX != 0 || movementY != 0) {
+                top.showAtPointer(previewOf(dragSource), x, y);
+                dispatch(UiEvent.drag(UiEvent.Type.DRAG, dragSource, x, y, movementX, movementY));
+            }
+            return true;
         }
         if (movementX == 0 && movementY == 0) {
             return target != root;
@@ -229,6 +291,12 @@ public final class EventDispatcher {
             pressedButton = -1;
             return true;
         }
+        if (button == 0 && pressScrollbar(target, x, y)) {
+            swallowed = true;
+            pressed = null;
+            pressedButton = -1;
+            return true;
+        }
         swallowed = false;
         if (inDisabled(target)) {
             // Taken, so the host does not act on it (vanilla would drop a carried stack), but no event.
@@ -253,14 +321,113 @@ public final class EventDispatcher {
             if (FormEditing.rangeAt(target, localX(target, x, y))) {
                 dispatch(UiEvent.of(UiEvent.Type.INPUT, target));
             }
+        } else if (button == 0 && target.control() == null) {
+            dragCandidate = draggableOf(target);
+            pressX = x;
+            pressY = y;
         }
         return target != root || e.isConsumed();
     }
 
+    /**
+     * A left press on the scrollbar of {@code target} or of a scroll container above it: on the thumb it
+     * starts dragging it, on the track it scrolls a page towards the pointer.
+     */
+    private boolean pressScrollbar(Element target, float x, float y) {
+        for (Element a = target; a != null; a = a.parent()) {
+            Scrollbar bar = Scrollbar.of(a);
+            if (bar != null && bar.contains(localX(a, x, y), localY)) {
+                if (localY >= bar.thumbY() && localY < bar.thumbY() + bar.thumbHeight()) {
+                    scrolling = a;
+                    grab = localY - bar.thumbY();
+                } else {
+                    a.setScrollTop(a.scrollTop() + (localY < bar.thumbY() ? -bar.height() : bar.height()));
+                    dispatchScrollEvents();
+                }
+                return true;
+            }
+            if (a.isPlaced()) {
+                break;
+            }
+        }
+        return false;
+    }
+
+    /** The nearest element at or above {@code e} with {@code draggable="true"}, within its placed content; or {@code null}. */
+    private Element draggableOf(Element e) {
+        for (Element a = e; a != null && a != root; a = a.parent()) {
+            if ("true".equals(a.attribute("draggable"))) {
+                return a;
+            }
+            if (a.isPlaced()) {
+                break;
+            }
+        }
+        return null;
+    }
+
+    /** The source's own {@code <ix-drag-preview>} child, or {@code null}. */
+    private static Element previewOf(Element source) {
+        for (Node n : source.children()) {
+            if (n instanceof Element c && c.tag().equals(TopLayer.DRAG_PREVIEW)) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    /** The candidate's press moved past the threshold: {@code dragstart}, then a first {@code drag} by the whole way. */
+    private void startDrag(float x, float y) {
+        dragSource = dragCandidate;
+        dragCandidate = null;
+        top.showAtPointer(previewOf(dragSource), x, y);
+        dispatch(UiEvent.drag(UiEvent.Type.DRAG_START, dragSource, x, y, 0, 0));
+        if (dragSource != null) {
+            dispatch(UiEvent.drag(UiEvent.Type.DRAG, dragSource, x, y, x - pressX, y - pressY));
+        }
+    }
+
+    /** Ends the drag without an event: the pointer shows nothing until the host picks a tooltip again. */
+    private void endDrag() {
+        dragSource = null;
+        pressed = null;
+        pressedButton = -1;
+        top.showAtPointer(null, 0, 0);
+    }
+
+    /** Escape or a removed source: no drop, {@code dragend} at the source, and its release dispatches nothing. */
+    private void cancelDrag() {
+        Element source = dragSource;
+        endDrag();
+        swallowed = true;
+        setStatePath(active, root, Element.ACTIVE);
+        UiEvent end = UiEvent.drag(UiEvent.Type.DRAG_END, source, mouseX, mouseY, 0, 0);
+        if (isConnected(source)) {
+            dispatch(end);
+        } else {
+            // Out of the tree: only its own listeners are left to tell.
+            end.enter(source, UiEvent.Phase.TARGET);
+            source.runListeners(end);
+        }
+    }
+
     public boolean mouseReleased(float x, float y, int button, int modifiers) {
         mouseMoved(x, y);
+        if (button == 0 && dragSource != null) {
+            Element source = dragSource;
+            endDrag();
+            setStatePath(active, root, Element.ACTIVE);
+            Element over = hitTest(x, y);
+            if (!inDisabled(over)) {
+                dispatch(UiEvent.drag(UiEvent.Type.DROP, over, x, y, 0, 0));
+            }
+            dispatch(UiEvent.drag(UiEvent.Type.DRAG_END, source, x, y, 0, 0));
+            return true;
+        }
         Element target = hitTest(x, y);
         if (button == 0) {
+            dragCandidate = null;
+            scrolling = null;
             setStatePath(active, root, Element.ACTIVE);
             if (dragging != null) {
                 Element range = dragging;
@@ -286,6 +453,10 @@ public final class EventDispatcher {
             Element clicked = commonAncestor(pressed, target);
             if (clicked != root && isConnected(clicked) && !inDisabled(clicked)) {
                 UiEvent click = UiEvent.mouse(UiEvent.Type.CLICK, clicked, x, y, button, modifiers);
+                Element b = button == 0 ? buttonOf(clicked) : null;
+                if (b != null) {
+                    clickSound(b);
+                }
                 dispatch(click);
                 consumed |= click.isConsumed();
                 if (button == 0 && !click.isConsumed()) {
@@ -303,9 +474,10 @@ public final class EventDispatcher {
         FormControl c = clicked.control();
         if (c != null && c.kind() == FormControl.Kind.CHECKBOX) {
             FormEditing.toggle(c);
+            clickSound(clicked);
             commit(clicked);
         } else if (c != null && c.kind() == FormControl.Kind.SELECT) {
-            top.open(clicked);
+            open(clicked);
         } else if (clicked.tag().equals("option") && clicked.parent() != null && top.isOpen(clicked.parent())) {
             Element select = clicked.parent();
             String before = select.control().value();
@@ -321,6 +493,28 @@ public final class EventDispatcher {
     private void commit(Element control) {
         dispatch(UiEvent.of(UiEvent.Type.INPUT, control));
         dispatch(UiEvent.of(UiEvent.Type.CHANGE, control));
+    }
+
+    /** Opens a select's list, with the click sound. */
+    private void open(Element select) {
+        top.open(select);
+        clickSound(select);
+    }
+
+    private void clickSound(Element control) {
+        if (control.computed().get(CssProperties.CLICK_SOUND) == Keywords.ClickSound.AUTO) {
+            clickSound.play();
+        }
+    }
+
+    /** The nearest {@code <button>} at or above {@code e}, or {@code null}. */
+    private Element buttonOf(Element e) {
+        for (Element a = e; a != null && a != root; a = a.parent()) {
+            if (a.tag().equals("button")) {
+                return a;
+            }
+        }
+        return null;
     }
 
     public boolean mouseScrolled(float x, float y, double delta) {
@@ -346,6 +540,10 @@ public final class EventDispatcher {
 
     /** Key events target the focused element, or the root when nothing is focused (as the DOM's document). */
     public boolean keyPressed(int key, int modifiers) {
+        if (key == KEY_ESCAPE && dragSource != null) {
+            cancelDrag();
+            return true;
+        }
         if (key == KEY_ESCAPE && top.top() != null) {
             closeTop();
             return true;
@@ -363,6 +561,7 @@ public final class EventDispatcher {
         }
         if (focused.tag().equals("button")) {
             if (key == FormEditing.KEY_SPACE || FormEditing.isEnter(key)) {
+                clickSound(focused);
                 dispatch(UiEvent.mouse(UiEvent.Type.CLICK, focused, Float.NaN, Float.NaN, 0, 0));
                 return true;
             }
@@ -379,6 +578,7 @@ public final class EventDispatcher {
                     yield false;
                 }
                 FormEditing.toggle(c);
+                clickSound(focused);
                 commit(focused);
                 yield true;
             }
@@ -418,7 +618,7 @@ public final class EventDispatcher {
         boolean open = top.isOpen(focused);
         if (key == FormEditing.KEY_UP || key == FormEditing.KEY_DOWN) {
             if (!open && key == FormEditing.KEY_DOWN && (modifiers & Keys.MOD_ALT) != 0) {
-                top.open(focused);
+                open(focused);
             } else if (FormEditing.stepSelect(c, key == FormEditing.KEY_UP ? -1 : 1)) {
                 commit(focused);
             }
@@ -428,7 +628,7 @@ public final class EventDispatcher {
             if (open) {
                 top.close(focused);
             } else {
-                top.open(focused);
+                open(focused);
             }
             return true;
         }
@@ -540,6 +740,15 @@ public final class EventDispatcher {
         }
         if (dragging != null && (!isConnected(dragging) || inDisabled(dragging))) {
             dragging = null;
+        }
+        if (scrolling != null && !isConnected(scrolling)) {
+            scrolling = null;
+        }
+        if (dragCandidate != null && !isConnected(dragCandidate)) {
+            dragCandidate = null;
+        }
+        if (dragSource != null && !isConnected(dragSource)) {
+            cancelDrag();
         }
         if (!active.isEmpty() && !isConnected(active.get(0))) {
             setStatePath(active, root, Element.ACTIVE);

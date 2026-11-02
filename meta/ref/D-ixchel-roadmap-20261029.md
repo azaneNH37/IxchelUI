@@ -2,14 +2,14 @@
 tags: [design]
 date: 2026-10-29
 origin: 模板与样式语言定出目标形态后，需要把它与剩余 sample 场景排成一条顺序；原先顺序分散在场景文档 §3 与语言文档 §7
-related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and-style-language-20261029.md, ref/SD-ixchel-context-model-and-components-20261030.md, DECISIONS.md#015]
+related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and-style-language-20261029.md, ref/SD-ixchel-context-model-and-components-20261030.md, ref/S-ixchel-ui-capability-comparison-20261102.md, DECISIONS.md#015, DECISIONS.md#029]
 ---
 
 # Ixchel UI: Roadmap
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I；接下来是 Doc（用户文档）；UI 特效 FX1–FX3 已排期。sample 迁移只做等价重构，以 `-Pcheck=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3；接下来是 V1–V3（盒子外观、尺寸与排版、动画），然后 U4（组件库）、FX1–FX3；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -40,11 +40,18 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
 | T1 | 完成 | 2026-10-31 | 静态检查：`@UiTemplate`、成员表编译、原生元素声明数据、错误码、`ixchel-kit` 的 lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
 | T2 | 完成 | 2026-10-31 | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
+| U1 | 完成 | S7、S4 | `text-shadow`、`<for index>`、默认点击音、滚动条拖动与外观 |
+| U2 | 完成 | S7、S6 | 拖拽：`draggable`、`dragstart`/`drag`/`dragend`/`drop`、`<ix-drag-preview>` |
+| U3 | 完成 | — | 宿主自定义原生元素入口（#030） |
+| V1 | 待做 | — | `::before`/`::after`、`border-image`、`border-radius`（只做圆角外观）、`box-shadow`、线性渐变、`:not`/`:is`/`:where` |
+| V2 | 待做 | — | `calc()`、em、`line-height`、`align-content`、grid、放宽 `display: block` 含块级子元素的限制 |
+| V3 | 待做 | — | `@keyframes`、`@starting-style`、`<if>`/`<for>` 的 `leave` |
+| U4 | 待做 | — | `ix-` 组件库：tabs、tree、进度条等 |
 | FX1 | 待做 | — | 私有图层与 shader 注册；`opacity` 整组语义 |
 | FX2 | 待做 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
 | FX3 | 待做 | — | `.effect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028） |
 
-依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 写到的已实现部分随各阶段补齐；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()`，与 Doc 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
+依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
 #### D0 改名与清理
 
@@ -134,6 +141,38 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 验收：切换游戏语言（`zh_cn`）后界面文本随之变化，写成 playtest；缺键与参数不符在加载期或首次取值时报告，core 单元测试覆盖；sample `ixchelLint` 打开字面文本警告为 0；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
 - 结果（2026-11-02）：按已定完成，引擎、工具与 sample 的结果见 `ref/SD-ixchel-i18n-20261102.md` §7；偏差：S8 的排版样张条目 `typesetting` 不翻译（`translate="no" lang="en"`），其正文就是多文种排版样本。
 
+#### U1 基础体验
+
+- `text-shadow`：标准写法 `<x> <y> 0 <color>`，单层；模糊半径非 0 或多层开发期报错。文字画两遍，不走原版阴影开关。可继承，可过渡。
+- `<for index="i">`：`i` 为从 0 起的行下标，只进表达式，随重排更新；不提供 `$index`（嵌套时外层下标取不到）。CSS 不写表达式（标准无此写法），结构伪类继续不排期。
+- 默认点击音：core 加端口，mc 层用 `SimpleSoundInstance.forUI` 播 `UI_BUTTON_CLICK`；`<button>`、复选框、`<select>` 打开时触发，`disabled` 不响；作者可关闭。自定义音效走 ViewModel 动作。
+- 滚动条：按住滑块拖动、点轨道翻页；宽度与颜色由 CSS 控制。
+- 验收：每项 core 单元测试；sample 至少一处用到 `text-shadow`、`index`；playtest 覆盖滚动条拖动；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
+- 结果（2026-11-02）：按上述完成。`text-shadow` 为 `TextShadow`，以 `DrawCommand.Text` 多画一遍实现。点击音端口为 `event.ClickSound`，`-ix-click-sound: none` 关闭，可继承。滚动条几何抽到 `layout.Scrollbar`，由绘制与命中共用；CSS 为 `scrollbar-width`（`auto`/`thin`/`none`）、`scrollbar-color`，不占布局空间。sample：env HUD 用 `text-shadow`，loot 列表用 `index` 做斑马纹，tooltips 列表测滑块拖动。
+
+#### U2 拖拽
+
+- 已定（2026-11-02）：用标准事件名 `draggable`、`dragstart`、`drag`、`dragend`、`drop`，符合 #003；不做 `dataTransfer` 与 `dragover` 允许放下的协议，拖动数据由 `state:` 或 ViewModel 记录，类型检查照常。库负责阈值、开始拖动后不发 `click`、取消与源元素被移除。`drop` 发给光标下带 `on:drop` 的元素，`dragend` 总是最后发给源。高亮用 `:hover`，不做 `dragenter`/`dragleave`；不做 `drop-if`，用 `bind:class` 加 `on:drop` 内判断。`<ix-drag-preview>` 沿用 `<ix-tooltip>` 模式，拖动时进 `TopLayer` 跟随光标、不参与命中。`<mc-slot>` 继续走原版交互。边缘自动滚动不做。
+- sample：S7 平移迁移到新模型，删去 `press`、`travel`、`CLICK_SLOP`；S6 列表项排序（新增功能，单独写 playtest）。
+- 验收：playtest 加 `dragTo(源, 目标)`；点击与拖动的区分、取消、源被移除有 core 单元测试；`-Pplaytest=all`。
+- 结果（2026-11-02）：按已定完成。阈值为 `|dx| + |dy| > 3`，起拖的首个 `drag` 携带自按下起的位移，因此画布严格跟随指针；表单控件内按下不起拖。`TopLayer` 的 tooltip 槽位泛化为 `atPointer`，tooltip 与拖动预览共用布局、绘制与 `atPointerDisplayList`；拖动时不显示任何 tooltip，含原版。S7 删去 `press`、`travel`、`CLICK_SLOP`，`QuestsPlaytest` 断言不变；S6 列表对话框加抓手，新测试项 `config-sort`（落点在行外不改顺序；落到别行时占据其位置）。`PlaytestDriver` 加 `dragTo`、`dragToNth`。
+
+#### U3 原生元素
+
+- 目标：宿主用 Java 写新标签，模板中与内置元素同样使用，绘制由宿主负责。
+- 宿主与库经重定位处在同一份类中，宿主代码可以直接实现库接口；#004 约束的是其它 mod。
+- 验收：sample 加一个宿主原生元素，kit lint 能识别其标签与载荷类型；两版 mc 同改。
+- 结果（2026-11-02）：见 #030。声明写在 `assets/<modid>/ui/elements.txt`，格式同 `TagRegistry.Builder.declare`；绘制由 `McElements.registerPainter(modid, tag, painter)` 注册；`HostedDocument` 按模板 namespace 合并。kit 读项目各 namespace 的同名文件。sample 为 `<sample-gauge bind:fraction>`（tooltips 页）；把载荷绑到 `String` 时 lint 报 `binding/payload-type` 且位置正确，截图确认填充比例与渐变。`-Pplaytest=all` 13 个测试项 201 项通过；1.21.1 同改，经 `build` 编译，`runClient` 到资源加载完成无报错，未进世界，也未跑宿主原生元素（1.21.1 sample 没有这类元素）。
+
+#### V1 盒子外观
+
+- 圆角只做外观（背景、边框、`box-shadow`），经路径 C 落地（#029）；圆角裁剪依赖 FX1，此前 `overflow` 配圆角按矩形裁剪，lint 警告。
+
+#### V3 动画
+
+- `leave="class"` 是 `<if>`、`<for>` 的通用属性：卸载前给实例顶层元素加 class，子树过渡结束后才移除，没有过渡时立即移除；离场期间停止绑定更新、不参与命中与焦点；中途恢复时去掉 class，由 `Transitions` 反向。只有直接带 `leave` 的块延后，外层卸载不等内层。
+- 性能：无限动画使干净帧失效，开工时用 `FrameTimer` 预算核查，核查对象含 S3、S8。
+
 #### FX1 私有图层与 shader 注册
 
 - 设计依据：`ref/SD-ixchel-ui-effects-20261102.md` §3、§4（#028）。
@@ -212,10 +251,12 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 有真实消费方时再排：
 
-- `ix-` 组件库内容；带 Java 逻辑的组件（语言文档 §3.4）；宿主原生元素登记入口（§6-6）。
+- 带 Java 逻辑的组件（语言文档 §3.4）。
 - `@import`（语言文档 §4.4）。
 - 性能，触发条件为 `FrameTimer` 预算超标或大列表（S3、S8）卡顿，按序做：Painter 按视口裁剪 > `contain` 与局部重排 > `Derived` 相等截断的代价 > tick 与帧两个时间域（动画用游戏时间，现为 `System::nanoTime`，暂停不冻结）。现状为首轮评审时的判断，开工前复核。
-- 游戏 UI 相对 Web 的缺口：`on:keydown` 指向按键绑定（`KeyMapping`，随玩家改键）；交互音效（控件点击音）；`border-image` 九宫格与 `image-rendering: pixelated`；声明式世界锚定（现需 Java 侧 `WorldProjection.toGui` 计算后绑定）。
+- 游戏 UI 相对 Web 的缺口：`on:keydown` 指向按键绑定（`KeyMapping`，随玩家改键）；`image-rendering: pixelated`；声明式世界锚定（现需 Java 侧 `WorldProjection.toGui` 计算后绑定）。
+- 控件与语言：`<textarea>`、IME（中文已可上屏，系统预编辑需平台 API，与零全局副作用冲突）、radio、结构伪类、`+`/`~`、table、横向滚动、`<dialog>`/`<select>` 离场、`drop-if`、`dragenter`/`dragleave`、拖拽边缘自动滚动。
+- 工具：游戏内调试桥（做 web editor 时先梳理 user 与 agent 的真实开发路径再设计）；JEI/EMI/REI 接入点（库只暴露查询，宿主写插件）；playtest 机器可读报告与元素截图、VS Code Custom Data、文本滚动。
 - 整合包可用的发行形态（另一个宿主 mod，未分析）。
 - 附属 mod 扩展主 mod 界面的库原语：由 JDK `Map` 构造的模型、运行时按 id 装入片段的挂载点（工具文档 §11）；1.21.1 游戏内检查适配。
 - 场景扩展：场景文档 §5。

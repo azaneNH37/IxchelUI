@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample.tooltips;
 
 import com.azane.ixchel.core.binding.Cell;
+import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.Value;
@@ -28,6 +29,8 @@ final class TooltipsView extends ViewModel {
     /** Seconds until the spell is ready again, from {@code COOLDOWN_SECONDS - 1} down to 0, then again. */
     final Cell<Integer> cooldown = source(Source.polled(() ->
             (int) (COOLDOWN_SECONDS - 1 - System.currentTimeMillis() / 1000 % COOLDOWN_SECONDS)));
+    /** How much of the cooldown is left, for the host-made {@code <sample-gauge>}. */
+    final Derived<Float> cooldownLeft = derive(cooldown, c -> (float) c / (COOLDOWN_SECONDS - 1));
 
     private static ItemStack sword() {
         ItemStack stack = new ItemStack(Items.DIAMOND_SWORD);

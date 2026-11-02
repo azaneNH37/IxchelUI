@@ -5,6 +5,7 @@ import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.event.ClickSound;
 import com.azane.ixchel.core.event.Clipboard;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
@@ -13,20 +14,24 @@ import com.azane.ixchel.mc.element.McElements;
 import com.azane.ixchel.mc.element.TooltipLines;
 import com.azane.ixchel.mc.element.Tooltips;
 import com.azane.ixchel.mc.paint.McPainter;
+import com.azane.ixchel.mc.paint.NativePainter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
 import org.slf4j.Logger;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * A document as every host (screen, container screen, HUD) runs it: loaded from the host mod's
  * resources, reloaded on demand, framed and painted with the native elements, with the tooltip of
- * what is under the pointer and the system clipboard for its inputs. The view model lives as long as
- * this object and is kept across reloads.
+ * what is under the pointer, the system clipboard for its inputs and vanilla's click sound for its
+ * controls. The view model lives as long as this object and is kept across reloads.
  *
  * <p>In a development run with {@code -Dixchel.devResources.<hostModId>=<resource root>} the files
  * are read from the source tree and, once {@link #watch watched}, reloaded on save; a failed load
@@ -45,6 +50,9 @@ public final class HostedDocument implements AutoCloseable {
             Minecraft.getInstance().keyboardHandler.setClipboard(text);
         }
     };
+    /** Vanilla's button sound, as {@code AbstractWidget.playDownSound} plays it. */
+    private static final ClickSound CLICK_SOUND = () -> Minecraft.getInstance().getSoundManager()
+            .play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 
     private final McResources resources;
     private final DevResources dev;
@@ -52,9 +60,9 @@ public final class HostedDocument implements AutoCloseable {
     private final TagRegistry tags;
     private final ViewModel model;
     private final Runnable onReload;
-    private final McPainter painter = new McPainter(Minecraft.getInstance().font, McElements.PAINTERS);
+    private final McPainter painter;
     /** Draws the {@code <ix-tooltip>} above the document, after the host's own drawing. */
-    private final McPainter tooltipPainter = new McPainter(Minecraft.getInstance().font, McElements.PAINTERS);
+    private final McPainter tooltipPainter;
     private final TooltipLines lines = new TooltipLines(McResources.TEXT::styled);
     private UiDocument document;
     private List<String> files;
@@ -72,7 +80,8 @@ public final class HostedDocument implements AutoCloseable {
      * {@code template} with {@link UiTemplate}: the lint then skips the template's binding checks.
      *
      * @param template the template; its namespace is the host mod id, its stylesheets are {@code <link>}ed
-     * @param tags     the elements the template may use, such as {@link McElements#TAGS}
+     * @param tags     the elements the template may use, such as {@link McElements#TAGS}; the host's
+     *                 own, from {@link McElements#HOST_DECLARATIONS}, are added to them
      * @param model    the view model the template binds to, or {@code null}; closed by {@link #close}
      * @param onReload runs after a later load replaced the document
      * @throws UiLoadException outside development when the document has errors
@@ -81,7 +90,12 @@ public final class HostedDocument implements AutoCloseable {
         this.dev = DevResources.forHost(template.getNamespace());
         this.resources = new McResources(template.getNamespace(), dev);
         this.templatePath = template.getPath();
-        this.tags = tags;
+        String declared = resources.readIfPresent(Minecraft.getInstance().getResourceManager(), McElements.HOST_DECLARATIONS);
+        this.tags = declared == null ? tags : tags.extend()
+                .declare(declared, template.getNamespace() + ":" + McElements.HOST_DECLARATIONS).build();
+        Map<String, NativePainter> natives = McElements.painters(template.getNamespace());
+        this.painter = new McPainter(Minecraft.getInstance().font, natives);
+        this.tooltipPainter = new McPainter(Minecraft.getInstance().font, natives);
         this.model = model;
         this.onReload = onReload;
         if (dev != null && model != null && !UiTemplate.Ids.covers(model.getClass(), template.toString())) {
@@ -107,6 +121,7 @@ public final class HostedDocument implements AutoCloseable {
             McResources.Loaded loaded = resources.load(Minecraft.getInstance().getResourceManager(), templatePath, tags, model);
             document = loaded.document();
             document.events().setClipboard(CLIPBOARD);
+            document.events().setClickSound(CLICK_SOUND);
             files = loaded.files();
             displayList = null;
             linesVersion = -1;
@@ -149,7 +164,9 @@ public final class HostedDocument implements AutoCloseable {
         if (document == null) {
             return null;
         }
-        tooltipTarget = Float.isNaN(pointerX) ? null : Tooltips.target(document.events().hitTest(pointerX, pointerY));
+        // While an element is dragged its preview takes the pointer: no tooltip, not even vanilla's.
+        tooltipTarget = Float.isNaN(pointerX) || document.events().dragSource() != null ? null
+                : Tooltips.target(document.events().hitTest(pointerX, pointerY));
         document.setTooltip(tooltipTarget == null ? null : Tooltips.tooltipOf(tooltipTarget), pointerX, pointerY);
         lines.update(document);
         displayList = document.frame(width, height);
@@ -180,21 +197,24 @@ public final class HostedDocument implements AutoCloseable {
     }
 
     /**
-     * Draws the tooltip the last {@link #frame} picked above everything the document drew: the shown
-     * {@code <ix-tooltip>}, or the vanilla tooltip of the {@code <mc-item>} or {@code title}.
+     * Draws what the last {@link #frame} shows at the pointer above everything the document drew: the
+     * drag preview of a dragged element, the shown {@code <ix-tooltip>}, or the vanilla tooltip of the
+     * {@code <mc-item>} or {@code title}.
      */
     public void drawTooltip(GuiGraphics g, int mouseX, int mouseY) {
-        if (document == null || tooltipTarget == null) {
+        if (document == null) {
             return;
         }
-        if (document.topLayer().tooltip() == null) {
-            Tooltips.renderVanilla(g, Minecraft.getInstance().font, tooltipTarget, painter.topZ(), mouseX, mouseY);
+        if (document.topLayer().atPointer() == null) {
+            if (tooltipTarget != null) {
+                Tooltips.renderVanilla(g, Minecraft.getInstance().font, tooltipTarget, painter.topZ(), mouseX, mouseY);
+            }
             return;
         }
         PoseStack ps = g.pose();
         ps.pushPose();
         ps.translate(0, 0, painter.topZ() + Tooltips.Z);
-        tooltipPainter.paint(g, document.tooltipDisplayList(), Float.NaN, Float.NaN);
+        tooltipPainter.paint(g, document.atPointerDisplayList(), Float.NaN, Float.NaN);
         ps.popPose();
     }
 

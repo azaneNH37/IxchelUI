@@ -85,6 +85,11 @@
           </help-badge>
           <button class="open" on:click="dialogOpen = true" t="ixchel_sample.tooltips.open"></button>
         </div>
+
+        <span class="section" t="ixchel_sample.tooltips.native"></span>
+        <sample-gauge class="gauge" bind:fraction="cooldownLeft"><ix-tooltip class="tip">
+          <span t="ixchel_sample.tooltips.native.tip"></span>
+        </ix-tooltip></sample-gauge>
       </div>
     </div>
   </div>

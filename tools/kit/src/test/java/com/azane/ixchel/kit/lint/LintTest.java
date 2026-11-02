@@ -41,7 +41,7 @@ class LintTest {
 
     private static List<String> lint(Set<? extends DiagCode> enabled) throws URISyntaxException {
         Project project = fixture();
-        return Lint.run(project, ElementDeclarations.load(project.loader()).tags(),
+        return Lint.run(project, ElementDeclarations.load(project).tags(),
                 LanguageFiles.base(List.of(resources()), List.of()), enabled).stream().map(LintTest::at).toList();
     }
 

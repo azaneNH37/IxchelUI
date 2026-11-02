@@ -47,7 +47,7 @@ public final class Element extends Node {
      * matches it while it is its select's {@linkplain FormControl#selectedOption() selected option}.
      */
     public static final int CHECKED = 1 << 4;
-    /** A {@code <select>} or {@code <dialog>} in the {@link TopLayer}, or its shown {@code <ix-tooltip>}; {@code :open}. */
+    /** A {@code <select>} or {@code <dialog>} in the {@link TopLayer}, or its shown tooltip or drag preview; {@code :open}. */
     public static final int OPEN = 1 << 5;
 
     private static final int STYLE_DIRTY = 1;
@@ -129,7 +129,7 @@ public final class Element extends Node {
         return sum;
     }
 
-    /** An open dialog, the shown tooltip or an option of an open select: laid out against the viewport. */
+    /** An open dialog, the shown tooltip or drag preview, or an option of an open select: laid out against the viewport. */
     public boolean isPlaced() {
         return rendersInTopLayer() ? hasState(OPEN)
                 : tag.equals("option") && parent != null && parent.tag.equals("select") && parent.hasState(OPEN);
@@ -137,11 +137,16 @@ public final class Element extends Node {
 
     /**
      * Whether the element is content of the {@link TopLayer} rather than of its parent's flow: a
-     * {@code <dialog>} or an {@code <ix-tooltip>}. Layout, paint, hit testing and focus order skip it
-     * where it sits in the tree.
+     * {@code <dialog>}, an {@code <ix-tooltip>} or an {@code <ix-drag-preview>}. Layout, paint, hit
+     * testing and focus order skip it where it sits in the tree.
      */
     public boolean rendersInTopLayer() {
-        return tag.equals("dialog") || tag.equals(TopLayer.TOOLTIP);
+        return tag.equals("dialog") || isShownAtPointer();
+    }
+
+    /** An {@code <ix-tooltip>} or {@code <ix-drag-preview>}: shown by itself at the pointer, in a layout tree of its own. */
+    public boolean isShownAtPointer() {
+        return tag.equals(TopLayer.TOOLTIP) || tag.equals(TopLayer.DRAG_PREVIEW);
     }
 
     /** Unmodifiable live view. */

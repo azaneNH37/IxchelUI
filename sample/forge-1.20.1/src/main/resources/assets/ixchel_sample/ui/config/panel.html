@@ -62,8 +62,11 @@
   </div>
   <dialog class="list-dialog" bind:open="listOpen">
     <span class="dialog-title" bind:text="listTitle"></span>
-    <div class="items">
-      <for each="items" as="i" key="i.id"><div class="item">
+    <div class="items" bind:class:sorting="grabbed >= 0">
+      <for each="items" as="i" key="i.id"><div class="item" bind:class:dragged="grabbed == i.id" on:drop="moveTo(i)">
+        <div class="grip" draggable="true" t:title="ixchel_sample.config.reorder" on:dragstart="grabbed = i.id" on:dragend="grabbed = -1">
+          <ix-drag-preview class="item-ghost"><span bind:text="i.text"></span></ix-drag-preview>
+        </div>
         <input class="item-text" bind:value="i.text"/>
         <button class="remove" on:click="removeItem(i)" t="ixchel_sample.config.remove"></button>
       </div></for>

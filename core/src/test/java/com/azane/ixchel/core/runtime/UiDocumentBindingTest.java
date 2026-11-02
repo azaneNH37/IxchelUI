@@ -378,6 +378,39 @@ class UiDocumentBindingTest {
     }
 
     @Test
+    void eachIndexIsTheRowsPositionAndFollowsAKeptRowWhenTheListReorders() {
+        Picker m = new Picker();
+        UiDocument doc = load("""
+                <for each="rows" as="r" key="r.name" index="i"><span bind:text="i + r.name"></span></for>
+                """, "", m);
+        assertEquals("""
+                text 0 0 9 #FFFFFFFF "0a"
+                text 0 9 9 #FFFFFFFF "1b\"""", GoldenTest.print(doc.frame(100, 100)));
+        Element b = (Element) doc.root().children().get(1);
+
+        m.rows.set(List.of(new Row("c", 3), new Row("b", 2)));
+        assertEquals("""
+                text 0 0 9 #FFFFFFFF "0c"
+                text 0 9 9 #FFFFFFFF "1b\"""", GoldenTest.print(doc.frame(100, 100)));
+        assertSame(b, doc.root().children().get(1), "row 'b' kept its node at the same index");
+
+        m.rows.set(List.of(new Row("b", 2), new Row("c", 3)));
+        assertEquals("""
+                text 0 0 9 #FFFFFFFF "0b"
+                text 0 9 9 #FFFFFFFF "1c\"""", GoldenTest.print(doc.frame(100, 100)));
+        assertSame(b, doc.root().children().get(0), "the kept row moved and took its new index");
+    }
+
+    @Test
+    void loadReportsAnIndexNamedLikeTheRowOrHidingAName() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
+                <for each="rows" as="r" key="r.name" index="r"></for>
+                <for each="rows" as="r" key="r.name" index="row"></for>
+                """, "", new Picker()));
+        assertEquals(List.of("binding/invalid-name@t.html:2:45", "binding/hidden-name@t.html:3:45"), DiagCodes.of(e));
+    }
+
+    @Test
     void ifMountsWhileTrueAndUnmountedContentIsNotRead() {
         Picker m = new Picker();
         UiDocument doc = load("""

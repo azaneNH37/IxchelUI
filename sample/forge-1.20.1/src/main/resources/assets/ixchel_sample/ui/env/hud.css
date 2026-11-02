@@ -87,6 +87,7 @@
 .level {
   align-self: center;
   color: #80FF20;
+  text-shadow: 1px 1px 0 #000000;
 }
 
 /* Top center: the compass, then the target, as wide and tall as what it shows. */
@@ -103,6 +104,8 @@
 .compass {
   width: 181px;
   height: 28px;
+  /* Inherited by the heading and waypoint labels, drawn over the world. */
+  text-shadow: 1px 1px 0 #3F3F3F;
 }
 
 .bar {

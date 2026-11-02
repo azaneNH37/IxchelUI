@@ -25,17 +25,21 @@ public record ElementDeclarations(TagRegistry tags, Set<String> containerOnly) {
     public static final String ELEMENTS = "com/azane/ixchel/mc/element/elements.txt";
     /** Native elements of container screens only. */
     public static final String CONTAINER_ELEMENTS = "com/azane/ixchel/mc/container/elements.txt";
+    /** A host's own native elements, under {@code assets/<namespace>/}. */
+    public static final String HOST_ELEMENTS = "ui/elements.txt";
 
     public ElementDeclarations {
         containerOnly = Collections.unmodifiableSet(new TreeSet<>(containerOnly));
     }
 
     /**
-     * Reads every element file {@code loader} finds; copies of the same file on the classpath count once.
+     * Reads every element file the project's class loader finds, where copies of the same file on the
+     * classpath count once, then the host's own {@code ui/elements.txt} of each namespace the project owns.
      *
      * @throws IllegalArgumentException if a file is malformed
      */
-    public static ElementDeclarations load(ClassLoader loader) {
+    public static ElementDeclarations load(Project project) {
+        ClassLoader loader = project.loader();
         TagRegistry.Builder all = TagRegistry.HTML.extend();
         for (Map.Entry<String, String> f : read(loader, ELEMENTS).entrySet()) {
             all.declare(f.getValue(), f.getKey());
@@ -46,6 +50,13 @@ public record ElementDeclarations(TagRegistry tags, Set<String> containerOnly) {
             container.addAll(TagRegistry.HTML.extend().declare(f.getValue(), f.getKey()).build().tags());
         }
         container.removeAll(TagRegistry.HTML.tags());
+        for (String namespace : project.namespaces()) {
+            String id = namespace + ":" + HOST_ELEMENTS;
+            String text = project.read(id);
+            if (text != null) {
+                all.declare(text, id);
+            }
+        }
         return new ElementDeclarations(all.build(), container);
     }
 

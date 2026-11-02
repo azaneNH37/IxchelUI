@@ -281,6 +281,19 @@ final class Compiler {
         Cell<Object> keyInput = MODEL.held(null);
         Type rowType = element == null ? Object.class : element;
         Env rowEnv = env.with(alias, new Ref(keyInput, rowType));
+        Directive index = blockAttribute(block, "index");
+        String indexName = null;
+        if (index != null) {
+            indexName = index.value().trim();
+            if (!isIdentifier(indexName) || indexName.startsWith("$") || indexName.equals(alias)) {
+                diag().report(BindingCode.INVALID_NAME, index.valuePos(), "'index' takes a name other than the row's, got '"
+                        + index.value() + "'");
+                return null;
+            }
+            if (hides(indexName, index.valuePos(), "row index")) {
+                return null;
+            }
+        }
         Expr keyExpr = parse(key);
         if (keyExpr == null) {
             return null;
@@ -301,8 +314,8 @@ final class Compiler {
         if (keyRef == null) {
             return null;
         }
-        check(block, rowEnv);
-        return new EachBlock(this, env, block.children(), parent, prev, list.cell(), alias, rowType, keyInput,
+        check(block, indexName == null ? rowEnv : rowEnv.with(indexName, new Ref(MODEL.held(0), Integer.class)));
+        return new EachBlock(this, env, block.children(), parent, prev, list.cell(), alias, rowType, indexName, keyInput,
                 keyRef.cell(), each, key);
     }
 

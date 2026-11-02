@@ -183,7 +183,7 @@ public final class Main {
             enabled.add(code);
         }
         boolean json = args.json();
-        ElementDeclarations elements = ElementDeclarations.load(project.loader());
+        ElementDeclarations elements = ElementDeclarations.load(project);
         List<Diagnostic> found = Lint.run(project, elements.tags(), LanguageFiles.base(args.resources(), args.classpath()),
                 enabled);
         long errors = found.stream().filter(d -> d.severity() == Diagnostic.Severity.ERROR).count();
@@ -219,7 +219,7 @@ public final class Main {
     }
 
     private static int schema(Project project, boolean json, PrintStream out) {
-        Schema schema = Schema.of(project, ElementDeclarations.load(project.loader()));
+        Schema schema = Schema.of(project, ElementDeclarations.load(project));
         out.print(json ? Json.write(schema.json()) + "\n" : schema.text());
         return 0;
     }

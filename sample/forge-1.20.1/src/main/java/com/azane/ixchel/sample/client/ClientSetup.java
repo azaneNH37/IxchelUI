@@ -1,5 +1,7 @@
 package com.azane.ixchel.sample.client;
 
+import com.azane.ixchel.mc.element.McElements;
+import com.azane.ixchel.sample.IxchelSampleMod;
 import com.azane.ixchel.sample.character.CharacterScreen;
 import com.azane.ixchel.sample.client.index.SampleIndex;
 import com.azane.ixchel.sample.config.ConfigScreen;
@@ -7,6 +9,7 @@ import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
 import com.azane.ixchel.sample.storage.TerminalScreen;
+import com.azane.ixchel.sample.tooltips.GaugeElement;
 import com.azane.ixchel.sample.waypoints.WaypointsScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -32,6 +35,7 @@ public final class ClientSetup {
     /** Client only; from the mod constructor. */
     public static void init(FMLJavaModLoadingContext context) {
         IEventBus modBus = context.getModEventBus();
+        McElements.registerPainter(IxchelSampleMod.MOD_ID, GaugeElement.TAG, new GaugeElement());
         modBus.addListener(KeyBindings::register);
         modBus.addListener((FMLClientSetupEvent e) -> e.enqueueWork(() -> {
             MachineScreen.registerScreen();

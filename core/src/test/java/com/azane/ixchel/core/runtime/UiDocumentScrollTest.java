@@ -307,4 +307,42 @@ class UiDocumentScrollTest {
         assertEquals(45, list.scrollTop(), "the offset is clamped against content bound in the same frame");
         assertEquals(45, m.scroll.get());
     }
+
+    @Test
+    void theThumbFollowsTheDraggingPointerAndAPressOnTheTrackScrollsAPage() {
+        // 30px track, 18px thumb: 12px of travel for 20px of scroll.
+        UiDocument doc = load(LIST, LIST_CSS);
+        Element list = byId(doc.root(), "list");
+        Element r0 = byId(doc.root(), "r0");
+        EventDispatcher ev = doc.events();
+        assertTrue(ev.mousePressed(48, 5, 0, 0));
+        assertFalse(r0.hasState(Element.ACTIVE), "the press is the scrollbar's, not the row's under it");
+        ev.mouseMoved(48, 11);
+        assertEquals(10, list.scrollTop(), "6px of thumb travel is half the range");
+        ev.mouseMoved(20, 80);
+        assertEquals(20, list.scrollTop(), "clamped at the end, wherever the pointer goes");
+        ev.mouseReleased(20, 80, 0, 0);
+        ev.mouseMoved(48, 0);
+        assertEquals(20, list.scrollTop(), "released: moves no longer scroll");
+
+        doc.frame(100, 100);
+        ev.mousePressed(48, 2, 0, 0);
+        ev.mouseReleased(48, 2, 0, 0);
+        assertEquals(0, list.scrollTop(), "above the thumb at 12..30: a page up");
+    }
+
+    @Test
+    void scrollbarWidthAndColorStyleTheBarAndNoneLeavesThePointerToTheContent() {
+        UiDocument doc = load(LIST, LIST_CSS + "#list { overflow: scroll; scrollbar-width: thin; scrollbar-color: #f00 #0f0 }");
+        assertTrue(GoldenTest.print(doc.frame(100, 100)).endsWith("""
+                rect 48 0 2 30 #FF00FF00
+                rect 48 0 2 18 #FFFF0000
+                unclip"""));
+
+        Element list = byId(doc.root(), "list");
+        style(list, "scrollbar-width: none");
+        assertFalse(GoldenTest.print(doc.frame(100, 100)).contains("rect"), "no bar");
+        doc.events().mousePressed(49, 5, 0, 0);
+        assertTrue(byId(doc.root(), "r0").hasState(Element.ACTIVE), "the row under where the bar was takes the press");
+    }
 }

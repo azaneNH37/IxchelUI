@@ -50,25 +50,25 @@ class UiDocumentTooltipTest {
         assertEquals(18, tip.box().x());
         assertEquals(44, tip.box().y(), "placed at the pointer, below the 30px clip of its scroll container");
         assertEquals(document, GoldenTest.print(doc.frame(100, 100)), "the document paints as before");
-        String painted = GoldenTest.print(doc.tooltipDisplayList());
+        String painted = GoldenTest.print(doc.atPointerDisplayList());
         assertTrue(painted.contains("\"hint\"") && !painted.contains("clip"), "the tooltip paints alone, unclipped:\n" + painted);
         assertSame(one(doc, ".after"), doc.events().hitTest(20, 48), "the pointer goes through the tooltip");
 
         int runs = doc.pipelineRuns;
-        long version = doc.tooltipDisplayList().version();
+        long version = doc.atPointerDisplayList().version();
         doc.setTooltip(tip, 12, 60);
         doc.frame(100, 100);
         assertEquals(20, tip.box().x());
         assertEquals(runs, doc.pipelineRuns, "moving the tooltip runs neither style nor layout");
-        assertFalse(version == doc.tooltipDisplayList().version(), "but repaints it");
+        assertFalse(version == doc.atPointerDisplayList().version(), "but repaints it");
 
         m.hint.set("longer hint");
         doc.frame(100, 100);
-        assertTrue(GoldenTest.print(doc.tooltipDisplayList()).contains("\"longer hint\""), "bound content updates while shown");
+        assertTrue(GoldenTest.print(doc.atPointerDisplayList()).contains("\"longer hint\""), "bound content updates while shown");
 
         m.shown.set(false);
         doc.frame(100, 100);
         assertNull(doc.topLayer().tooltip(), "removing the tooltip's element hides it");
-        assertEquals("", GoldenTest.print(doc.tooltipDisplayList()));
+        assertEquals("", GoldenTest.print(doc.atPointerDisplayList()));
     }
 }

@@ -33,12 +33,7 @@ public final class ConfigPlaytest {
         playtests.register("config", s -> {
             s.run(() -> {
                 resetConfig();
-                Minecraft mc = Minecraft.getInstance();
-                Screen title = new TitleScreen();
-                mc.setScreen(title);
-                mc.setScreen(ModList.get().getModContainerById(IxchelSampleMod.MOD_ID).orElseThrow()
-                        .getCustomExtension(ConfigScreenHandler.ConfigScreenFactory.class).orElseThrow()
-                        .screenFunction().apply(mc, title));
+                open();
             });
             s.waitUntil("the mod list factory opens the panel, General first", () -> Playtest.isOpen()
                     && Playtest.texts(".category").equals(List.of("General", "Hud", "Compass", "Loot"))
@@ -140,6 +135,54 @@ public final class ConfigPlaytest {
                 Minecraft.getInstance().setScreen(null);
             });
         });
+    }
+
+    /** {@code -Pplaytest=config-sort}: the item list dialog's lines reorder by dragging their grip. */
+    public static void registerSort(Playtests playtests) {
+        playtests.register("config-sort", s -> {
+            s.run(() -> {
+                resetConfig();
+                open();
+            });
+            s.waitUntil("the panel opens", Playtest::isOpen, Playtest.WAIT);
+            search(s, "blocked", "Blocked items");
+            s.click(".edit");
+            s.waitUntil("the list dialog opens with both defaults", () -> lines().equals(DEFAULT_BLOCKED), Playtest.WAIT);
+
+            // Fails if a drop outside every line moves something, or the drag leaves state behind.
+            s.dragTo(".grip", ".dialog-title");
+            s.waitUntil("a drop off the lines keeps the order and ends the drag", () -> lines().equals(DEFAULT_BLOCKED)
+                    && Playtest.document().events().dragSource() == null && Playtest.query(".item.dragged").isEmpty()
+                    && Playtest.document().topLayer().atPointer() == null, Playtest.WAIT);
+
+            // Fails if the dragged line does not take the place of the line it is dropped on.
+            s.dragToNth(".grip", ".item", 1);
+            s.waitUntil("the first line dropped on the second moves below it",
+                    () -> lines().equals(List.of(DEFAULT_BLOCKED.get(1), DEFAULT_BLOCKED.get(0))), Playtest.WAIT);
+            s.click(".list-done");
+            s.waitUntil("Done writes the new order", () -> Playtest.text(".summary")
+                    .equals(DEFAULT_BLOCKED.get(1) + ", " + DEFAULT_BLOCKED.get(0)), Playtest.WAIT);
+            s.expect("the page reports no errors", () -> Playtest.document().diagnostics().errorCount() == 0);
+            s.run(() -> {
+                resetConfig();
+                Minecraft.getInstance().setScreen(null);
+            });
+        });
+    }
+
+    /** Opens the panel the way the mod list's config button does, over the title screen. */
+    private static void open() {
+        Minecraft mc = Minecraft.getInstance();
+        Screen title = new TitleScreen();
+        mc.setScreen(title);
+        mc.setScreen(ModList.get().getModContainerById(IxchelSampleMod.MOD_ID).orElseThrow()
+                .getCustomExtension(ConfigScreenHandler.ConfigScreenFactory.class).orElseThrow()
+                .screenFunction().apply(mc, title));
+    }
+
+    /** The texts of the list dialog's lines, in order. */
+    private static List<String> lines() {
+        return Playtest.query(".item-text").stream().map(e -> e.control().value()).toList();
     }
 
     /** Replaces the search text by typing and waits for the single row {@code label}. */

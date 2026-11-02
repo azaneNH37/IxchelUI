@@ -234,6 +234,32 @@ dialog {
   flex-shrink: 1;
 }
 
+/* The handle a line is dragged by; the line under the pointer while dragging is where it goes. */
+.grip {
+  width: 6px;
+  align-self: stretch;
+  background-color: var(--ix-button);
+}
+
+.grip:hover {
+  background-color: var(--ix-button-hover);
+}
+
+.item.dragged {
+  opacity: 0.4;
+}
+
+.items.sorting .item:hover {
+  background-color: var(--ix-hover);
+}
+
+.item-ghost {
+  padding: 2px 4px;
+  border: 1px solid #A0A0A0;
+  background-color: #202020E0;
+  color: #FFFFFF;
+}
+
 .dialog-row {
   flex-direction: row;
   justify-content: flex-end;

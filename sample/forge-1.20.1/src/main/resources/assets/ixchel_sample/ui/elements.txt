@@ -1,0 +1,2 @@
+# This mod's own native elements; the painters are registered in ClientSetup.
+sample-gauge payload=fraction accepts=java.lang.Float

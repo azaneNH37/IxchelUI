@@ -3,6 +3,7 @@ package com.azane.ixchel.core.playtest;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.event.EventDispatcher;
+import com.azane.ixchel.core.layout.Scrollbar;
 import com.azane.ixchel.core.runtime.UiDocument;
 
 import java.util.ArrayDeque;
@@ -209,20 +210,51 @@ public abstract class PlaytestDriver<S extends PlaytestDriver<S>> {
      * host reports one: a move then a drag per step, the cursor following.
      */
     public final S drag(String selector, float dx, float dy) {
+        return run(() -> dragFrom(center(selector), dx, dy));
+    }
+
+    /** A left-button drag from the center of {@code source}'s first match to the center of {@code target}'s. */
+    public final S dragTo(String source, String target) {
         return run(() -> {
-            float[] p = center(selector);
-            input.pointAt(p[0], p[1]);
-            input.mouseMoved(p[0], p[1]);
-            input.mouseClicked(p[0], p[1], 0);
-            for (int i = 1; i <= 4; i++) {
-                double x = p[0] + dx * i / 4;
-                double y = p[1] + dy * i / 4;
-                input.pointAt(x, y);
-                input.mouseMoved(x, y);
-                input.mouseDragged(x, y, 0, dx / 4, dy / 4);
-            }
-            input.mouseReleased(p[0] + dx, p[1] + dy, 0);
+            float[] from = center(source);
+            float[] to = center(target);
+            dragFrom(from, to[0] - from[0], to[1] - from[1]);
         });
+    }
+
+    /** As {@link #dragTo}, onto the {@code index}th match of {@code target}; the list is not scrolled. */
+    public final S dragToNth(String source, String target, int index) {
+        return run(() -> {
+            float[] from = center(source);
+            float[] to = EventDispatcher.paintedCenter(query(input.document(), target).get(index));
+            dragFrom(from, to[0] - from[0], to[1] - from[1]);
+        });
+    }
+
+    /** A left-button drag of the element's scrollbar thumb, from its center, by {@code dy} GUI pixels. */
+    public final S dragScrollbar(String selector, float dy) {
+        return run(() -> {
+            Element e = query(input.document(), selector).get(0);
+            Scrollbar bar = Scrollbar.of(e);
+            if (bar == null) {
+                throw new IllegalStateException(selector + " shows no scrollbar");
+            }
+            dragFrom(EventDispatcher.paintedPoint(e, bar.x() + bar.width() / 2, bar.thumbY() + bar.thumbHeight() / 2), 0, dy);
+        });
+    }
+
+    private void dragFrom(float[] p, float dx, float dy) {
+        input.pointAt(p[0], p[1]);
+        input.mouseMoved(p[0], p[1]);
+        input.mouseClicked(p[0], p[1], 0);
+        for (int i = 1; i <= 4; i++) {
+            double x = p[0] + dx * i / 4;
+            double y = p[1] + dy * i / 4;
+            input.pointAt(x, y);
+            input.mouseMoved(x, y);
+            input.mouseDragged(x, y, 0, dx / 4, dy / 4);
+        }
+        input.mouseReleased(p[0] + dx, p[1] + dy, 0);
     }
 
     /** A press and release of a GLFW key on the open screen. */
