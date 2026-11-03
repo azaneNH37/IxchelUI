@@ -8,6 +8,7 @@ import com.azane.ixchel.core.diag.DiagCode;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
+import com.azane.ixchel.core.effect.EffectParser;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.template.Translations;
@@ -28,6 +29,8 @@ import java.util.Set;
  *     {@link ModelShape}: structure, stylesheets and binding types;</li>
  * <li>each other page under the resource roots for structure only; names it binds cannot be
  *     checked without a model, and it is flagged as {@link KitCode#UNASSOCIATED_TEMPLATE};</li>
+ * <li>each {@code .ixeffect} file's header, linked or not; its GLSL body is checked only when the
+ *     game compiles it;</li>
  * <li>the annotations themselves: ids naming no file, malformed ids, classes that are not view models.</li>
  * </ul>
  *
@@ -99,6 +102,11 @@ public final class Lint {
             out.add(new Diagnostic(KitCode.UNASSOCIATED_TEMPLATE, "no view model claims '" + id
                     + "'; its bindings are not checked", new SourcePos(id, 1, 1),
                     "add @UiTemplate(\"" + id + "\") to the view model it is mounted with"));
+        }
+        for (String id : project.effects()) {
+            Diagnostics diag = new Diagnostics();
+            EffectParser.parse(project.read(id), id, diag);
+            out.addAll(diag.entries());
         }
         List<Diagnostic> sorted = new ArrayList<>(out);
         sorted.sort(Comparator.comparing((Diagnostic d) -> d.pos().file())

@@ -609,8 +609,8 @@ final class Compiler {
     /** {@code bind:style:<longhand>} or {@code bind:style:--<name>} with a String, Number or Object value. */
     private Binding styleBinding(Element e, Directive a, Ref ref) {
         String name = a.name().substring("bind:style:".length()).toLowerCase(Locale.ROOT);
-        boolean custom = name.startsWith("--");
-        PropertyDef<?> property = custom ? null : properties.byName(name);
+        PropertyDef<?> property = properties.byName(name);
+        boolean custom = property == null && name.startsWith("--");
         if (!custom && property == null) {
             Shorthand shorthand = properties.shorthand(name);
             if (shorthand == null) {

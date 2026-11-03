@@ -39,6 +39,23 @@ class SchemaTest {
         assertTrue(schema.properties().stream().anyMatch(p -> p.name().equals("color")));
     }
 
+    /** Fails if the library's or the project's effects go missing, or a param's property or initial value is written wrong. */
+    @Test
+    void listsEffectsWithTheirParams() throws URISyntaxException {
+        Path resources = Path.of(SchemaTest.class.getResource("/fixture").toURI());
+        Project project = new Project(List.of(resources), List.of(), SchemaTest.class.getClassLoader());
+        Schema schema = Schema.of(project, ElementDeclarations.load(project));
+
+        // unlinked.ixeffect has an invalid header, so it is not offered.
+        assertEquals(List.of("@ixchel/effects/dissolve", "@ixchel/effects/glint", "kitfixture:ui/fx/glow.ixeffect"),
+                schema.effects().stream().map(Schema.Effect::href).toList());
+        Schema.Effect glow = schema.effects().get(2);
+        assertEquals("box", glow.kind());
+        assertEquals(List.of(new Schema.EffectParam("--glow-tint", "<color>", true, "#ff000080"),
+                new Schema.EffectParam("--glow-size", "<length>", false, "2.5px")), glow.params());
+        assertEquals("layer", schema.effects().get(0).kind());
+    }
+
     @Test
     void listsShorthandsAndThemeVariables() {
         Project project = new Project(List.of(), List.of(), SchemaTest.class.getClassLoader());

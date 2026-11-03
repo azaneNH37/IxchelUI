@@ -121,6 +121,43 @@ public final class Syntaxes {
         };
     }
 
+    /** A {@code <length>} in px as a plain number, for an effect parameter; interpolates. */
+    public static Syntax<Float> pxLength() {
+        return interpolating((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            Length l = v == null ? null : lengthOf(v, false, false, true, diag);
+            return l == null ? null : l.value();
+        }, Syntaxes::mix, "px");
+    }
+
+    /** A {@code <percentage>} as a fraction ({@code 50%} is 0.5), for an effect parameter; interpolates. */
+    public static Syntax<Float> percentage() {
+        return interpolating((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            if (v == null) {
+                return null;
+            }
+            if (v instanceof Token t && t.is(Token.Kind.PERCENTAGE)) {
+                return (float) t.number() / 100;
+            }
+            diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a percentage");
+            return null;
+        }, Syntaxes::mix, null);
+    }
+
+    /** An {@code <angle>} in degrees, for an effect parameter; interpolates. */
+    public static Syntax<Float> angle() {
+        return interpolating((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            return v == null ? null : angle(v, diag);
+        }, Syntaxes::mix, null);
+    }
+
+    /** A {@code <time>} in seconds, negative allowed, for an effect parameter; interpolates. */
+    public static Syntax<Float> interpolatingTime() {
+        return interpolating(time(true), Syntaxes::mix, null);
+    }
+
     /** {@code linear}, {@code ease}, {@code ease-in}, {@code ease-out}, {@code ease-in-out}, {@code step-start}, {@code step-end}, {@code cubic-bezier()} or {@code steps()}. */
     public static Syntax<Easing> easing() {
         return (value, pos, diag) -> {
@@ -745,11 +782,18 @@ public final class Syntaxes {
         return new Easing.Steps(count, position);
     }
 
-    /** A {@code transition-property} name, lower-cased; {@code none} is returned for the caller to check. */
+    /**
+     * A {@code transition-property} name, lower-cased; {@code none} is returned for the caller to check.
+     * A custom property name is kept as written: whether it is a document's typed effect param, which
+     * transitions, is known only to the document's registry, so the others are ignored when transitioning.
+     */
     static String transitionNameOf(ComponentValue v, PropertyRegistry registry, Diagnostics diag) {
         if (!(v instanceof Token t && t.is(Token.Kind.IDENT))) {
             diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a property name");
             return null;
+        }
+        if (t.value().startsWith("--")) {
+            return t.value();
         }
         String name = t.value().toLowerCase(Locale.ROOT);
         if (name.equals("all") || name.equals("none")) {

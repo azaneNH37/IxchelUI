@@ -3,6 +3,7 @@ package com.azane.ixchel.mc.document;
 import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.Diagnostic;
+import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.event.ClickSound;
@@ -119,6 +120,9 @@ public final class HostedDocument implements AutoCloseable {
     private boolean load() {
         try {
             McResources.Loaded loaded = resources.load(Minecraft.getInstance().getResourceManager(), templatePath, tags, model);
+            Diagnostics compiled = new Diagnostics();
+            painter.compileEffects(loaded.document().effects().all(), compiled);
+            compiled.throwIfErrors();
             document = loaded.document();
             document.events().setClipboard(CLIPBOARD);
             document.events().setClickSound(CLICK_SOUND);
@@ -187,7 +191,7 @@ public final class HostedDocument implements AutoCloseable {
     /** Paints the display list of the last {@link #frame}; native elements react to the pointer, NaN in a HUD. */
     public void paint(GuiGraphics g, float pointerX, float pointerY) {
         if (displayList != null) {
-            painter.paint(g, displayList, pointerX, pointerY);
+            painter.paint(g, displayList, pointerX, pointerY, document.frameTime());
         }
     }
 
@@ -214,7 +218,7 @@ public final class HostedDocument implements AutoCloseable {
         PoseStack ps = g.pose();
         ps.pushPose();
         ps.translate(0, 0, painter.topZ() + Tooltips.Z);
-        tooltipPainter.paint(g, document.atPointerDisplayList(), Float.NaN, Float.NaN);
+        tooltipPainter.paint(g, document.atPointerDisplayList(), Float.NaN, Float.NaN, document.frameTime());
         ps.popPose();
     }
 

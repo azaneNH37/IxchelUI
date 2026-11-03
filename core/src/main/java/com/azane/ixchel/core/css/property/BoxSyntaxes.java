@@ -69,9 +69,10 @@ final class BoxSyntaxes {
      * An image source: {@code none}, a {@code url()}, quoted or not, naming an image by resource
      * location, e.g. {@code url("minecraft:textures/gui/icons.png")}, or a sprite of the host's
      * texture atlas by {@link Syntaxes#SPRITE} and the sprite's resource location, e.g.
-     * {@code url("sprite:minecraft:block/water_still")}; with {@code gradient}, also {@code linear-gradient()}.
+     * {@code url("sprite:minecraft:block/water_still")}; with {@code background}, also
+     * {@code linear-gradient()} and {@code paint(name)}, a box effect of the document.
      */
-    private static CssImage image(ComponentValue v, boolean gradient, Diagnostics diag) {
+    private static CssImage image(ComponentValue v, boolean background, Diagnostics diag) {
         if (v instanceof Token t) {
             if (t.isIdent("none")) {
                 return CssImage.NONE;
@@ -95,7 +96,7 @@ final class BoxSyntaxes {
                 return null;
             }
             if (name.endsWith("-gradient")) {
-                if (!gradient) {
+                if (!background) {
                     diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "a gradient is not supported here", "use url()");
                     return null;
                 }
@@ -105,8 +106,20 @@ final class BoxSyntaxes {
                 diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "'" + name + "()' is not supported", "use linear-gradient()");
                 return null;
             }
+            if (name.equals("paint")) {
+                if (!background) {
+                    diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "paint() is only supported in background-image", "use url()");
+                    return null;
+                }
+                List<ComponentValue> args = significant(f.args());
+                if (args.size() == 1 && args.get(0) instanceof Token n && n.is(Token.Kind.IDENT)) {
+                    return new CssImage.Paint(n.value());
+                }
+                diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), "paint() takes the name of a box effect");
+                return null;
+            }
         }
-        diag.report(PropertyCode.INVALID_VALUE, v.pos(), gradient ? "expected none, url() or linear-gradient()" : "expected none or url()");
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), background ? "expected none, url(), linear-gradient() or paint()" : "expected none or url()");
         return null;
     }
 

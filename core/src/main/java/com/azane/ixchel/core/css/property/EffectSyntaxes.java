@@ -28,11 +28,12 @@ final class EffectSyntaxes {
      * {@code sepia()}, {@code saturate()}, {@code hue-rotate()}, {@code invert()}, {@code brightness()},
      * {@code contrast()}, {@code opacity()} (a number or percentage, 1 when omitted; the first four of
      * these and {@code opacity()} stop at 1), {@code blur()} (a length, 0 when omitted) and
-     * {@code drop-shadow()} (two offsets, an optional blur and a color). Two lists interpolate function
-     * by function when their kinds match, the shorter one padded with functions that change nothing;
+     * {@code drop-shadow()} (two offsets, an optional blur and a color); with {@code paint}, also
+     * {@code -ix-paint(name)}, a layer effect of the document. Two lists interpolate function by function
+     * when their kinds (and effects) match, the shorter one padded with functions that change nothing;
      * others jump.
      */
-    static Syntax<List<Filter>> filters() {
+    static Syntax<List<Filter>> filters(boolean paint) {
         return interpolating((value, pos, diag) -> {
             List<ComponentValue> parts = significant(value);
             if (parts.size() == 1 && parts.get(0) instanceof Token t && t.isIdent("none")) {
@@ -44,7 +45,7 @@ final class EffectSyntaxes {
                     diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected none or filter functions");
                     return null;
                 }
-                Filter filter = filter(f, diag);
+                Filter filter = filter(f, paint, diag);
                 if (filter == null) {
                     return null;
                 }
@@ -54,9 +55,21 @@ final class EffectSyntaxes {
         }, EffectSyntaxes::mixFilters, null);
     }
 
-    private static Filter filter(ComponentValue.Function f, Diagnostics diag) {
+    private static Filter filter(ComponentValue.Function f, boolean paint, Diagnostics diag) {
         String name = f.name().toLowerCase(Locale.ROOT);
         List<ComponentValue> args = significant(f.args());
+        if (name.equals("-ix-paint")) {
+            if (!paint) {
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "-ix-paint() is not supported in backdrop-filter",
+                        "backdrop effects are not supported yet; use -ix-paint() in filter");
+                return null;
+            }
+            if (args.size() != 1 || !(args.get(0) instanceof Token t && t.is(Token.Kind.IDENT))) {
+                diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), "-ix-paint() takes the name of a layer effect");
+                return null;
+            }
+            return Filter.paint(t.value());
+        }
         Filter.Kind kind = switch (name) {
             case "grayscale" -> Filter.Kind.GRAYSCALE;
             case "sepia" -> Filter.Kind.SEPIA;
@@ -72,7 +85,8 @@ final class EffectSyntaxes {
         };
         if (kind == null) {
             diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "unsupported filter function '" + f.name() + "'",
-                    "use grayscale, sepia, saturate, hue-rotate, invert, brightness, contrast, opacity, blur or drop-shadow");
+                    "use grayscale, sepia, saturate, hue-rotate, invert, brightness, contrast, opacity, blur, drop-shadow"
+                            + (paint ? " or -ix-paint" : ""));
             return null;
         }
         if (kind == Filter.Kind.DROP_SHADOW) {
@@ -88,10 +102,10 @@ final class EffectSyntaxes {
         }
         if (kind == Filter.Kind.BLUR) {
             if (args.isEmpty()) {
-                return new Filter(kind, 0, 0, 0, 0, 0);
+                return new Filter(kind, 0, 0, 0, 0, 0, null);
             }
             Length l = lengthOf(args.get(0), false, false, false, diag);
-            return l == null ? null : new Filter(kind, 0, 0, 0, l.value(), 0);
+            return l == null ? null : new Filter(kind, 0, 0, 0, l.value(), 0, null);
         }
         float amount = 1;
         if (!args.isEmpty()) {
@@ -147,7 +161,7 @@ final class EffectSyntaxes {
         }
         Integer c = colorOf(color, diag);
         // The blur length is twice the standard deviation, as box-shadow's.
-        return c == null ? null : new Filter(Filter.Kind.DROP_SHADOW, 0, l[0], l[1], l[2] / 2, c);
+        return c == null ? null : new Filter(Filter.Kind.DROP_SHADOW, 0, l[0], l[1], l[2] / 2, c, null);
     }
 
     private static List<Filter> mixFilters(List<Filter> from, List<Filter> to, float p) {
@@ -156,6 +170,9 @@ final class EffectSyntaxes {
         for (int i = 0; i < n; i++) {
             Filter a = i < from.size() ? from.get(i) : null;
             Filter b = i < to.size() ? to.get(i) : null;
+            if (a == null && b.kind() == Filter.Kind.PAINT || b == null && a.kind() == Filter.Kind.PAINT) {
+                return null;
+            }
             if (a == null) {
                 a = Filter.identity(b.kind());
             } else if (b == null) {
@@ -164,8 +181,15 @@ final class EffectSyntaxes {
             if (a.kind() != b.kind()) {
                 return null;
             }
+            if (a.kind() == Filter.Kind.PAINT) {
+                if (!a.effect().equals(b.effect())) {
+                    return null;
+                }
+                out.add(a);
+                continue;
+            }
             out.add(new Filter(a.kind(), Math.max(0, mix(a.amount(), b.amount(), p)), mix(a.x(), b.x(), p), mix(a.y(), b.y(), p),
-                    Math.max(0, mix(a.sigma(), b.sigma(), p)), mixColor(a.color(), b.color(), p)));
+                    Math.max(0, mix(a.sigma(), b.sigma(), p)), mixColor(a.color(), b.color(), p), null));
         }
         return out;
     }

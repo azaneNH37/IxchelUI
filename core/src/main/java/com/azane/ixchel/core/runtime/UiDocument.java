@@ -6,11 +6,13 @@ import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.ModelShape;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.CssProperties;
+import com.azane.ixchel.core.css.syntax.ParsedSheet;
 import com.azane.ixchel.core.css.selector.Selector;
 import com.azane.ixchel.core.css.selector.SelectorParser;
 import com.azane.ixchel.core.css.syntax.CssParser;
 import com.azane.ixchel.core.diag.DiagCode;
 import com.azane.ixchel.core.diag.Diagnostics;
+import com.azane.ixchel.core.effect.Effects;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
@@ -58,6 +60,10 @@ import java.util.function.LongSupplier;
  * controls, {@code <dialog>}, {@code <ix-tooltip>} and {@code <ix-drag-preview>} (see
  * {@link LibrarySheets}). Open selects and dialogs, and the tooltip or drag preview shown at the
  * pointer, live in the document's {@link TopLayer}, which layout, paint and input share.
+ *
+ * <p>The effects the template and its components link ({@link Effects}) register their params as
+ * typed properties of this document only: its styles, transitions, keyframes and bindings compile
+ * against the registry they extend.
  */
 public final class UiDocument {
     static final long BLINK_MS = 500;
@@ -68,6 +74,7 @@ public final class UiDocument {
     private final StyleEngine style;
     private final LayoutEngine layout;
     private final Painter painter;
+    private final Effects effects;
     private final Bindings bindings;
     private final TopLayer topLayer;
     private final DisplayList displayList = new DisplayList();
@@ -78,6 +85,7 @@ public final class UiDocument {
     private final Presence presence;
     private final Presence.Unit documentUnit;
     private LongSupplier clock = System::nanoTime;
+    private long frameTime;
     private float viewportWidth = Float.NaN;
     private float viewportHeight = Float.NaN;
     private boolean textInvalidated;
@@ -90,7 +98,7 @@ public final class UiDocument {
     int pipelineRuns;
 
     private UiDocument(Element root, List<String> files, Diagnostics diagnostics, StyleEngine style,
-                       LayoutEngine layout, Bindings bindings, ImageMeasurer images,
+                       LayoutEngine layout, Bindings bindings, ImageMeasurer images, Effects effects,
                        Animations animations, Transitions transitions, TopLayer topLayer, Presence presence,
                        Presence.Unit documentUnit) {
         this.root = root;
@@ -98,7 +106,8 @@ public final class UiDocument {
         this.diagnostics = diagnostics;
         this.style = style;
         this.layout = layout;
-        this.painter = new Painter(layout, images, diagnostics);
+        this.effects = effects;
+        this.painter = new Painter(layout, images, effects, diagnostics);
         this.bindings = bindings;
         this.topLayer = topLayer;
         this.events = new EventDispatcher(root, layout, topLayer);
@@ -142,20 +151,20 @@ public final class UiDocument {
         Diagnostics diag = new Diagnostics();
         Parsed p = parse(template, templateFile, files, tags, translations, diag);
         Animations animations = new Animations(p.root);
-        Transitions transitions = new Transitions(CssProperties.REGISTRY, p.root, animations);
+        Transitions transitions = new Transitions(p.effects.registry(), p.root, animations);
         StyleEngine style = p.style(tags, diag, animations, transitions);
         Presence presence = new Presence(e -> animations.finishing(e) || transitions.running(e),
                 style.uses(Presence.STATES));
         TopLayer topLayer = new TopLayer(presence);
-        Bindings bindings = Bindings.compile(p.root, model, p.loaded.components(), text, tags, CssProperties.REGISTRY,
+        Bindings bindings = Bindings.compile(p.root, model, p.loaded.components(), text, tags, p.effects.registry(),
                 topLayer, presence, diag);
         Presence.Unit documentUnit = presence.enterDocument(p.root);
         style.restyle(p.root);
         presence.styled();
         diag.throwIfErrors();
-        LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY, diag);
-        return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, images, animations, transitions,
-                topLayer, presence, documentUnit);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), p.effects.registry(), diag);
+        return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, images, p.effects, animations,
+                transitions, topLayer, presence, documentUnit);
     }
 
     /**
@@ -172,15 +181,15 @@ public final class UiDocument {
                                    Set<? extends DiagCode> enabled) {
         Diagnostics diag = new Diagnostics(enabled);
         Parsed p = parse(template, templateFile, files, tags, translations, diag);
-        Bindings.lint(p.root, shape, p.loaded.components(), Bindings.PLAIN_TEXT, tags, CssProperties.REGISTRY,
+        Bindings.lint(p.root, shape, p.loaded.components(), Bindings.PLAIN_TEXT, tags, p.effects.registry(),
                 new TopLayer(Presence.instant()), diag);
         Animations animations = new Animations(p.root);
-        p.style(tags, diag, animations, new Transitions(CssProperties.REGISTRY, p.root, animations)).restyle(p.root);
+        p.style(tags, diag, animations, new Transitions(p.effects.registry(), p.root, animations)).restyle(p.root);
         return diag;
     }
 
     /** A template and its stylesheets parsed, its roots under the implicit document root. */
-    private record Parsed(TemplateLoader.Loaded loaded, Element root, List<StyleSheet> components,
+    private record Parsed(TemplateLoader.Loaded loaded, Effects effects, Element root, List<StyleSheet> components,
                           List<StyleSheet> themes, List<StyleSheet> author) {
         StyleEngine style(TagRegistry tags, Diagnostics diag, Animations animations, Transitions transitions) {
             List<StyleSheet> userAgent = new ArrayList<>(List.of(LibrarySheets.USER_AGENT));
@@ -191,16 +200,17 @@ public final class UiDocument {
                 animations.computed(e, previous, next, cascade);
                 transitions.computed(e, previous, next, cascade);
             };
-            return new StyleEngine(CssProperties.REGISTRY, userAgent, components, themes, author, diag, hook);
+            return new StyleEngine(effects.registry(), userAgent, components, themes, author, diag, hook);
         }
     }
 
     private static Parsed parse(String template, String templateFile, Function<String, String> files,
                                 TagRegistry tags, Translations translations, Diagnostics diag) {
         TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, tags, translations, diag);
-        List<StyleSheet> components = sheets(loaded.componentSheets(), diag);
+        Effects effects = Effects.load(loaded.effects(), CssProperties.REGISTRY, diag);
+        List<StyleSheet> components = sheets(loaded.componentSheets(), effects, diag);
         List<StyleSheet> themes = library(loaded.library(), diag);
-        List<StyleSheet> author = sheets(loaded.pageSheets(), diag);
+        List<StyleSheet> author = sheets(loaded.pageSheets(), effects, diag);
         Element root = new Element(ElementType.plain("#root"), new SourcePos(templateFile, 1, 1));
         if (translations.language() != null) {
             root.setAttribute("lang", translations.language());
@@ -208,13 +218,16 @@ public final class UiDocument {
         for (Node n : loaded.page().roots()) {
             root.appendChild(n);
         }
-        return new Parsed(loaded, root, components, themes, author);
+        return new Parsed(loaded, effects, root, components, themes, author);
     }
 
-    private static List<StyleSheet> sheets(List<TemplateLoader.Sheet> sources, Diagnostics diag) {
+    /** Compiles {@code sources} against the document's registry, reporting their misuses of effects. */
+    private static List<StyleSheet> sheets(List<TemplateLoader.Sheet> sources, Effects effects, Diagnostics diag) {
         List<StyleSheet> out = new ArrayList<>(sources.size());
         for (TemplateLoader.Sheet s : sources) {
-            out.add(StyleSheet.compile(CssParser.parseStylesheet(s.css(), s.start(), diag), CssProperties.REGISTRY, diag));
+            ParsedSheet parsed = CssParser.parseStylesheet(s.css(), s.start(), diag);
+            effects.check(parsed, diag);
+            out.add(StyleSheet.compile(parsed, effects.registry(), diag));
         }
         return out;
     }
@@ -244,6 +257,11 @@ public final class UiDocument {
      */
     public List<String> files() {
         return files;
+    }
+
+    /** The effects the template and its components link, which the host compiles. */
+    public Effects effects() {
+        return effects;
     }
 
     /** Open selects and dialogs, bottom first, and the shown tooltip. */
@@ -366,6 +384,7 @@ public final class UiDocument {
      */
     public DisplayList frame(float viewportWidth, float viewportHeight) {
         long now = clock.getAsLong();
+        frameTime = now;
         boolean exited = exiting();
         boolean animating = animations.advance(now) | transitions.advance(now);
         boolean presenceChanged = presence.update();
@@ -437,6 +456,14 @@ public final class UiDocument {
             blinkStart = now;
         }
         return (now - blinkStart) / (BLINK_MS * 1_000_000) % 2 == 0;
+    }
+
+    /**
+     * When the last {@link #frame} ran, in nanoseconds of the clock transitions and animations run on:
+     * the time effects see.
+     */
+    public long frameTime() {
+        return frameTime;
     }
 
     /** Replaces the animation and transition clock ({@link System#nanoTime} by default); for tests. */

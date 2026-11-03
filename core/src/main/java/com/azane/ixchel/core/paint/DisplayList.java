@@ -169,6 +169,12 @@ public final class DisplayList {
         }
 
         @Override
+        public Void visitPaint(DrawCommand.Paint c) {
+            RoundRect s = c.shape();
+            return add(s.x(), s.y(), s.x() + s.width(), s.y() + s.height());
+        }
+
+        @Override
         public Void visitPushClip(DrawCommand.PushClip c) {
             clips.add(clip);
             clip = map(c.x(), c.y(), c.x() + c.width(), c.y() + c.height()) ? new float[]{ml, mt, mr, mb} : new float[]{0, 0, 0, 0};

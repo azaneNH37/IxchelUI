@@ -1,6 +1,8 @@
 package com.azane.ixchel.mc.paint;
 
+import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.css.property.Filter;
+import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.paint.RoundRect;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -8,6 +10,7 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -21,8 +24,9 @@ import java.util.List;
  * {@code (0, 0)}-{@code (w, h)} of its target in pixels, and passes clamp their samples to it.
  * Consecutive color functions are one pass, as they compose into one affine color map; {@code blur}
  * is two (one per axis); {@code drop-shadow} blurs the coverage, draws it moved and tinted and the
- * image over it. Passes leave a scratch target bound, the scissor and blending off; the caller binds
- * its target again. Render thread only.
+ * image over it; {@code -ix-paint()} is its layer effect's program over the image. Passes leave a
+ * scratch target bound, the scissor and blending off; the caller binds its target again. Render
+ * thread only.
  */
 final class FilterPasses {
     /** The most a backdrop is scaled down by before a blur. */
@@ -34,29 +38,38 @@ final class FilterPasses {
             0, 0, 0, 1, 0};
 
     private final FilterShaders shaders;
+    private final EffectPrograms effects;
     /** The color map being built: rows r, g, b, a of {@code [r g b a 1]} coefficients. */
     private final float[] map = new float[20];
     private final float[] step = new float[20];
     private final float[] product = new float[20];
     private final Matrix4f matrix = new Matrix4f();
 
-    FilterPasses(FilterShaders shaders) {
+    FilterPasses(FilterShaders shaders, EffectPrograms effects) {
         this.shaders = shaders;
+        this.effects = effects;
     }
 
     FilterShaders shaders() {
         return shaders;
     }
 
+    EffectPrograms effects() {
+        return effects;
+    }
+
     /**
      * Runs {@code filters} over the image in {@code src}; returns the target holding the result,
      * {@code src} itself when no pass ran, otherwise a scratch target the caller releases.
-     * {@code scale} is pixels per GUI pixel, for blur radii and shadow offsets.
+     * {@code scale} is pixels per GUI pixel, for blur radii and shadow offsets. {@code layer} is the
+     * layer the image is, whose effects the {@code -ix-paint()} filters run; {@code null} for a
+     * backdrop, which has none.
      */
-    OffscreenLayers.Target run(OffscreenLayers.Target src, int w, int h, List<Filter> filters, float scale) {
+    OffscreenLayers.Target run(OffscreenLayers.Target src, int w, int h, List<Filter> filters, float scale, OffscreenLayers.Layer layer) {
         RenderSystem.disableScissor();
         OffscreenLayers.Target cur = src;
         int i = 0;
+        int paint = 0;
         while (i < filters.size()) {
             Filter f = filters.get(i);
             OffscreenLayers.Target out;
@@ -72,6 +85,12 @@ final class FilterPasses {
                     continue;
                 }
                 out = blur(cur, w, h, f.sigma() * scale);
+            } else if (f.kind() == Filter.Kind.PAINT) {
+                i++;
+                out = paint(cur, w, h, layer.paints.get(paint++), layer, scale);
+                if (out == null) {
+                    continue;
+                }
             } else {
                 i++;
                 out = dropShadow(cur, w, h, f, scale);
@@ -105,7 +124,7 @@ final class FilterPasses {
         GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, fbo);
         GlStateManager._glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, snapshot.fbo.frameBufferId);
         GlStateManager._glBlitFrameBuffer(x, y, x + w, y + h, 0, 0, sw, sh, GL11.GL_COLOR_BUFFER_BIT, GL11.GL_LINEAR);
-        OffscreenLayers.Target out = run(snapshot, sw, sh, filters, scale / d);
+        OffscreenLayers.Target out = run(snapshot, sw, sh, filters, scale / d, null);
         if (out != snapshot) {
             OffscreenLayers.release(snapshot);
         }
@@ -247,6 +266,26 @@ final class FilterPasses {
             OffscreenLayers.release(blurred);
         }
         pass(shaders.copy, src, w, h, out, true);
+        return out;
+    }
+
+    /** {@code p}'s program over the layer; {@code null} when it did not compile, which leaves the image as it is. */
+    private OffscreenLayers.Target paint(OffscreenLayers.Target src, int w, int h, DrawCommand.LayerPaint p,
+                                         OffscreenLayers.Layer layer, float scale) {
+        ShaderInstance s = effects.program(p.effect());
+        if (s == null || layer.toLocal == null) {
+            return null;
+        }
+        // Target pixels to window pixels to GUI pixels (y down), back through the element's transforms,
+        // then from the frame's corner in physical pixels.
+        int windowHeight = Minecraft.getInstance().getWindow().getHeight();
+        Affine gui = new Affine(1 / scale, 0, 0, -1 / scale, layer.x / scale, (windowHeight - layer.y) / scale);
+        Affine local = new Affine(scale, 0, 0, scale, -scale * layer.frame.x(), -scale * layer.frame.y())
+                .then(layer.toLocal).then(gui);
+        effects.local(s, local);
+        effects.bind(s, p.effect(), p.values(), layer.frame, scale, layer.time, layer.mouseX, layer.mouseY);
+        OffscreenLayers.Target out = OffscreenLayers.acquire(w, h, false);
+        pass(s, src, w, h, out, false);
         return out;
     }
 

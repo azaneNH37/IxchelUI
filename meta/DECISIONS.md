@@ -170,7 +170,7 @@
 ## #028 UI 特效 = 资源文件定义的具名效果，经 CSS 引用
 - **decided**: 2026-11-02
 - **context**: 流光、溶解、CRT 等效果没有 Web 标准写法，库以 shade 分发、不带固定 namespace 的 assets、不用 mixin，而 MC 的 shader 程序按名字全局缓存
-- **decision**: 特效为 `.effect` 文件（`kind box|layer|backdrop` + 类型化 `param` + GLSL `effect()`，用库内原语库组合），由 `<link rel="effect">` 按资源路径引入；`box` 写 `background-image: paint(名)`，`layer` 写 `filter: -ix-paint(名)`，`backdrop` 写在 `backdrop-filter` 中；参数为自定义属性 `--名-参数`，按声明类型校验、可过渡；程序名为 `<宿主modid>_fx_<名>`，经加载器胶水层随资源重载注册；内置特效同格式，从 `@ixchel/effects/…` 引入。标准 CSS 能表达的效果走标准属性。细节见 `ref/SD-ixchel-ui-effects-20261102.md`
+- **decision**: 特效为 `.ixeffect` 文件（`kind box|layer|backdrop` + `param 名 { syntax; inherits; initial-value }`（照搬 `@property`，`inherits` 必填）+ GLSL `effect()`，用库内原语库组合），由 `<link rel="effect">` 按资源路径引入；`box` 写 `background-image: paint(名)`，`layer` 写 `filter: -ix-paint(名)`，`backdrop` 写在 `backdrop-filter` 中；参数为自定义属性 `--名-参数`，按声明类型校验、可过渡；程序名为 `<宿主modid>_ixchel_fx<n>`（每次构造取新名，避开全局表复用旧编译结果），文档加载时按特效 id 编译、文本不变则复用，新程序编译成功后才关闭旧实例（库自带 shader 见 #033）；内置特效同格式，从 `@ixchel/effects/…` 引入。标准 CSS 能表达的效果走标准属性。细节见 `ref/SD-ixchel-ui-effects-20261102.md`
 - **rejected**: 位置参数 `paint(名, 参数…)`——不能单独覆盖或过渡；包裹元素 `<ix-effect>`——特效属于样式，包裹会改结构且不能与标准 filter 串链；运行时节点图或万能 shader——调试与缓存成本高、无需求；全局特效注册表——多宿主下撞名（同 #015）；`PostChain`——只读固定资源路径
 
 ## #029 圆角、阴影、渐变走路径 C，圆角只做外观

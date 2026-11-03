@@ -1,0 +1,6 @@
+kind box;
+param speed { syntax: <integer>; inherits: false; initial-value: 1; }
+
+vec4 effect(IxBox b) {
+    return vec4(0.0);
+}

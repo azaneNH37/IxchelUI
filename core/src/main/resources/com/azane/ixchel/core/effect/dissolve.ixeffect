@@ -1,0 +1,19 @@
+// Burns the element away in noise: untouched at progress 0, gone at 1, with a glowing edge between.
+kind layer;
+param progress   { syntax: <number>; inherits: false; initial-value: 0; }
+param edge-color { syntax: <color>;  inherits: true;  initial-value: #ff8a00; }
+param edge       { syntax: <length>; inherits: false; initial-value: 3px; }
+
+// Noise cells of 24 GUI pixels. The threshold starts an edge's width below the lowest noise, so no
+// edge shows at 0, and ends above the highest.
+vec4 effect(IxLayer l) {
+    vec4 c = ix_content(l.uv);
+    float cell = 24.0 * ix_scale;
+    float w = edge / cell;
+    float cut = ix_fbm(l.pos / cell) - mix(-w - 0.01, 1.01, progress);
+    if (cut < 0.0) {
+        return vec4(0.0);
+    }
+    float e = 1.0 - smoothstep(0.0, w, cut);
+    return mix(c, edge_color * c.a, e);
+}

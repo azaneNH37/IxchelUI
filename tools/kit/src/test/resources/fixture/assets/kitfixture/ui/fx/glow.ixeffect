@@ -1,0 +1,7 @@
+kind box;
+param tint { syntax: <color>;  inherits: true;  initial-value: #ff000080; }
+param size { syntax: <length>; inherits: false; initial-value: 2.5px; }
+
+vec4 effect(IxBox b) {
+    return tint;
+}

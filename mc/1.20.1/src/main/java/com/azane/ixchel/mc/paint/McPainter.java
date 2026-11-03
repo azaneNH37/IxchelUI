@@ -1,7 +1,9 @@
 package com.azane.ixchel.mc.paint;
 
 import com.azane.ixchel.core.css.property.Affine;
+import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.StyledText;
+import com.azane.ixchel.core.effect.Effect;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.paint.RoundRect;
@@ -21,6 +23,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -34,6 +37,7 @@ import org.lwjgl.opengl.GL30;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,6 +63,9 @@ import java.util.Map;
  * {@link OffscreenLayers} target over its rectangle on the screen, cut by the clip, and composites it
  * at its opacity when it closes. Inside, colors blend with separate alpha factors so the target holds
  * premultiplied color, and clips scissor the target.
+ *
+ * <p>A box effect ({@code DrawCommand.Paint}) is its {@link EffectPrograms} program drawn over the
+ * shape; a layer's effects run as its filter passes. Neither draws when its program did not compile.
  */
 public final class McPainter implements DrawCommand.Visitor<Void> {
     private static final float VANILLA_SIZE = 9f;
@@ -98,7 +105,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     private final Layers layers = new Layers();
     private final OffscreenLayers offscreen = new OffscreenLayers();
     private final String modid;
-    /** Built on the first filter, blend mode or backdrop; see {@link #passes()}. */
+    /** Built on the first filter, blend mode, backdrop or effect; see {@link #passes()}. */
     private FilterPasses passes;
     private final int[] backdropSize = new int[2];
     /** The clips pushed in this paint, intersected: x0, y0, x1, y1 in GUI pixels per level. */
@@ -106,6 +113,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     private int clipDepth;
     private float pointerX = Float.NaN;
     private float pointerY = Float.NaN;
+    private float time;
 
     /**
      * @param modid   the host mod, whose mask atlas the shapes are drawn from
@@ -122,12 +130,22 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     }
 
     /**
-     * Draws {@code list} in the current pose of {@code g}, with the pointer native elements may react
-     * to (NaN in a HUD); leaves blending disabled, like vanilla blits.
+     * Builds the programs of a document's effects, as it loads, and reports each that does not compile
+     * to {@code diag}.
      */
-    public void paint(GuiGraphics g, DisplayList list, float pointerX, float pointerY) {
+    public void compileEffects(Collection<Effect> effects, Diagnostics diag) {
+        passes().effects().compile(effects, diag);
+    }
+
+    /**
+     * Draws {@code list} in the current pose of {@code g}, with the pointer native elements and effects
+     * may react to (NaN in a HUD) and the document's time in nanoseconds; leaves blending disabled,
+     * like vanilla blits.
+     */
+    public void paint(GuiGraphics g, DisplayList list, float pointerX, float pointerY, long time) {
         this.pointerX = pointerX;
         this.pointerY = pointerY;
+        this.time = Math.floorMod(time, 3_600_000_000_000L) / 1e9f;
         graphics = g;
         base = g.pose().last().pose();
         transform = Affine.IDENTITY;
@@ -359,7 +377,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
             bx1 = Math.min(bx1, clips[o + 2]);
             by1 = Math.min(by1, clips[o + 3]);
         }
-        offscreen.push(bx0, by0, bx1, by1, c.opacity(), c.filters(), c.blend());
+        offscreen.push(bx0, by0, bx1, by1, c, transform, pointerX, pointerY, time);
         layerScissor();
         return null;
     }
@@ -378,6 +396,26 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
             offscreen.composite(l, base, z, passes().shaders());
             offscreen.release(l);
         }
+        return null;
+    }
+
+    /** Draws the box effect's program over its shape, above what it overlaps. */
+    @Override
+    public Void visitPaint(DrawCommand.Paint c) {
+        EffectPrograms effects = passes().effects();
+        ShaderInstance s = effects.program(c.effect());
+        if (s == null) {
+            return null;
+        }
+        flush();
+        graphics.flush();
+        RoundRect shape = c.shape();
+        float z = level(shape.x(), shape.y(), shape.x() + shape.width(), shape.y() + shape.height());
+        Affine back = Float.isNaN(pointerX) ? null : transform.invert();
+        float mx = back == null ? Float.NaN : back.x(pointerX, pointerY) - shape.x();
+        float my = back == null ? Float.NaN : back.y(pointerX, pointerY) - shape.y();
+        effects.bind(s, c.effect(), c.values(), shape, (float) Minecraft.getInstance().getWindow().getGuiScale(), time, mx, my);
+        effects.drawBox(s, shape, pose, z);
         return null;
     }
 
@@ -447,7 +485,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
 
     private FilterPasses passes() {
         if (passes == null) {
-            passes = new FilterPasses(FilterShaders.forHost(modid));
+            passes = new FilterPasses(FilterShaders.forHost(modid), EffectPrograms.forHost(modid));
         }
         return passes;
     }

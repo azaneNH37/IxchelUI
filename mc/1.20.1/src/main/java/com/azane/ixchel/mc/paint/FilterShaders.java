@@ -92,7 +92,7 @@ final class FilterShaders {
      * {@code shaders/core/<prefix><file>} as the file next to this class; a program definition gets
      * the prefix put into the program names it refers to.
      */
-    private static Optional<Resource> open(String path, String prefix) {
+    static Optional<Resource> open(String path, String prefix) {
         String file = path.substring(path.lastIndexOf('/') + 1);
         if (!file.startsWith(prefix)) {
             return Optional.empty();
@@ -110,8 +110,11 @@ final class FilterShaders {
         if (name.endsWith(".json")) {
             bytes = new String(bytes, StandardCharsets.UTF_8).replace("{prefix}", prefix).getBytes(StandardCharsets.UTF_8);
         }
-        byte[] content = bytes;
-        // The pack only names the source in compile errors.
-        return Optional.of(new Resource(Minecraft.getInstance().getVanillaPackResources(), () -> new ByteArrayInputStream(content)));
+        return Optional.of(resource(bytes));
+    }
+
+    /** {@code content} as a resource; the pack only names the source in compile errors. */
+    static Resource resource(byte[] content) {
+        return new Resource(Minecraft.getInstance().getVanillaPackResources(), () -> new ByteArrayInputStream(content));
     }
 }

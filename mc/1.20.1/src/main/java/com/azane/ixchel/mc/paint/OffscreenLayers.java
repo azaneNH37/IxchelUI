@@ -1,7 +1,10 @@
 package com.azane.ixchel.mc.paint;
 
+import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.css.property.Filter;
 import com.azane.ixchel.core.css.property.Keywords;
+import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.core.paint.RoundRect;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.Window;
@@ -66,6 +69,14 @@ final class OffscreenLayers {
         float opacity;
         List<Filter> filters;
         Keywords.MixBlendMode blend;
+        /** The layer effects of the {@code -ix-paint()} filters, the element's border box they see and the time. */
+        List<DrawCommand.LayerPaint> paints;
+        RoundRect frame;
+        float time;
+        /** GUI pixels back into the frame's coordinates; {@code null} for a transform no point reaches. */
+        Affine toLocal;
+        /** The pointer in the frame's coordinates; NaN for none. */
+        float mouseX, mouseY;
         /** What {@link #composite} draws: the target, or the last filter pass's output. */
         Target result;
         int parentFbo;
@@ -86,9 +97,11 @@ final class OffscreenLayers {
     /**
      * Opens a layer over the GUI rectangle, which the caller has already cut by its clip, cut further
      * by the window and the enclosing layer. Draws that follow go into it; with nothing left, they
-     * are scissored away.
+     * are scissored away. {@code outer} is the transform current at the command; the pointer
+     * ({@code pointerX}, {@code pointerY}) and {@code time} are what its layer effects see.
      */
-    void push(float x0, float y0, float x1, float y1, float opacity, List<Filter> filters, Keywords.MixBlendMode blend) {
+    void push(float x0, float y0, float x1, float y1, DrawCommand.PushLayer c, Affine outer, float pointerX, float pointerY,
+              float time) {
         if (depth == layers.size()) {
             layers.add(new Layer());
         }
@@ -111,9 +124,18 @@ final class OffscreenLayers {
                 top = Math.min(top, parent.y + parent.height);
             }
         }
-        l.opacity = opacity;
-        l.filters = filters;
-        l.blend = blend;
+        l.opacity = c.opacity();
+        l.filters = c.filters();
+        l.blend = c.blend();
+        l.paints = c.paints();
+        l.frame = c.frame();
+        l.time = time;
+        if (c.frame() != null) {
+            l.toLocal = (c.transform() == null ? outer : outer.then(c.transform())).invert();
+            boolean reached = l.toLocal != null && !Float.isNaN(pointerX);
+            l.mouseX = reached ? l.toLocal.x(pointerX, pointerY) - c.frame().x() : Float.NaN;
+            l.mouseY = reached ? l.toLocal.y(pointerX, pointerY) - c.frame().y() : Float.NaN;
+        }
         l.target = null;
         l.result = null;
         if (right <= left || top <= bottom) {
@@ -179,7 +201,7 @@ final class OffscreenLayers {
             return;
         }
         double s = Minecraft.getInstance().getWindow().getGuiScale();
-        l.result = passes.run(l.target, l.width, l.height, l.filters, (float) s);
+        l.result = passes.run(l.target, l.width, l.height, l.filters, (float) s, l);
         GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, l.parentFbo);
         RenderSystem.viewport(l.parentX, l.parentY, l.parentWidth, l.parentHeight);
     }

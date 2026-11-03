@@ -1,5 +1,8 @@
 <link rel="stylesheet" href="@ixchel/dark.css"/>
 <link rel="stylesheet" href="page.css"/>
+<link rel="effect" href="@ixchel/effects/glint"/>
+<link rel="effect" href="@ixchel/effects/dissolve"/>
+<link rel="effect" href="spotlight"/>
 <div class="screen">
   <div class="panel">
     <div class="header">
@@ -8,6 +11,7 @@
         <button class="tab opacity-tab" bind:class:selected="tab == 'opacity'" on:click="tab = 'opacity'" t="ixchel_sample.effects.opacity"></button>
         <button class="tab filters-tab" bind:class:selected="tab == 'filters'" on:click="tab = 'filters'" t="ixchel_sample.effects.filters"></button>
         <button class="tab blend-tab" bind:class:selected="tab == 'blend'" on:click="tab = 'blend'" t="ixchel_sample.effects.blend"></button>
+        <button class="tab shaders-tab" bind:class:selected="tab == 'shaders'" on:click="tab = 'shaders'" t="ixchel_sample.effects.shaders"></button>
       </div>
     </div>
 
@@ -80,6 +84,32 @@
         </for>
         <div class="glass blurred"><span t="ixchel_sample.effects.glass_blur"></span></div>
         <div class="glass gray"><span t="ixchel_sample.effects.glass_gray"></span></div>
+      </div>
+    </div>
+
+    <div class="page" bind:class:shown="tab == 'shaders'">
+      <span class="section" t="ixchel_sample.effects.box_effects"></span>
+      <div class="row">
+        <button class="glint" t="ixchel_sample.effects.glint"></button>
+        <div class="spotlight"><span t="ixchel_sample.effects.spotlight"></span></div>
+      </div>
+      <span class="section" t="ixchel_sample.effects.layer_effects"></span>
+      <div class="ground">
+        <div class="row">
+          <div class="card burn" bind:class:burnt="burnt">
+            <mc-item class="item" bind:item="apple"></mc-item>
+            <span t="ixchel_sample.effects.card"></span>
+          </div>
+          <button class="toggle burn-toggle" on:click="burnt = !burnt" t="ixchel_sample.effects.burn"></button>
+        </div>
+        <div class="row">
+          <div class="card scrub" bind:style:--dissolve-progress="progress">
+            <mc-item class="item" bind:item="apple"></mc-item>
+            <span t="ixchel_sample.effects.card"></span>
+          </div>
+          <button class="toggle step" on:click="progress = (progress + 0.25) % 1.25" t="ixchel_sample.effects.step"></button>
+          <span class="caption progress" bind:text="progress"></span>
+        </div>
       </div>
     </div>
   </div>

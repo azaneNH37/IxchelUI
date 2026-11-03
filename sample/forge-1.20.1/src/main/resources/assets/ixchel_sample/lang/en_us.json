@@ -54,7 +54,7 @@
   "ixchel_sample.index.tooltips.title": "Element tooltips",
   "ixchel_sample.index.tooltips.description": "Rich tooltips on buttons, form controls, terms in text and items (vanilla, custom, custom with the item's own lines); a scrolled list at the screen edge, nesting, a component, a countdown and a dialog.",
   "ixchel_sample.index.effects.title": "Visual effects",
-  "ixchel_sample.index.effects.description": "Group opacity: overlapping boxes, items and text fade as one, beside the same content faded piece by piece, and a card that fades with its item; every filter function, blend mode and backdrop filters behind rounded glass.",
+  "ixchel_sample.index.effects.description": "Group opacity: overlapping boxes, items and text fade as one, beside the same content faded piece by piece, and a card that fades with its item; every filter function, blend mode and backdrop filters behind rounded glass; shader effects: a glint, a tint that follows the pointer, cards that burn away.",
 
   "ixchel_sample.loot.title": "Nearby drops",
   "ixchel_sample.loot.count": "%s of %s drops",
@@ -285,5 +285,12 @@
   "ixchel_sample.effects.blend_modes": "mix-blend-mode over a flat canvas",
   "ixchel_sample.effects.backdrop": "backdrop-filter",
   "ixchel_sample.effects.glass_blur": "Blurred behind",
-  "ixchel_sample.effects.glass_gray": "Gray behind"
+  "ixchel_sample.effects.glass_gray": "Gray behind",
+  "ixchel_sample.effects.shaders": "Shaders",
+  "ixchel_sample.effects.box_effects": "Box effects: paint() in background-image",
+  "ixchel_sample.effects.glint": "Glint",
+  "ixchel_sample.effects.spotlight": "Point here",
+  "ixchel_sample.effects.layer_effects": "Layer effects: -ix-paint() in filter",
+  "ixchel_sample.effects.burn": "Burn",
+  "ixchel_sample.effects.step": "Step"
 }

@@ -45,6 +45,18 @@ public final class PropertyRegistry {
         }
     }
 
+    /**
+     * A registry open for more registrations, starting with this one's properties at the same ids and
+     * its shorthands, so values compiled against this one stay valid against it.
+     */
+    public PropertyRegistry extend() {
+        PropertyRegistry r = new PropertyRegistry();
+        r.byId.addAll(byId);
+        r.byName.putAll(byName);
+        r.shorthands.putAll(shorthands);
+        return r;
+    }
+
     /** Rejects further registration; computed style arrays sized before a registration would be too short. */
     public void freeze() {
         frozen = true;

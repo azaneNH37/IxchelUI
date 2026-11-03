@@ -4,7 +4,11 @@ import com.azane.ixchel.core.binding.ModelShape;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.PropertyDef;
+import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.ElementType;
+import com.azane.ixchel.core.effect.EffectParser;
+import com.azane.ixchel.core.effect.LibraryEffects;
+import com.azane.ixchel.core.effect.ParamType;
 import com.azane.ixchel.core.runtime.LibrarySheets;
 import com.azane.ixchel.core.template.ComponentDef;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -23,12 +27,12 @@ import java.util.TreeSet;
 
 /**
  * What a template author can write in a project: tags and their attributes, the library
- * stylesheets with their theme variables, the supported CSS properties and shorthands, the
- * project's components and its view models' members. Value syntax is not described: the property
- * registry does not expose a description of it.
+ * stylesheets with their theme variables, the supported CSS properties and shorthands, the effects
+ * a page can link with their params, the project's components and its view models' members. Value
+ * syntax is not described: the property registry does not expose a description of it.
  */
 public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Property> properties,
-                     List<Shorthand> shorthands, List<Component> components, List<Model> models) {
+                     List<Shorthand> shorthands, List<Effect> effects, List<Component> components, List<Model> models) {
     /**
      * @param attributes  the plain attributes the tag accepts, global ones included
      * @param payload     the attribute a native element's payload is bound to, or {@code null}
@@ -54,6 +58,19 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
      * @param variables the {@code --ix-*} custom properties it sets on {@code :root}, sorted
      */
     public record LibrarySheet(String name, List<String> variables) {
+    }
+
+    /**
+     * An effect a page can link: one of the library's or a {@code .ixeffect} file of the project.
+     *
+     * @param href the {@code <link rel="effect">} href: {@code @ixchel/effects/<name>}, or the file id
+     * @param kind {@code box} ({@code paint()}) or {@code layer} ({@code -ix-paint()})
+     */
+    public record Effect(String href, String name, String kind, List<EffectParam> params) {
+    }
+
+    /** @param property the custom property that sets it, {@code --<effect>-<param>} */
+    public record EffectParam(String property, String syntax, boolean inherits, String initial) {
     }
 
     /**
@@ -104,6 +121,16 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
         for (String name : LibrarySheets.names()) {
             sheets.add(new LibrarySheet(name, variables.getOrDefault(name, List.of())));
         }
+        List<Effect> effects = new ArrayList<>();
+        for (String name : LibraryEffects.names()) {
+            effects.add(effect(LibraryEffects.PREFIX + name, LibraryEffects.effect(name)));
+        }
+        for (String id : project.effects()) {
+            com.azane.ixchel.core.effect.Effect e = EffectParser.parse(project.read(id), id, new Diagnostics());
+            if (e != null) {
+                effects.add(effect(id, e));
+            }
+        }
         List<Component> components = new ArrayList<>();
         for (ComponentDef def : Components.scan(project, registry).defs()) {
             List<String> params = new ArrayList<>();
@@ -131,7 +158,7 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
             }
             models.add(new Model(a.type().getName(), a.patterns(), members));
         }
-        return new Schema(tags, sheets, properties, shorthands, components, models);
+        return new Schema(tags, sheets, properties, shorthands, effects, components, models);
     }
 
     /** The schema as JSON-ready maps, lists, strings and booleans. */
@@ -146,6 +173,10 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
                 "name", p.name(), "inherited", p.inherited(), "animatable", p.animatable())).toList());
         out.put("cssShorthands", shorthands.stream().map(s -> object(
                 "name", s.name(), "longhands", s.longhands())).toList());
+        out.put("effects", effects.stream().map(e -> object(
+                "href", e.href(), "name", e.name(), "kind", e.kind(),
+                "params", e.params().stream().map(p -> object("property", p.property(), "syntax", p.syntax(),
+                        "inherits", p.inherits(), "initial", p.initial())).toList())).toList());
         out.put("components", components.stream().map(c -> object(
                 "name", c.name(), "file", c.file(), "params", c.params(), "required", c.required(),
                 "events", c.events(), "slots", c.slots())).toList());
@@ -197,6 +228,18 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
         for (Shorthand s : shorthands) {
             sb.append("  ").append(s.name()).append(" -> ").append(String.join(" ", s.longhands())).append('\n');
         }
+        sb.append("effects:\n");
+        for (Effect e : effects) {
+            sb.append("  ").append(e.kind().equals("box") ? "paint(" : "-ix-paint(").append(e.name()).append(") ")
+                    .append(e.href()).append('\n');
+            for (EffectParam p : e.params()) {
+                sb.append("    ").append(p.property()).append(' ').append(p.syntax()).append(" = ").append(p.initial());
+                if (p.inherits()) {
+                    sb.append(" inherited");
+                }
+                sb.append('\n');
+            }
+        }
         sb.append("components:\n");
         for (Component c : components) {
             sb.append("  <").append(c.name()).append("> ").append(c.file()).append('\n');
@@ -229,6 +272,34 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
             out.add(c.required().contains(p) ? p : p + "?");
         }
         return String.join(" ", out);
+    }
+
+    private static Effect effect(String href, com.azane.ixchel.core.effect.Effect e) {
+        List<EffectParam> params = new ArrayList<>();
+        for (com.azane.ixchel.core.effect.Effect.Param p : e.params()) {
+            params.add(new EffectParam(e.property(p), p.type().syntaxName(), p.inherits(), initial(p)));
+        }
+        return new Effect(href, e.name(), e.kind().name().toLowerCase(), params);
+    }
+
+    /** {@code p}'s initial value as CSS writes it. */
+    private static String initial(com.azane.ixchel.core.effect.Effect.Param p) {
+        if (p.type() == ParamType.COLOR) {
+            int c = (Integer) p.initial();
+            return String.format("#%06x%02x", c & 0xFFFFFF, c >>> 24);
+        }
+        float v = (Float) p.initial();
+        return switch (p.type()) {
+            case LENGTH -> number(v) + "px";
+            case PERCENTAGE -> number(v * 100) + "%";
+            case ANGLE -> number(v) + "deg";
+            case TIME -> number(v) + "s";
+            default -> number(v);
+        };
+    }
+
+    private static String number(float v) {
+        return v == (int) v ? Integer.toString((int) v) : Float.toString(v);
     }
 
     /** An ordered JSON object from alternating keys and values; values may be {@code null}. */

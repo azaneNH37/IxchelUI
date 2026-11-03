@@ -2,8 +2,8 @@ package com.azane.ixchel.core.css.property;
 
 import java.util.List;
 
-/** A computed CSS {@code <image>}: {@code none}, {@code url()} or {@code linear-gradient()}. */
-public sealed interface CssImage permits CssImage.None, CssImage.Url, CssImage.LinearGradient {
+/** A computed CSS {@code <image>}: {@code none}, {@code url()}, {@code linear-gradient()} or {@code paint()}. */
+public sealed interface CssImage permits CssImage.None, CssImage.Url, CssImage.LinearGradient, CssImage.Paint {
     None NONE = new None();
 
     record None() implements CssImage {
@@ -24,5 +24,9 @@ public sealed interface CssImage permits CssImage.None, CssImage.Url, CssImage.L
     record LinearGradient(float angle, int cornerX, int cornerY, List<Stop> stops) implements CssImage {
         public record Stop(int color, Length position) {
         }
+    }
+
+    /** {@code paint(effect)}: the document's box effect {@code effect}, filling the border box. */
+    record Paint(String effect) implements CssImage {
     }
 }

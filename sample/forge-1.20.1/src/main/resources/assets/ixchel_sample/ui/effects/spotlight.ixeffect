@@ -1,0 +1,9 @@
+// A dim tint that lights up around the pointer while it is over the element.
+kind box;
+param color { syntax: <color>;  inherits: true;  initial-value: #4890e0; }
+param reach { syntax: <length>; inherits: false; initial-value: 40px; }
+
+vec4 effect(IxBox b) {
+    float glow = (1.0 - smoothstep(0.0, reach, distance(b.pos, ix_mouse))) * ix_mouse_inside;
+    return color * mix(0.3, 1.0, glow);
+}

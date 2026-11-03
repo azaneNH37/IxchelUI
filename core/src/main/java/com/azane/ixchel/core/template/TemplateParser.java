@@ -28,7 +28,8 @@ import java.util.Set;
  * <p>Stylesheets come from top-level {@code <link rel="stylesheet" href="…"/>} (self-closing, no other
  * attributes) and {@code <style>} elements; neither appears in the tree, both are collected in document
  * order as {@link Template#styles()}. A top-level {@code <link rel="component" href="…"/>} before the
- * first element makes the component of that file usable as a tag.
+ * first element makes the component of that file usable as a tag; a {@code <link rel="effect" href="…"/>}
+ * there links an {@code .ixeffect} file ({@link Template#effects()}).
  *
  * <p>The reserved tags {@code <for each as key>}, {@code <if test>}, {@code <slot name>} and
  * {@code <template name params events>} stay in the tree with their attributes as
@@ -64,6 +65,7 @@ public final class TemplateParser {
     private final Translations translations;
     private final int[] lineStarts;
     private final List<Template.StyleSource> styles = new ArrayList<>();
+    private final List<Template.Link> effects = new ArrayList<>();
     private final Map<String, ComponentDef> components = new HashMap<>();
     private boolean sawElement;
     private int templateDepth;
@@ -116,7 +118,7 @@ public final class TemplateParser {
         p.checkSlotPlacement(roots, null);
         p.checkMarkPlacement(roots, false);
         if (!componentFile) {
-            return new Template(roots, p.styles, null);
+            return new Template(roots, p.styles, p.effects, null);
         }
         Element template = null;
         for (Node n : roots) {
@@ -128,9 +130,9 @@ public final class TemplateParser {
         }
         if (template == null) {
             diag.report(TemplateCode.MISSING_COMPONENT_TEMPLATE, new SourcePos(file, 1, 1), "a component file needs a <template name=\"…\">");
-            return new Template(List.of(), p.styles, null);
+            return new Template(List.of(), p.styles, p.effects, null);
         }
-        return new Template(List.of(), p.styles, p.define(template));
+        return new Template(List.of(), p.styles, p.effects, p.define(template));
     }
 
     /** Parses nodes into {@code out} until EOF or a closing tag, which is left unconsumed. */
@@ -284,8 +286,8 @@ public final class TemplateParser {
             }
             String rel = element.attribute("rel");
             boolean valid = topLevel;
-            if (!"stylesheet".equals(rel) && !"component".equals(rel)) {
-                diag.report(TemplateCode.INVALID_LINK, openPos, "<link> requires rel=\"stylesheet\" or rel=\"component\"");
+            if (!"stylesheet".equals(rel) && !"component".equals(rel) && !"effect".equals(rel)) {
+                diag.report(TemplateCode.INVALID_LINK, openPos, "<link> requires rel=\"stylesheet\", rel=\"component\" or rel=\"effect\"");
                 valid = false;
             }
             String href = element.attribute("href");
@@ -303,6 +305,12 @@ public final class TemplateParser {
                     if (def != null) {
                         components.put(def.name(), def);
                     }
+                }
+            } else if (valid && "effect".equals(rel)) {
+                if (sawElement) {
+                    diag.report(TemplateCode.LINK_AFTER_ELEMENT, openPos, "<link rel=\"effect\"> must come before the first element");
+                } else {
+                    effects.add(new Template.Link(href, openPos));
                 }
             } else if (valid) {
                 styles.add(new Template.Link(href, openPos));

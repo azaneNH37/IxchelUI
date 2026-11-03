@@ -14,14 +14,20 @@ import java.util.concurrent.CompletableFuture;
  * {@code -Pplaytest=effects}: group opacity fades overlapping squares and items as one, unlike the
  * same squares faded one by one, and a card fades out with its item; each filter function changes its
  * tile the way CSS defines, each blend mode mixes a gold square with the canvas as its formula says,
- * and backdrop filters blur and gray the stripes behind glass; all of it still after a resource
- * reload. Read from the drawn pixels.
+ * and backdrop filters blur and gray the stripes behind glass; shader effects: a glint runs around a
+ * button, a tint lights up under the pointer, a card burns away on a transition and another dissolves
+ * part way by a binding; all of it still after a resource reload. Read from the drawn pixels.
  */
 public final class EffectsPlaytest {
     /** A gold square over a blue canvas: page.css {@code .blob} and {@code .blends}. */
     private static final int[] GOLD = {208, 160, 64};
     private static final int[] CANVAS = {48, 128, 192};
+    /** spotlight.ixeffect's default color. */
+    private static final int[] SPOT = {72, 144, 224};
     private static CompletableFuture<Void> reload = CompletableFuture.completedFuture(null);
+    /** The glint row a moment ago and the whole card's left padding, kept between steps. */
+    private static final int[][] glint = {null};
+    private static final int[][] well = {null};
 
     private EffectsPlaytest() {
     }
@@ -102,8 +108,53 @@ public final class EffectsPlaytest {
                 int[] c = rgb(pixel(canvas.x() + 164, glass.y() + 7));
                 return Math.abs(c[0] - c[1]) <= 6 && Math.abs(c[1] - c[2]) <= 6;
             });
+
+            s.click(".shaders-tab");
+            s.waitUntil("the shader tab shows", () -> Playtest.query(".spotlight").get(0).box().width() > 0, Playtest.WAIT);
+            s.run(() -> Playtest.hoverAt(0, 0));
+            s.pause(2);
+            s.shot("effects-shaders");
+            // Fails if the box effect's program does not draw, or draws with the pointer it does not have.
+            s.expect("the spotlight tints its box dimly with the pointer away", () -> spotlight(0.3));
+            s.run(() -> Playtest.hoverAt(spot()[0], spot()[1]));
+            s.pause(2);
+            s.expect("the spotlight lights up under the pointer", () -> spotlight(1));
+            s.run(() -> Playtest.hoverAt(0, 0));
+            s.run(() -> glint[0] = glintRow());
+            s.pause(10);
+            s.expect("the glint moves along the button's edge", () -> {
+                int[] now = glintRow();
+                for (int i = 0; i < now.length; i++) {
+                    if (!near(now[i], glint[0][i], 30)) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            s.run(() -> well[0] = cardPixels(".burn"));
+            s.expect("at progress 0 dissolve leaves the card whole", () -> uniform(well[0], well[0][0]));
+            s.click(".burn-toggle");
+            s.pause(40);
+            s.shot("effects-burnt");
+            // Fails if the typed parameter does not transition to 1 or the layer program does not run.
+            s.expect("the burnt card is gone", () -> uniform(cardGrid(".burn"), beside(".burn")));
+            s.click(".step");
+            s.click(".step");
+            s.waitUntil("progress reaches 0.5", () -> Playtest.text(".progress").equals("0.5"), Playtest.WAIT);
+            s.pause(2);
+            s.shot("effects-dissolving");
+            s.expect("at 0.5 the stepped card is partly gone", () -> {
+                int[] c = cardGrid(".scrub");
+                int bg = beside(".scrub");
+                boolean gone = false, kept = false;
+                for (int p : c) {
+                    gone |= near(p, bg, 4);
+                    kept |= near(p, well[0][0], 4);
+                }
+                return gone && kept;
+            });
             // F3+T: vanilla's reload deletes the shader objects in its program table, ours included.
-            // Fails if a layer, blend mode or backdrop draws wrong with the programs built before it.
+            // Fails if a layer, blend mode, backdrop or effect draws wrong with the programs built before it.
             s.run(() -> {
                 Minecraft.getInstance().setScreen(null);
                 reload = Minecraft.getInstance().reloadResourcePacks();
@@ -126,8 +177,84 @@ public final class EffectsPlaytest {
                 LayoutBox glass = Playtest.query(".glass.blurred").get(0).box();
                 return contrast(canvas.x() + 20, canvas.x() + 28, glass.y() + 7) < 40;
             });
+            s.click(".shaders-tab");
+            s.waitUntil("the shader tab shows again", () -> Playtest.query(".spotlight").get(0).box().width() > 0, Playtest.WAIT);
+            s.run(() -> Playtest.hoverAt(0, 0));
+            s.pause(2);
+            s.expect("after a reload, the spotlight still draws", () -> spotlight(0.3));
             s.run(() -> Minecraft.getInstance().setScreen(null));
         });
+    }
+
+    /** A point of the spotlight box clear of its caption: 10px in, 5px down. */
+    private static float[] spot() {
+        LayoutBox b = Playtest.query(".spotlight").get(0).box();
+        return new float[]{b.x() + 10, b.y() + 5};
+    }
+
+    /** Whether the spotlight shows its color at {@code strength} over the panel beside it. */
+    private static boolean spotlight(double strength) {
+        float[] p = spot();
+        int[] c = rgb(pixel(p[0], p[1]));
+        int[] bg = rgb(beside(".spotlight"));
+        for (int i = 0; i < 3; i++) {
+            if (Math.abs(c[i] - (bg[i] * (1 - strength) + SPOT[i] * strength)) > 8) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** The glint button's pixels 1px inside its top edge, every 2px. */
+    private static int[] glintRow() {
+        LayoutBox b = Playtest.query(".glint").get(0).box();
+        int[] row = new int[(int) (b.width() / 2)];
+        for (int i = 0; i < row.length; i++) {
+            row[i] = pixel(b.x() + 1 + 2 * i, b.y() + 1);
+        }
+        return row;
+    }
+
+    /** Pixels of the card {@code selector} in its left padding, top to bottom, clear of the item and text. */
+    private static int[] cardPixels(String selector) {
+        LayoutBox b = Playtest.query(selector).get(0).box();
+        int[] c = new int[(int) b.height() - 4];
+        for (int i = 0; i < c.length; i++) {
+            c[i] = pixel(b.x() + 3, b.y() + 2 + i);
+        }
+        return c;
+    }
+
+    /** The pixel 3px left of the element {@code selector}, the panel behind it. */
+    private static int beside(String selector) {
+        LayoutBox b = Playtest.query(selector).get(0).box();
+        return pixel(b.x() - 3, b.y() + b.height() / 2);
+    }
+
+    /** Whether every pixel of {@code c} is {@code expected} within a rounding margin. */
+    private static boolean uniform(int[] c, int expected) {
+        for (int p : c) {
+            if (!near(p, expected, 4)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Pixels of the card {@code selector} every 3px across and down from 2px in, item and text included. */
+    private static int[] cardGrid(String selector) {
+        LayoutBox b = Playtest.query(selector).get(0).box();
+        int columns = (int) ((b.width() - 2) / 3), rows = (int) ((b.height() - 2) / 3);
+        int[] c = new int[columns * rows];
+        Minecraft mc = Minecraft.getInstance();
+        double scale = mc.getWindow().getGuiScale();
+        try (NativeImage image = Screenshot.takeScreenshot(mc.getMainRenderTarget())) {
+            for (int i = 0; i < c.length; i++) {
+                c[i] = image.getPixelRGBA((int) ((b.x() + 2 + 3 * (i % columns)) * scale),
+                        (int) ((b.y() + 2 + 3 * (i / columns)) * scale));
+            }
+        }
+        return c;
     }
 
     /** The middle of the overlap of the two squares in {@code stack}. */

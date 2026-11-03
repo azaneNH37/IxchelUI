@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画），以及 FX1–FX2（私有图层与整组 `opacity`、标准滤镜与混合）；接下来是 U4（组件库）、FX3；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画），以及 FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效）；接下来是 U4（组件库）；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -51,7 +51,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | U4 | 待做 | — | `ix-` 组件库：tabs、tree、进度条等 |
 | FX1 | 完成 | — | 私有图层；`opacity` 整组语义（shader 构造并入 FX2） |
 | FX2 | 完成 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
-| FX3 | 待做 | — | `.effect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028） |
+| FX3 | 完成 | — | `.ixeffect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028），结果见下文 |
 | REC | 待做 | — | playtest 动图录制：连续截帧合成 GIF/MP4；排期未定，只依赖 T2 |
 
 依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
@@ -260,17 +260,30 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 #### FX3 具名特效
 
-- 已定（2026-11-03）：
-  - shader 构造：库自带的固定 shader 照 #033 从 classpath 构造，不走 `RegisterShadersEvent`；`.effect` 在文档首次使用时构造，按资源路径缓存，库自己的重载监听清空缓存；编译错误报进对应文档的诊断并映射行号，不中断资源重载。`reloadShaders` 不关闭库构造的程序，清缓存时须先 `close()` 旧实例：`Program` 按名字留在全局表里，不关则同名重建会复用旧编译结果，改动不生效。
+- 已定（2026-11-03，2026-11-04 补充）：
+  - 文件后缀为 `.ixeffect`。
+  - shader 构造：库自带的固定 shader 照 #033 从 classpath 构造，不走 `RegisterShadersEvent`；`.ixeffect` 在文档首次使用时构造，按资源路径缓存，库自己的重载监听清空缓存；编译错误报进对应文档的诊断并映射行号，不中断资源重载。`reloadShaders` 不关闭库构造的程序，清缓存时须先 `close()` 旧实例：`Program` 按名字留在全局表里，不关则同名重建会复用旧编译结果，改动不生效。
   - 程序名为整段资源路径转义后的 `<宿主modid>_fx_<路径>`；参数前缀仍取文件名，同一文档引入两个同名特效时开发期报错，不做别名。
-  - 参数类型由文档引入的特效声明，`transition` 与 `@keyframes` 按该类型插值；其余自定义属性照旧无类型，不做通用 `@property`。
+  - 首批只做 `kind box` 与 `kind layer`；`kind backdrop` 报 `effect/*` 码，有场景再做。
+  - 参数声明照搬 `@property` 的三个描述符：`param 名 { syntax: <类型>; inherits: true|false; initial-value: 值; }`，`inherits` 必填。`transition` 与 `@keyframes` 按声明类型插值；其余自定义属性照旧无类型，不开放通用 `@property`。
+  - 单位：`b.pos`、`b.size`、`ix_mouse` 与 `<length>` 参数均为物理像素，另给 `ix_scale`（GUI 缩放）。
+  - 分层：头部解析与内置特效文件在 core（内置经 `@ixchel/effects/…` 引入，与官方 CSS 同在 classpath，资源包不可覆盖）；正文包装、`ix_*` 原语库与编译在各版本 mc。宿主自己的 `.ixeffect` 在 assets，可被资源包覆盖。
+  - `paint()` 铺满背景区、按 `border-radius` 裁剪，不受 `background-size`/`position`/`repeat` 影响，可与 `url()`、渐变按层叠用。GLSL 编译失败报进文档诊断，box 层跳过、layer 按无特效合成。无指针（HUD）时 `ix_mouse` 取远处值，另给 `ix_mouse_inside`。
   - 首批内置特效只有 `glint`（box）与 `dissolve`（layer）。
   - `ix_time` 取文档时钟（与 transition、动画同为墙钟），取模防精度损失；`ix_mouse` 为元素内像素坐标，与 `b.pos` 同系。
-  - `.effect` 热重载与模板读同一套开发期源目录。
-- 引擎：`.effect` 解析（`kind`、类型化 `param`）、uniform 与 fsh/vsh/json 生成、GLSL 原语库；`<link rel="effect">`；`background-image: paint(名)`、`filter: -ix-paint(名)`、`backdrop-filter` 中的特效；参数自定义属性按声明类型校验并可 `transition`；错误码 `effect/*`，GLSL 编译错误行号映射回 `.effect`；内置特效经 `@ixchel/effects/…` 引入。layer 特效的元素本地坐标经 transform 逆矩阵 uniform 给出（FX1 图层在 transform 外）。
+  - `.ixeffect` 热重载与模板读同一套开发期源目录。
+- 引擎：`.ixeffect` 解析（`kind`、类型化 `param`）、uniform 与 fsh/vsh/json 生成、GLSL 原语库；`<link rel="effect">`；`background-image: paint(名)`、`filter: -ix-paint(名)`；参数自定义属性按声明类型校验并可 `transition`；错误码 `effect/*`，GLSL 编译错误行号映射回 `.ixeffect`；内置特效经 `@ixchel/effects/…` 引入。layer 特效的元素本地坐标经 transform 逆矩阵 uniform 给出（FX1 图层在 transform 外）。
 - 工具：kit lint 覆盖 CSS 一侧的检查；schema 列出特效与参数。
 - sample：一个场景用一个 `box` 特效与一个 `layer` 特效，其中一个参数由 `bind:style:--x` 驱动。
-- 验收：上述用法写成 playtest 截图；错误用法逐项由 lint 报码；改动 `.effect` 后 F3+T 生效；在生产实例装 Oculus + 光影包 + ImmediatelyFast + Embeddium 实测截图并与不装时对比；1.21.1 `runClient` 冒烟。
+- 验收：上述用法写成 playtest 截图；错误用法逐项由 lint 报码；改动 `.ixeffect` 后 F3+T 生效；在生产实例装 Oculus + BSL 光影 + ImmediatelyFast + Embeddium 实测截图并与不装时对比；1.21.1 `runClient` 冒烟。
+- 结果（2026-11-04）：完成。core：`effect` 包（`EffectParser` 解析头部，`Effects` 管一个文档引入的特效与参数，`LibraryEffects` 读 `@ixchel/effects/glint`、`dissolve`，13 个 `effect/*` 码）；`<link rel="effect">` 由 `TemplateLoader` 解析；参数按声明类型注册为属性，可 `transition`、`@keyframes`、`bind:style:--x`；新增 `DrawCommand.Paint`（box 特效），`PushLayer` 的滤镜链可含 `LayerPaint`（`-ix-paint()`）。mc（两版）：`paint.EffectPrograms` 把正文夹在 `shaders/effect.glsl` 原语库与按 kind 生成的 `main` 之间编译，参数为 uniform；`FilterPasses` 跑 layer 特效，`McPainter.visitPaint` 画 box 特效。kit：lint 逐个检查项目内 `.ixeffect` 头部（未被引入的也查），schema 列出库与项目的特效及参数（属性名、类型、继承、初值）。sample（1.20.1）：effects 页"着色器"标签，`glint` 按钮、项目自带的 `spotlight`（跟随指针的 box 特效）、`dissolve` 卡片一张由 `transition` 驱动、一张由 `bind:style:--dissolve-progress` 逐步驱动；两张卡片放在不透明底上，溶解后的像素断言不受面板后的世界影响。
+  - 与"已定"的出入：
+    - 不在首次绘制时构造、也没有库自己的重载监听：`HostedDocument.load()` 编译文档引入的全部特效，开发期保存与 F3+T 都会重载文档，覆盖同样的场景；编译失败报 `effect/compile-failed` 并抛出加载错误（开发期叠加层显示），不中断资源重载。
+    - 程序名不是 `<modid>_fx_<路径>`，而是每次构造取新名 `<modid>_ixchel_fx<n>`，按特效 id 缓存、文本不变则复用；新程序编译成功后才关闭旧实例，失败时旧程序照画（开发期改坏后文档仍可用）。
+    - 行号映射：GLSL 1.50 中 `#line n` 使下一行为 n+1，正文前写 `#line (bodyLine - 1)`；实测改坏的 `spotlight.ixeffect` 报在 `:8:1`。
+  - 验证：core 260 项测试、kit 测试通过；全量 `build` 与两版 lint 通过；Forge `-Pplaytest=all` 14 项全部通过，effects 新增 10 项断言（指针在外暗、在内亮，流光移动，溶解 0、1、0.5 三档，资源重载后仍画）；开发期热重载临时实测：改坏 `.ixeffect` 显示 `effect/compile-failed` 且旧程序照画，改回后生效。1.21.1 的 sample 没有 effects 页，经临时入口在标题界面打开带三种特效的页面截图确认，入口已移除。
+  - 未做：生产实例（Oculus + BSL + ImmediatelyFast + Embeddium）实测，待有该环境时补；`FrameTimer` 预算未单列着色器标签。
+  - 已知：参数在 uniform 不存在时（正文没用到）原版打 "could not find uniform" 警告；行内 `style` 不经 `Effects.check`；类型化参数不能经 `var()` 读出；`kind backdrop` 报 `effect/unsupported-kind`；关闭特效的 `ShaderInstance` 会一并关掉共享的顶点程序对象，已链接的程序不受影响。
 
 #### REC playtest 动图录制
 

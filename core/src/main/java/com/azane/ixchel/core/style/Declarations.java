@@ -164,7 +164,7 @@ public final class Declarations {
 
     private static void compileOne(Rule.Declaration d, PropertyRegistry registry, Diagnostics diag,
                                    List<Longhand> out, List<Custom> customs) {
-        if (d.name().startsWith("--")) {
+        if (d.name().startsWith("--") && registry.byName(d.name()) == null) {
             if (Vars.check(d.value(), diag)) {
                 customs.add(new Custom(d.name(), d.value(), d.important()));
             }

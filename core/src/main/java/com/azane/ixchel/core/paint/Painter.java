@@ -15,6 +15,7 @@ import com.azane.ixchel.core.css.property.Length;
 import com.azane.ixchel.core.css.property.ScrollbarColor;
 import com.azane.ixchel.core.css.property.TextShadow;
 import com.azane.ixchel.core.css.property.Transform;
+import com.azane.ixchel.core.diag.DiagCode;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayerFacet;
@@ -25,8 +26,12 @@ import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.layout.LayoutEngine;
+import com.azane.ixchel.core.effect.Effect;
+import com.azane.ixchel.core.effect.EffectCode;
+import com.azane.ixchel.core.effect.Effects;
 import com.azane.ixchel.core.layout.Scrollbar;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -52,6 +57,12 @@ import java.util.Set;
  * {@link DisplayList.Bounds}) grown by how far the filters spread it. A {@code backdrop-filter} is a
  * {@link DrawCommand.Backdrop} before the element's box. An element with opacity 0 paints nothing but
  * still takes pointer events, as in CSS.
+ *
+ * <p>A {@code paint()} background layer is one {@link DrawCommand.Paint} over the border box, whatever
+ * the layer's size, position and repeat; a {@code -ix-paint()} filter becomes one of the layer's
+ * {@link DrawCommand.LayerPaint}s. An effect name the document does not link, or of the other kind,
+ * reaches here only through {@code var()} or a binding; it is reported once and the layer or filter
+ * is left out.
  *
  * <p>A scroll container ({@code overflow} other than {@code visible}) clips its descendants to its
  * padding box and paints them {@link Element#scrollTop()} higher, then its {@link Scrollbar} over
@@ -83,15 +94,20 @@ public final class Painter implements PaintFacet.Context {
 
     private final LayoutEngine layout;
     private final ImageMeasurer images;
+    private final Effects effects;
     private final Diagnostics diag;
     private final Set<String> reported = new HashSet<>();
     private final DisplayList.Bounds bounds;
     private boolean caretVisible;
 
-    /** @param diag receives paint-time errors (an image that cannot be measured), each reported once */
-    public Painter(LayoutEngine layout, ImageMeasurer images, Diagnostics diag) {
+    /**
+     * @param effects the document's effects, which {@code paint()} and {@code -ix-paint()} name
+     * @param diag    receives paint-time errors (an image that cannot be measured), each reported once
+     */
+    public Painter(LayoutEngine layout, ImageMeasurer images, Effects effects, Diagnostics diag) {
         this.layout = layout;
         this.images = images;
+        this.effects = effects;
         this.diag = diag;
         this.bounds = new DisplayList.Bounds(layout::textWidth);
     }
@@ -198,10 +214,52 @@ public final class Painter implements PaintFacet.Context {
             for (int i = 0; i < filters.size(); i++) {
                 spread += filters.get(i).reach();
             }
+            List<DrawCommand.LayerPaint> paints = List.of();
+            RoundRect frame = null;
+            for (int i = 0; i < filters.size(); i++) {
+                if (filters.get(i).kind() == Filter.Kind.PAINT) {
+                    paints = new ArrayList<>(2);
+                    filters = layerPaints(e, cs, filters, paints);
+                    frame = new RoundRect(b.x(), b.y() - dy, b.width(), b.height(), radii(cs, b.width(), b.height()));
+                    break;
+                }
+            }
             out.set(start, new DrawCommand.PushLayer(r[0] - spread, r[1] - spread, r[2] - r[0] + 2 * spread,
-                    r[3] - r[1] + 2 * spread, opacity, filters, blend));
+                    r[3] - r[1] + 2 * spread, opacity, filters, blend, paints, frame, m));
             out.add(DrawCommand.PopLayer.INSTANCE);
         }
+    }
+
+    /** {@code filters} without the {@code -ix-paint()}s that name no usable effect; the others' effects go to {@code paints}. */
+    private List<Filter> layerPaints(Element e, ComputedStyle cs, List<Filter> filters, List<DrawCommand.LayerPaint> paints) {
+        List<Filter> kept = new ArrayList<>(filters.size());
+        for (int i = 0; i < filters.size(); i++) {
+            Filter f = filters.get(i);
+            if (f.kind() != Filter.Kind.PAINT) {
+                kept.add(f);
+                continue;
+            }
+            Effect effect = effect(e, f.effect(), Effect.Kind.LAYER);
+            if (effect != null) {
+                kept.add(f);
+                paints.add(new DrawCommand.LayerPaint(effect, effects.values(effect, cs)));
+            }
+        }
+        return kept;
+    }
+
+    /** The linked effect {@code name} of {@code kind}; otherwise reports why not and returns {@code null}. */
+    private Effect effect(Element e, String name, Effect.Kind kind) {
+        Effect effect = effects.byName(name);
+        if (effect == null) {
+            report(e, EffectCode.UNKNOWN_EFFECT, effects.unknown(name));
+            return null;
+        }
+        if (effect.kind() != kind) {
+            report(e, EffectCode.WRONG_KIND, Effects.wrongKind(effect));
+            return null;
+        }
+        return effect;
     }
 
     /** {@code grouped}: whether the element opened its own layer, which then holds its backdrop too. */
@@ -600,6 +658,13 @@ public final class Painter implements PaintFacet.Context {
      */
     private void paintLayer(Element e, ComputedStyle cs, LayoutBox b, RoundRect border, int i, int tint, DisplayList out) {
         CssImage image = cs.get(CssProperties.BACKGROUND_IMAGE).get(i);
+        if (image instanceof CssImage.Paint p) {
+            Effect effect = effect(e, p.effect(), Effect.Kind.BOX);
+            if (effect != null && b.width() > 0 && b.height() > 0) {
+                out.add(new DrawCommand.Paint(border, effect, effects.values(effect, cs)));
+            }
+            return;
+        }
         float areaW = b.width() - b.borderLeft() - b.borderRight();
         float areaH = b.height() - b.borderTop() - b.borderBottom();
         if (image == CssImage.NONE || areaW <= 0 || areaH <= 0) {
@@ -791,7 +856,7 @@ public final class Painter implements PaintFacet.Context {
         return l.resolve(free);
     }
 
-    private void report(Element e, PaintCode code, String message) {
+    private void report(Element e, DiagCode code, String message) {
         if (reported.add(e.pos() + ": " + message)) {
             diag.report(code, e.pos(), message);
         }

@@ -1,6 +1,7 @@
 package com.azane.ixchel.kit.project;
 
 import com.azane.ixchel.core.binding.UiTemplate;
+import com.azane.ixchel.core.effect.Effect;
 import com.azane.ixchel.core.template.NativeElement;
 
 import java.io.IOException;
@@ -139,6 +140,15 @@ public final class Project {
 
     /** The ids of every {@code .html} file under {@code assets/<namespace>/} of the resource roots, sorted. */
     public List<String> templates() {
+        return files(".html");
+    }
+
+    /** The ids of every {@code .ixeffect} file under {@code assets/<namespace>/} of the resource roots, sorted. */
+    public List<String> effects() {
+        return files(Effect.EXTENSION);
+    }
+
+    private List<String> files(String extension) {
         Set<String> ids = new TreeSet<>();
         for (Path root : resources) {
             Path assets = root.resolve(ASSETS);
@@ -148,7 +158,7 @@ public final class Project {
             try (Stream<Path> namespaces = Files.list(assets)) {
                 for (Path ns : namespaces.filter(Files::isDirectory).toList()) {
                     try (Stream<Path> files = Files.walk(ns)) {
-                        files.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith(".html"))
+                        files.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith(extension))
                                 .forEach(p -> ids.add(ns.getFileName() + ":"
                                         + ns.relativize(p).toString().replace('\\', '/')));
                     }

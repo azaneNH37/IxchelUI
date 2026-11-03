@@ -47,7 +47,7 @@ public record Keyframes(String name, List<Track> tracks) {
                         diag.report(PropertyCode.NOT_ANIMATABLE, d.pos(),
                                 "a keyframe's animation-timing-function takes an easing, without var() or a CSS-wide keyword");
                     }
-                } else if (n.startsWith("--") || n.equals("display") || n.equals("animation") || n.startsWith("animation-")
+                } else if (n.startsWith("--") && registry.byName(n) == null || n.equals("display") || n.equals("animation") || n.startsWith("animation-")
                         || n.equals("transition") || n.startsWith("transition-")) {
                     diag.report(PropertyCode.NOT_ANIMATABLE, d.pos(), "'" + n + "' cannot be animated with @keyframes");
                 } else {

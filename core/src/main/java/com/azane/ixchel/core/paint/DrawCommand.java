@@ -4,6 +4,7 @@ import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.css.property.Filter;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.dom.StyledText;
+import com.azane.ixchel.core.effect.Effect;
 
 import java.util.List;
 
@@ -14,8 +15,9 @@ import java.util.List;
  */
 public sealed interface DrawCommand
         permits DrawCommand.Rect, DrawCommand.Fill, DrawCommand.Border, DrawCommand.Shadow, DrawCommand.Text,
-        DrawCommand.Image, DrawCommand.Custom, DrawCommand.PushClip, DrawCommand.PopClip, DrawCommand.PushTransform,
-        DrawCommand.PopTransform, DrawCommand.PushLayer, DrawCommand.PopLayer, DrawCommand.Backdrop {
+        DrawCommand.Image, DrawCommand.Custom, DrawCommand.Paint, DrawCommand.PushClip, DrawCommand.PopClip,
+        DrawCommand.PushTransform, DrawCommand.PopTransform, DrawCommand.PushLayer, DrawCommand.PopLayer,
+        DrawCommand.Backdrop {
 
     <R> R accept(Visitor<R> v);
 
@@ -33,6 +35,8 @@ public sealed interface DrawCommand
         R visitImage(Image c);
 
         R visitCustom(Custom c);
+
+        R visitPaint(Paint c);
 
         R visitPushClip(PushClip c);
 
@@ -107,6 +111,19 @@ public sealed interface DrawCommand
     }
 
     /**
+     * A box effect ({@code background-image: paint()}) filling {@code shape}, the border box, clipped to
+     * its rounded corners. {@code values} are the effect's params as {@link com.azane.ixchel.core.effect.Effects#values}
+     * packs them; the host compiles the effect, draws nothing when it does not compile, and owns the
+     * time and pointer inputs.
+     */
+    record Paint(RoundRect shape, Effect effect, float[] values) implements DrawCommand {
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitPaint(this);
+        }
+    }
+
+    /**
      * {@code (x, y)} is the top-left of a line of the text's font; {@code size} is the font size in GUI
      * pixels. {@code flags} are {@link StyledText}'s: bold, italic, underline, strikethrough, obfuscated.
      */
@@ -177,13 +194,23 @@ public sealed interface DrawCommand
      * The rectangle, in the coordinates current at this command (an outer transform maps it too),
      * bounds everything they draw and what the filters spread it to; the host may clip it further to
      * the current clip and the screen.
+     *
+     * <p>{@code paints} hold the layer effects of the {@link Filter.Kind#PAINT} filters, in order.
+     * {@code frame} is the element's border box and {@code transform} its own transform ({@code null}
+     * if none), which applies inside the layer: an effect's element-local position at a point of the
+     * layer is that point mapped back through {@code transform}, relative to the frame's corner.
      */
     record PushLayer(float x, float y, float width, float height, float opacity, List<Filter> filters,
-                     Keywords.MixBlendMode blend) implements DrawCommand {
+                     Keywords.MixBlendMode blend, List<LayerPaint> paints, RoundRect frame, Affine transform)
+            implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitPushLayer(this);
         }
+    }
+
+    /** A layer effect of a {@link PushLayer}, its params packed as for {@link Paint}. */
+    record LayerPaint(Effect effect, float[] values) {
     }
 
     record PopLayer() implements DrawCommand {

@@ -52,10 +52,12 @@ class LintTest {
     @Test
     void reportsTypeErrorsMissingTemplatesUnclaimedPagesAndKeysMissingFromTheBaseLanguage() throws URISyntaxException {
         // part.html is a component file, checked through claimed.html; the unclaimed page's unknown
-        // name is not reported, since without a model every name is unknown.
+        // name is not reported, since without a model every name is unknown. No page links
+        // unlinked.ixeffect, and its header is still checked.
         assertEquals(List.of(
                 "model/missing-template " + MissingView.class.getName() + ":0:0",
                 "binding/payload-type kitfixture:ui/claimed.html:3:23",
+                "effect/unsupported-syntax kitfixture:ui/fx/unlinked.ixeffect:2:15",
                 "model/unassociated-template kitfixture:ui/unclaimed.html:1:1",
                 "i18n/missing-translation kitfixture:ui/unclaimed.html:4:12"),
                 lint(Set.of()));

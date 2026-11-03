@@ -230,3 +230,44 @@ button {
   left: 150px;
   backdrop-filter: grayscale(1) brightness(0.8);
 }
+
+/* Shader effects: a glint running around a button, a tint that follows the pointer, and cards that
+   burn away, one on a toggle with a transition and one stepped through by a binding. */
+.glint {
+  border-radius: 4px;
+  background-image: paint(glint);
+  --glint-color: #ffd860;
+  --glint-speed: 0.4;
+}
+
+.spotlight {
+  width: 120px;
+  height: 40px;
+  justify-content: center;
+  align-items: center;
+  border-radius: 6px;
+  background-image: paint(spotlight);
+  --spotlight-reach: 30px;
+}
+
+/* Opaque, so a burnt card leaves one flat color whatever the world behind the panel shows. */
+.ground {
+  align-self: flex-start;
+  padding: 4px;
+  gap: 4px;
+  background-color: #20242C;
+}
+
+.burn,
+.scrub {
+  border-radius: 3px;
+  filter: -ix-paint(dissolve);
+}
+
+.burn {
+  transition: --dissolve-progress 1500ms linear;
+}
+
+.burn.burnt {
+  --dissolve-progress: 1;
+}

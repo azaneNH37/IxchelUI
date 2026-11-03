@@ -233,7 +233,10 @@ public final class Transitions implements StyleEngine.Hook {
         return true;
     }
 
-    /** For each property id, its position in {@code transition-property}; the last match wins, {@code -1} if none. */
+    /**
+     * For each property id, its position in {@code transition-property}; the last match wins, {@code -1}
+     * if none. Custom property names other than the document's effect params match nothing.
+     */
     private int[] index(List<String> names) {
         int[] out = new int[registry.size()];
         Arrays.fill(out, -1);
@@ -252,8 +255,10 @@ public final class Transitions implements StyleEngine.Hook {
                 out[def.id()] = i;
             } else {
                 Shorthand s = registry.shorthand(name);
-                for (PropertyDef<?> d : s.longhands()) {
-                    out[d.id()] = i;
+                if (s != null) {
+                    for (PropertyDef<?> d : s.longhands()) {
+                        out[d.id()] = i;
+                    }
                 }
             }
         }

@@ -36,7 +36,7 @@ public enum TemplateCode implements DiagCode {
     INVALID_LINK("template/invalid-link", Severity.ERROR,
             "A <link> is not self-closing or lacks a valid rel or an href."),
     LINK_AFTER_ELEMENT("template/link-after-element", Severity.ERROR,
-            "A <link rel=\"component\"> comes after the first element."),
+            "A <link rel=\"component\"> or <link rel=\"effect\"> comes after the first element."),
     UNKNOWN_ATTRIBUTE("template/unknown-attribute", Severity.ERROR,
             "The element does not accept this attribute."),
     MOVED_ATTRIBUTE("template/moved-attribute", Severity.ERROR,

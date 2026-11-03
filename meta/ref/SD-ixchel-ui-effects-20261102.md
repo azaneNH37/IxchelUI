@@ -9,7 +9,7 @@ related: [DECISIONS.md#001, DECISIONS.md#002, DECISIONS.md#003, DECISIONS.md#015
 
 ## Summary
 
-特效是一个 `.effect` 资源文件：`kind`（`box`/`layer`/`backdrop`）、类型化 `param` 与一个 GLSL `effect()` 函数，函数用库内原语库（SDF、噪声、颜色矩阵、混合等）组合而成。文档用 `<link rel="effect">` 按资源路径引入；`box` 类写 `background-image: paint(名)`，`layer` 类写 `filter: -ix-paint(名)`，参数是自定义属性 `--名-参数`。底座是私有图层与 shader 注册，均不需要 mixin；UI 在光影最终输出之后绘制，不与光影冲突。
+特效是一个 `.ixeffect` 资源文件：`kind`（`box`/`layer`/`backdrop`）、类型化 `param` 与一个 GLSL `effect()` 函数，函数用库内原语库（SDF、噪声、颜色矩阵、混合等）组合而成。文档用 `<link rel="effect">` 按资源路径引入；`box` 类写 `background-image: paint(名)`，`layer` 类写 `filter: -ix-paint(名)`，参数是自定义属性 `--名-参数`。底座是私有图层与 shader 注册，均不需要 mixin；UI 在光影最终输出之后绘制，不与光影冲突。
 
 ## Detail
 
@@ -77,7 +77,7 @@ related: [DECISIONS.md#001, DECISIONS.md#002, DECISIONS.md#003, DECISIONS.md#015
 | 背后黑白 / 变暗 | backdrop | 背景快照 → 颜色矩阵 | 能（`backdrop-filter`） |
 | bloom | layer | 阈值提亮 → 模糊 → 叠加回去 | 不能 |
 
-标准 CSS 拼不出的部分，缺的主要是噪声与 UV 扭曲两类原语，这部分由 `.effect` 提供。
+标准 CSS 拼不出的部分，缺的主要是噪声与 UV 扭曲两类原语，这部分由 `.ixeffect` 提供。
 
 ### 3. 三种机制
 
@@ -102,8 +102,8 @@ flowchart TD
 ### 4. MC 约束与做法
 
 - 源码从包路径读取：`ShaderInstance(ResourceProvider, String, VertexFormat)` 读 json、vsh、fsh 与 `#moj_import` 都经传入的 provider，1.20.1 与 1.21.1 签名相同；库用自己的 classpath provider，源码随 relocate 迁移，不需要固定 namespace 的 `assets/`（#001）。
-- 程序名带宿主 modid 前缀：`ShaderInstance.getOrCreate` 按名字查 `Program.Type.getPrograms()` 这张全局静态表，同名直接复用。两个宿主各 shade 不同版本的库时，同名会拿到对方编译的程序。库自带 shader 名为 `<宿主modid>_ixchel_<名>`，`.effect` 为 `<宿主modid>_fx_<路径>`。
-- 资源重载：`GameRenderer.reloadShaders` 只关闭原版自己 `shaders` 表里的实例，库构造的程序不受影响（实测，#033）。库自带 shader 不注册、不重建；`.effect` 由库的重载监听先 `close()` 旧实例再清缓存，否则同名重建会从全局表拿回旧程序。
+- 程序名带宿主 modid 前缀：`ShaderInstance.getOrCreate` 按名字查 `Program.Type.getPrograms()` 这张全局静态表，同名直接复用。两个宿主各 shade 不同版本的库时，同名会拿到对方编译的程序。库自带 shader 名为 `<宿主modid>_ixchel_<名>`，`.ixeffect` 每次构造取新名 `<宿主modid>_ixchel_fx<n>`，不会从全局表拿回旧编译结果。
+- 资源重载：`GameRenderer.reloadShaders` 只关闭原版自己 `shaders` 表里的实例，库构造的程序不受影响（实测，#033）。库自带 shader 不注册、不重建；`.ixeffect` 在文档加载（开发期保存与 F3+T 都会重载文档）时按特效 id 编译，文件文本不变则复用，变了则新程序编译成功后才 `close()` 旧实例；编译失败报 `effect/compile-failed`，旧程序照画。
 - 不用 `EffectInstance`/`PostChain`：它们只经 `ResourceManager` 读 `shaders/program`、`shaders/post`、`textures/effect` 这些固定资源路径。
 - 噪声图等纹理用 `DynamicTexture` 的原始 id，或以宿主 modid 注册。
 - GL 状态（前三条与最后两条是 CONVENTIONS「渲染」「嵌入边界」已有规则）：切换 FBO 或着色器前 `flush()`，这也是与 ImmediatelyFast 合批共存的前提；FBO 绑定走 `GlStateManager`/`RenderTarget.bindWrite`，否则原版与 Iris 的绑定缓存不同步；恢复进入前绑定的 FBO，而不是固定回主画面；viewport、投影矩阵、scissor（坐标换算到图层）、混合、深度测试在进出图层时保存并恢复；FBO 惰性分配、帧内按尺寸复用、用完释放；不用主画面模板缓冲。
@@ -111,14 +111,14 @@ flowchart TD
 
 ### 5. 定义格式
 
-一个特效一个 `.effect` 文件，放在宿主 UI 资源中，与模板、组件同处；名字取文件名。
+一个特效一个 `.ixeffect` 文件，放在宿主 UI 资源中，与模板、组件同处；名字取文件名。
 
 ```glsl
-// effects/glint.effect —— 边缘流光
+// effects/glint.ixeffect —— 边缘流光
 kind box;
-param color  <color>  = #ffffffcc;
-param speed  <number> = 0.5;       // 圈/秒
-param width  <length> = 2px;
+param color { syntax: <color>;  inherits: true;  initial-value: #ffffffcc; }
+param speed { syntax: <number>; inherits: false; initial-value: 0.5; }   // 圈/秒
+param width { syntax: <length>; inherits: false; initial-value: 2px; }
 
 vec4 effect(IxBox b) {
     float d     = ix_sd_round_rect(b.pos, b.size, b.radius);
@@ -129,11 +129,11 @@ vec4 effect(IxBox b) {
 ```
 
 ```glsl
-// effects/dissolve.effect —— 整块溶解
+// effects/dissolve.ixeffect —— 整块溶解
 kind layer;
-param progress   <number> = 0;
-param edge-color <color>  = #ff8a00;
-param edge       <length> = 3px;
+param progress   { syntax: <number>; inherits: false; initial-value: 0; }
+param edge-color { syntax: <color>;  inherits: true;  initial-value: #ff8a00; }
+param edge       { syntax: <length>; inherits: false; initial-value: 3px; }
 
 vec4 effect(IxLayer l) {
     vec4  c   = ix_content(l.uv);
@@ -143,11 +143,11 @@ vec4 effect(IxLayer l) {
 }
 ```
 
-- `kind` 决定可用的位置与输入：`box` 拿到 `IxBox`（元素内像素位置、尺寸、四角圆角）；`layer` 另有 `ix_content(uv)`；`backdrop` 另有 `ix_backdrop(uv)`。三者都有 `ix_time`、`ix_mouse`。
-- `param` 的类型取 CSS 值类型：`<number>`、`<length>`、`<percentage>`、`<color>`、`<angle>`、`<time>`。库生成 uniform：长度按 GUI 缩放换算为像素，颜色转 vec4，角度转弧度；参数名中的 `-` 在 GLSL 中写作 `_`。
-- 库把 `effect()` 包成完整的 fsh/vsh/json 并引入原语库；作者只写组合。
+- `kind` 决定可用的位置与输入：`box` 拿到 `IxBox`（元素内像素位置、尺寸、四角圆角）；`layer` 另有 `ix_content(uv)`；`backdrop` 另有 `ix_backdrop(uv)`（首批不做，见路线图 FX3）。三者都有 `ix_time`、`ix_mouse`、`ix_mouse_inside`、`ix_scale`。
+- `param` 照搬 `@property` 的三个描述符，`inherits` 必填；`syntax` 取 CSS 值类型：`<number>`、`<length>`、`<percentage>`、`<color>`、`<angle>`、`<time>`。库生成 uniform：位置、尺寸与长度均为物理像素（长度按 GUI 缩放换算），颜色转 vec4，角度转弧度；参数名中的 `-` 在 GLSL 中写作 `_`。
+- 库把 `effect()` 包成完整的 fsh/vsh/json 并引入原语库；作者只写组合。头部解析在 core（kit 静态可读），包装与编译在各版本 mc。
 - 圆角取自 `border-radius`（V1 已支持）。
-- 内置特效用同一格式写，随库发布，从 `@ixchel/effects/…` 引入，与 `LibrarySheets` 的 `@ixchel/` 命名一致；内置与用户特效没有区别。资源包可按同一资源 id 覆盖特效文件来换皮。
+- 内置特效用同一格式写，随库发布在 classpath，从 `@ixchel/effects/…` 引入，与 `LibrarySheets` 的 `@ixchel/` 命名一致，资源包不能覆盖。宿主自己的 `.ixeffect` 在 assets，资源包可按同一资源 id 覆盖来换皮。
 
 ### 6. 使用
 
@@ -173,9 +173,9 @@ vec4 effect(IxLayer l) {
 ```
 
 - `<link rel="effect">` 与 `<link rel="component">` 同规则：写在第一个元素之前，作用域为当前文档，没有全局注册表（#015）。
-- 参数是自定义属性 `--<特效名>-<参数名>`，前缀避免同一元素上两个特效的参数撞名。参数因此走层叠、`var()`（主题变量 #018）、伪类，以及 Java 侧的 `bind:style:--x`；因为带类型，相当于自动做了 `@property` 注册，可以 `transition`。未设置的参数取默认值。
-- `box` 类出现在 `background-image` 的图层列表中，可与图片、其它 `paint()` 叠用；`layer` 类出现在 `filter` 链中，与标准 filter 函数按书写顺序串联；`backdrop` 类出现在 `backdrop-filter` 中。
-- 开发期检查（#003、#023，码前缀 `effect/`）：未引入的特效名、`kind` 与所在属性不符、未声明的参数、参数值不合类型。CSS 一侧由 `ixchelLint` 报出；GLSL 只能在游戏内编译，编译错误在加载期报出，行号映射回 `.effect` 文件。改动 `.effect` 后资源重载即生效。
+- 参数是自定义属性 `--<特效名>-<参数名>`，前缀避免同一元素上两个特效的参数撞名。参数因此走层叠、`var()`（主题变量 #018）、伪类，以及 Java 侧的 `bind:style:--x`；`param` 即一次按文档的 `@property` 注册，可以 `transition`。未设置的参数取 `initial-value`；`inherits: false` 的参数不从父元素继承。
+- `box` 类出现在 `background-image` 的图层列表中，可与图片、其它 `paint()` 叠用，铺满背景区、按圆角裁剪；`layer` 类出现在 `filter` 链中，与标准 filter 函数按书写顺序串联；`backdrop` 类出现在 `backdrop-filter` 中。
+- 开发期检查（#003、#023，码前缀 `effect/`）：未引入的特效名、`kind` 与所在属性不符、未声明的参数、参数值不合类型。CSS 一侧由 `ixchelLint` 报出（行内 `style` 不查），另逐个检查项目内 `.ixeffect` 的头部，未被引入的也查；GLSL 只能在游戏内编译，编译错误在加载期报出，行号映射回 `.ixeffect` 文件。改动 `.ixeffect` 后资源重载即生效。
 
 ### 7. 已否决
 
@@ -190,7 +190,7 @@ vec4 effect(IxLayer l) {
 
 ### 8. 未解决
 
-- 光影与渲染 mod 实测：Oculus、OptiFine 未验证。验收方式是在生产实例装 Oculus + 光影包 + ImmediatelyFast + Embeddium，用 playtest 截图与不装时对比。
+- 光影与渲染 mod 实测：Oculus、OptiFine 未验证。验收方式是在生产实例装 Oculus + BSL 光影 + ImmediatelyFast + Embeddium，用 playtest 截图与不装时对比。
 - 版本前瞻（未核对源码）：1.21.2 起 shader 改由 `ShaderManager` 从资源包加载，1.21.5 起为 `RenderPipeline`，1.21.6 起 GUI 延迟渲染并经 PIP 渲染到纹理，自定义 provider 可能走不通。退路是 Gradle 插件在 shade 时把库 shader 复制到宿主 jar 的 `assets/<宿主modid>/shaders/`，namespace 仍归宿主。
 - 世界空间 UI：目前没有世界空间宿主（场景文档 §5 只记录不排期），`WorldProjection` 只换算坐标、仍在 HUD 中绘制。若将来在画世界期间画 UI，Iris 会接管原版着色器与主画面绑定，需单独评估。
 - HUD 帧开销：每个 `layer` 特效每帧多一次离屏绘制与一次合成。子树未变脏时可缓存图层、只重跑合成；可行性取决于 core 的脏标记粒度，未核对。

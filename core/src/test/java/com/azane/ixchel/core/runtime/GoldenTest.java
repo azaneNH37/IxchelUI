@@ -132,6 +132,11 @@ class GoldenTest {
             }
 
             @Override
+            public String visitPaint(DrawCommand.Paint c) {
+                return "paint " + c.effect().name() + " " + shape(c.shape()) + values(c.values());
+            }
+
+            @Override
             public String visitPushClip(DrawCommand.PushClip c) {
                 return "clip " + n(c.x()) + " " + n(c.y()) + " " + n(c.width()) + " " + n(c.height());
             }
@@ -154,8 +159,15 @@ class GoldenTest {
 
             @Override
             public String visitPushLayer(DrawCommand.PushLayer c) {
+                StringBuilder paints = new StringBuilder();
+                for (DrawCommand.LayerPaint p : c.paints()) {
+                    paints.append(" paint ").append(p.effect().name()).append(values(p.values()));
+                }
+                if (c.frame() != null) {
+                    paints.append(" frame ").append(shape(c.frame()));
+                }
                 return "layer " + n(c.x()) + " " + n(c.y()) + " " + n(c.width()) + " " + n(c.height()) + " " + n(c.opacity())
-                        + filters(c.filters()) + (c.blend() == Keywords.MixBlendMode.NORMAL ? "" : " " + c.blend());
+                        + filters(c.filters()) + (c.blend() == Keywords.MixBlendMode.NORMAL ? "" : " " + c.blend()) + paints;
             }
 
             @Override
@@ -195,11 +207,20 @@ class GoldenTest {
                 case BLUR -> sb.append(n(f.sigma()));
                 case DROP_SHADOW -> sb.append(n(f.x())).append(' ').append(n(f.y())).append(' ').append(n(f.sigma()))
                         .append(' ').append(argb(f.color()));
+                case PAINT -> sb.append(f.effect());
                 default -> sb.append(n(f.amount()));
             }
             sb.append(')');
         }
         return sb.toString();
+    }
+
+    private static String values(float[] values) {
+        StringBuilder sb = new StringBuilder(" [");
+        for (int i = 0; i < values.length; i++) {
+            sb.append(i == 0 ? "" : " ").append(n(values[i]));
+        }
+        return sb.append(']').toString();
     }
 
     private static String n(float f) {
