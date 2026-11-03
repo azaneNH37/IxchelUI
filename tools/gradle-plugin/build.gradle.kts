@@ -35,6 +35,19 @@ gradlePlugin {
     }
 }
 
+publishing {
+    publications.withType<MavenPublication>().configureEach {
+        pom {
+            licenses {
+                license {
+                    name = "MPL-2.0"
+                    url = "https://mozilla.org/MPL/2.0/"
+                }
+            }
+        }
+    }
+}
+
 // The library version and the coordinates the plugin adds to a mod outside this repository.
 val buildInfo by tasks.registering(WriteProperties::class) {
     destinationFile = layout.buildDirectory.file("generated/build-info/com/azane/ixchel/gradle/build.properties")

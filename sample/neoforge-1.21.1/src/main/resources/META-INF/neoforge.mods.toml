@@ -1,6 +1,6 @@
 modLoader = "javafml"
 loaderVersion = "[1,)"
-license = "All Rights Reserved"
+license = "MPL-2.0"
 
 [[mods]]
 modId = "ixchel_sample"

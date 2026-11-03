@@ -52,6 +52,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | FX1 | 待做 | — | 私有图层与 shader 注册；`opacity` 整组语义 |
 | FX2 | 待做 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
 | FX3 | 待做 | — | `.effect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028） |
+| REC | 待做 | — | playtest 动图录制：连续截帧合成 GIF/MP4；排期未定，只依赖 T2 |
 
 依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
@@ -248,6 +249,16 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 工具：kit lint 覆盖 CSS 一侧的检查；schema 列出特效与参数。
 - sample：一个场景用一个 `box` 特效与一个 `layer` 特效，其中一个参数由 `bind:style:--x` 驱动。
 - 验收：上述用法写成 playtest 截图；错误用法逐项由 lint 报码；改动 `.effect` 后 F3+T 生效；在生产实例装 Oculus + 光影包 + ImmediatelyFast + Embeddium 实测截图并与不装时对比；1.21.1 `runClient` 冒烟。
+
+#### REC playtest 动图录制
+
+- 动机：原版只有单张截图，V3、V4 这类动画靠静态截图看不出全程；动图可用于文档、PR 与逐帧检查。
+- 排期：未定，与其它阶段并行的小需求，只依赖 T2。
+- 拟定方案（开工前确认）：playtest 加录制步骤（暂名 `s.record(名, 帧数)`），逐帧读回；录制期间文档用固定步长时钟（如 16.67ms），先存内存、结束后再写 PNG 序列，由 ffmpeg 合成 GIF 或 MP4。
+- 范围：仅 1.20.1 的 playtest 框架（1.21.1 无此框架）；默认不录，用参数开启；合成不进 `build`，CI 不依赖 ffmpeg。
+- 先定：步骤名与开启参数；`UiDocument.clock` 是否放开给 mc 层（现由 core 测试使用）；合成由 Gradle 任务还是手动命令完成；输出格式。
+- 已知限制：固定时钟只管文档，背后的游戏世界仍是实时的，人物走动等与动画不同步。
+- 验收：一段进出动画录成动图，帧数与设定一致、逐帧位置符合缓动曲线；不开参数时 playtest 行为与耗时不变。
 
 #### Doc 用户文档
 
