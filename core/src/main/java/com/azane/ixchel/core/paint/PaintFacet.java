@@ -4,7 +4,7 @@ import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Facet;
 
-/** Paints an element's own content after its CSS box, using the pipeline's current opacity. */
+/** Paints an element's own content after its CSS box. */
 public interface PaintFacet {
     Facet<PaintFacet> KEY = new Facet<>(new PaintFacet() {});
     default void paint(Element e, float y, DisplayList out, Context context) {}
@@ -17,7 +17,6 @@ public interface PaintFacet {
         /** The height of the font's own lines at {@code size}, {@code line-height: normal}. */
         float fontHeight(float size);
         boolean caretVisible();
-        int fade(int color);
         void rect(DisplayList out, float x, float y, float w, float h, int color);
         void text(DisplayList out, ComputedStyle style, float x, float y, float size, int color, String text);
     }

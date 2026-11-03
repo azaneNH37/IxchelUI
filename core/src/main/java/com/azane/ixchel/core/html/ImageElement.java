@@ -25,7 +25,7 @@ final class ImageElement {
     static final PaintFacet PAINT = new PaintFacet() {
         @Override public void paint(Element e, float y, DisplayList out, Context context) {
             LayoutBox b = e.box();
-            out.add(new DrawCommand.Image(b.x(), y, b.width(), b.height(), e.attribute("src"), 0, 0, 1, 1, context.fade(0xFFFFFFFF),
+            out.add(new DrawCommand.Image(b.x(), y, b.width(), b.height(), e.attribute("src"), 0, 0, 1, 1, 0xFFFFFFFF,
                     Painter.filter(e.computed())));
         }
     };

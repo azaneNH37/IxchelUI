@@ -1,0 +1,46 @@
+{
+  "vertex": "{prefix}pass",
+  "fragment": "{prefix}shadow",
+  "samplers": [
+    {
+      "name": "Sampler0"
+    }
+  ],
+  "attributes": [
+    "Position",
+    "UV0"
+  ],
+  "uniforms": [
+    {
+      "name": "Color",
+      "type": "float",
+      "count": 4,
+      "values": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "name": "Offset",
+      "type": "float",
+      "count": 2,
+      "values": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "Limit",
+      "type": "float",
+      "count": 4,
+      "values": [
+        0.0,
+        0.0,
+        1.0,
+        1.0
+      ]
+    }
+  ]
+}

@@ -49,6 +49,8 @@ import static com.azane.ixchel.core.css.property.Syntaxes.time;
 import static com.azane.ixchel.core.css.property.Syntaxes.transform;
 import static com.azane.ixchel.core.css.property.Syntaxes.transformOrigin;
 import static com.azane.ixchel.core.css.property.Syntaxes.transitionProperty;
+import static com.azane.ixchel.core.css.property.EffectSyntaxes.filters;
+import static com.azane.ixchel.core.css.property.EffectSyntaxes.mixBlendMode;
 
 /**
  * The supported property set. Departures from CSS initial values: {@code display} is {@code flex}
@@ -130,6 +132,13 @@ public final class CssProperties {
             R.register("scrollbar-color", scrollbarColor(), ScrollbarColor.AUTO, true, false, false);
     /** A number; values above 1 act as 1. Percentages are not supported. */
     public static final PropertyDef<Float> OPACITY = R.register("opacity", number(false), 1f, false, false, true);
+    /** Applied in order to the element drawn as a group, as {@code opacity} is; paint-time only. */
+    public static final PropertyDef<List<Filter>> FILTER = R.register("filter", filters(), List.of(), false, false, true);
+    /** Applied in order to what was drawn behind the element, shown in its border box under its background. */
+    public static final PropertyDef<List<Filter>> BACKDROP_FILTER =
+            R.register("backdrop-filter", filters(), List.of(), false, false, true);
+    public static final PropertyDef<Keywords.MixBlendMode> MIX_BLEND_MODE =
+            R.register("mix-blend-mode", mixBlendMode(), Keywords.MixBlendMode.NORMAL, false, false, false);
     /** Paint-time only: layout ignores it, painting and hit testing go through it. */
     public static final PropertyDef<Transform> TRANSFORM = R.register("transform", transform(), Transform.NONE, false, false, true);
     public static final PropertyDef<TransformOrigin> TRANSFORM_ORIGIN =

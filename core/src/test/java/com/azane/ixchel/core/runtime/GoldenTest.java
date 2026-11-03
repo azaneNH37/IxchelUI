@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.css.property.Filter;
+import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.paint.ImageMeasurer;
@@ -149,6 +151,22 @@ class GoldenTest {
             public String visitPopTransform(DrawCommand.PopTransform c) {
                 return "untransform";
             }
+
+            @Override
+            public String visitPushLayer(DrawCommand.PushLayer c) {
+                return "layer " + n(c.x()) + " " + n(c.y()) + " " + n(c.width()) + " " + n(c.height()) + " " + n(c.opacity())
+                        + filters(c.filters()) + (c.blend() == Keywords.MixBlendMode.NORMAL ? "" : " " + c.blend());
+            }
+
+            @Override
+            public String visitPopLayer(DrawCommand.PopLayer c) {
+                return "unlayer";
+            }
+
+            @Override
+            public String visitBackdrop(DrawCommand.Backdrop c) {
+                return "backdrop " + shape(c.shape()) + filters(c.filters()) + (c.belowGroup() ? " below" : "");
+            }
         };
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) {
@@ -167,6 +185,21 @@ class GoldenTest {
         }
         return s + " radii " + n(q.topLeftX()) + "/" + n(q.topLeftY()) + " " + n(q.topRightX()) + "/" + n(q.topRightY()) + " "
                 + n(q.bottomRightX()) + "/" + n(q.bottomRightY()) + " " + n(q.bottomLeftX()) + "/" + n(q.bottomLeftY());
+    }
+
+    private static String filters(java.util.List<Filter> filters) {
+        StringBuilder sb = new StringBuilder();
+        for (Filter f : filters) {
+            sb.append(' ').append(f.kind().name().toLowerCase(Locale.ROOT)).append('(');
+            switch (f.kind()) {
+                case BLUR -> sb.append(n(f.sigma()));
+                case DROP_SHADOW -> sb.append(n(f.x())).append(' ').append(n(f.y())).append(' ').append(n(f.sigma()))
+                        .append(' ').append(argb(f.color()));
+                default -> sb.append(n(f.amount()));
+            }
+            sb.append(')');
+        }
+        return sb.toString();
     }
 
     private static String n(float f) {

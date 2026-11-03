@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2，以及 V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）；接下来是 U4（组件库）、FX1–FX3；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画），以及 FX1–FX2（私有图层与整组 `opacity`、标准滤镜与混合）；接下来是 U4（组件库）、FX3；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -49,8 +49,8 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | V3 | 完成 | — | `@keyframes` 与 `animation-*`、`on:animationend`、进出伪类 `:-ix-absent`/`:-ix-entering`/`:-ix-exiting`（#032） |
 | V4 | 完成 | S1、S6 | 整页开关动画：UiScreen 关闭与 UiHud 显隐复用进出伪类（#032） |
 | U4 | 待做 | — | `ix-` 组件库：tabs、tree、进度条等 |
-| FX1 | 待做 | — | 私有图层与 shader 注册；`opacity` 整组语义 |
-| FX2 | 待做 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
+| FX1 | 完成 | — | 私有图层；`opacity` 整组语义（shader 构造并入 FX2） |
+| FX2 | 完成 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
 | FX3 | 待做 | — | `.effect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028） |
 | REC | 待做 | — | playtest 动图录制：连续截帧合成 GIF/MP4；排期未定，只依赖 T2 |
 
@@ -233,19 +233,41 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 #### FX1 私有图层与 shader 注册
 
 - 设计依据：`ref/SD-ixchel-ui-effects-20261102.md` §3、§4（#028）。
+- 已定（2026-11-03）：
+  - core 往 `DisplayList` 发 `PushLayer`/`PopLayer`，mc 只回放；图层范围在子树画完后取这段命令的包围盒并集回填（阴影、模糊等外扩已在命令内），与当前裁剪求交。
+  - 图层在 transform 外：按屏幕空间开图层，子树带着 transform 画进去，合成时贴回原位；`paintElement` 的命令顺序不变。图层按物理像素分配（GUI 坐标 × GUI 缩放）。
+  - 合成：进图层时设 `blendFuncSeparate(SRC_ALPHA, ONE_MINUS_SRC_ALPHA, ONE, ONE_MINUS_SRC_ALPHA)`，图层内为预乘结果，合成用 `(ONE, ONE_MINUS_SRC_ALPHA)`；以"图层内半透明文字与物品"截图验证，原生绘制若把 alpha 写坏，再改为自写合成 shader，shader 注册随之留在 FX1，否则移到 FX2。
+  - 容器槽位只在离场时随整组淡出：`SlotSnapshot` 画进文档所在图层；屏幕打开时原版槽位不接管。
+  - 圆角裁剪不在 FX1，有需求时另开阶段；`paint/rounded-overflow-clip` 照旧警告。
 - 引擎：mc 层 classpath `ResourceProvider` 与 `ShaderInstance` 构造，程序名 `<宿主modid>_fx_<名>`；加载器胶水层经 `RegisterShadersEvent` 注册、随资源重载重建；私有图层栈（`TextureTarget` 带深度，进出时 flush 并保存、恢复 FBO、viewport、投影、scissor、混合、深度状态，帧内按尺寸复用、用完释放）；`opacity` < 1 的元素走图层，改为整组语义，原生元素随之淡出。两个 mc 版本。
-- 验收：重叠子元素半透明与带 `<mc-item>` 的淡出写成 playtest 截图；F3+T 资源重载后绘制正常；其余现有截图不变；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
+- 验收：重叠子元素半透明与带 `<mc-item>` 的淡出写成 playtest 截图；F3+T 资源重载后绘制正常；其余现有截图不变；env 与 waypoints 整页进出场期间进 `FrameTimer` 预算；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
+- 结果（2026-11-03）：完成，与 FX2 同一分支。core 发 `PushLayer`/`PopLayer`，范围回填为子树命令包围盒并与裁剪求交；mc `OffscreenLayers` 按物理像素开 `TextureTarget`（帧内按尺寸复用，空闲后释放），图层内按上述预乘混合，合成在 FX2 改为自写 composite shader（见 FX2 结果）。`opacity` < 1 改为整组语义，`<mc-item>` 与 `SlotSnapshot` 随组淡出。与"引擎"一条的出入：shader 不走 `RegisterShadersEvent`，见 FX2 结果。
+  - 验证：effects 页"透明度"标签：整组重叠处只见上层方块、逐个淡出可见两层、组内物品随之淡出、卡片淡出（截图 `effects-opacity`、`effects-faded`）；F3+T 由 effects playtest 调 `reloadResourcePacks` 后重开页面复查整组透明度、`multiply` 与背景模糊；env HUD 面板与 waypoints 面板的进出场加了 `opacity` 淡入淡出，env 离场与再进场、waypoints 再次打开进 `FrameTimer`（env 离场/进场 p95 1.0ms/6ms，waypoints 进场 p95 0.6ms/3ms）。屏幕离场由 `ExitingDocuments` 画，不在 `FrameTimer` 计时范围内，未计时；同一绘制路径已由 HUD 离场覆盖。1.21.1 冒烟见 FX2。
 
 #### FX2 标准滤镜与混合
 
-- 先定：`filter` 函数与 `mix-blend-mode` 模式的首批子集（倾向颜色矩阵类函数与 `blur`；`drop-shadow` 是否同批）。
-- 引擎：`filter` 走 `layer` 机制，`backdrop-filter` 走背景快照（降采样 + 两遍模糊），`mix-blend-mode` 合成时读父目标；core 解析与开发期报错，不支持的函数报码。两个 mc 版本。
+- 已定（2026-11-03）：
+  - `filter` 首批：`grayscale`、`sepia`、`saturate`、`hue-rotate`、`invert`、`brightness`、`contrast`、`opacity`、`blur`、`drop-shadow`。
+  - `mix-blend-mode` 首批只做固定管线能表达的：`normal`、`multiply`、`screen`、`plus-lighter`、`darken`、`lighten`（后两者用 `MIN`/`MAX` 混合方程），不读父目标；父目标快照只给 `backdrop-filter`。
+  - 原版屏幕背景（1.21.1 模糊与两版的暗化）默认保留，作者可关闭，改用 `backdrop-filter` 或自己画会随文档淡出的暗化。
+  - `filter` 与 `backdrop-filter` 可过渡：函数列表对得上逐个插值，一边是另一边前缀时以默认值补齐，其余跳变，同 `transform()`。
+- 引擎：`filter` 走 `layer` 机制，`backdrop-filter` 走背景快照（降采样 + 两遍模糊），按元素圆角形状画回；core 解析与开发期报错，不支持的函数报码。两个 mc 版本。
 - 验收：每个函数与模式各一张 playtest 截图；带 `backdrop-filter` 的 HUD 进 `FrameTimer` 预算。
+- 结果（2026-11-03）：完成。core：三个属性的解析、插值与报码，`Filter`、`DrawCommand.Backdrop`、`PushLayer` 带滤镜与混合模式；图层范围按滤镜外扩放大。mc（两版）：`FilterShaders` 在首次使用时从 classpath 构造，程序名 `<modid>_ixchel_<名>`，不走 `RegisterShadersEvent`（不是资源包内容，F3+T 后实测已链接程序照常工作）；shader JSON 不带 blend 节点，`ShaderInstance.apply()` 会按默认不透明 `BlendMode` 关掉 blending，所以统一为"`FilterShaders.apply` → 设混合状态 → 建网格 → `FilterShaders.draw`"；`FilterPasses` 跑滤镜与背景快照（降采样 + 两遍模糊），`OffscreenLayers` 按混合模式合成，`McPainter.visitBackdrop` 按元素圆角形状画回。sample：effects 页分透明度、滤镜、混合三个标签页；env HUD 三块面板加 `backdrop-filter: blur(3px)`。
+  - 验证：core 251 项测试通过；全量 `build` 与两版 lint 通过；Forge `-Pplaytest=all` 14 项、252 项断言通过，含 10 个滤镜函数、6 个混合模式、背景模糊与灰度的像素断言，以及资源重载后的复查；env 带背景模糊后预算通过（静止 p95 0.7ms、移动 1.4ms/6ms）。1.21.1 经临时入口在标题界面打开 effects 页、逐个标签截图：整组透明度、全部滤镜、混合模式与背景模糊/灰度与 1.20.1 一致，日志无错误；入口与临时资源已移除。
+  - 与验收的出入：截图按标签页各一张（`effects-filters`、`effects-blend`），每个函数与模式是带标签的一格，没有逐项单独截图。
+  - 已知：背景模糊 sigma 与条纹周期接近时条纹仍可见，属 CSS 预期（样例改用 `blur(8px)` 演示）；背景快照用 `GL_LINEAR` blit 最多 8 倍降采样，细纹理可能混叠，未观察到问题；1.21.1 未进世界，HUD 的背景模糊未实跑。
 
 #### FX3 具名特效
 
-- 先定：首批内置特效的范围。
-- 引擎：`.effect` 解析（`kind`、类型化 `param`）、uniform 与 fsh/vsh/json 生成、GLSL 原语库；`<link rel="effect">`；`background-image: paint(名)`、`filter: -ix-paint(名)`、`backdrop-filter` 中的特效；参数自定义属性按声明类型校验并可 `transition`；错误码 `effect/*`，GLSL 编译错误行号映射回 `.effect`；内置特效经 `@ixchel/effects/…` 引入。
+- 已定（2026-11-03）：
+  - shader 构造：库自带的固定 shader 照 #033 从 classpath 构造，不走 `RegisterShadersEvent`；`.effect` 在文档首次使用时构造，按资源路径缓存，库自己的重载监听清空缓存；编译错误报进对应文档的诊断并映射行号，不中断资源重载。`reloadShaders` 不关闭库构造的程序，清缓存时须先 `close()` 旧实例：`Program` 按名字留在全局表里，不关则同名重建会复用旧编译结果，改动不生效。
+  - 程序名为整段资源路径转义后的 `<宿主modid>_fx_<路径>`；参数前缀仍取文件名，同一文档引入两个同名特效时开发期报错，不做别名。
+  - 参数类型由文档引入的特效声明，`transition` 与 `@keyframes` 按该类型插值；其余自定义属性照旧无类型，不做通用 `@property`。
+  - 首批内置特效只有 `glint`（box）与 `dissolve`（layer）。
+  - `ix_time` 取文档时钟（与 transition、动画同为墙钟），取模防精度损失；`ix_mouse` 为元素内像素坐标，与 `b.pos` 同系。
+  - `.effect` 热重载与模板读同一套开发期源目录。
+- 引擎：`.effect` 解析（`kind`、类型化 `param`）、uniform 与 fsh/vsh/json 生成、GLSL 原语库；`<link rel="effect">`；`background-image: paint(名)`、`filter: -ix-paint(名)`、`backdrop-filter` 中的特效；参数自定义属性按声明类型校验并可 `transition`；错误码 `effect/*`，GLSL 编译错误行号映射回 `.effect`；内置特效经 `@ixchel/effects/…` 引入。layer 特效的元素本地坐标经 transform 逆矩阵 uniform 给出（FX1 图层在 transform 外）。
 - 工具：kit lint 覆盖 CSS 一侧的检查；schema 列出特效与参数。
 - sample：一个场景用一个 `box` 特效与一个 `layer` 特效，其中一个参数由 `bind:style:--x` 驱动。
 - 验收：上述用法写成 playtest 截图；错误用法逐项由 lint 报码；改动 `.effect` 后 F3+T 生效；在生产实例装 Oculus + 光影包 + ImmediatelyFast + Embeddium 实测截图并与不装时对比；1.21.1 `runClient` 冒烟。

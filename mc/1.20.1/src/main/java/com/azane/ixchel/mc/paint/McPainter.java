@@ -4,10 +4,12 @@ import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.core.paint.RoundRect;
 import com.azane.ixchel.core.paint.ShapeTessellator;
 import com.azane.ixchel.core.template.NativePayload;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -28,8 +30,10 @@ import net.minecraft.util.FormattedCharSequence;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL30;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,6 +54,11 @@ import java.util.Map;
  *
  * <p>A transform goes into the pose the quads, text and native drawings are written in; depth
  * levels and scissor clips use the transformed rectangles' bounding boxes.
+ *
+ * <p>A layer ({@code DrawCommand.PushLayer}) draws what follows, native drawings included, into an
+ * {@link OffscreenLayers} target over its rectangle on the screen, cut by the clip, and composites it
+ * at its opacity when it closes. Inside, colors blend with separate alpha factors so the target holds
+ * premultiplied color, and clips scissor the target.
  */
 public final class McPainter implements DrawCommand.Visitor<Void> {
     private static final float VANILLA_SIZE = 9f;
@@ -87,6 +96,14 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     private final MaskTexture masks;
     private final ShapeTessellator shapes;
     private final Layers layers = new Layers();
+    private final OffscreenLayers offscreen = new OffscreenLayers();
+    private final String modid;
+    /** Built on the first filter, blend mode or backdrop; see {@link #passes()}. */
+    private FilterPasses passes;
+    private final int[] backdropSize = new int[2];
+    /** The clips pushed in this paint, intersected: x0, y0, x1, y1 in GUI pixels per level. */
+    private int[] clips = new int[4 * 8];
+    private int clipDepth;
     private float pointerX = Float.NaN;
     private float pointerY = Float.NaN;
 
@@ -96,6 +113,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
      * @param natives the painter of each native element kind ({@code DrawCommand.Custom#kind})
      */
     public McPainter(String modid, Font font, TagRegistry tags, Map<String, NativePainter<?>> natives) {
+        this.modid = modid;
         this.masks = MaskTexture.forHost(modid);
         this.shapes = new ShapeTessellator(masks.atlas);
         this.font = font;
@@ -117,11 +135,13 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         pose.set(base);
         buffer = Tesselator.getInstance().getBuilder();
         layers.clear();
+        clipDepth = 0;
         masks.active = this;
         list.replay(this);
         flush();
         masks.active = null;
         shapes.endFrame();
+        OffscreenLayers.evictIdle();
         RenderSystem.disableBlend();
         graphics = null;
         base = null;
@@ -290,7 +310,28 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     public Void visitPushClip(DrawCommand.PushClip c) {
         flush();
         bounds(c.x(), c.y(), c.x() + c.width(), c.y() + c.height());
-        graphics.enableScissor((int) Math.floor(bx0), (int) Math.floor(by0), (int) Math.ceil(bx1), (int) Math.ceil(by1));
+        int x0 = (int) Math.floor(bx0);
+        int y0 = (int) Math.floor(by0);
+        int x1 = (int) Math.ceil(bx1);
+        int y1 = (int) Math.ceil(by1);
+        graphics.enableScissor(x0, y0, x1, y1);
+        if (clips.length < 4 * (clipDepth + 1)) {
+            clips = Arrays.copyOf(clips, clips.length * 2);
+        }
+        int o = 4 * clipDepth++;
+        if (o > 0) {
+            x0 = Math.max(x0, clips[o - 4]);
+            y0 = Math.max(y0, clips[o - 3]);
+            x1 = Math.min(x1, clips[o - 2]);
+            y1 = Math.min(y1, clips[o - 1]);
+        }
+        clips[o] = x0;
+        clips[o + 1] = y0;
+        clips[o + 2] = Math.max(x0, x1);
+        clips[o + 3] = Math.max(y0, y1);
+        if (offscreen.active()) {
+            layerScissor();
+        }
         return null;
     }
 
@@ -298,7 +339,138 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     public Void visitPopClip(DrawCommand.PopClip c) {
         flush();
         graphics.disableScissor();
+        clipDepth--;
+        if (offscreen.active()) {
+            layerScissor();
+        }
         return null;
+    }
+
+    /** Opens the layer over its rectangle through the current transform, cut by the current clip. */
+    @Override
+    public Void visitPushLayer(DrawCommand.PushLayer c) {
+        flush();
+        graphics.flush();
+        bounds(c.x(), c.y(), c.x() + c.width(), c.y() + c.height());
+        if (clipDepth > 0) {
+            int o = 4 * (clipDepth - 1);
+            bx0 = Math.max(bx0, clips[o]);
+            by0 = Math.max(by0, clips[o + 1]);
+            bx1 = Math.min(bx1, clips[o + 2]);
+            by1 = Math.min(by1, clips[o + 3]);
+        }
+        offscreen.push(bx0, by0, bx1, by1, c.opacity(), c.filters(), c.blend());
+        layerScissor();
+        return null;
+    }
+
+    /** Binds the parent again and draws the layer onto it, above what it overlaps there. */
+    @Override
+    public Void visitPopLayer(DrawCommand.PopLayer c) {
+        flush();
+        graphics.flush();
+        OffscreenLayers.Layer l = offscreen.pop();
+        offscreen.filter(l, passes());
+        restoreScissor();
+        if (l.visible()) {
+            float z = layers.level(l.guiX0, l.guiY0, l.guiX1, l.guiY1);
+            layers.add(l.guiX0, l.guiY0, l.guiX1, l.guiY1, z);
+            offscreen.composite(l, base, z, passes().shaders());
+            offscreen.release(l);
+        }
+        return null;
+    }
+
+    /**
+     * Copies what is drawn behind the shape so far (on the target under the element's own layer when
+     * it is {@code belowGroup}), filters it and draws it back inside the shape.
+     */
+    @Override
+    public Void visitBackdrop(DrawCommand.Backdrop c) {
+        flush();
+        graphics.flush();
+        RoundRect shape = c.shape();
+        bounds(shape.x(), shape.y(), shape.x() + shape.width(), shape.y() + shape.height());
+        if (clipDepth > 0) {
+            int o = 4 * (clipDepth - 1);
+            bx0 = Math.max(bx0, clips[o]);
+            by0 = Math.max(by0, clips[o + 1]);
+            bx1 = Math.min(bx1, clips[o + 2]);
+            by1 = Math.min(by1, clips[o + 3]);
+        }
+        Window window = Minecraft.getInstance().getWindow();
+        double s = window.getGuiScale();
+        int h = window.getHeight();
+        // The rectangle in window pixels, y up, cut by the target the backdrop is read from.
+        OffscreenLayers.Layer source = offscreen.open(c.belowGroup() ? 1 : 0);
+        OffscreenLayers.Layer current = offscreen.open(0);
+        int left = (int) Math.floor(bx0 * s);
+        int right = (int) Math.ceil(bx1 * s);
+        int bottom = h - (int) Math.ceil(by1 * s);
+        int top = h - (int) Math.floor(by0 * s);
+        int fbo;
+        if (source != null) {
+            if (!source.visible()) {
+                return null;
+            }
+            left = Math.max(left, source.x);
+            right = Math.min(right, source.x + source.width);
+            bottom = Math.max(bottom, source.y);
+            top = Math.min(top, source.y + source.height);
+            fbo = source.target.fbo.frameBufferId;
+        } else {
+            left = Math.max(left, 0);
+            right = Math.min(right, window.getWidth());
+            bottom = Math.max(bottom, 0);
+            top = Math.min(top, h);
+            fbo = offscreen.baseFbo();
+        }
+        if (right <= left || top <= bottom || (current != null && !current.visible())) {
+            return null;
+        }
+        int boundFbo = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
+        int vx = GlStateManager.Viewport.x(), vy = GlStateManager.Viewport.y();
+        int vw = GlStateManager.Viewport.width(), vh = GlStateManager.Viewport.height();
+        int sx = source != null ? source.x : 0, sy = source != null ? source.y : 0;
+        OffscreenLayers.Target t = passes().backdrop(fbo, left - sx, bottom - sy, right - left, top - bottom,
+                c.filters(), (float) s, backdropSize);
+        GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, boundFbo);
+        RenderSystem.viewport(vx, vy, vw, vh);
+        restoreScissor();
+        int cx = current != null ? current.x : 0, cy = current != null ? current.y : 0;
+        float z = level(shape.x(), shape.y(), shape.x() + shape.width(), shape.y() + shape.height());
+        passes().drawBackdrop(t, backdropSize[0], backdropSize[1], left - cx, bottom - cy, right - left, top - bottom,
+                shape, pose, z, source == null);
+        OffscreenLayers.release(t);
+        return null;
+    }
+
+    private FilterPasses passes() {
+        if (passes == null) {
+            passes = new FilterPasses(FilterShaders.forHost(modid));
+        }
+        return passes;
+    }
+
+    /** Applies the current clip again after a layer closed or a filter pass turned the scissor off. */
+    private void restoreScissor() {
+        if (offscreen.active()) {
+            layerScissor();
+        } else {
+            // A rectangle covering everything: pushing it applies the stack's top again, popping it keeps that or turns the scissor off.
+            graphics.enableScissor(-1_000_000, -1_000_000, 1_000_000, 1_000_000);
+            graphics.disableScissor();
+        }
+    }
+
+    /** Scissors the innermost layer to the current clip. */
+    private void layerScissor() {
+        int o = 4 * (clipDepth - 1);
+        if (clipDepth > 0) {
+            offscreen.scissor(true, clips[o], clips[o + 1], clips[o + 2], clips[o + 3]);
+        } else {
+            offscreen.scissor(false, 0, 0, 0, 0);
+        }
     }
 
     @Override
@@ -363,7 +535,13 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         if (next == Batch.COLOR || next == Batch.TEXTURE || next == Batch.SHAPE) {
             // A text or item flush runs a render type's cleanup, which turns blending off again.
             RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
+            if (offscreen.active()) {
+                // Keeps the layer's alpha: it is composited with its own coverage.
+                RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                        GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            } else {
+                RenderSystem.defaultBlendFunc();
+            }
         }
         switch (next) {
             case COLOR -> {

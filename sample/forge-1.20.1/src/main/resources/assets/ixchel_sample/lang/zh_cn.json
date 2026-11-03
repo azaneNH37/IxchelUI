@@ -53,6 +53,8 @@
   "ixchel_sample.index.guide.description": "双页书：由条目模板生成的目录、可返回的链接、用箭头或按键翻页、行内带物品的样式段落、中文排版，以及轮换显示可用材料的合成网格。",
   "ixchel_sample.index.tooltips.title": "元素提示",
   "ixchel_sample.index.tooltips.description": "按钮、表单控件、正文术语和物品（原版、自定义、带物品自身行的自定义）上的富提示；屏幕边缘的滚动列表、嵌套、组件、倒计时和对话框。",
+  "ixchel_sample.index.effects.title": "视觉效果",
+  "ixchel_sample.index.effects.description": "整组透明度：重叠的方块、物品和文字作为一个整体淡化，旁边是逐个淡化的同样内容；以及连同物品一起淡出的卡片；每个滤镜函数、混合模式，以及圆角玻璃后的背景滤镜。",
 
   "ixchel_sample.loot.title": "附近的掉落物",
   "ixchel_sample.loot.count": "%s / %s 个掉落物",
@@ -267,5 +269,21 @@
   "ixchel_sample.env.weather.dry": "晴（干燥生物群系）",
   "ixchel_sample.env.weather.snow": "雪",
   "ixchel_sample.env.weather.rain": "雨",
-  "ixchel_sample.env.weather.thunder": "%s，雷暴"
+  "ixchel_sample.env.weather.thunder": "%s，雷暴",
+
+  "ixchel_sample.effects.hint": "每组左边作用于整体，右边逐个作用",
+  "ixchel_sample.effects.opacity": "透明度",
+  "ixchel_sample.effects.whole": "整组",
+  "ixchel_sample.effects.apart": "逐个方块",
+  "ixchel_sample.effects.items_faded": "物品，半透明",
+  "ixchel_sample.effects.items_opaque": "物品，不透明",
+  "ixchel_sample.effects.fade": "淡出",
+  "ixchel_sample.effects.card": "金苹果",
+  "ixchel_sample.effects.toggle": "淡出",
+  "ixchel_sample.effects.filters": "滤镜",
+  "ixchel_sample.effects.blend": "混合",
+  "ixchel_sample.effects.blend_modes": "纯色底上的 mix-blend-mode",
+  "ixchel_sample.effects.backdrop": "backdrop-filter",
+  "ixchel_sample.effects.glass_blur": "背后模糊",
+  "ixchel_sample.effects.glass_gray": "背后变灰"
 }

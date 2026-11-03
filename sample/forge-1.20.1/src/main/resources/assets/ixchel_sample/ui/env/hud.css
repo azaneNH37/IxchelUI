@@ -5,25 +5,28 @@
   height: 100%;
 }
 
+/* Frosted panels: the world behind them is blurred. */
 .vitals,
 .target,
 .world {
   padding: 3px;
   background-color: #00000060;
-  transition: transform 200ms ease-out;
+  backdrop-filter: blur(3px);
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
 }
 
-/* The panels slide in from above the screen when the layer shows, and back out when it hides. */
+/* The panels slide in from above the screen and fade in when the layer shows, and back out when it hides. */
 .env:-ix-absent .vitals,
 .env:-ix-absent .target,
 .env:-ix-absent .world {
   transform: translateY(-120px);
+  opacity: 0;
 }
 
 .env:-ix-exiting .vitals,
 .env:-ix-exiting .target,
 .env:-ix-exiting .world {
-  transition: transform 300ms ease-in;
+  transition: transform 300ms ease-in, opacity 300ms ease-in;
 }
 
 /* Vitals: a heart or a shank is the empty icon with the full or half icon on top. */

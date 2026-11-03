@@ -58,6 +58,9 @@ public final class Keywords {
      */
     public enum BackgroundBlendMode { NORMAL, MULTIPLY }
 
+    /** {@code mix-blend-mode}: the modes fixed-function blending composites; see {@code EffectSyntaxes.mixBlendMode}. */
+    public enum MixBlendMode { NORMAL, MULTIPLY, SCREEN, PLUS_LIGHTER, DARKEN, LIGHTEN }
+
     /** {@code border-image-repeat}, per axis; {@code space} is not supported. */
     public enum ImageTiling { STRETCH, REPEAT, ROUND }
 

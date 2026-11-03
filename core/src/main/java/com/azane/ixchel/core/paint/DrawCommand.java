@@ -1,7 +1,11 @@
 package com.azane.ixchel.core.paint;
 
 import com.azane.ixchel.core.css.property.Affine;
+import com.azane.ixchel.core.css.property.Filter;
+import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.dom.StyledText;
+
+import java.util.List;
 
 /**
  * The contract between the core and the mc painter. Coordinates are document GUI pixels; colors are
@@ -11,7 +15,7 @@ import com.azane.ixchel.core.dom.StyledText;
 public sealed interface DrawCommand
         permits DrawCommand.Rect, DrawCommand.Fill, DrawCommand.Border, DrawCommand.Shadow, DrawCommand.Text,
         DrawCommand.Image, DrawCommand.Custom, DrawCommand.PushClip, DrawCommand.PopClip, DrawCommand.PushTransform,
-        DrawCommand.PopTransform {
+        DrawCommand.PopTransform, DrawCommand.PushLayer, DrawCommand.PopLayer, DrawCommand.Backdrop {
 
     <R> R accept(Visitor<R> v);
 
@@ -37,6 +41,12 @@ public sealed interface DrawCommand
         R visitPushTransform(PushTransform c);
 
         R visitPopTransform(PopTransform c);
+
+        R visitPushLayer(PushLayer c);
+
+        R visitPopLayer(PopLayer c);
+
+        R visitBackdrop(Backdrop c);
     }
 
     record Rect(float x, float y, float width, float height, int color) implements DrawCommand {
@@ -158,6 +168,43 @@ public sealed interface DrawCommand
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitPopTransform(this);
+        }
+    }
+
+    /**
+     * Draws the commands up to the matching {@link PopLayer} on their own transparent layer, then runs
+     * {@code filters} over it in order and composites the result at {@code opacity} with {@code blend}.
+     * The rectangle, in the coordinates current at this command (an outer transform maps it too),
+     * bounds everything they draw and what the filters spread it to; the host may clip it further to
+     * the current clip and the screen.
+     */
+    record PushLayer(float x, float y, float width, float height, float opacity, List<Filter> filters,
+                     Keywords.MixBlendMode blend) implements DrawCommand {
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitPushLayer(this);
+        }
+    }
+
+    record PopLayer() implements DrawCommand {
+        public static final PopLayer INSTANCE = new PopLayer();
+
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitPopLayer(this);
+        }
+    }
+
+    /**
+     * {@code backdrop-filter}: what is drawn behind {@code shape} so far, run through {@code filters} in
+     * order and drawn back inside the shape. With {@code belowGroup} it is the first command of its
+     * element's own layer and what is behind is read from the target under that layer, so the
+     * element's opacity fades the filtered backdrop too.
+     */
+    record Backdrop(RoundRect shape, List<Filter> filters, boolean belowGroup) implements DrawCommand {
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitBackdrop(this);
         }
     }
 }

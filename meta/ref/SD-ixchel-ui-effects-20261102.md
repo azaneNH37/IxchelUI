@@ -96,14 +96,14 @@ flowchart TD
 ```
 
 - `box`：不需要离屏。现在 `McPainter` 只用原版 `position_color`/`position_color_tex`，改为设特效的 `ShaderInstance` 并填 uniform。
-- `layer`：Painter 与原生元素的绘制代码不变，它们画到当前绑定的帧缓冲上。嵌套用栈。同一机制给出 `opacity` 的整组语义：现在 `opacity` 逐次乘 alpha，子元素重叠处互相混合，原生元素不淡出（`Painter` 类注释）。图层带深度缓冲，物品与实体在图层内照常做深度测试。带 `transform` 的元素先画不变换的子树，合成时再施加变换。
+- `layer`：Painter 与原生元素的绘制代码不变，它们画到当前绑定的帧缓冲上。嵌套用栈。同一机制给出 `opacity` 的整组语义：现在 `opacity` 逐次乘 alpha，子元素重叠处互相混合，原生元素不淡出（`Painter` 类注释）。图层带深度缓冲，物品与实体在图层内照常做深度测试。图层按屏幕空间开在 transform 之外，子树带 transform 画入、合成时贴回原位（路线图 FX1 已定）。
 - `backdrop`：只读当前目标（主画面或父图层），不写它的状态。
 
 ### 4. MC 约束与做法
 
 - 源码从包路径读取：`ShaderInstance(ResourceProvider, String, VertexFormat)` 读 json、vsh、fsh 与 `#moj_import` 都经传入的 provider，1.20.1 与 1.21.1 签名相同；库用自己的 classpath provider，源码随 relocate 迁移，不需要固定 namespace 的 `assets/`（#001）。
-- 程序名带宿主 modid 前缀：`ShaderInstance.getOrCreate` 按名字查 `Program.Type.getPrograms()` 这张全局静态表，同名直接复用。两个宿主各 shade 不同版本的库时，同名会拿到对方编译的程序。json、vsh、fsh 名统一为 `<宿主modid>_fx_<名>`。
-- 随资源重载重建：`GameRenderer.reloadShaders` 关闭表里全部 Program。由加载器胶水层经 `RegisterShadersEvent.registerShader(instance, onLoaded)` 注册（Forge 1.20.1 与 NeoForge 1.21.1 都有，`getResourceProvider()` 外包一层库的 provider），与 HUD 层"胶水只做注册"一致。
+- 程序名带宿主 modid 前缀：`ShaderInstance.getOrCreate` 按名字查 `Program.Type.getPrograms()` 这张全局静态表，同名直接复用。两个宿主各 shade 不同版本的库时，同名会拿到对方编译的程序。库自带 shader 名为 `<宿主modid>_ixchel_<名>`，`.effect` 为 `<宿主modid>_fx_<路径>`。
+- 资源重载：`GameRenderer.reloadShaders` 只关闭原版自己 `shaders` 表里的实例，库构造的程序不受影响（实测，#033）。库自带 shader 不注册、不重建；`.effect` 由库的重载监听先 `close()` 旧实例再清缓存，否则同名重建会从全局表拿回旧程序。
 - 不用 `EffectInstance`/`PostChain`：它们只经 `ResourceManager` 读 `shaders/program`、`shaders/post`、`textures/effect` 这些固定资源路径。
 - 噪声图等纹理用 `DynamicTexture` 的原始 id，或以宿主 modid 注册。
 - GL 状态（前三条与最后两条是 CONVENTIONS「渲染」「嵌入边界」已有规则）：切换 FBO 或着色器前 `flush()`，这也是与 ImmediatelyFast 合批共存的前提；FBO 绑定走 `GlStateManager`/`RenderTarget.bindWrite`，否则原版与 Iris 的绑定缓存不同步；恢复进入前绑定的 FBO，而不是固定回主画面；viewport、投影矩阵、scissor（坐标换算到图层）、混合、深度测试在进出图层时保存并恢复；FBO 惰性分配、帧内按尺寸复用、用完释放；不用主画面模板缓冲。
@@ -146,7 +146,7 @@ vec4 effect(IxLayer l) {
 - `kind` 决定可用的位置与输入：`box` 拿到 `IxBox`（元素内像素位置、尺寸、四角圆角）；`layer` 另有 `ix_content(uv)`；`backdrop` 另有 `ix_backdrop(uv)`。三者都有 `ix_time`、`ix_mouse`。
 - `param` 的类型取 CSS 值类型：`<number>`、`<length>`、`<percentage>`、`<color>`、`<angle>`、`<time>`。库生成 uniform：长度按 GUI 缩放换算为像素，颜色转 vec4，角度转弧度；参数名中的 `-` 在 GLSL 中写作 `_`。
 - 库把 `effect()` 包成完整的 fsh/vsh/json 并引入原语库；作者只写组合。
-- 圆角取自 `border-radius`。core 尚未支持 `border-radius`，在它落地前 `b.radius` 为 0。
+- 圆角取自 `border-radius`（V1 已支持）。
 - 内置特效用同一格式写，随库发布，从 `@ixchel/effects/…` 引入，与 `LibrarySheets` 的 `@ixchel/` 命名一致；内置与用户特效没有区别。资源包可按同一资源 id 覆盖特效文件来换皮。
 
 ### 6. 使用
@@ -190,10 +190,7 @@ vec4 effect(IxLayer l) {
 
 ### 8. 未解决
 
-- 离场效果：`<if>`/`<for>` 卸载时立即 `removeChild`（`binding/compile/Block.unmount`），core 没有 `transitionend`，"关闭时溶解消失"目前做不到；元素常驻时切 class 可以。需另行设计离场过渡。
-- 没有 `@keyframes`：循环动画只能靠 `ix_time`，一次性动画只能靠 `transition`。
 - 光影与渲染 mod 实测：Oculus、OptiFine 未验证。验收方式是在生产实例装 Oculus + 光影包 + ImmediatelyFast + Embeddium，用 playtest 截图与不装时对比。
 - 版本前瞻（未核对源码）：1.21.2 起 shader 改由 `ShaderManager` 从资源包加载，1.21.5 起为 `RenderPipeline`，1.21.6 起 GUI 延迟渲染并经 PIP 渲染到纹理，自定义 provider 可能走不通。退路是 Gradle 插件在 shade 时把库 shader 复制到宿主 jar 的 `assets/<宿主modid>/shaders/`，namespace 仍归宿主。
 - 世界空间 UI：目前没有世界空间宿主（场景文档 §5 只记录不排期），`WorldProjection` 只换算坐标、仍在 HUD 中绘制。若将来在画世界期间画 UI，Iris 会接管原版着色器与主画面绑定，需单独评估。
 - HUD 帧开销：每个 `layer` 特效每帧多一次离屏绘制与一次合成。子树未变脏时可缓存图层、只重跑合成；可行性取决于 core 的脏标记粒度，未核对。
-- 首批内置特效的范围：开工前定。

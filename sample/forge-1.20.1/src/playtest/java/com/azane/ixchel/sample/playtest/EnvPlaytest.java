@@ -26,7 +26,7 @@ import java.util.List;
  * {@code -Pplaytest=env}: stands the player on the dev world's superflat ground at the origin, facing
  * north, and puts things in front of the crosshair: oak stairs, stone, a pig. Then sets the time and
  * the weather, turns with a waypoint to the north, sets the vitals, and times the layer while the
- * player moves and turns every tick.
+ * player moves and turns every tick, and while the layer fades out and in again.
  */
 public final class EnvPlaytest {
     /** Two blocks north of the player, at eye height. */
@@ -164,11 +164,21 @@ public final class EnvPlaytest {
             }
             s.run(() -> FrameTimer.expect(s, "moving and turning every tick", MOVING_BUDGET_US));
             s.shot("env-moving");
+            // The panels fade out in their own layers, each with a blurred backdrop read from under the
+            // layer. Fails if that costs more than the moving budget at p95.
+            s.run(() -> FrameTimer.hud(hud, 4096));
             s.run(() -> hud.show(false));
             // Fails if hiding drops the layer at once instead of drawing it out to the end of its exit.
             s.expect("the hidden layer still exits", () -> hud.document().exiting() && !hud.shown());
             s.shot("env-leaving");
             s.waitUntil("the exit ends", () -> !hud.document().exiting(), Playtest.WAIT);
+            s.run(() -> FrameTimer.expect(s, "fading out", MOVING_BUDGET_US));
+            s.run(() -> FrameTimer.hud(hud, 4096));
+            s.run(() -> hud.show(true));
+            s.waitUntil("shown again, the entry ends", () -> Playtest.query(hud, ".env:-ix-entering").isEmpty(), Playtest.WAIT);
+            s.run(() -> FrameTimer.expect(s, "fading in", MOVING_BUDGET_US));
+            s.run(() -> hud.show(false));
+            s.waitUntil("hidden again", () -> !hud.document().exiting(), Playtest.WAIT);
         });
     }
 

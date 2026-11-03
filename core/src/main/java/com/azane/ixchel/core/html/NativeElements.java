@@ -29,6 +29,10 @@ public final class NativeElements {
     private static final LayoutFacet LAYOUT = new LayoutFacet() {
         @Override public boolean atomic() { return true; }
     };
+    /**
+     * Hands the element to the host's painter while it has a payload: bound for an element that
+     * declares one, set by the host itself ({@code Element.setPayload}) on one that does not.
+     */
     private static final PaintFacet PAINT = new PaintFacet() {
         @Override public void paint(Element e, float y, DisplayList out, Context context) {
             if (e.payload() == null) return;
@@ -49,7 +53,7 @@ public final class NativeElements {
         if (d.payload().isEmpty()) {
             if (d.lines()) throw new IllegalArgumentException(where + "lines needs a payload");
             if (payloadType != null) throw new IllegalArgumentException(where + "implements NativePayload but declares no payload");
-            type = ElementType.plain(d.tag(), d.attributes());
+            type = ElementType.builder(d.tag(), d.attributes()).facet(PaintFacet.KEY, PAINT).build();
         } else {
             if (payloadType == null) throw new IllegalArgumentException(where + "declares a payload but does not implement NativePayload");
             type = type(d.tag(), Set.of(d.attributes()), d.payload(), rawClass(payloadType), d.lines());

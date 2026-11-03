@@ -1,0 +1,86 @@
+<link rel="stylesheet" href="@ixchel/dark.css"/>
+<link rel="stylesheet" href="page.css"/>
+<div class="screen">
+  <div class="panel">
+    <div class="header">
+      <span class="title" t="ixchel_sample.index.effects.title"></span>
+      <div class="tabs">
+        <button class="tab opacity-tab" bind:class:selected="tab == 'opacity'" on:click="tab = 'opacity'" t="ixchel_sample.effects.opacity"></button>
+        <button class="tab filters-tab" bind:class:selected="tab == 'filters'" on:click="tab = 'filters'" t="ixchel_sample.effects.filters"></button>
+        <button class="tab blend-tab" bind:class:selected="tab == 'blend'" on:click="tab = 'blend'" t="ixchel_sample.effects.blend"></button>
+      </div>
+    </div>
+
+    <div class="page" bind:class:shown="tab == 'opacity'">
+      <span class="hint" t="ixchel_sample.effects.hint"></span>
+      <div class="pair">
+        <div class="sample">
+          <div class="stack whole"><div class="square a"></div><div class="square b"></div></div>
+          <span class="caption" t="ixchel_sample.effects.whole"></span>
+        </div>
+        <div class="sample">
+          <div class="stack apart"><div class="square a"></div><div class="square b"></div></div>
+          <span class="caption" t="ixchel_sample.effects.apart"></span>
+        </div>
+      </div>
+      <div class="pair">
+        <div class="sample">
+          <div class="items whole">
+            <mc-item class="item" bind:item="sword"></mc-item>
+            <mc-item class="item" bind:item="apple"></mc-item>
+            <mc-item class="item" bind:item="grass"></mc-item>
+          </div>
+          <span class="caption" t="ixchel_sample.effects.items_faded"></span>
+        </div>
+        <div class="sample">
+          <div class="items">
+            <mc-item class="item" bind:item="sword"></mc-item>
+            <mc-item class="item" bind:item="apple"></mc-item>
+            <mc-item class="item" bind:item="grass"></mc-item>
+          </div>
+          <span class="caption" t="ixchel_sample.effects.items_opaque"></span>
+        </div>
+      </div>
+      <span class="section" t="ixchel_sample.effects.fade"></span>
+      <div class="row">
+        <div class="card" bind:class:faded="faded">
+          <mc-item class="item" bind:item="apple"></mc-item>
+          <span t="ixchel_sample.effects.card"></span>
+        </div>
+        <button class="toggle" on:click="faded = !faded" t="ixchel_sample.effects.toggle"></button>
+      </div>
+    </div>
+
+    <div class="page tiles" bind:class:shown="tab == 'filters'">
+      <for each="filters" as="f" key="f">
+        <div class="tile">
+          <div class="art" bind:style:filter="f">
+            <div class="bar red"></div><div class="bar green"></div><div class="bar blue"></div>
+            <mc-item class="item" bind:item="apple"></mc-item>
+          </div>
+          <span class="caption" bind:text="f"></span>
+        </div>
+      </for>
+    </div>
+
+    <div class="page" bind:class:shown="tab == 'blend'">
+      <span class="section" t="ixchel_sample.effects.blend_modes"></span>
+      <div class="canvas blends">
+        <for each="blends" as="b" key="b">
+          <div class="blend-sample">
+            <div class="blob" bind:style:mix-blend-mode="b"></div>
+            <span class="caption" bind:text="b"></span>
+          </div>
+        </for>
+      </div>
+      <span class="section" t="ixchel_sample.effects.backdrop"></span>
+      <div class="canvas stripes">
+        <for each="stripes" as="i" key="i">
+          <div class="stripe" bind:class:dark="i % 2 == 1"></div>
+        </for>
+        <div class="glass blurred"><span t="ixchel_sample.effects.glass_blur"></span></div>
+        <div class="glass gray"><span t="ixchel_sample.effects.glass_gray"></span></div>
+      </div>
+    </div>
+  </div>
+</div>

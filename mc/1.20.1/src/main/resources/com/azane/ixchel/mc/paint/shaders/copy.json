@@ -1,0 +1,26 @@
+{
+  "vertex": "{prefix}pass",
+  "fragment": "{prefix}copy",
+  "samplers": [
+    {
+      "name": "Sampler0"
+    }
+  ],
+  "attributes": [
+    "Position",
+    "UV0"
+  ],
+  "uniforms": [
+    {
+      "name": "Limit",
+      "type": "float",
+      "count": 4,
+      "values": [
+        0.0,
+        0.0,
+        1.0,
+        1.0
+      ]
+    }
+  ]
+}

@@ -36,6 +36,7 @@ public final class IxchelSamplePlaytestMod {
             GuidePlaytest.register(playtests);
             TooltipsPlaytest.register(playtests);
             LanguagePlaytest.register(playtests);
+            EffectsPlaytest.register(playtests);
         });
     }
 }

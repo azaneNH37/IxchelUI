@@ -4,6 +4,7 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.azane.ixchel.mc.FrameTimer;
 import com.azane.ixchel.mc.document.ExitingDocuments;
 import com.azane.ixchel.mc.playtest.Playtests;
 import com.azane.ixchel.mc.playtest.Playtest;
@@ -15,9 +16,13 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * {@code -Pplaytest=waypoints}: opens the screen, adds waypoints by clicking the button, moves the
- * selection with the keys, removes with Delete, scrolls the list past six rows.
+ * selection with the keys, removes with Delete, scrolls the list past six rows; closes it while the
+ * player walks and times opening it again.
  */
 public final class WaypointsPlaytest {
+    /** About four times the p95 measured on the development machine (0.7 ms, 2026-11-03). */
+    private static final double FADE_BUDGET_US = 3000;
+
     private WaypointsPlaytest() {
     }
 
@@ -72,6 +77,15 @@ public final class WaypointsPlaytest {
             s.shot("waypoints-leaving");
             s.waitUntil("the exit ends and nothing is drawn any more", () -> !ExitingDocuments.any(), Playtest.WAIT);
             s.run(() -> Minecraft.getInstance().options.keyUp.setDown(false));
+            // Opening again: the panel fades in through its own layer. Fails if that costs more than
+            // the budget at p95.
+            s.run(() -> FrameTimer.screen(4096));
+            s.run(WaypointsScreen::open);
+            s.waitUntil("open again, the panel settles", () -> Playtest.isOpen()
+                    && Playtest.query(".screen:-ix-entering").isEmpty(), Playtest.WAIT);
+            s.run(() -> FrameTimer.expect(s, "fading in", FADE_BUDGET_US));
+            s.run(() -> Minecraft.getInstance().setScreen(null));
+            s.waitUntil("closed again", () -> !ExitingDocuments.any(), Playtest.WAIT);
         });
     }
 

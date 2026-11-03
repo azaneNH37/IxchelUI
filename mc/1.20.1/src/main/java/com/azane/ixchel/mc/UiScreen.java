@@ -42,6 +42,10 @@ import net.minecraft.resources.ResourceLocation;
  *         new ConfigScreenHandler.ConfigScreenFactory((mc, modList) -> new UiScreen(new ConfigView(), modList)));
  * }</pre>
  *
+ * <p>The document draws over that background, and a {@code backdrop-filter} reads it. A screen that
+ * shows the game unshaded behind its own {@code backdrop-filter} overrides
+ * {@code renderBackground(GuiGraphics)} to draw nothing.
+ *
  * <p>In a development run the files are read from the source tree and reloaded on save, keeping the
  * view model and its state (see {@link HostedDocument}).
  */

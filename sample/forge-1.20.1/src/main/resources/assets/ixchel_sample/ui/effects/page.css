@@ -1,0 +1,232 @@
+.screen {
+  width: 100%;
+  height: 100%;
+}
+
+.panel {
+  flex-grow: 1;
+  margin: 6px;
+  padding: 6px;
+}
+
+.header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.tabs {
+  flex-direction: row;
+  gap: 2px;
+}
+
+.tab.selected {
+  background-color: var(--ix-selected);
+  color: var(--ix-selected-text);
+}
+
+.hint {
+  color: var(--ix-text-dim);
+  margin-bottom: 4px;
+}
+
+.page {
+  display: none;
+  flex-grow: 1;
+}
+
+.page.shown {
+  display: flex;
+}
+
+.section {
+  margin: 4px 0 3px;
+  color: var(--ix-text-muted);
+}
+
+.row,
+.pair {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.pair {
+  margin-bottom: 4px;
+}
+
+.sample {
+  width: 110px;
+  align-items: center;
+  gap: 2px;
+}
+
+.caption {
+  color: var(--ix-text-dim);
+}
+
+/* Two overlapping squares: as one group the overlap shows only the top square. */
+.stack {
+  flex-direction: row;
+  padding: 4px;
+}
+
+.square {
+  width: 28px;
+  height: 28px;
+}
+
+.square.a {
+  background-color: #E04848;
+}
+
+.square.b {
+  margin-left: -12px;
+  background-color: #4890E0;
+}
+
+.stack.whole {
+  opacity: 0.5;
+}
+
+.stack.apart .square {
+  opacity: 0.5;
+}
+
+.items {
+  flex-direction: row;
+  gap: 2px;
+  padding: 2px;
+  background-color: var(--ix-well);
+}
+
+.items.whole {
+  opacity: 0.5;
+}
+
+.item {
+  width: 16px;
+  height: 16px;
+}
+
+.card {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--ix-text-dim);
+  background-color: var(--ix-well);
+  transition: opacity 300ms;
+}
+
+.card.faded {
+  opacity: 0.25;
+}
+
+button {
+  padding: 3px 6px;
+}
+
+/* One tile per filter function, all with the same art: three color bars and an item. */
+.tiles {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px 6px;
+}
+
+.tile {
+  width: 74px;
+  align-items: center;
+  gap: 1px;
+}
+
+.art {
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+}
+
+.bar {
+  width: 8px;
+  height: 20px;
+}
+
+.bar.red {
+  background-color: #E04848;
+}
+
+.bar.green {
+  background-color: #48C048;
+}
+
+.bar.blue {
+  background-color: #4890E0;
+}
+
+/* A gold square over a flat blue canvas in each blend mode. */
+.canvas {
+  flex-direction: row;
+  padding: 6px;
+}
+
+.blends {
+  gap: 8px;
+  background-color: #3080C0;
+}
+
+.blend-sample {
+  align-items: center;
+  gap: 2px;
+}
+
+.blob {
+  width: 40px;
+  height: 24px;
+  background-color: #D0A040;
+}
+
+.blend-sample .caption {
+  color: #FFFFFF;
+}
+
+/* Sharp stripes behind two rounded glass panels. */
+.stripes {
+  position: relative;
+  height: 60px;
+  padding: 0;
+}
+
+.stripe {
+  width: 8px;
+  height: 100%;
+  background-color: #E0C040;
+}
+
+.stripe.dark {
+  background-color: #304890;
+}
+
+.glass {
+  position: absolute;
+  top: 10px;
+  width: 120px;
+  height: 40px;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  border: 1px solid #FFFFFF60;
+  background-color: #FFFFFF20;
+}
+
+.glass.blurred {
+  left: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.glass.gray {
+  left: 150px;
+  backdrop-filter: grayscale(1) brightness(0.8);
+}

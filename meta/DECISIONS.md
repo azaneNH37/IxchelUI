@@ -196,3 +196,9 @@
 - **context**: V3 初版入场用 `@starting-style`（CSS，首帧瞬间）、离场用块属性 `leave`（模板，整段阶段），同一对动作分在两层两种写法，整页与顶层条目也无从复用
 - **decision**: 进出单元（`<if>`/`<for>` 副本的顶层元素、文档顶层元素、顶层条目）的根元素带引擎维护的伪类：`:-ix-entering`（插入起到子树过渡与有限动画结束）、`:-ix-exiting`（移除起到结束，之后才真正移除，期间 inert、停绑定）、`:-ix-absent`（进场首帧与整个离场，即共享的"不在场"外观）；后代经组合子选择，外层进出时内层不单独播；中途反悔两阶段互换、过渡反向；样式表不用这些伪类时立即进出。作者只写 CSS，模板与 Java 无动画 API。删除 `@starting-style` 语法与块属性 `leave`（写了报错），引擎也不再有起始样式机制：进场首帧即普通的 `:-ix-absent` 样式。UiScreen 关闭与 UiHud 显隐用同一写法，经加载器绘制钩子画残影，另开阶段 V4，不需 mixin；`display: none` 显隐不算进出。细节见 `ref/D-ixchel-roadmap-20261029.md` V3、V4
 - **rejected**: 块属性 `leave`/`enter`（Vue `<Transition>` 式）——整页无块可挂，资源包不能单独加动画；元素属性 `closed="类"`——仍要动模板；`@starting-style` 管入场——首帧瞬间与离场阶段不对称，进场时长只能写在常态规则里；单个 `:-ix-absent`——进出外观或 `@keyframes` 不同时无写法；`:-ix-entering` 只匹配首帧——名字暗示整段，写在其中的 `transition` 不生效
+
+## #033 库自带 shader 从 classpath 构造，不走 RegisterShadersEvent
+- **decided**: 2026-11-03
+- **context**: FX1 原定固定 shader 经加载器 `RegisterShadersEvent` 注册、随资源重载重建；FX2 的滤镜、合成与背景 shader 不是资源包内容
+- **decision**: mc 层首次使用时用 classpath `ResourceProvider` 构造 `ShaderInstance`，程序名 `<modid>_ixchel_<名>`，加载器层不参与。`GameRenderer.reloadShaders` 只关闭它自己 `shaders` 表里的实例，不碰这些程序，F3+T 后照常工作（effects playtest 重载复查）。shader JSON 不写 blend 节点，绘制顺序为 `FilterShaders.apply` → 设混合状态 → 建网格 → `FilterShaders.draw`：`apply()` 会按默认不透明 `BlendMode` 关掉 blending
+- **rejected**: `RegisterShadersEvent` 注册——每次资源重载重编译不变的库 shader，还要加载器胶水层转交实例；在 shader JSON 写 blend 节点——合成的混合方式随 `mix-blend-mode` 变化，一份 JSON 只能固定一种

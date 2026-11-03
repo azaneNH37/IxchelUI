@@ -9,6 +9,7 @@ import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.CornerRadius;
 import com.azane.ixchel.core.css.property.CssImage;
+import com.azane.ixchel.core.css.property.Filter;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Length;
 import com.azane.ixchel.core.css.property.ScrollbarColor;
@@ -43,10 +44,14 @@ import java.util.Set;
  * only); the top and bottom sides cover the corners. With a rounded corner the background color is
  * a {@link DrawCommand.Fill} and the border one {@link DrawCommand.Border}.
  *
- * <p>{@code opacity} multiplies the alpha of every color and image tint in the element's subtree, so
- * where two of its descendants overlap they blend with each other (a browser would flatten the group
- * first). Native elements ({@link DrawCommand.Custom}) are drawn by the host and do not fade. An
- * element with opacity 0 paints nothing but still takes pointer events, as in CSS.
+ * <p>{@code opacity} below 1, a {@code filter} or a {@code mix-blend-mode} other than {@code normal}
+ * paint the element as a group: its commands, transform included, go between a
+ * {@link DrawCommand.PushLayer} and a {@link DrawCommand.PopLayer}, and the host filters what they
+ * drew and composites it at that opacity with that blend mode, so overlapping descendants and native
+ * elements are treated as one. The layer's rectangle bounds what its commands draw (see
+ * {@link DisplayList.Bounds}) grown by how far the filters spread it. A {@code backdrop-filter} is a
+ * {@link DrawCommand.Backdrop} before the element's box. An element with opacity 0 paints nothing but
+ * still takes pointer events, as in CSS.
  *
  * <p>A scroll container ({@code overflow} other than {@code visible}) clips its descendants to its
  * padding box and paints them {@link Element#scrollTop()} higher, then its {@link Scrollbar} over
@@ -80,8 +85,7 @@ public final class Painter implements PaintFacet.Context {
     private final ImageMeasurer images;
     private final Diagnostics diag;
     private final Set<String> reported = new HashSet<>();
-    /** Product of the opacities of the element being painted and its ancestors. */
-    private float alpha = 1;
+    private final DisplayList.Bounds bounds;
     private boolean caretVisible;
 
     /** @param diag receives paint-time errors (an image that cannot be measured), each reported once */
@@ -89,6 +93,7 @@ public final class Painter implements PaintFacet.Context {
         this.layout = layout;
         this.images = images;
         this.diag = diag;
+        this.bounds = new DisplayList.Bounds(layout::textWidth);
     }
 
     /** Whether the focused input's caret is drawn: the visible half of its blink. */
@@ -116,7 +121,6 @@ public final class Painter implements PaintFacet.Context {
         List<Element> entries = top.entries();
         for (int i = 0; i < entries.size(); i++) {
             Element entry = entries.get(i);
-            alpha = 1;
             LayerFacet presentation = entry.type().facet(LayerFacet.KEY);
             if (presentation.modal()) {
                 rect(out, 0, 0, root.box().width(), root.box().height(), BACKDROP_COLOR);
@@ -133,14 +137,13 @@ public final class Painter implements PaintFacet.Context {
     public void paintAtPointer(TopLayer top, DisplayList out) {
         out.clear();
         if (top.atPointer() != null) {
-            alpha = 1;
             paintElement(top.atPointer(), 0, out);
         }
     }
 
     /**
-     * {@code dy}: how far scroll containers above move these children up. Colors are multiplied by
-     * {@link #alpha}. The {@code ::before} box paints under the children, {@code ::after} over them.
+     * {@code dy}: how far scroll containers above move these children up. The {@code ::before} box
+     * paints under the children, {@code ::after} over them.
      */
     private void paintChildren(Element e, float dy, DisplayList out) {
         if (e.before() != null) {
@@ -165,28 +168,51 @@ public final class Painter implements PaintFacet.Context {
 
     private void paintElement(Element e, float dy, DisplayList out) {
         ComputedStyle cs = e.computed();
-        float opacity = cs.get(CssProperties.OPACITY);
+        float opacity = Math.min(1, cs.get(CssProperties.OPACITY));
         if (cs.get(CssProperties.DISPLAY) == Keywords.Display.NONE || opacity <= 0) {
             return;
         }
-        float outer = alpha;
-        alpha = outer * Math.min(1, opacity);
+        List<Filter> filters = cs.get(CssProperties.FILTER);
+        Keywords.MixBlendMode blend = cs.get(CssProperties.MIX_BLEND_MODE);
+        boolean group = opacity < 1 || !filters.isEmpty() || blend != Keywords.MixBlendMode.NORMAL;
+        int start = out.size();
+        if (group) {
+            out.add(DrawCommand.PopLayer.INSTANCE); // replaced by the layer once its bounds are known
+        }
         LayoutBox b = e.box();
         Affine m = Transform.of(cs, b.x(), b.y() - dy, b.width(), b.height());
         if (m != null) {
             out.add(new DrawCommand.PushTransform(m));
         }
-        paintBox(e, cs, dy, out);
+        paintBox(e, cs, dy, group, out);
         if (m != null) {
             out.add(DrawCommand.PopTransform.INSTANCE);
         }
-        alpha = outer;
+        if (group) {
+            float[] r = bounds.of(out, start + 1, out.size());
+            if (r == null) {
+                out.truncate(start);
+                return;
+            }
+            float spread = 0;
+            for (int i = 0; i < filters.size(); i++) {
+                spread += filters.get(i).reach();
+            }
+            out.set(start, new DrawCommand.PushLayer(r[0] - spread, r[1] - spread, r[2] - r[0] + 2 * spread,
+                    r[3] - r[1] + 2 * spread, opacity, filters, blend));
+            out.add(DrawCommand.PopLayer.INSTANCE);
+        }
     }
 
-    private void paintBox(Element e, ComputedStyle cs, float dy, DisplayList out) {
+    /** {@code grouped}: whether the element opened its own layer, which then holds its backdrop too. */
+    private void paintBox(Element e, ComputedStyle cs, float dy, boolean grouped, DisplayList out) {
         LayoutBox b = e.box();
         float y = b.y() - dy;
         RoundRect border = new RoundRect(b.x(), y, b.width(), b.height(), radii(cs, b.width(), b.height()));
+        List<Filter> backdrop = cs.get(CssProperties.BACKDROP_FILTER);
+        if (!backdrop.isEmpty() && b.width() > 0 && b.height() > 0) {
+            out.add(new DrawCommand.Backdrop(border, backdrop, grouped));
+        }
         paintShadows(cs, b, border, false, out);
         paintBackground(e, cs, b, border, out);
         paintShadows(cs, b, border, true, out);
@@ -215,13 +241,12 @@ public final class Painter implements PaintFacet.Context {
     /** One line of a control's text, over the shadow of {@code cs}'s {@code text-shadow}. */
     public void text(DisplayList out, ComputedStyle cs, float x, float y, float size, int color, String text) {
         TextShadow shadow = cs.get(CssProperties.TEXT_SHADOW);
-        int s = fade(shadow.color());
+        int s = shadow.color();
         if (s >>> 24 != 0) {
             out.add(new DrawCommand.Text(x + shadow.x(), y + shadow.y(), size, s, text, 0));
         }
-        int c = fade(color);
-        if (c >>> 24 != 0) {
-            out.add(new DrawCommand.Text(x, y, size, c, text, 0));
+        if (color >>> 24 != 0) {
+            out.add(new DrawCommand.Text(x, y, size, color, text, 0));
         }
     }
 
@@ -239,7 +264,7 @@ public final class Painter implements PaintFacet.Context {
         RoundRect base = inset ? border.inset(b.borderTop(), b.borderRight(), b.borderBottom(), b.borderLeft()) : border;
         for (int i = shadows.size() - 1; i >= 0; i--) {
             BoxShadow s = shadows.get(i);
-            int color = fade(s.color());
+            int color = s.color();
             if (s.inset() != inset || color >>> 24 == 0) {
                 continue;
             }
@@ -287,10 +312,10 @@ public final class Painter implements PaintFacet.Context {
         float bt = b.borderBottom();
         float l = b.borderLeft();
         if (!border.radii().isZero()) {
-            int tc = fade(cs.get(CssProperties.BORDER_TOP_COLOR));
-            int rc = fade(cs.get(CssProperties.BORDER_RIGHT_COLOR));
-            int bc = fade(cs.get(CssProperties.BORDER_BOTTOM_COLOR));
-            int lc = fade(cs.get(CssProperties.BORDER_LEFT_COLOR));
+            int tc = cs.get(CssProperties.BORDER_TOP_COLOR);
+            int rc = cs.get(CssProperties.BORDER_RIGHT_COLOR);
+            int bc = cs.get(CssProperties.BORDER_BOTTOM_COLOR);
+            int lc = cs.get(CssProperties.BORDER_LEFT_COLOR);
             boolean visible = t > 0 && tc >>> 24 != 0 || r > 0 && rc >>> 24 != 0 || bt > 0 && bc >>> 24 != 0
                     || l > 0 && lc >>> 24 != 0;
             if (visible) {
@@ -360,7 +385,7 @@ public final class Painter implements PaintFacet.Context {
         Keywords.ImageTiling across = repeat.get(0);
         Keywords.ImageTiling down = repeat.get(1);
         Keywords.ImageTiling stretch = Keywords.ImageTiling.STRETCH;
-        Slicer s = new Slicer(e, src, iw, ih, fade(OPAQUE_WHITE), filter(cs), out);
+        Slicer s = new Slicer(e, src, iw, ih, OPAQUE_WHITE, filter(cs), out);
         float x0 = b.x();
         float x1 = x0 + w;
         float y1 = y + h;
@@ -482,18 +507,9 @@ public final class Painter implements PaintFacet.Context {
     }
 
     public void rect(DisplayList out, float x, float y, float w, float h, int color) {
-        int c = fade(color);
-        if (c >>> 24 != 0) {
-            out.add(new DrawCommand.Rect(x, y, w, h, c));
+        if (color >>> 24 != 0) {
+            out.add(new DrawCommand.Rect(x, y, w, h, color));
         }
-    }
-
-    /** {@code color} with its alpha multiplied by the opacity of the element being painted and its ancestors. */
-    public int fade(int color) {
-        if (alpha >= 1) {
-            return color;
-        }
-        return Math.round((color >>> 24) * alpha) << 24 | color & 0xFFFFFF;
     }
 
     /** {@code dy}: the scroll offset of the ancestors, as {@link #paintBox} takes it. */
@@ -571,9 +587,8 @@ public final class Painter implements PaintFacet.Context {
             rect(out, shape.x(), shape.y(), shape.width(), shape.height(), color);
             return;
         }
-        int c = fade(color);
-        if (c >>> 24 != 0) {
-            out.add(new DrawCommand.Fill(shape, shape.x(), shape.y(), shape.width(), shape.height(), c, null));
+        if (color >>> 24 != 0) {
+            out.add(new DrawCommand.Fill(shape, shape.x(), shape.y(), shape.width(), shape.height(), color, null));
         }
     }
 
@@ -659,7 +674,7 @@ public final class Painter implements PaintFacet.Context {
                 }
                 if (src != null) {
                     out.add(new DrawCommand.Image(cx0, cy0, cx1 - cx0, cy1 - cy0, src,
-                            (cx0 - tx) / w, (cy0 - ty) / h, (cx1 - tx) / w, (cy1 - ty) / h, fade(tint), filter));
+                            (cx0 - tx) / w, (cy0 - ty) / h, (cx1 - tx) / w, (cy1 - ty) / h, tint, filter));
                 } else {
                     Gradient g = gradient((CssImage.LinearGradient) image, tx, ty, w, h);
                     if (g != null) {
@@ -722,7 +737,7 @@ public final class Painter implements PaintFacet.Context {
         int[] colors = new int[offsets.length];
         int k = 0;
         offsets[k] = at[0];
-        colors[k++] = fade(stops.get(0).color());
+        colors[k++] = stops.get(0).color();
         for (int i = 1; i < n; i++) {
             int from = stops.get(i - 1).color();
             int to = stops.get(i).color();
@@ -731,7 +746,7 @@ public final class Painter implements PaintFacet.Context {
             for (int s = 1; s <= steps; s++) {
                 float p = s / (float) steps;
                 offsets[k] = at[i - 1] + (at[i] - at[i - 1]) * p;
-                colors[k++] = fade(s == steps ? to : premultipliedMix(from, to, p));
+                colors[k++] = s == steps ? to : premultipliedMix(from, to, p);
             }
         }
         float cx = x + w / 2;
@@ -811,7 +826,7 @@ public final class Painter implements PaintFacet.Context {
         }
         int base = parent.get(CssProperties.COLOR);
         TextShadow shadow = parent.get(CssProperties.TEXT_SHADOW);
-        int shadowColor = fade(shadow.color());
+        int shadowColor = shadow.color();
         StyledText styled = t.styled();
         for (int i = 0; i < fragments.size(); i++) {
             LayoutEngine.TextFragment f = fragments.get(i);
@@ -824,7 +839,6 @@ public final class Painter implements PaintFacet.Context {
                 }
                 own |= s.flags();
             }
-            color = fade(color);
             if (shadowColor >>> 24 != 0) {
                 out.add(new DrawCommand.Text(f.x() + shadow.x(), f.y() - dy + shadow.y(), f.size(), shadowColor, f.text(), own));
             }

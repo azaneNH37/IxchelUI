@@ -24,6 +24,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import org.slf4j.Logger;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -88,12 +89,23 @@ public final class HostedDocument implements AutoCloseable {
      * @throws UiLoadException outside development when the document has errors
      */
     public HostedDocument(ResourceLocation template, TagRegistry tags, ViewModel model, Runnable onReload) {
+        this(template, tags, Map.of(), model, onReload);
+    }
+
+    /**
+     * As {@link #HostedDocument(ResourceLocation, TagRegistry, ViewModel, Runnable)}, with painters for
+     * elements of {@code tags} that declare no payload but get one from the host, by tag.
+     */
+    public HostedDocument(ResourceLocation template, TagRegistry tags, Map<String, NativePainter<?>> own, ViewModel model,
+                          Runnable onReload) {
         this.dev = DevResources.forHost(template.getNamespace());
         this.resources = new McResources(template.getNamespace(), dev);
         this.templatePath = template.getPath();
         McElements.Hosted hosted = McElements.forHost(template.getNamespace(), tags);
         this.tags = hosted.tags();
-        this.painters = hosted.painters();
+        Map<String, NativePainter<?>> all = new HashMap<>(hosted.painters());
+        all.putAll(own);
+        this.painters = all;
         this.painter = new McPainter(template.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
         this.tooltipPainter = new McPainter(template.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
         this.model = model;

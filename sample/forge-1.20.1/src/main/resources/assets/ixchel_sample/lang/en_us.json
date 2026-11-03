@@ -53,6 +53,8 @@
   "ixchel_sample.index.guide.description": "A two-page book: contents built from the entry templates, links with Back, page turns by arrow or key, styled paragraphs with items in the line, Chinese text, and crafting grids that cycle through the accepted ingredients.",
   "ixchel_sample.index.tooltips.title": "Element tooltips",
   "ixchel_sample.index.tooltips.description": "Rich tooltips on buttons, form controls, terms in text and items (vanilla, custom, custom with the item's own lines); a scrolled list at the screen edge, nesting, a component, a countdown and a dialog.",
+  "ixchel_sample.index.effects.title": "Visual effects",
+  "ixchel_sample.index.effects.description": "Group opacity: overlapping boxes, items and text fade as one, beside the same content faded piece by piece, and a card that fades with its item; every filter function, blend mode and backdrop filters behind rounded glass.",
 
   "ixchel_sample.loot.title": "Nearby drops",
   "ixchel_sample.loot.count": "%s of %s drops",
@@ -267,5 +269,21 @@
   "ixchel_sample.env.weather.dry": "Clear (dry biome)",
   "ixchel_sample.env.weather.snow": "Snow",
   "ixchel_sample.env.weather.rain": "Rain",
-  "ixchel_sample.env.weather.thunder": "%s, thunder"
+  "ixchel_sample.env.weather.thunder": "%s, thunder",
+
+  "ixchel_sample.effects.hint": "Each pair: the effect on the whole group, then piece by piece",
+  "ixchel_sample.effects.opacity": "Opacity",
+  "ixchel_sample.effects.whole": "As one group",
+  "ixchel_sample.effects.apart": "Each square",
+  "ixchel_sample.effects.items_faded": "Items, half faded",
+  "ixchel_sample.effects.items_opaque": "Items, opaque",
+  "ixchel_sample.effects.fade": "Fade",
+  "ixchel_sample.effects.card": "Golden apples",
+  "ixchel_sample.effects.toggle": "Fade",
+  "ixchel_sample.effects.filters": "Filters",
+  "ixchel_sample.effects.blend": "Blending",
+  "ixchel_sample.effects.blend_modes": "mix-blend-mode over a flat canvas",
+  "ixchel_sample.effects.backdrop": "backdrop-filter",
+  "ixchel_sample.effects.glass_blur": "Blurred behind",
+  "ixchel_sample.effects.glass_gray": "Gray behind"
 }

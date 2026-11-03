@@ -8,16 +8,17 @@
 .panel {
   width: 240px;
   padding: 6px;
-  transition: transform 200ms ease-out;
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
 }
 
-/* The panel rises in when the screen opens and sinks out, slower, when it closes. */
+/* The panel rises and fades in when the screen opens and sinks and fades out, slower, when it closes. */
 .screen:-ix-absent .panel {
   transform: translateY(16px);
+  opacity: 0;
 }
 
 .screen:-ix-exiting .panel {
-  transition: transform 400ms ease-in;
+  transition: transform 400ms ease-in, opacity 400ms ease-in;
 }
 
 .header {

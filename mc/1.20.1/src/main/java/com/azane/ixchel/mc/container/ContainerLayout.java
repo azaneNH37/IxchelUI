@@ -5,7 +5,6 @@ import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
-import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.template.NativeElement;
@@ -305,19 +304,17 @@ public final class ContainerLayout {
         return clipOf.get(slot);
     }
 
-    /** What the visible slots show now; call before {@link #restore}. */
+    /** What the visible slots show now, by their elements; call before {@link #restore}. */
     public SlotSnapshot snapshot() {
-        List<SlotSnapshot.Entry> entries = new ArrayList<>();
+        Map<Element, SlotSnapshot.Item> items = new IdentityHashMap<>();
         for (Map.Entry<Integer, Element> placement : placed.entrySet()) {
             Slot slot = menu.slots.get(placement.getKey());
-            int[] clip = clipOf.get(slot);
-            if (clip != null && slot.isActive()) {
-                Element e = placement.getValue();
-                entries.add(new SlotSnapshot.Entry(e, slot.getItem().copy(), slot.getNoItemIcon(), left + slot.x, top + slot.y,
-                        clip, EventDispatcher.paintedCenter(e), slot.x + slot.y * areaWidth));
+            if (clipOf.get(slot) != null && slot.isActive()) {
+                items.put(placement.getValue(), new SlotSnapshot.Item(slot.getItem().copy(), slot.getNoItemIcon(),
+                        slot.x + slot.y * areaWidth));
             }
         }
-        return new SlotSnapshot(entries);
+        return new SlotSnapshot(items);
     }
 
     /** Puts the slots back where the menu had them: a menu can outlive the screen ({@code player.inventoryMenu}). */

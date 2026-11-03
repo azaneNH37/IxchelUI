@@ -1,56 +1,61 @@
 package com.azane.ixchel.mc.container;
 
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.core.event.EventDispatcher;
+import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.mc.paint.NativePainter;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.List;
+import java.util.Map;
 
 /**
- * What the visible slots of a closed container screen showed: the menu is gone, so these copies are
- * drawn while its document exits, each following where its {@code <mc-slot>} paints. Only the
- * position follows: transforms do not scale these items and {@code opacity} does not fade them.
+ * What the visible slots of a closed container screen showed: the menu is gone, so while its
+ * document exits each copy becomes its {@code <mc-slot>}'s payload, drawn by {@link #PAINTER} where
+ * the element paints. The copies paint with the rest of the document: moved and scaled by
+ * transforms, clipped by {@code overflow}, faded by {@code opacity}.
  */
 public final class SlotSnapshot {
-    /** One visible slot: its item area and clip in document coordinates when the screen closed. */
-    record Entry(Element element, ItemStack stack, Pair<ResourceLocation, ResourceLocation> icon,
-                 int x, int y, int[] clip, float[] center, int seed) {
-    }
+    /** Draws a slot's copy centered in its element; a container screen's document has it for {@code <mc-slot>}. */
+    public static final NativePainter<Item> PAINTER = new NativePainter<>() {
+        /** The count over an item is drawn 200 above it. */
+        private static final float DEPTH = 210f;
 
-    private final List<Entry> entries;
-
-    SlotSnapshot(List<Entry> entries) {
-        this.entries = entries;
-    }
-
-    /** Draws the items over the exiting document. */
-    public void draw(GuiGraphics g, Font font) {
-        for (Entry e : entries) {
-            float[] now = EventDispatcher.paintedCenter(e.element);
-            int dx = Math.round(now[0] - e.center[0]);
-            int dy = Math.round(now[1] - e.center[1]);
-            int x = e.x + dx;
-            int y = e.y + dy;
-            g.enableScissor(e.clip[0] + dx, e.clip[1] + dy, e.clip[2] + dx, e.clip[3] + dy);
-            g.pose().pushPose();
-            g.pose().translate(0, 0, ClippedSlotItems.SLOT_ITEM_Z);
-            if (e.stack.isEmpty()) {
-                if (e.icon != null) {
-                    TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(e.icon.getFirst()).apply(e.icon.getSecond());
-                    g.blit(x, y, 0, ContainerLayout.ITEM_SIZE, ContainerLayout.ITEM_SIZE, sprite);
+        @Override
+        public float paint(GuiGraphics g, DrawCommand.Custom c, Item item, float z, float pointerX, float pointerY) {
+            PoseStack ps = g.pose();
+            ps.pushPose();
+            ps.translate(c.x() + (c.width() - ContainerLayout.ITEM_SIZE) / 2, c.y() + (c.height() - ContainerLayout.ITEM_SIZE) / 2, z);
+            if (item.stack.isEmpty()) {
+                if (item.icon != null) {
+                    TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(item.icon.getFirst()).apply(item.icon.getSecond());
+                    g.blit(0, 0, 0, ContainerLayout.ITEM_SIZE, ContainerLayout.ITEM_SIZE, sprite);
                 }
             } else {
-                g.renderItem(e.stack, x, y, e.seed);
-                g.renderItemDecorations(font, e.stack, x, y);
+                g.renderItem(item.stack, 0, 0, item.seed);
+                g.renderItemDecorations(Minecraft.getInstance().font, item.stack, 0, 0);
             }
-            g.pose().popPose();
-            g.disableScissor();
+            ps.popPose();
+            return DEPTH;
         }
+    };
+
+    /** One visible slot's content: its item, or the icon an empty slot shows. */
+    record Item(ItemStack stack, Pair<ResourceLocation, ResourceLocation> icon, int seed) {
+    }
+
+    private final Map<Element, Item> items;
+
+    SlotSnapshot(Map<Element, Item> items) {
+        this.items = items;
+    }
+
+    /** Hands each copy to its element; the document must have {@link #PAINTER} for {@code <mc-slot>}. */
+    public void attach() {
+        items.forEach(Element::setPayload);
     }
 }

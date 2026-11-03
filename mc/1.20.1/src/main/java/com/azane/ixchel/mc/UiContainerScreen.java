@@ -18,6 +18,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
+import java.util.Map;
+
 /**
  * A container screen whose layout is a document. The host's menu defines the slots; the template
  * places them with {@code <mc-slot index="N">} elements, and the resulting positions are written
@@ -116,7 +118,8 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         super(menu, inventory, title);
         this.layout = new ContainerLayout(menu, slotItems == SlotItemRendering.IXCHEL);
         this.clippedItems = slotItems == SlotItemRendering.IXCHEL ? new ClippedSlotItems() : null;
-        this.doc = new HostedDocument(template, ContainerLayout.TAGS, model, layout::invalidate);
+        this.doc = new HostedDocument(template, ContainerLayout.TAGS, Map.of(ContainerLayout.SLOT_TAG, SlotSnapshot.PAINTER),
+                model, layout::invalidate);
     }
 
     @Override
@@ -266,6 +269,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         layout.restore();
         super.removed();
         doc.close();
-        ExitingDocuments.add(doc, g -> items.draw(g, font));
+        items.attach();
+        ExitingDocuments.add(doc);
     }
 }

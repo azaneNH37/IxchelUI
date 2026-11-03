@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * Documents of closed screens, still drawn until their exit ended. The screen is gone at once, so
@@ -30,12 +29,10 @@ public final class ExitingDocuments {
 
     private static final class Exit {
         final HostedDocument doc;
-        final Consumer<GuiGraphics> above;
         boolean done;
 
-        Exit(HostedDocument doc, Consumer<GuiGraphics> above) {
+        Exit(HostedDocument doc) {
             this.doc = doc;
-            this.above = above;
         }
     }
 
@@ -46,20 +43,11 @@ public final class ExitingDocuments {
 
     /** Starts the exit of the closed {@code doc}, nothing when it cannot animate. */
     public static void add(HostedDocument doc) {
-        add(doc, g -> { });
-    }
-
-    /**
-     * Starts the exit of the closed {@code doc}, nothing when it cannot animate.
-     *
-     * @param above draws over the document in each frame of its exit
-     */
-    public static void add(HostedDocument doc, Consumer<GuiGraphics> above) {
         UiDocument d = doc.document();
         if (d == null) {
             return;
         }
-        Exit exit = new Exit(doc, above);
+        Exit exit = new Exit(doc);
         d.exit(() -> exit.done = true);
         if (exit.done) {
             return;
@@ -102,8 +90,6 @@ public final class ExitingDocuments {
             pose.pushPose();
             pose.translate(0, 0, Z);
             exit.doc.paint(g, Float.NaN, Float.NaN);
-            pose.translate(0, 0, exit.doc.topZ());
-            exit.above.accept(g);
             g.flush();
             pose.popPose();
         }

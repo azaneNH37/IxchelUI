@@ -2,6 +2,7 @@ package com.azane.ixchel.sample.client.index;
 
 import com.azane.ixchel.sample.character.CharacterScreen;
 import com.azane.ixchel.sample.config.ConfigScreen;
+import com.azane.ixchel.sample.effects.EffectsScreen;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.guide.Guide;
 import com.azane.ixchel.sample.loot.LootScreens;
@@ -34,6 +35,7 @@ public final class Samples {
                 Sample.screen("config", new ItemStack(Items.COMPARATOR), ConfigScreen::open),
                 Sample.screen("quests", new ItemStack(Items.WRITABLE_BOOK), QuestsScreen::open),
                 Sample.screen("guide", new ItemStack(Items.BOOK), Guide::open),
-                Sample.screen("tooltips", new ItemStack(Items.NAME_TAG), TooltipsScreen::open));
+                Sample.screen("tooltips", new ItemStack(Items.NAME_TAG), TooltipsScreen::open),
+                Sample.screen("effects", new ItemStack(Items.AMETHYST_SHARD), EffectsScreen::open));
     }
 }
