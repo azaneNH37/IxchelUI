@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3，以及原生声明与元素定义重构 N1–N2；接下来是 V1–V3（盒子外观、尺寸与排版、动画），然后 U4（组件库）、FX1–FX3；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2，以及 V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）；接下来是 U4（组件库）、FX1–FX3；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -46,13 +46,14 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | N1–N2 | 完成 | — | 原生声明随实现类注册；元素定义按消费阶段切面组合（#030、#031），结果见下文 |
 | V1 | 完成 | — | `::before`/`::after`（只做装饰）、多层背景、线性渐变、`border-image` 与 `image-rendering: pixelated`、`border-radius`（只做圆角外观）、`box-shadow`、`:not`/`:is`/`:where` |
 | V2 | 完成 | — | `calc()` 与 `min()`/`max()`/`clamp()`、em/rem/vw/vh、`line-height`、`align-content`、grid、标准块布局（放宽 `display: block` 含块级子元素的限制） |
-| V3 | 待做 | — | `@keyframes` 与 `animation-*`、`on:animationend`、`@starting-style`、`<if>`/`<for>` 的 `leave` |
+| V3 | 完成 | — | `@keyframes` 与 `animation-*`、`on:animationend`、进出伪类 `:-ix-absent`/`:-ix-entering`/`:-ix-exiting`（#032） |
+| V4 | 完成 | S1、S6 | 整页开关动画：UiScreen 关闭与 UiHud 显隐复用进出伪类（#032） |
 | U4 | 待做 | — | `ix-` 组件库：tabs、tree、进度条等 |
 | FX1 | 待做 | — | 私有图层与 shader 注册；`opacity` 整组语义 |
 | FX2 | 待做 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
 | FX3 | 待做 | — | `.effect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028） |
 
-依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
+依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
 #### D0 改名与清理
 
@@ -199,14 +200,34 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 #### V3 动画
 
 - 已定（2026-11-02，语言文档 §6-14）：
-  - `leave="class"` 是 `<if>`、`<for>` 的通用属性：卸载前给实例顶层元素加 class，子树过渡结束后才移除，没有过渡时立即移除；离场期间停止绑定更新、不参与命中与焦点；中途恢复时去掉 class，由 `Transitions` 反向。只有直接带 `leave` 的块延后，外层卸载不等内层。
+  - ~~`leave="class"` 块属性~~ 由补定 2 取代。
   - 时间：动画与过渡用墙钟（`System::nanoTime`），游戏暂停不冻结，视效不跟逻辑时间。
   - `@keyframes` 与全部 `animation-*` 长写及简写，含 `animation-play-state` 与 `steps()`；与 `bind:style` 的优先级按标准层叠。
   - 事件：`on:animationend`（播完移除提示、一次性强调后去掉 class）；不做 `animationiteration`（次数用 `animation-iteration-count`）。现无 `transitionend`，不同批补。
-  - `@starting-style` 按标准：元素首次得到样式时（含整页首次加载、`<if>`/`<for>` 新实例、从 `display: none` 恢复）从起始样式过渡。
-  - 补定（2026-11-03）：`leave` 等子树内的过渡与有限次动画结束，无限动画不等。`<if>` 离场中恢复复用离场实例，不再重建。`<for>` 离场行原地不动、不参与重排，离场逻辑取最简实现。`@starting-style` 顶层与嵌套在规则内都收。其余按标准：离散属性在动画进度 50% 处切换，`animationend` 冒泡，伪元素上的动画以宿主为事件目标。
+  - ~~`@starting-style`~~ 由补定 2 取代。
+  - 补定（2026-11-03）：离场等子树内的过渡与有限次动画结束，无限动画不等。离场中恢复复用离场实例，不再重建。`<for>` 离场行原地不动、不参与重排，离场逻辑取最简实现。其余按标准：离散属性在动画进度 50% 处切换，`animationend` 冒泡，伪元素上的动画以宿主为事件目标。
+  - 补定 2（2026-11-03，#032）：进出单元的根元素带三个引擎维护的伪类，作者只写 CSS。
+    - 单元：`<if>`/`<for>` 副本的顶层元素；文档顶层元素（整页加载时进场）；顶层条目（`<dialog>` 开关、`<select>` 列表、`<ix-tooltip>`、`<ix-drag-preview>`）。UiScreen 关闭与 UiHud 显隐在 V4。
+    - `:-ix-absent`：进场第一帧与整个离场；进场第二帧去掉，常态样式按 `transition` 从它过渡过来。`:-ix-entering`：插入起到子树过渡与有限动画结束。`:-ix-exiting`：移除起到结束，之后才真正移除。过渡参数按标准取变化后的样式，故各方向参数分别写在 `:-ix-entering`、`:-ix-exiting` 上。
+    - 离场期间 inert（不命中、不聚焦）、停绑定更新；顶层条目离场时立即不再模态、不再算打开。进场期间可交互。
+    - 只匹配单元根，后代经组合子选择；外层进出时内层单元不单独播；整页加载时页内块的副本不单独播。中途反悔两阶段互换，过渡从当前值反向。
+    - 文档样式表不出现这三个伪类时，进出立即完成，不延后、不多一帧。
+    - 删除 `@starting-style` 语法（报 `css/unsupported-at-rule`，hint 指向伪类）与块属性 `leave`（报 `template/unknown-block-attribute`）；StyleEngine 的起始样式机制不保留为语法。`display: none` 显隐不算进出。
 - 性能：无限动画使干净帧失效，开工时用 `FrameTimer` 预算核查，核查对象含 S3、S8。
-- 验收：core 测试用可替换时钟断言关键帧插值、`steps()`、暂停、`animationend`、`@starting-style` 与 `leave`；sample 一处入场与离场动画写成 playtest 截图序列；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
+- 验收：core 测试用可替换时钟断言关键帧插值、`steps()`、暂停、`animationend`，以及三个伪类在块、顶层条目、整页加载上的进出、反悔、嵌套、无伪类时立即进出；sample 一处对称的入场与离场动画写成 playtest 截图序列；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
+- 结果（2026-11-03）：按补定 2 完成。`dom.Presence` 管理全部进出单元，经 `Presence.Motion` 端口询问 `Animations.finishing`/`Transitions.running`；`StyleEngine.uses` 判断样式表是否用到三个伪类，未用到时进出同步完成。进场：插入帧以 `:-ix-absent` 计算样式，下一帧去掉，transition 从它开始；整页加载时加载期的样式即首帧，第一帧就开始过渡。单元在一次样式计算之后才检查运动，事件里发起的进出不会被提前判定结束。`<if>`/`<for>` 改用 `Presence`，删除 `Departures`、`Bindings.Motion` 与 `StyleEngine` 的起始样式索引。偏离：顶层条目离场期间保留 `:open`（UA 的 `dialog:open { display: flex }` 等依赖它，去掉就立即隐藏，无从播放），只是 `TopLayer.isOpen`、`modal`、`top` 不再算它，命中跳过它；dialog 离场时 inert，select 列表离场时 select 本身仍可操作。宿主隐藏 tooltip 时就地离场；替换为另一个时旧的立即消失；`<ix-drag-preview>` 同理。sample：1.20.1 quests 详情面板改为 `.detail:-ix-absent { transform: translateX(120px) }` 加 `:-ix-exiting` 改缓动的对称写法，模板不再带属性；截图 `quests-detail-entering`、`quests-detail`、`quests-detail-leaving`。
+  - 验证：core 247 项测试通过（`UiDocumentPresenceTest` 6 项：整页进场与内层不单独播、`<if>` 进出与反悔、无伪类立即进出与不等无限动画、`<for>` 原地离场与收回、dialog 离场、旧语法报错）；全量 `build` 与两版 lint 通过；Forge `-Pplaytest=all` 13 项、204 项断言通过，S3、S8 的 `FrameTimer` 预算通过（storage 滚动 p95 9.1ms/14ms，guide 1.9、2.7ms/3、3.5ms）；1.21.1 `runClient` 到标题界面、资源重载无报错，未进世界。
+  - 已知：离场期间 `:hover` 保留到指针移动；tooltip 与拖拽预览的进出没有 core 测试（与 dialog 同一套 `TopLayer` 代码）。
+
+#### V4 整页开关动画
+
+- 已定（#032）：UiScreen 关闭、UiHud 显隐复用 V3 的三个伪类，作者写法不变；不需 mixin。
+- 引擎：UiScreen 关闭（`onClose` 与外部 `setScreen` 触发的 `removed()` 都算）时立即 `setScreen`，输入归还游戏；文档生命周期从 Screen 拆出，由加载器层绘制钩子画离场残影（关到游戏画在 GUI 层，关回父界面画在 `ScreenEvent.Render.Post`），播完再关闭文档。UiHud `show(false)` 在自己的 HUD 层画到离场结束。两个 mc 版本。
+- 已定（2026-11-03）：`UiContainerScreen` 离场时快照可见槽位内容（`container.SlotSnapshot`），跟随各自 `<mc-slot>` 的绘制位置；只跟位置，不缩放、不随 `opacity` 淡出（FX1 前也没有整组淡出）。UiScreen 打开等同文档顶层进场（V3 已实现，无新代码）。
+- 验收：一个 Screen 与一个 HUD 的进出写成 playtest 截图序列；关闭动画期间玩家能移动；1.21.1 `runClient` 冒烟。
+- 结果（2026-11-03）：完成。core：`UiDocument.exit/exiting/enter`，单元为加载时的文档顶层元素；离场期间绑定停止；离场结束后保持 `:-ix-absent:-ix-exiting`（`Presence.rest`），否则恢复样式会触发回程过渡，下次进场就不再从 absent 起步；`enter` 时离场中的原路返回，已结束的从 absent 进场（`Presence.enterAgain`）。mc：`document.ExitingDocuments` 持有已关屏幕的文档，`removed()` 时 view model 立即关闭、文档继续画；`UiHud.show` 走同一 `exit/enter`，画到离场结束。加载器：`installScreenExits()` 监听 `RenderGuiEvent.Post`（无屏幕时）与 `ScreenEvent.Render.Post`，`registerHud` 已包含；只用 `UiScreen` 的宿主须自行调用一次，否则屏幕立即关闭并警告一次。`UiContainerScreen`（仅 1.20.1）用 `SlotSnapshot`。sample：waypoints 与 env 进出，character 只做离场（屏幕打开时原版按布局位置画槽位物品，不跟随 transform）；截图 `waypoints-entering`/`-leaving`、`env-entering`/`-leaving`、`character-leaving`。
+  - 验证：core 249 项测试通过（新增文档离场/反悔/再进场、无规则立即离场）；全量 `build` 与两版 lint 通过；Forge `-Pplaytest=all` 13 项、213 项断言通过，含关闭后屏幕为空、文档仍在离场且玩家已走动；预算通过（storage 滚动 p95 10.1ms/14ms，guide 1.9、2.7ms/3、3.5ms，env 2.3、3.9ms/6ms）。1.21.1 经临时入口在标题界面打开带 `:-ix-absent` 的 `UiScreen` 并关回标题：离场中叠在标题界面上（截图确认），结束后消失，日志无错误；入口与临时资源已移除。未进世界，1.21.1 的关到游戏（GUI 层）与 HUD 显隐未实跑。
+  - 已知：屏幕 `renderBackground` 的暗化在关闭时立即消失，不随文档；顶层 `<if>`/`<for>` 副本不在文档单元内，不随整页离场，文档结束时一起消失；at-pointer 内容不画离场；A 打开 B 时 A 的残影叠在 B 上；屏幕实例不可重开（view model 已关，与之前一致）。
 
 #### FX1 私有图层与 shader 注册
 

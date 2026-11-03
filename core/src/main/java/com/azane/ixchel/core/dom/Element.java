@@ -49,6 +49,12 @@ public final class Element extends Node {
     public static final int CHECKED = 1 << 4;
     /** A {@code <select>} or {@code <dialog>} in the {@link TopLayer}, or its shown tooltip or drag preview; {@code :open}. */
     public static final int OPEN = 1 << 5;
+    /** The root of a {@link Presence} unit in its first frame of entering, or while exiting; {@code :-ix-absent}. */
+    public static final int ABSENT = 1 << 6;
+    /** The root of a {@link Presence} unit from its insertion until its subtree stops moving; {@code :-ix-entering}. */
+    public static final int ENTERING = 1 << 7;
+    /** The root of a {@link Presence} unit from its removal until its subtree stops moving; {@code :-ix-exiting}. */
+    public static final int EXITING = 1 << 8;
     /** The type of every {@code ::before} box; see {@link #before()}. */
     public static final ElementType BEFORE = ElementType.plain("::before");
     /** The type of every {@code ::after} box; see {@link #after()}. */
@@ -88,6 +94,7 @@ public final class Element extends Node {
     private boolean controlResolved;
     private Element before;
     private Element after;
+    private boolean inert;
 
     private record Registration(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
     }
@@ -406,6 +413,18 @@ public final class Element extends Node {
             stateBits = next;
             markStyleDirty();
         }
+    }
+
+    /**
+     * Whether this element, the root of an exiting {@link Presence} unit, is inert: it and its subtree
+     * are never hit nor focused. Not a style state.
+     */
+    public boolean isInert() {
+        return inert;
+    }
+
+    void setInert(boolean inert) {
+        this.inert = inert;
     }
 
     /** Declarations from the {@code style} attribute, parsed by the template loader. */

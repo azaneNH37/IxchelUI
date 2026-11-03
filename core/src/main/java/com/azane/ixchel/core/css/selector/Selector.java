@@ -128,6 +128,20 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, P
         return compounds.get(compounds.size() - 1);
     }
 
+    /** The {@link Element} state bits any of its compounds tests, inside logical pseudo-classes too. */
+    public int states() {
+        int mask = 0;
+        for (Compound c : compounds) {
+            mask |= c.stateMask;
+            for (LogicalMatch m : c.logical) {
+                for (Selector s : m.selectors) {
+                    mask |= s.states();
+                }
+            }
+        }
+        return mask;
+    }
+
     /** Whether {@code e} matches; always false for a pseudo-element selector. */
     public boolean matches(Element e) {
         return pseudoElement == PseudoElement.NONE && matchAt(compounds.size() - 1, e);

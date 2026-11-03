@@ -1,6 +1,8 @@
 package com.azane.ixchel.sample.playtest;
 
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.LayoutBox;
+import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.mc.FrameTimer;
 import com.azane.ixchel.mc.UiHud;
 import com.azane.ixchel.mc.playtest.Playtests;
@@ -60,6 +62,13 @@ public final class EnvPlaytest {
                 p.teleportTo(l, 0.5, -60, 0.5, 180, 0);
             });
             s.run(() -> hud.show(true));
+            // Fails if showing the layer does not start from the document's :-ix-absent style.
+            s.expect("the panels come in from above", () -> {
+                Element vitals = Playtest.query(hud, ".vitals").get(0);
+                LayoutBox b = vitals.box();
+                return EventDispatcher.paintedCenter(vitals)[1] < b.y() + b.height() / 2 - 1;
+            });
+            s.shot("env-entering");
             // Fails if the hit result is not read, or the name, mod or tool tag is wrong.
             s.waitUntil("oak stairs: name, mod, axe", () -> Playtest.text(hud, ".block .name").equals("Oak Stairs")
                     && Playtest.text(hud, ".block .mod").equals("Minecraft") && Playtest.text(hud, ".tool").equals("Axe"), Playtest.WAIT);
@@ -156,6 +165,10 @@ public final class EnvPlaytest {
             s.run(() -> FrameTimer.expect(s, "moving and turning every tick", MOVING_BUDGET_US));
             s.shot("env-moving");
             s.run(() -> hud.show(false));
+            // Fails if hiding drops the layer at once instead of drawing it out to the end of its exit.
+            s.expect("the hidden layer still exits", () -> hud.document().exiting() && !hud.shown());
+            s.shot("env-leaving");
+            s.waitUntil("the exit ends", () -> !hud.document().exiting(), Playtest.WAIT);
         });
     }
 

@@ -29,7 +29,7 @@ import java.util.List;
  */
 public final class ClippedSlotItems {
     /** Vanilla's slot item depth in {@code renderSlot}. */
-    private static final float SLOT_ITEM_Z = 100;
+    static final float SLOT_ITEM_Z = 100;
 
     private final Renderable hideVanillaSlots = (g, mx, my, pt) -> g.enableScissor(0, 0, 0, 0);
 

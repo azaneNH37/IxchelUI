@@ -7,6 +7,8 @@ import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.mc.container.ClippedSlotItems;
 import com.azane.ixchel.mc.container.ContainerLayout;
+import com.azane.ixchel.mc.container.SlotSnapshot;
+import com.azane.ixchel.mc.document.ExitingDocuments;
 import com.azane.ixchel.mc.document.HostedDocument;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.gui.GuiGraphics;
@@ -260,8 +262,10 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
 
     @Override
     public void removed() {
+        SlotSnapshot items = layout.snapshot();
         layout.restore();
         super.removed();
         doc.close();
+        ExitingDocuments.add(doc, g -> items.draw(g, font));
     }
 }

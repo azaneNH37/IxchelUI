@@ -3,6 +3,9 @@ package com.azane.ixchel.core.css.property;
 import com.azane.ixchel.core.css.property.Keywords.AlignContent;
 import com.azane.ixchel.core.css.property.Keywords.AlignItems;
 import com.azane.ixchel.core.css.property.Keywords.AlignSelf;
+import com.azane.ixchel.core.css.property.Keywords.AnimationDirection;
+import com.azane.ixchel.core.css.property.Keywords.AnimationFillMode;
+import com.azane.ixchel.core.css.property.Keywords.AnimationPlayState;
 import com.azane.ixchel.core.css.property.Keywords.BackgroundBlendMode;
 import com.azane.ixchel.core.css.property.Keywords.BackgroundRepeat;
 import com.azane.ixchel.core.css.property.Keywords.BorderStyle;
@@ -224,6 +227,25 @@ public final class CssProperties {
     public static final PropertyDef<List<Float>> TRANSITION_DELAY =
             R.register("transition-delay", commaList(time(true)), List.of(0f), false, false, false);
 
+    /** Keyframes names; {@code none} in a slot runs nothing there. The other {@code animation-*} lists are cycled per name. */
+    public static final PropertyDef<List<String>> ANIMATION_NAME =
+            R.register("animation-name", Syntaxes.animationName(), List.of("none"), false, false, false);
+    public static final PropertyDef<List<Float>> ANIMATION_DURATION =
+            R.register("animation-duration", commaList(time(false)), List.of(0f), false, false, false);
+    public static final PropertyDef<List<Easing>> ANIMATION_TIMING_FUNCTION =
+            R.register("animation-timing-function", commaList(easing()), List.of(Easing.EASE), false, false, false);
+    public static final PropertyDef<List<Float>> ANIMATION_DELAY =
+            R.register("animation-delay", commaList(time(true)), List.of(0f), false, false, false);
+    /** {@code infinite} is positive infinity. */
+    public static final PropertyDef<List<Float>> ANIMATION_ITERATION_COUNT =
+            R.register("animation-iteration-count", commaList(Syntaxes.iterationCount()), List.of(1f), false, false, false);
+    public static final PropertyDef<List<AnimationDirection>> ANIMATION_DIRECTION = R.register("animation-direction",
+            commaList(keyword(AnimationDirection.class)), List.of(AnimationDirection.NORMAL), false, false, false);
+    public static final PropertyDef<List<AnimationFillMode>> ANIMATION_FILL_MODE = R.register("animation-fill-mode",
+            commaList(keyword(AnimationFillMode.class)), List.of(AnimationFillMode.NONE), false, false, false);
+    public static final PropertyDef<List<AnimationPlayState>> ANIMATION_PLAY_STATE = R.register("animation-play-state",
+            commaList(keyword(AnimationPlayState.class)), List.of(AnimationPlayState.RUNNING), false, false, false);
+
     static {
         R.registerShorthand("margin", Shorthand.box(MARGIN), MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT);
         R.registerShorthand("padding", Shorthand.box(PADDING), PADDING_TOP, PADDING_RIGHT, PADDING_BOTTOM, PADDING_LEFT);
@@ -258,6 +280,9 @@ public final class CssProperties {
                 BORDER_IMAGE_REPEAT);
         R.registerShorthand("transition", Shorthand.transition(R),
                 TRANSITION_PROPERTY, TRANSITION_DURATION, TRANSITION_TIMING_FUNCTION, TRANSITION_DELAY);
+        R.registerShorthand("animation", Shorthand.animation(), ANIMATION_NAME, ANIMATION_DURATION,
+                ANIMATION_TIMING_FUNCTION, ANIMATION_DELAY, ANIMATION_ITERATION_COUNT, ANIMATION_DIRECTION,
+                ANIMATION_FILL_MODE, ANIMATION_PLAY_STATE);
         R.freeze();
     }
 

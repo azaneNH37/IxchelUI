@@ -225,4 +225,92 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
                     List.copyOf(easings), List.copyOf(delays)};
         };
     }
+
+    /**
+     * {@code animation}: comma-separated items, each with at most one of every longhand. The first
+     * time is the duration, the second the delay; a keyword goes to the first longhand it is valid for
+     * that the item has not set yet ({@code none} to the fill mode, then the name), and anything else
+     * is the name.
+     */
+    public static Expander animation() {
+        return (value, pos, diag) -> {
+            List<List<ComponentValue>> items = Syntaxes.splitCommas(value, pos, diag);
+            if (items == null) {
+                return null;
+            }
+            int n = items.size();
+            List<String> names = new ArrayList<>(n);
+            List<Float> durations = new ArrayList<>(n);
+            List<Easing> easings = new ArrayList<>(n);
+            List<Float> delays = new ArrayList<>(n);
+            List<Float> counts = new ArrayList<>(n);
+            List<Keywords.AnimationDirection> directions = new ArrayList<>(n);
+            List<Keywords.AnimationFillMode> fills = new ArrayList<>(n);
+            List<Keywords.AnimationPlayState> states = new ArrayList<>(n);
+            for (List<ComponentValue> item : items) {
+                String name = null;
+                Float duration = null;
+                Easing easing = null;
+                Float delay = null;
+                Float count = null;
+                Keywords.AnimationDirection direction = null;
+                Keywords.AnimationFillMode fill = null;
+                Keywords.AnimationPlayState state = null;
+                for (ComponentValue v : item) {
+                    Keywords.AnimationDirection d;
+                    Keywords.AnimationFillMode f;
+                    Keywords.AnimationPlayState s;
+                    if (v instanceof Token t && t.is(Token.Kind.DIMENSION)) {
+                        if (delay != null) {
+                            diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "at most two times: duration then delay");
+                            return null;
+                        }
+                        Float time = Syntaxes.timeOf(v, duration != null, diag);
+                        if (time == null) {
+                            return null;
+                        }
+                        if (duration == null) {
+                            duration = time;
+                        } else {
+                            delay = time;
+                        }
+                    } else if (count == null && (v instanceof Token t && (t.is(Token.Kind.NUMBER) || t.isIdent("infinite")))) {
+                        count = Syntaxes.iterationCountOf(v, diag);
+                        if (count == null) {
+                            return null;
+                        }
+                    } else if (easing == null && Syntaxes.looksLikeEasing(v)) {
+                        easing = Syntaxes.easingOf(v, diag);
+                        if (easing == null) {
+                            return null;
+                        }
+                    } else if (direction == null && (d = Syntaxes.keywordOf(v, Keywords.AnimationDirection.class)) != null) {
+                        direction = d;
+                    } else if (fill == null && (f = Syntaxes.keywordOf(v, Keywords.AnimationFillMode.class)) != null) {
+                        fill = f;
+                    } else if (state == null && (s = Syntaxes.keywordOf(v, Keywords.AnimationPlayState.class)) != null) {
+                        state = s;
+                    } else if (name == null) {
+                        name = Syntaxes.animationNameOf(v, diag);
+                        if (name == null) {
+                            return null;
+                        }
+                    } else {
+                        diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "more than one keyframes name");
+                        return null;
+                    }
+                }
+                names.add(name == null ? "none" : name);
+                durations.add(duration == null ? 0f : duration);
+                easings.add(easing == null ? Easing.EASE : easing);
+                delays.add(delay == null ? 0f : delay);
+                counts.add(count == null ? 1f : count);
+                directions.add(direction == null ? Keywords.AnimationDirection.NORMAL : direction);
+                fills.add(fill == null ? Keywords.AnimationFillMode.NONE : fill);
+                states.add(state == null ? Keywords.AnimationPlayState.RUNNING : state);
+            }
+            return new Object[]{List.copyOf(names), List.copyOf(durations), List.copyOf(easings), List.copyOf(delays),
+                    List.copyOf(counts), List.copyOf(directions), List.copyOf(fills), List.copyOf(states)};
+        };
+    }
 }

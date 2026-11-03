@@ -2,13 +2,16 @@ package com.azane.ixchel.forge;
 
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.UiHud;
+import com.azane.ixchel.mc.document.ExitingDocuments;
 import com.azane.ixchel.mc.playtest.Playtests;
 import com.azane.ixchel.mc.source.WorldProjection;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
+import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -20,6 +23,7 @@ import java.util.function.Supplier;
 /** Forge 1.20.1 glue for host mods: registers the mc layer's hosts with Forge and drives its playtests. */
 public final class IxchelForge {
     private static boolean worldProjectionInstalled;
+    private static boolean screenExitsInstalled;
 
     private IxchelForge() {
     }
@@ -79,7 +83,23 @@ public final class IxchelForge {
         modBus.addListener((RegisterGuiOverlaysEvent e) -> e.registerAboveAll(layerId(hud.template().getPath()),
                 (IGuiOverlay) (gui, g, partialTick, width, height) -> hud.render(g)));
         installWorldProjection();
+        installScreenExits();
         return hud;
+    }
+
+    /**
+     * Lets closed {@code UiScreen}s and {@code UiContainerScreen}s play their exit: what is left of
+     * their documents draws over the game and over the next screen. Call once from the client side of
+     * the host's setup; {@code registerHud} includes it, and without it screens close at once.
+     */
+    public static void installScreenExits() {
+        if (screenExitsInstalled) {
+            return;
+        }
+        screenExitsInstalled = true;
+        ExitingDocuments.hooked();
+        MinecraftForge.EVENT_BUS.addListener((RenderGuiEvent.Post e) -> ExitingDocuments.drawOverGame(e.getGuiGraphics()));
+        MinecraftForge.EVENT_BUS.addListener((ScreenEvent.Render.Post e) -> ExitingDocuments.drawOverScreen(e.getGuiGraphics()));
     }
 
     /**

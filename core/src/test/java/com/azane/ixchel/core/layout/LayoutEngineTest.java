@@ -8,6 +8,7 @@ import com.azane.ixchel.core.dom.ElementType;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.TextNode;
+import com.azane.ixchel.core.dom.Presence;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.style.StyleEngine;
 import com.azane.ixchel.core.style.StyleSheet;
@@ -52,18 +53,18 @@ class LayoutEngineTest {
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
         LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, diag);
         style.restyle(root);
-        layout.layout(root, 100, 100, new TopLayer());
+        layout.layout(root, 100, 100, new TopLayer(Presence.instant()));
         assertEquals(1, layout.computeCount);
 
         Element a = (Element) root.children().get(0);
         a.addClass("hot");
         style.restyle(root);
-        layout.layout(root, 100, 100, new TopLayer());
+        layout.layout(root, 100, 100, new TopLayer(Presence.instant()));
         assertEquals(1, layout.computeCount);
 
         a.addClass("wide");
         style.restyle(root);
-        layout.layout(root, 100, 100, new TopLayer());
+        layout.layout(root, 100, 100, new TopLayer(Presence.instant()));
         assertEquals(2, layout.computeCount);
         assertEquals(20, a.box().width());
     }
@@ -82,7 +83,7 @@ class LayoutEngineTest {
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
         LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, diag);
         style.restyle(root);
-        layout.layout(root, 100, 100, new TopLayer());
+        layout.layout(root, 100, 100, new TopLayer(Presence.instant()));
         Element row = (Element) root.children().get(0);
         TextNode text = (TextNode) ((Element) row.children().get(0)).children().get(0);
         Element mark = (Element) row.children().get(1);
@@ -91,13 +92,13 @@ class LayoutEngineTest {
 
         text.setText("x6");
         style.restyle(root);
-        layout.layout(root, 100, 100, new TopLayer());
+        layout.layout(root, 100, 100, new TopLayer(Presence.instant()));
         assertEquals(1, layout.computeCount);
         assertEquals("x6", layout.fragments(text).get(0).text());
 
         text.setText("x10");
         style.restyle(root);
-        layout.layout(root, 100, 100, new TopLayer());
+        layout.layout(root, 100, 100, new TopLayer(Presence.instant()));
         assertEquals(2, layout.computeCount);
         assertEquals(18, mark.box().x());
         assertEquals("x10", layout.fragments(text).get(0).text());
@@ -115,7 +116,7 @@ class LayoutEngineTest {
                 ".a { width: 10px } .tip { width: 30px; height: 30px }", "t.css", diag), CssProperties.REGISTRY, diag);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
         LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, diag);
-        TopLayer top = new TopLayer();
+        TopLayer top = new TopLayer(Presence.instant());
         Element a = (Element) root.children().get(0);
         Element tip = (Element) a.children().get(1);
         style.restyle(root);
@@ -153,7 +154,7 @@ class LayoutEngineTest {
                 CssProperties.REGISTRY, diag);
         StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
         LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, diag);
-        TopLayer top = new TopLayer();
+        TopLayer top = new TopLayer(Presence.instant());
         Element tip = (Element) ((Element) root.children().get(0)).children().get(1);
         Element text = (Element) tip.children().get(0);
         top.showAtPointer(tip, 10, 50);

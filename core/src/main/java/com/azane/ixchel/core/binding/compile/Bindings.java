@@ -10,6 +10,7 @@ import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.Presence;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.template.ComponentDef;
@@ -56,7 +57,8 @@ import java.util.Map;
  *                                                and the clamped offset written back -->
  * <div on:keydown.escape="close"></div>     <!-- key handlers on a top-level element act as document-level
  *                                                handlers: they see every key event, focused child or not -->
- * <if test="!hasSelection">…</if>           <!-- mounted while true; not read while unmounted -->
+ * <if test="!hasSelection">…</if>           <!-- mounted while true; not read while unmounted; the copy
+ *                                                enters and exits as a Presence unit, not read while exiting -->
  * <for each="slots" as="s" key="s.type">    <!-- one copy of the content per list element, matched by key -->
  *   <div on:click="select(s)" bind:class:on="s.selected"></div>
  * </for>
@@ -118,15 +120,16 @@ public final class Bindings {
      * @param text       converts bound values for {@code bind:text}, attribute bindings and string concatenation
      * @param properties the properties {@code bind:style:*} may set
      * @param topLayer   where {@code bind:open} opens and closes dialogs
+     * @param presence   where blocks enter and exit their copies
      */
     public static Bindings compile(Element root, ViewModel model, Map<String, ComponentDef> components,
                                    TextConverter text, TagRegistry tags, PropertyRegistry properties,
-                                   TopLayer topLayer, Diagnostics diag) {
+                                   TopLayer topLayer, Presence presence, Diagnostics diag) {
         ViewModel m = model != null ? model : new ViewModel() {
         };
         String owner = model != null ? model.getClass().getSimpleName() : NO_MODEL;
         Map<String, Name> names = names(ModelShape.of(m.getClass()), m, false, root.pos(), diag);
-        Compiler c = new Compiler(root, m, names, owner, text, tags, properties, topLayer, components, diag);
+        Compiler c = new Compiler(root, m, names, owner, text, tags, properties, topLayer, components, presence, diag);
         Part.Group group = new Part.Group();
         c.compileRoot(group);
         Bindings b = new Bindings(m, group);
@@ -152,7 +155,7 @@ public final class Bindings {
         };
         String owner = shape != null ? shape.type().getSimpleName() : NO_MODEL;
         Map<String, Name> names = shape != null ? names(shape, stub, true, root.pos(), diag) : Map.of();
-        new Compiler(root, stub, names, owner, text, tags, properties, topLayer, components, diag)
+        new Compiler(root, stub, names, owner, text, tags, properties, topLayer, components, Presence.instant(), diag)
                 .compileRoot(new Part.Group());
     }
 
@@ -202,13 +205,10 @@ public final class Bindings {
 
     /**
      * Runs posted work, polls the model's sources and writes changed values into the DOM, mounting
-     * and unmounting block contents. Returns whether the DOM changed; when no source or state
-     * changed, no cell is read. Unmounted contents are not read.
+     * and unmounting block contents. Returns whether the DOM changed; when no source or state changed,
+     * no cell is read. Unmounted and exiting contents are not read.
      */
     public boolean update() {
-        if (!MODEL.poll(model)) {
-            return false;
-        }
-        return root.update();
+        return MODEL.poll(model) && root.update();
     }
 }

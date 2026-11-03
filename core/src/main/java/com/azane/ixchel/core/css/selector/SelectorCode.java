@@ -20,7 +20,7 @@ public enum SelectorCode implements DiagCode {
     MISSING_PSEUDO_NAME("css/missing-pseudo-name", Severity.ERROR,
             "A ':' in a selector is not followed by a pseudo-class name."),
     UNSUPPORTED_PSEUDO("css/unsupported-pseudo", Severity.ERROR,
-            "A selector uses a pseudo-element other than ::before and ::after, or a pseudo-class other than :root, :lang(), :not(), :is(), :where(), :hover, :active, :focus, :disabled, :checked and :open."),
+            "A selector uses a pseudo-element other than ::before and ::after, or a pseudo-class other than :root, :lang(), :not(), :is(), :where(), :hover, :active, :focus, :disabled, :checked, :open, :-ix-absent, :-ix-entering and :-ix-exiting."),
     MISPLACED_PSEUDO_ELEMENT("css/misplaced-pseudo-element", Severity.ERROR,
             "::before or ::after is not at the end of a selector, or appears inside :not(), :is() or :where()."),
     INVALID_LOGICAL("css/invalid-logical-pseudo", Severity.ERROR,

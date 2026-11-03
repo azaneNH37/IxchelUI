@@ -92,14 +92,28 @@ public final class UiHud {
         }
     }
 
-    /** Whether the layer is drawn; a hidden layer does no work, not even polling its sources. */
+    /** Whether the layer is shown; a hidden layer, once its exit ended, does no work, not even polling its sources. */
     public boolean shown() {
         return shown;
     }
 
-    /** Shows or hides the layer; returns this, so {@code registerHud(...).show(false)} starts hidden. */
+    /**
+     * Shows or hides the layer; returns this, so {@code registerHud(...).show(false)} starts hidden.
+     * With {@code :-ix-absent} rules the document animates in and out: hiding stops its bindings and
+     * draws it until the exit ended; showing again takes it back from where it got to.
+     */
     public UiHud show(boolean shown) {
-        this.shown = shown;
+        if (shown != this.shown) {
+            this.shown = shown;
+            UiDocument d = document();
+            if (d != null) {
+                if (shown) {
+                    d.enter();
+                } else {
+                    d.exit(() -> { });
+                }
+            }
+        }
         return this;
     }
 
@@ -109,13 +123,20 @@ public final class UiHud {
     }
 
     public void render(GuiGraphics g) {
-        if (!shown || doc == null) {
+        if (doc == null || !shown && !exiting()) {
             return;
         }
         FrameTimer.start(this);
         doc.frame(g.guiWidth(), g.guiHeight(), Float.NaN, Float.NaN);
-        doc.paint(g, Float.NaN, Float.NaN);
-        doc.drawOverlay(g);
+        if (shown || exiting()) {
+            doc.paint(g, Float.NaN, Float.NaN);
+            doc.drawOverlay(g);
+        }
         FrameTimer.stop(this);
+    }
+
+    private boolean exiting() {
+        UiDocument d = document();
+        return d != null && d.exiting();
     }
 }

@@ -10,6 +10,20 @@
 .world {
   padding: 3px;
   background-color: #00000060;
+  transition: transform 200ms ease-out;
+}
+
+/* The panels slide in from above the screen when the layer shows, and back out when it hides. */
+.env:-ix-absent .vitals,
+.env:-ix-absent .target,
+.env:-ix-absent .world {
+  transform: translateY(-120px);
+}
+
+.env:-ix-exiting .vitals,
+.env:-ix-exiting .target,
+.env:-ix-exiting .world {
+  transition: transform 300ms ease-in;
 }
 
 /* Vitals: a heart or a shank is the empty icon with the full or half icon on top. */

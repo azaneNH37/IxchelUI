@@ -4,6 +4,7 @@ import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.azane.ixchel.mc.document.ExitingDocuments;
 import com.azane.ixchel.mc.document.HostedDocument;
 import com.azane.ixchel.mc.element.McElements;
 import net.minecraft.SharedConstants;
@@ -16,7 +17,9 @@ import net.minecraft.resources.ResourceLocation;
  * A full screen drawn and driven by one document. Mouse and keyboard go to the document first; input
  * it does not take falls back to {@link Screen} (Escape closes). Closing the screen closes the view
  * model, so late replies and subscriptions end with it. An {@code <mc-item>} or a {@code title} under the
- * pointer shows a vanilla tooltip. Does not pause a single-player game.
+ * pointer shows a vanilla tooltip. Does not pause a single-player game. A document with
+ * {@code :-ix-absent} rules animates out after the screen closed, while input is back with the game;
+ * the host calls the loader glue's {@code installScreenExits()} once for that.
  *
  * <p>The template is the one the view model's class declares with {@link UiTemplate}; a model that
  * serves several templates, or none, is mounted with the template id:
@@ -196,8 +199,10 @@ public class UiScreen extends Screen {
         }
     }
 
+    /** {@link #render} ends here: the view model closes and what is left of the document exits, over whatever shows next. */
     @Override
     public void removed() {
         doc.close();
+        ExitingDocuments.add(doc);
     }
 }

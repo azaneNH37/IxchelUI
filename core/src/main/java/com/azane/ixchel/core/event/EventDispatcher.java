@@ -94,6 +94,9 @@ import java.util.Map;
  * neither focus nor {@code :active} (the input still counts as taken), Tab skips focusable elements,
  * and focus there is dropped after the next layout. Hover and the wheel work as usual.
  *
+ * <p>An {@linkplain Element#isInert() inert} subtree (an exiting {@code Presence} unit) is never hit
+ * nor focused; focus there is dropped after the next layout. Exiting top-layer entries are not hit.
+ *
  * <p>Every input method returns whether the UI took the input: a mouse event over any element, a key
  * or character a focused control took, or an event a listener {@linkplain UiEvent#consume() consumed}.
  * The host falls back to its own handling otherwise. Client thread only.
@@ -192,6 +195,7 @@ public final class EventDispatcher {
         List<Element> entries = top.entries();
         for (int i = entries.size() - 1; i >= 0; i--) {
             Element entry = entries.get(i);
+            if (top.isExiting(entry)) continue;
             LayerFacet presentation = entry.type().facet(LayerFacet.KEY);
             for (int j = presentation.contentCount(entry) - 1; j >= 0; j--) {
                 Element child = presentation.contentAt(entry, j);
@@ -558,7 +562,7 @@ public final class EventDispatcher {
     public void afterLayout() {
         Element modal = top.modal();
         for (Element entry : List.copyOf(top.entries())) {
-            if (entry.type().facet(LayerFacet.KEY).dismissWhenInactive() && (!isConnected(entry) || inDisabled(entry) || !isDisplayed(entry)
+            if (entry.type().facet(LayerFacet.KEY).dismissWhenInactive() && (!isConnected(entry) || inDisabled(entry) || inInert(entry) || !isDisplayed(entry)
                     || modal != null && !isInside(entry, modal))) {
                 top.remove(entry);
             }
@@ -570,10 +574,10 @@ public final class EventDispatcher {
             collectFocusable(modal, order);
             focus(order.isEmpty() ? null : order.get(0));
         }
-        if (focused != null && (!isConnected(focused) || inDisabled(focused) || modal != null && !isInside(focused, modal))) {
+        if (focused != null && (!isConnected(focused) || inDisabled(focused) || inInert(focused) || modal != null && !isInside(focused, modal))) {
             focus(null);
         }
-        if (dragging != null && (!isConnected(dragging) || inDisabled(dragging))) {
+        if (dragging != null && (!isConnected(dragging) || inDisabled(dragging) || inInert(dragging))) {
             dragging = null;
         }
         if (scrolling != null && !isConnected(scrolling)) {
@@ -631,6 +635,11 @@ public final class EventDispatcher {
         }
     }
 
+    /** {@link UiEvent.Type#ANIMATION_END} at {@code target}, bubbling. */
+    public void animationEnded(Element target) {
+        dispatch(UiEvent.of(UiEvent.Type.ANIMATION_END, target));
+    }
+
     private void dispatch(UiEvent e) {
         path.clear();
         for (Element a = e.target(); a != null; a = a.parent()) {
@@ -657,7 +666,7 @@ public final class EventDispatcher {
      * top-layer content: hit only from {@link #hitTest}'s layer pass.
      */
     private static Element hit(Element e, float x, float y) {
-        if (e.computed() == null || e.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE) {
+        if (e.isInert() || e.computed() == null || e.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE) {
             return null;
         }
         LayoutBox b = e.box();
@@ -785,7 +794,7 @@ public final class EventDispatcher {
         if (e.computed() != null && e.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE) {
             return;
         }
-        if (e.hasState(Element.DISABLED)) {
+        if (e.hasState(Element.DISABLED) || e.isInert()) {
             return;
         }
         if (isFocusable(e)) {
@@ -833,6 +842,16 @@ public final class EventDispatcher {
     private static boolean inDisabled(Element e) {
         for (Element a = e; a != null; a = a.parent()) {
             if (a.hasState(Element.DISABLED)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether {@code e} or an ancestor is {@linkplain Element#isInert() inert}. */
+    private static boolean inInert(Element e) {
+        for (Element a = e; a != null; a = a.parent()) {
+            if (a.isInert()) {
                 return true;
             }
         }

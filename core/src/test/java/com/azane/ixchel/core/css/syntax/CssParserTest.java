@@ -15,7 +15,7 @@ class CssParserTest {
     @Test
     void declarationOnLineThreeReportsExactPosition() {
         Diagnostics diag = new Diagnostics();
-        List<Rule> rules = CssParser.parseStylesheet(".a {\n  width: 10px;\n\tCOLOR : red }", "hud.css", diag);
+        List<Rule> rules = CssParser.parseStylesheet(".a {\n  width: 10px;\n\tCOLOR : red }", "hud.css", diag).rules();
         Rule.Declaration color = rules.get(0).declarations().get(1);
         assertEquals("color", color.name());
         assertEquals(new SourcePos("hud.css", 3, 2), color.pos());
@@ -26,7 +26,7 @@ class CssParserTest {
     @Test
     void importantIsStrippedFromValueEvenWithSpaces() {
         Diagnostics diag = new Diagnostics();
-        List<Rule> rules = CssParser.parseStylesheet("a { color: red ! IMPORTANT; --Gap: 4px }", "t.css", diag);
+        List<Rule> rules = CssParser.parseStylesheet("a { color: red ! IMPORTANT; --Gap: 4px }", "t.css", diag).rules();
         Rule.Declaration color = rules.get(0).declarations().get(0);
         assertTrue(color.important());
         assertEquals(1, color.value().size());
@@ -40,7 +40,7 @@ class CssParserTest {
     void atRuleIsReportedAndLaterRulesStillParse() {
         Diagnostics diag = new Diagnostics();
         List<Rule> rules = CssParser.parseStylesheet(
-                "@media (x) { .a { color: red } }\n@import 'x.css';\n.b { width: 1px }", "t.css", diag);
+                "@media (x) { .a { color: red } }\n@import 'x.css';\n.b { width: 1px }", "t.css", diag).rules();
         assertEquals(1, rules.size());
         assertEquals("width", rules.get(0).declarations().get(0).name());
         assertEquals(List.of("css/unsupported-at-rule@t.css:1:1", "css/unsupported-at-rule@t.css:2:1"), DiagCodes.of(diag));
@@ -63,7 +63,7 @@ class CssParserTest {
         Diagnostics diag = new Diagnostics();
         List<Rule> rules = CssParser.parseStylesheet("""
                 .a, .b { color: red; &:hover { x: 1 } > .c { x: 2 } .d { x: 3; :not(&.e) { x: 4 } } x: 5 }
-                """, "t.css", diag);
+                """, "t.css", diag).rules();
         StringBuilder out = new StringBuilder();
         for (Rule r : rules) {
             out.append(text(r.prelude())).append(" {").append(r.declarations().size()).append("}\n");
@@ -87,7 +87,7 @@ class CssParserTest {
 
     @Test
     void selectorListPreludeIsPreservedAndTrimmed() {
-        List<Rule> rules = CssParser.parseStylesheet("  .a > .b, #c  {}", "t.css", new Diagnostics());
+        List<Rule> rules = CssParser.parseStylesheet("  .a > .b, #c  {}", "t.css", new Diagnostics()).rules();
         List<ComponentValue> p = rules.get(0).prelude();
         StringBuilder sb = new StringBuilder();
         for (ComponentValue v : p) {
@@ -106,7 +106,7 @@ class CssParserTest {
     @Test
     void invalidDeclarationSkipsOnlyToNextSemicolon() {
         Diagnostics diag = new Diagnostics();
-        List<Rule> rules = CssParser.parseStylesheet("a { color red; 5: x; width: 2px }", "t.css", diag);
+        List<Rule> rules = CssParser.parseStylesheet("a { color red; 5: x; width: 2px }", "t.css", diag).rules();
         List<Rule.Declaration> decls = rules.get(0).declarations();
         assertEquals(1, decls.size());
         assertEquals("width", decls.get(0).name());
@@ -116,14 +116,14 @@ class CssParserTest {
     @Test
     void missingBlockAtEofIsAnError() {
         Diagnostics diag = new Diagnostics();
-        assertTrue(CssParser.parseStylesheet(".a", "t.css", diag).isEmpty());
+        assertTrue(CssParser.parseStylesheet(".a", "t.css", diag).rules().isEmpty());
         assertEquals(List.of("css/expected-block@t.css:1:1"), DiagCodes.of(diag));
     }
 
     @Test
     void unclosedBlockAtEofIsAWarningAndKeepsItsDeclarations() {
         Diagnostics diag = new Diagnostics();
-        List<Rule> rules = CssParser.parseStylesheet(".a { color: rgb(1, 2", "t.css", diag);
+        List<Rule> rules = CssParser.parseStylesheet(".a { color: rgb(1, 2", "t.css", diag).rules();
         assertEquals("color", rules.get(0).declarations().get(0).name());
         assertFalse(diag.hasErrors());
         assertEquals(List.of("css/unclosed-block@t.css:1:13"), DiagCodes.of(diag));

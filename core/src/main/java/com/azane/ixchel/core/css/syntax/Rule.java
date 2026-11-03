@@ -4,7 +4,10 @@ import com.azane.ixchel.core.diag.SourcePos;
 
 import java.util.List;
 
-/** A qualified rule: {@code prelude} is the raw selector text as component values, trimmed of whitespace. */
+/**
+ * A qualified rule: {@code prelude} is the raw selector text as component values, trimmed of
+ * whitespace.
+ */
 public record Rule(List<ComponentValue> prelude, List<Declaration> declarations, SourcePos pos) {
 
     /**

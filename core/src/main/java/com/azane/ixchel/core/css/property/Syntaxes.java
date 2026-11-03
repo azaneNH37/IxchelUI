@@ -32,13 +32,9 @@ public final class Syntaxes {
             if (v == null) {
                 return null;
             }
-            if (v instanceof Token t && t.is(Token.Kind.IDENT)) {
-                String name = t.value().toUpperCase(Locale.ROOT).replace('-', '_');
-                for (E e : type.getEnumConstants()) {
-                    if (e.name().equals(name)) {
-                        return e;
-                    }
-                }
+            E e = keywordOf(v, type);
+            if (e != null) {
+                return e;
             }
             diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected one of " + keywordList(type));
             return null;
@@ -125,7 +121,7 @@ public final class Syntaxes {
         };
     }
 
-    /** {@code linear}, {@code ease}, {@code ease-in}, {@code ease-out}, {@code ease-in-out} or {@code cubic-bezier()}. */
+    /** {@code linear}, {@code ease}, {@code ease-in}, {@code ease-out}, {@code ease-in-out}, {@code step-start}, {@code step-end}, {@code cubic-bezier()} or {@code steps()}. */
     public static Syntax<Easing> easing() {
         return (value, pos, diag) -> {
             ComponentValue v = single(value, pos, diag);
@@ -191,6 +187,64 @@ public final class Syntaxes {
             }
             return List.copyOf(out);
         };
+    }
+
+    /** {@code animation-name}: comma-separated {@code none} or keyframes names, identifiers or strings. */
+    public static Syntax<List<String>> animationName() {
+        return commaList((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            return v == null ? null : animationNameOf(v, diag);
+        });
+    }
+
+    /** {@code animation-iteration-count} item: a non-negative number, {@code infinite} as positive infinity. */
+    public static Syntax<Float> iterationCount() {
+        return (value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            return v == null ? null : iterationCountOf(v, diag);
+        };
+    }
+
+    /** A keyframes name as written, or {@code none}; {@code null} after an error. */
+    static String animationNameOf(ComponentValue v, Diagnostics diag) {
+        if (v instanceof Token t && t.is(Token.Kind.IDENT)) {
+            String name = t.value();
+            if (name.equalsIgnoreCase("none")) {
+                return "none";
+            }
+            if (!name.equalsIgnoreCase("inherit") && !name.equalsIgnoreCase("initial") && !name.equalsIgnoreCase("unset")
+                    && !name.equalsIgnoreCase("default")) {
+                return name;
+            }
+        } else if (v instanceof Token t && t.is(Token.Kind.STRING)) {
+            return t.value();
+        }
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a keyframes name or none");
+        return null;
+    }
+
+    static Float iterationCountOf(ComponentValue v, Diagnostics diag) {
+        if (v instanceof Token t && t.isIdent("infinite")) {
+            return Float.POSITIVE_INFINITY;
+        }
+        if (v instanceof Token t && t.is(Token.Kind.NUMBER) && t.number() >= 0) {
+            return (float) t.number();
+        }
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected a non-negative number or infinite");
+        return null;
+    }
+
+    /** The constant of {@code type} named by {@code v}, an identifier, or {@code null} without a report. */
+    static <E extends Enum<E>> E keywordOf(ComponentValue v, Class<E> type) {
+        if (v instanceof Token t && t.is(Token.Kind.IDENT)) {
+            String name = t.value().toUpperCase(Locale.ROOT).replace('-', '_');
+            for (E e : type.getEnumConstants()) {
+                if (e.name().equals(name)) {
+                    return e;
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -599,13 +653,22 @@ public final class Syntaxes {
             "ease", Easing.EASE,
             "ease-in", Easing.EASE_IN,
             "ease-out", Easing.EASE_OUT,
-            "ease-in-out", Easing.EASE_IN_OUT);
+            "ease-in-out", Easing.EASE_IN_OUT,
+            "step-start", Easing.STEP_START,
+            "step-end", Easing.STEP_END);
+
+    private static final Map<String, Easing.Steps.Position> STEP_POSITIONS = Map.of(
+            "jump-start", Easing.Steps.Position.JUMP_START,
+            "start", Easing.Steps.Position.JUMP_START,
+            "jump-end", Easing.Steps.Position.JUMP_END,
+            "end", Easing.Steps.Position.JUMP_END,
+            "jump-none", Easing.Steps.Position.JUMP_NONE,
+            "jump-both", Easing.Steps.Position.JUMP_BOTH);
 
     /** Whether {@code v} is meant as an easing function, supported or not. */
     static boolean looksLikeEasing(ComponentValue v) {
         if (v instanceof Token t && t.is(Token.Kind.IDENT)) {
-            String name = t.value().toLowerCase(Locale.ROOT);
-            return EASING_KEYWORDS.containsKey(name) || name.equals("step-start") || name.equals("step-end");
+            return EASING_KEYWORDS.containsKey(t.value().toLowerCase(Locale.ROOT));
         }
         return v instanceof ComponentValue.Function;
     }
@@ -618,9 +681,11 @@ public final class Syntaxes {
             }
         } else if (v instanceof ComponentValue.Function f && f.name().equalsIgnoreCase("cubic-bezier")) {
             return cubicBezier(f, diag);
+        } else if (v instanceof ComponentValue.Function f && f.name().equalsIgnoreCase("steps")) {
+            return steps(f, diag);
         }
         diag.report(PropertyCode.UNSUPPORTED_VALUE, v.pos(), "unsupported easing",
-                "use linear, ease, ease-in, ease-out, ease-in-out or cubic-bezier()");
+                "use linear, ease, ease-in, ease-out, ease-in-out, step-start, step-end, cubic-bezier() or steps()");
         return null;
     }
 
@@ -645,7 +710,39 @@ public final class Syntaxes {
             diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), "cubic-bezier() x values must be between 0 and 1");
             return null;
         }
-        return new Easing(p[0], p[1], p[2], p[3]);
+        return new Easing.CubicBezier(p[0], p[1], p[2], p[3]);
+    }
+
+    /** {@code steps(<integer>[, <step-position>])}. */
+    private static Easing steps(ComponentValue.Function f, Diagnostics diag) {
+        List<List<ComponentValue>> args = splitCommas(f.args(), f.pos(), diag);
+        if (args == null) {
+            return null;
+        }
+        if (args.size() > 2 || args.get(0).size() != 1
+                || !(args.get(0).get(0) instanceof Token n && n.is(Token.Kind.NUMBER) && n.number() == Math.rint(n.number()))) {
+            diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), "steps() takes an integer and an optional step position");
+            return null;
+        }
+        Easing.Steps.Position position = Easing.Steps.Position.JUMP_END;
+        if (args.size() == 2) {
+            List<ComponentValue> p = args.get(1);
+            position = p.size() == 1 && p.get(0) instanceof Token t && t.is(Token.Kind.IDENT)
+                    ? STEP_POSITIONS.get(t.value().toLowerCase(Locale.ROOT)) : null;
+            if (position == null) {
+                diag.report(PropertyCode.FUNCTION_ARGUMENTS, p.get(0).pos(),
+                        "expected jump-start, jump-end, jump-none, jump-both, start or end");
+                return null;
+            }
+        }
+        int count = (int) n.number();
+        if (count < (position == Easing.Steps.Position.JUMP_NONE ? 2 : 1)) {
+            diag.report(PropertyCode.FUNCTION_ARGUMENTS, n.pos(),
+                    position == Easing.Steps.Position.JUMP_NONE ? "steps() with jump-none needs at least 2 steps"
+                            : "steps() needs at least 1 step");
+            return null;
+        }
+        return new Easing.Steps(count, position);
     }
 
     /** A {@code transition-property} name, lower-cased; {@code none} is returned for the caller to check. */

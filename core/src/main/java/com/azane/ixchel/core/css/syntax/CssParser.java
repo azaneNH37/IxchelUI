@@ -9,7 +9,8 @@ import java.util.Locale;
 
 /**
  * CSS Syntax Level 3 §5 parser restricted to what IxchelUI supports: qualified rules whose blocks hold
- * declarations and nested rules (CSS Nesting). At-rules are reported as errors and skipped.
+ * declarations and nested rules (CSS Nesting), and {@code @keyframes}. Other at-rules are reported as
+ * errors and skipped.
  *
  * <p>Nested rules are expanded here into plain rules, each after the rule it is nested in:
  *
@@ -25,6 +26,7 @@ import java.util.Locale;
 public final class CssParser {
     private final List<Token> tokens;
     private final Diagnostics diag;
+    private final List<ParsedSheet.Keyframes> keyframes = new ArrayList<>();
     private int i;
     private boolean warnedUnclosed;
 
@@ -33,14 +35,15 @@ public final class CssParser {
         this.diag = diag;
     }
 
-    public static List<Rule> parseStylesheet(String source, String file, Diagnostics diag) {
+    public static ParsedSheet parseStylesheet(String source, String file, Diagnostics diag) {
         return parseStylesheet(source, new SourcePos(file, 1, 1), diag);
     }
 
     /** {@code start} is where an inline {@code <style>} body begins. */
-    public static List<Rule> parseStylesheet(String source, SourcePos start, Diagnostics diag) {
+    public static ParsedSheet parseStylesheet(String source, SourcePos start, Diagnostics diag) {
         CssParser p = new CssParser(CssTokenizer.tokenize(source, start, diag), diag);
-        return p.ruleList();
+        List<Rule> rules = p.ruleList();
+        return new ParsedSheet(List.copyOf(rules), List.copyOf(p.keyframes));
     }
 
     /** For a `style="..."` attribute; positions are offset so line 1 col 1 of `source` maps to `start`. */
@@ -91,7 +94,7 @@ public final class CssParser {
                     take();
                     break;
                 case AT_KEYWORD:
-                    skipAtRule();
+                    atRule();
                     break;
                 default:
                     qualifiedRule(rules);
@@ -99,9 +102,29 @@ public final class CssParser {
         }
     }
 
+    /** A top-level at-rule: {@code @keyframes} is read, the rest skipped. */
+    private void atRule() {
+        Token at = peek();
+        if (!at.value().equalsIgnoreCase("keyframes")) {
+            skipAtRule();
+            return;
+        }
+        take();
+        List<ComponentValue> prelude = new ArrayList<>();
+        while (!peek().is(Token.Kind.LBRACE)) {
+            if (peek().is(Token.Kind.EOF) || peek().is(Token.Kind.SEMICOLON)) {
+                diag.report(CssSyntaxCode.EXPECTED_BLOCK, at.pos(), "expected '{' after @" + at.value());
+                take();
+                return;
+            }
+            prelude.add(componentValue());
+        }
+        keyframes(at, trim(prelude), simpleBlock().contents());
+    }
+
     private void skipAtRule() {
         Token at = take();
-        diag.report(CssSyntaxCode.UNSUPPORTED_AT_RULE, at.pos(), "unsupported at-rule @" + at.value());
+        unsupportedAtRule(at);
         while (true) {
             Token t = peek();
             if (t.is(Token.Kind.EOF)) {
@@ -116,6 +139,101 @@ public final class CssParser {
                 return;
             }
         }
+    }
+
+    private void unsupportedAtRule(Token at) {
+        if (at.value().equalsIgnoreCase("starting-style")) {
+            diag.report(CssSyntaxCode.UNSUPPORTED_AT_RULE, at.pos(), "unsupported at-rule @" + at.value(),
+                    "style an entering element's first frame with :-ix-absent");
+        } else {
+            diag.report(CssSyntaxCode.UNSUPPORTED_AT_RULE, at.pos(), "unsupported at-rule @" + at.value());
+        }
+    }
+
+    /** {@code @keyframes name { selectors { declarations } … }}. */
+    private void keyframes(Token at, List<ComponentValue> prelude, List<ComponentValue> values) {
+        String name = prelude.size() != 1 ? null : keyframesName(prelude.get(0));
+        if (name == null) {
+            diag.report(CssSyntaxCode.INVALID_KEYFRAMES_NAME, at.pos(), "expected a name after @keyframes");
+            return;
+        }
+        List<ParsedSheet.Keyframe> frames = new ArrayList<>();
+        int k = 0;
+        int n = values.size();
+        while (k < n) {
+            ComponentValue v = values.get(k);
+            if (isToken(v, Token.Kind.WHITESPACE) || isToken(v, Token.Kind.SEMICOLON)) {
+                k++;
+                continue;
+            }
+            int end = blockAt(values, k);
+            if (end == n) {
+                diag.report(CssSyntaxCode.EXPECTED_BLOCK, v.pos(), "expected '{' after keyframe selector");
+                break;
+            }
+            List<Float> offsets = keyframeOffsets(trim(values.subList(k, end)));
+            if (offsets != null) {
+                List<Rule.Declaration> decls = declarationList(((ComponentValue.Block) values.get(end)).contents(),
+                        null, null);
+                List<Rule.Declaration> kept = new ArrayList<>(decls.size());
+                for (Rule.Declaration d : decls) {
+                    if (d.important()) {
+                        diag.report(CssSyntaxCode.IMPORTANT_IN_KEYFRAME, d.pos(), "!important is ignored in a keyframe");
+                    } else {
+                        kept.add(d);
+                    }
+                }
+                frames.add(new ParsedSheet.Keyframe(offsets, List.copyOf(kept), v.pos()));
+            }
+            k = end + 1;
+        }
+        keyframes.add(new ParsedSheet.Keyframes(name, List.copyOf(frames), at.pos()));
+    }
+
+    private static String keyframesName(ComponentValue v) {
+        if (v instanceof Token t && t.is(Token.Kind.STRING)) {
+            return t.value();
+        }
+        if (v instanceof Token t && t.is(Token.Kind.IDENT)) {
+            String lower = t.value().toLowerCase(Locale.ROOT);
+            return switch (lower) {
+                case "none", "inherit", "initial", "unset", "default" -> null;
+                default -> t.value();
+            };
+        }
+        return null;
+    }
+
+    /** The offsets of a keyframe selector list, or {@code null} after reporting it. */
+    private List<Float> keyframeOffsets(List<ComponentValue> selector) {
+        List<Float> out = new ArrayList<>();
+        for (List<ComponentValue> item : splitCommas(selector)) {
+            Float offset = null;
+            if (item.size() == 1 && item.get(0) instanceof Token t) {
+                if (t.isIdent("from")) {
+                    offset = 0f;
+                } else if (t.isIdent("to")) {
+                    offset = 1f;
+                } else if (t.is(Token.Kind.PERCENTAGE) && t.number() >= 0 && t.number() <= 100) {
+                    offset = (float) (t.number() / 100);
+                }
+            }
+            if (offset == null) {
+                SourcePos pos = (item.isEmpty() ? selector : item).get(0).pos();
+                diag.report(CssSyntaxCode.INVALID_KEYFRAME_SELECTOR, pos, "expected from, to or a percentage");
+                return null;
+            }
+            out.add(offset);
+        }
+        return List.copyOf(out);
+    }
+
+    /** Index of the first {@code {}} block at or after {@code k}, or {@code values.size()}. */
+    private static int blockAt(List<ComponentValue> values, int k) {
+        while (k < values.size() && !(values.get(k) instanceof ComponentValue.Block b && b.open() == Token.Kind.LBRACE)) {
+            k++;
+        }
+        return k;
     }
 
     private void qualifiedRule(List<Rule> out) {
@@ -278,7 +396,7 @@ public final class CssParser {
                 end++;
             }
             if (isToken(v, Token.Kind.AT_KEYWORD)) {
-                diag.report(CssSyntaxCode.UNSUPPORTED_AT_RULE, v.pos(), "unsupported at-rule @" + ((Token) v).value());
+                unsupportedAtRule((Token) v);
                 k = skipStatement(values, k);
             } else if (isRule) {
                 if (parent == null) {

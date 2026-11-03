@@ -23,10 +23,13 @@ public final class UiEvent {
      * (carrying the movement); on release {@code DROP} goes to the element under the pointer, and
      * {@code DRAG_END} always comes last, at the source. A drag dispatches no {@code MOUSE_MOVE},
      * {@code MOUSE_UP} or {@code CLICK}. All bubble.
+     *
+     * <p>{@code ANIMATION_END}: a CSS animation with finitely many iterations ended, at its element
+     * (the element of a {@code ::before} or {@code ::after} it ran on); it bubbles.
      */
     public enum Type {
         MOUSE_DOWN, MOUSE_UP, CLICK, MOUSE_MOVE, WHEEL, KEY_DOWN, KEY_UP, INPUT, CHANGE, CLOSE, SCROLL,
-        DRAG_START, DRAG, DRAG_END, DROP;
+        DRAG_START, DRAG, DRAG_END, DROP, ANIMATION_END;
 
         /** The name used in templates: {@code on:<name>}. */
         public String templateName() {

@@ -2,6 +2,7 @@ package com.azane.ixchel.neoforge;
 
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.UiHud;
+import com.azane.ixchel.mc.document.ExitingDocuments;
 import com.azane.ixchel.mc.source.WorldProjection;
 import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.resources.ResourceLocation;
@@ -9,7 +10,9 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
 import java.util.function.Supplier;
@@ -17,6 +20,7 @@ import java.util.function.Supplier;
 /** NeoForge 1.21.1 glue for host mods: registers the mc layer's hosts with NeoForge. */
 public final class IxchelNeoForge {
     private static boolean worldProjectionInstalled;
+    private static boolean screenExitsInstalled;
 
     private IxchelNeoForge() {
     }
@@ -77,7 +81,23 @@ public final class IxchelNeoForge {
         modBus.addListener((RegisterGuiLayersEvent e) ->
                 e.registerAboveAll(id, (LayeredDraw.Layer) (g, deltaTracker) -> hud.render(g)));
         installWorldProjection();
+        installScreenExits();
         return hud;
+    }
+
+    /**
+     * Lets closed {@code UiScreen}s play their exit: what is left of their documents draws over the
+     * game and over the next screen. Call once from the client side of the host's setup;
+     * {@code registerHud} includes it, and without it screens close at once.
+     */
+    public static void installScreenExits() {
+        if (screenExitsInstalled) {
+            return;
+        }
+        screenExitsInstalled = true;
+        ExitingDocuments.hooked();
+        NeoForge.EVENT_BUS.addListener((RenderGuiEvent.Post e) -> ExitingDocuments.drawOverGame(e.getGuiGraphics()));
+        NeoForge.EVENT_BUS.addListener((ScreenEvent.Render.Post e) -> ExitingDocuments.drawOverScreen(e.getGuiGraphics()));
     }
 
     static String layerId(String templatePath) {

@@ -8,6 +8,16 @@
 .panel {
   width: 240px;
   padding: 6px;
+  transition: transform 200ms ease-out;
+}
+
+/* The panel rises in when the screen opens and sinks out, slower, when it closes. */
+.screen:-ix-absent .panel {
+  transform: translateY(16px);
+}
+
+.screen:-ix-exiting .panel {
+  transition: transform 400ms ease-in;
 }
 
 .header {

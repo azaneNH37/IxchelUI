@@ -27,7 +27,7 @@ public final class RoundedClipCheck implements StyleEngine.Hook {
     }
 
     @Override
-    public void computed(Element e, ComputedStyle previous, ComputedStyle next) {
+    public void computed(Element e, ComputedStyle previous, ComputedStyle next, StyleEngine.Cascade cascade) {
         if (roundedClip(next) && (previous == null || !roundedClip(previous)) && reported.add(e.pos())) {
             diag.report(PaintCode.ROUNDED_OVERFLOW_CLIP, e.pos(), "<" + e.tag() + "> has rounded corners and overflow: "
                     + next.get(CssProperties.OVERFLOW).name().toLowerCase(Locale.ROOT)

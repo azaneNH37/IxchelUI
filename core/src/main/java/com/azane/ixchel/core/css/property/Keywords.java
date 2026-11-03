@@ -112,4 +112,13 @@ public final class Keywords {
      * action plays its own sound.
      */
     public enum ClickSound { AUTO, NONE }
+
+    /** {@code animation-direction}: which way each iteration runs. */
+    public enum AnimationDirection { NORMAL, REVERSE, ALTERNATE, ALTERNATE_REVERSE }
+
+    /** {@code animation-fill-mode}: whether the first keyframe applies during the delay and the last after the end. */
+    public enum AnimationFillMode { NONE, FORWARDS, BACKWARDS, BOTH }
+
+    /** {@code animation-play-state}: a paused animation holds its current time. */
+    public enum AnimationPlayState { RUNNING, PAUSED }
 }

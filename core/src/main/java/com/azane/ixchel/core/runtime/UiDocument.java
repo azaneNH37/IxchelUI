@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.anim.Animations;
 import com.azane.ixchel.core.anim.Transitions;
 import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.ModelShape;
@@ -17,6 +18,7 @@ import com.azane.ixchel.core.dom.ElementType;
 import com.azane.ixchel.core.dom.LayerFacet;
 import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.dom.Node;
+import com.azane.ixchel.core.dom.Presence;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.paint.DisplayList;
@@ -41,8 +43,10 @@ import java.util.function.LongSupplier;
 
 /**
  * One loaded UI: template tree under an implicit viewport-sized root, its styles, bindings, and the
- * per-frame pipeline bindings → transitions → style → layout → paint. A frame in which nothing
- * changed and no transition runs does no work and keeps the previous {@link DisplayList}; one in
+ * per-frame pipeline animations and transitions → {@link Presence} → bindings → style → layout →
+ * paint → {@code animationend} events. The document's top-level elements enter as it loads. A frame
+ * in which nothing changed and no animation, transition, entry or exit runs does no work and keeps
+ * the previous {@link DisplayList}; one in
  * which only {@linkplain Element#setScrollTop scroll offsets}, {@linkplain Element#control() form
  * control} values that do not restyle (text, a range) or the caret's blink changed repaints without
  * style or layout. The caret of a focused {@code <input>} blinks every {@value #BLINK_MS} ms,
@@ -69,7 +73,10 @@ public final class UiDocument {
     private final DisplayList displayList = new DisplayList();
     private final DisplayList atPointerList = new DisplayList();
     private final EventDispatcher events;
+    private final Animations animations;
     private final Transitions transitions;
+    private final Presence presence;
+    private final Presence.Unit documentUnit;
     private LongSupplier clock = System::nanoTime;
     private float viewportWidth = Float.NaN;
     private float viewportHeight = Float.NaN;
@@ -84,7 +91,8 @@ public final class UiDocument {
 
     private UiDocument(Element root, List<String> files, Diagnostics diagnostics, StyleEngine style,
                        LayoutEngine layout, Bindings bindings, ImageMeasurer images,
-                       Transitions transitions, TopLayer topLayer) {
+                       Animations animations, Transitions transitions, TopLayer topLayer, Presence presence,
+                       Presence.Unit documentUnit) {
         this.root = root;
         this.files = files;
         this.diagnostics = diagnostics;
@@ -94,7 +102,10 @@ public final class UiDocument {
         this.bindings = bindings;
         this.topLayer = topLayer;
         this.events = new EventDispatcher(root, layout, topLayer);
+        this.animations = animations;
         this.transitions = transitions;
+        this.presence = presence;
+        this.documentUnit = documentUnit;
     }
 
     /** Loads a document without a view model; it sees only its local states. */
@@ -130,15 +141,21 @@ public final class UiDocument {
                                   ViewModel model, Bindings.TextConverter text) {
         Diagnostics diag = new Diagnostics();
         Parsed p = parse(template, templateFile, files, tags, translations, diag);
+        Animations animations = new Animations(p.root);
+        Transitions transitions = new Transitions(CssProperties.REGISTRY, p.root, animations);
+        StyleEngine style = p.style(tags, diag, animations, transitions);
+        Presence presence = new Presence(e -> animations.finishing(e) || transitions.running(e),
+                style.uses(Presence.STATES));
+        TopLayer topLayer = new TopLayer(presence);
         Bindings bindings = Bindings.compile(p.root, model, p.loaded.components(), text, tags, CssProperties.REGISTRY,
-                p.topLayer, diag);
-        Transitions transitions = new Transitions(CssProperties.REGISTRY, p.root);
-        StyleEngine style = p.style(tags, diag, transitions);
+                topLayer, presence, diag);
+        Presence.Unit documentUnit = presence.enterDocument(p.root);
         style.restyle(p.root);
+        presence.styled();
         diag.throwIfErrors();
         LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), CssProperties.REGISTRY, diag);
-        return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, images, transitions,
-                p.topLayer);
+        return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, images, animations, transitions,
+                topLayer, presence, documentUnit);
     }
 
     /**
@@ -156,21 +173,23 @@ public final class UiDocument {
         Diagnostics diag = new Diagnostics(enabled);
         Parsed p = parse(template, templateFile, files, tags, translations, diag);
         Bindings.lint(p.root, shape, p.loaded.components(), Bindings.PLAIN_TEXT, tags, CssProperties.REGISTRY,
-                p.topLayer, diag);
-        p.style(tags, diag, new Transitions(CssProperties.REGISTRY, p.root)).restyle(p.root);
+                new TopLayer(Presence.instant()), diag);
+        Animations animations = new Animations(p.root);
+        p.style(tags, diag, animations, new Transitions(CssProperties.REGISTRY, p.root, animations)).restyle(p.root);
         return diag;
     }
 
     /** A template and its stylesheets parsed, its roots under the implicit document root. */
-    private record Parsed(TemplateLoader.Loaded loaded, Element root, TopLayer topLayer, List<StyleSheet> components,
+    private record Parsed(TemplateLoader.Loaded loaded, Element root, List<StyleSheet> components,
                           List<StyleSheet> themes, List<StyleSheet> author) {
-        StyleEngine style(TagRegistry tags, Diagnostics diag, Transitions transitions) {
+        StyleEngine style(TagRegistry tags, Diagnostics diag, Animations animations, Transitions transitions) {
             List<StyleSheet> userAgent = new ArrayList<>(List.of(LibrarySheets.USER_AGENT));
             userAgent.addAll(LibrarySheets.nativeElements(tags));
             RoundedClipCheck roundedClip = new RoundedClipCheck(diag);
-            StyleEngine.Hook hook = (e, previous, next) -> {
-                roundedClip.computed(e, previous, next);
-                transitions.computed(e, previous, next);
+            StyleEngine.Hook hook = (e, previous, next, cascade) -> {
+                roundedClip.computed(e, previous, next, cascade);
+                animations.computed(e, previous, next, cascade);
+                transitions.computed(e, previous, next, cascade);
             };
             return new StyleEngine(CssProperties.REGISTRY, userAgent, components, themes, author, diag, hook);
         }
@@ -189,7 +208,7 @@ public final class UiDocument {
         for (Node n : loaded.page().roots()) {
             root.appendChild(n);
         }
-        return new Parsed(loaded, root, new TopLayer(), components, themes, author);
+        return new Parsed(loaded, root, components, themes, author);
     }
 
     private static List<StyleSheet> sheets(List<TemplateLoader.Sheet> sources, Diagnostics diag) {
@@ -311,6 +330,29 @@ public final class UiDocument {
         return events;
     }
 
+    /**
+     * Starts the exit of the document's top-level elements, as they were when it loaded: they match
+     * {@code :-ix-absent:-ix-exiting} and take no input, and bindings stop until {@link #enter}.
+     * {@code done} runs from the {@link #frame} that sees nothing in them move any more, or here when
+     * no rule uses these states; they keep matching after it. Nothing while the document already exits.
+     */
+    public void exit(Runnable done) {
+        presence.exit(documentUnit, true, () -> {
+            presence.rest(documentUnit);
+            done.run();
+        });
+    }
+
+    /** Whether the document {@linkplain #exit exits}. */
+    public boolean exiting() {
+        return documentUnit.exiting();
+    }
+
+    /** Takes an exiting document back from where its exit got to, or enters an exited one again from {@code :-ix-absent}. */
+    public void enter() {
+        presence.enterAgain(documentUnit);
+    }
+
     /** Fonts or glyph widths changed (resource reload, Force Unicode): re-measure all text next frame. */
     public void invalidateText() {
         layout.invalidateText();
@@ -324,8 +366,10 @@ public final class UiDocument {
      */
     public DisplayList frame(float viewportWidth, float viewportHeight) {
         long now = clock.getAsLong();
-        boolean animating = transitions.advance(now);
-        boolean dirty = bindings.update() || animating || textInvalidated
+        boolean exited = exiting();
+        boolean animating = animations.advance(now) | transitions.advance(now);
+        boolean presenceChanged = presence.update();
+        boolean dirty = !exited && bindings.update() || animating || presenceChanged || textInvalidated
                 || root.isStyleDirty() || root.hasStyleDirtyDescendant() || root.hasTreeChange()
                 || viewportWidth != this.viewportWidth || viewportHeight != this.viewportHeight;
         boolean caret = caretVisible(now);
@@ -333,7 +377,7 @@ public final class UiDocument {
         painter.setCaretVisible(caret);
         Element shown = topLayer.atPointer();
         if (shown != null && !isConnected(shown)) {
-            topLayer.showAtPointer(null, 0, 0); // a binding removed it this frame
+            topLayer.dropAtPointer(); // a binding removed it this frame
             dirty = true;
         }
         boolean moved = topLayer.takeMoved();
@@ -359,10 +403,12 @@ public final class UiDocument {
             root.markStyleDirty();
         }
         style.restyle(root);
+        presence.styled();
         layout.layout(root, viewportWidth, viewportHeight, topLayer);
         painter.paint(root, topLayer, displayList);
         painter.paintAtPointer(topLayer, atPointerList);
         events.afterLayout();
+        animations.dispatchEnded(events::animationEnded);
         return displayList;
     }
 
@@ -393,7 +439,7 @@ public final class UiDocument {
         return (now - blinkStart) / (BLINK_MS * 1_000_000) % 2 == 0;
     }
 
-    /** Replaces the transition clock ({@link System#nanoTime} by default); for tests. */
+    /** Replaces the animation and transition clock ({@link System#nanoTime} by default); for tests. */
     void clock(LongSupplier clock) {
         this.clock = clock;
     }

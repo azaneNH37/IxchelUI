@@ -119,7 +119,7 @@ class UiDocumentTransitionTest {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div class=\"a\"></div>", """
                 .a { transition: display 1s }
                 .b { transition-duration: 0 }
-                .c { transition-timing-function: steps(2) }
+                .c { transition-timing-function: linear(0, 1) }
                 .d { transition: none, width 1s }
                 .e { transition-property: colr }
                 """));

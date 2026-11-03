@@ -20,7 +20,11 @@ import java.util.Map;
  * CSS transitions (CSS Transitions Level 1, section 3): starting, replacing, reversing and
  * cancelling on style change, then overriding the cascaded value while running. Elements that
  * are or become {@code display: none} do not transition. Values that {@code Syntax#interpolate}
- * cannot interpolate change at once.
+ * cannot interpolate change at once. A property that {@link Animations} animates in the previous
+ * or the new style does not transition.
+ *
+ * <p>Transitions started before the first {@link #advance} (an element entering as the document
+ * loads) start at that first time.
  */
 public final class Transitions implements StyleEngine.Hook {
     private static final class Running {
@@ -29,7 +33,7 @@ public final class Transitions implements StyleEngine.Hook {
         /** The value a transition back from {@code to} must reach to count as reversing this one. */
         final Object reversingStart;
         final float shortening;
-        final long start;
+        long start;
         final long duration;
         final Easing easing;
 
@@ -62,13 +66,16 @@ public final class Transitions implements StyleEngine.Hook {
 
     private final PropertyRegistry registry;
     private final Element root;
+    private final Animations animations;
     private final Map<Element, Running[]> running = new IdentityHashMap<>();
     private final Map<List<String>, int[]> listIndex = new IdentityHashMap<>();
     private long now;
+    private boolean advanced;
 
-    public Transitions(PropertyRegistry registry, Element root) {
+    public Transitions(PropertyRegistry registry, Element root, Animations animations) {
         this.registry = registry;
         this.root = root;
+        this.animations = animations;
     }
 
     /**
@@ -76,6 +83,16 @@ public final class Transitions implements StyleEngine.Hook {
      * restyle, dropping elements no longer in the document. Returns whether any are running.
      */
     public boolean advance(long nanos) {
+        if (!advanced) {
+            advanced = true;
+            for (Running[] runs : running.values()) {
+                for (Running r : runs) {
+                    if (r != null) {
+                        r.start += nanos - now;
+                    }
+                }
+            }
+        }
         now = nanos;
         for (Iterator<Element> it = running.keySet().iterator(); it.hasNext(); ) {
             Element e = it.next();
@@ -88,8 +105,22 @@ public final class Transitions implements StyleEngine.Hook {
         return !running.isEmpty();
     }
 
+    /** Whether {@code e} has a transition that has not reached its end by the {@link #advance} time. */
+    public boolean running(Element e) {
+        Running[] runs = running.get(e);
+        if (runs == null) {
+            return false;
+        }
+        for (Running r : runs) {
+            if (r != null && !r.done(now)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
-    public void computed(Element e, ComputedStyle previous, ComputedStyle next) {
+    public void computed(Element e, ComputedStyle previous, ComputedStyle next, StyleEngine.Cascade cascade) {
         Running[] runs = running.get(e);
         if (previous == null || previous.get(CssProperties.DISPLAY) == Display.NONE
                 || next.get(CssProperties.DISPLAY) == Display.NONE) {
@@ -109,6 +140,9 @@ public final class Transitions implements StyleEngine.Hook {
         for (int id = 0; id < index.length; id++) {
             Running r = runs == null ? null : runs[id];
             int i = index[id];
+            if (i >= 0 && animations.animates(e, id)) {
+                i = -1;
+            }
             if (r == null && i < 0) {
                 continue;
             }

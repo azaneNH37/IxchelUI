@@ -12,7 +12,8 @@ import java.util.Locale;
 
 /**
  * Supported: type, {@code *}, {@code .class}, {@code #id}, {@code [attr]}, {@code [attr=value]},
- * {@code :hover/:active/:focus/:disabled/:checked/:open}, {@code :root}, {@code :lang(range, …)},
+ * {@code :hover/:active/:focus/:disabled/:checked/:open}, {@code :-ix-absent/:-ix-entering/:-ix-exiting}
+ * (see {@code Presence}), {@code :root}, {@code :lang(range, …)},
  * {@code :not()}, {@code :is()} and {@code :where()} of selector lists (combinators allowed),
  * {@code ::before} and {@code ::after} at the end of a selector, descendant and child combinators,
  * selector lists. Anything else is a dev-time error.
@@ -332,6 +333,12 @@ public final class SelectorParser {
                 return Element.CHECKED;
             case "open":
                 return Element.OPEN;
+            case "-ix-absent":
+                return Element.ABSENT;
+            case "-ix-entering":
+                return Element.ENTERING;
+            case "-ix-exiting":
+                return Element.EXITING;
             default:
                 return 0;
         }

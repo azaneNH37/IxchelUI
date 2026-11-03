@@ -76,11 +76,14 @@ public final class QuestsPlaytest {
             s.click(".node");
             s.waitUntil("a click opens the quest's details", () -> Playtest.query(".detail").size() == 1
                     && Playtest.text(".detail .name").equals(first.quests().get(0).title()), Playtest.WAIT);
-            s.expect("the detail panel does not move with the canvas", () -> {
+            // Fails if the panel does not enter from its :-ix-absent style off to the right.
+            s.expect("the opening panel starts off to the right", () -> detailOffset() > 1);
+            s.shot("quests-detail-entering");
+            s.waitUntil("the panel slides in and stops where its box is", () -> {
                 Element detail = Playtest.query(".detail").get(0);
                 float[] p = EventDispatcher.paintedCenter(detail);
-                return near(p[0], detail.box().x() + detail.box().width() / 2) && hitsInside(detail, p);
-            });
+                return near(detailOffset(), 0) && hitsInside(detail, p);
+            }, Playtest.WAIT);
             s.expect("claim is disabled without the items", () -> Playtest.query(".claim:disabled").size() == 1);
             // The screenshot shows the framed panel, its shadow, its gold rule and the selected quest's glow.
             s.expect("the detail panel has its ::before rule", () -> Playtest.query(".detail").get(0).before() != null);
@@ -104,7 +107,11 @@ public final class QuestsPlaytest {
                     && p.getInventory().countItem(Items.EMERALD) == 1, 1);
 
             s.click(".close");
-            s.waitUntil("close hides the details", () -> Playtest.query(".detail").isEmpty(), Playtest.WAIT);
+            // Fails if the panel goes at once instead of exiting with its slide-out transition.
+            s.expect("the closing panel stays, exiting and inert, while it slides out",
+                    () -> Playtest.query(".detail:-ix-exiting").size() == 1 && Playtest.query(".detail").get(0).isInert());
+            s.shot("quests-detail-leaving");
+            s.waitUntil("close removes the details after the slide-out", () -> Playtest.query(".detail").isEmpty(), Playtest.WAIT);
             s.clickNth(".chapter", 1);
             s.waitUntil("the second chapter replaces the canvas", () -> Playtest.query(".chapter.selected").size() == 1
                     && Playtest.text(".chapter.selected span").equals(Quests.chapters().get(1).title())
@@ -127,6 +134,12 @@ public final class QuestsPlaytest {
 
     private static Element node(int index) {
         return Playtest.query(".node").get(index);
+    }
+
+    /** How far the detail panel paints right of its laid-out box. */
+    private static float detailOffset() {
+        Element detail = Playtest.query(".detail").get(0);
+        return EventDispatcher.paintedCenter(detail)[0] - (detail.box().x() + detail.box().width() / 2);
     }
 
     private static boolean moved(Element e, float[] from, float dx, float dy) {

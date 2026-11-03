@@ -2,9 +2,11 @@ package com.azane.ixchel.sample.playtest;
 
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
+import com.azane.ixchel.mc.document.ExitingDocuments;
 import com.azane.ixchel.mc.playtest.Playtests;
 import com.azane.ixchel.mc.playtest.Playtest;
 import com.azane.ixchel.sample.character.CharacterScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.inventory.InventoryMenu;
@@ -73,7 +75,12 @@ public final class CharacterPlaytest {
                         () -> !value(".stat", "Time played").equals(stat[0]), 60)
                 .shot("character-stats")
                 .clickNth(".tab", 0)
-                .waitUntil("equipment tab shows the armor slots again", () -> !isHidden(HELMET), Playtest.WAIT));
+                .waitUntil("equipment tab shows the armor slots again", () -> !isHidden(HELMET), Playtest.WAIT)
+                .run(() -> Minecraft.getInstance().setScreen(null))
+                // Fails if a closed container screen drops its document at once; the shot shows its slot items following it.
+                .expect("the closed panel still exits", ExitingDocuments::any)
+                .shot("character-leaving")
+                .waitUntil("the exit ends", () -> !ExitingDocuments.any(), Playtest.WAIT));
     }
 
     private static boolean isOpen() {

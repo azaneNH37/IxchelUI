@@ -4,14 +4,20 @@ import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
+import com.azane.ixchel.core.dom.Presence;
 
 import java.util.List;
 
-/** {@code <if test="…">}: mounted while the Boolean is true; recreated on each false-to-true change. */
+/**
+ * {@code <if test="…">}: mounted while the Boolean is true; recreated on each false-to-true change.
+ * The copy is a {@link Presence} unit: a true-to-false change makes it exit first, and turning true
+ * again while it exits takes the same copy back.
+ */
 final class IfBlock extends Block {
     private final Cell<?> test;
     private final Directive attribute;
     private Instance instance;
+    private Presence.Unit unit;
     private boolean failing;
 
     IfBlock(Compiler compiler, Compiler.Env env, List<Node> content, Element parent, Anchor prev, Cell<?> test,
@@ -35,6 +41,7 @@ final class IfBlock extends Block {
 
     @Override
     public boolean update() {
+        boolean exiting = unit != null && unit.exiting();
         boolean on;
         try {
             on = Boolean.TRUE.equals(test.get());
@@ -45,10 +52,13 @@ final class IfBlock extends Block {
                 env.diag().report(BindingCode.RUNTIME_EXCEPTION, attribute.valuePos(),
                         "'" + attribute.value() + "' threw " + ex);
             }
-            on = instance != null;
+            on = instance != null && !exiting;
         }
         boolean wrote = false;
-        if (on && instance == null) {
+        if (on && exiting) {
+            compiler.presence.reenter(unit);
+            wrote = true;
+        } else if (on && instance == null) {
             instance = instantiate(env, null, prev);
             int index = indexAfter(prev);
             for (Object item : instance.items) {
@@ -56,13 +66,18 @@ final class IfBlock extends Block {
                     parent.insertChild(index++, n);
                 }
             }
+            unit = compiler.presence.enter(elements(instance));
             wrote = true;
-        } else if (!on && instance != null) {
-            unmount(instance);
-            instance = null;
+        } else if (!on && instance != null && !exiting) {
+            Instance gone = instance;
+            compiler.presence.exit(unit, true, () -> {
+                unmount(gone);
+                instance = null;
+                unit = null;
+            });
             return true;
         }
-        if (instance != null) {
+        if (instance != null && !unit.exiting()) {
             wrote |= instance.group.update();
         }
         return wrote;

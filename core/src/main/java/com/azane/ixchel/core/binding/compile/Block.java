@@ -82,11 +82,27 @@ abstract class Block implements Part, Anchor {
         return i;
     }
 
+    /** {@code i}'s top-level elements now mounted: its {@code Presence} unit. */
+    static List<Element> elements(Instance i) {
+        List<Node> nodes = new ArrayList<>();
+        i.nodes(nodes);
+        List<Element> out = new ArrayList<>();
+        for (Node n : nodes) {
+            if (n instanceof Element e) {
+                out.add(e);
+            }
+        }
+        return out;
+    }
+
+    /** Removes {@code i}'s nodes; those an enclosing block already removed (a late exit) are skipped. */
     final void unmount(Instance i) {
         List<Node> nodes = new ArrayList<>();
         i.nodes(nodes);
         for (Node n : nodes) {
-            parent.removeChild(n);
+            if (n.parent() == parent) {
+                parent.removeChild(n);
+            }
         }
     }
 }

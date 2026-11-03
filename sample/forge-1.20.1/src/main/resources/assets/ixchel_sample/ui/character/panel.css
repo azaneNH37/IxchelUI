@@ -4,6 +4,12 @@
   margin: auto;
   width: 178px;
   padding: 7px;
+  transition: transform 300ms ease-in;
+}
+
+/* Only out: while the screen is open, vanilla draws slot items where the layout put them, ignoring transforms. */
+.panel:-ix-absent:-ix-exiting {
+  transform: translateY(24px);
 }
 
 .tabs {

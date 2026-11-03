@@ -295,7 +295,7 @@ final class WaypointsView extends ViewModel {
 
 - 不渲染节点：内容按位置成为父元素的子节点；CSS 选择器、游戏内测试（`Playtest`）的选择器与诊断看到的树中没有 `for`/`if`。
 - 内容可以是任意多个元素与文本；`<for>` 每行、`<if>` 每次挂载各实例化一份。行或挂载的局部状态写在内容中的元素上。
-- 块上只允许自己的属性（`for`：`each`、`as`、`key`；`if`：`test`），另可带 `slot`（作为外壳元素的直接子块时，见上下文模型文档 §3.1）；其它属性与指令加载期报错。`as` 行名只对块内容可见，`key` 是从行名出发的路径（规则同现有 `each`）。
+- 块上只允许自己的属性（`for`：`each`、`as`、`key`、`index`；`if`：`test`），另可带 `slot`（作为外壳元素的直接子块时，见上下文模型文档 §3.1）；其它属性与指令加载期报错。`as` 行名只对块内容可见，`key` 是从行名出发的路径（规则同现有 `each`）。副本的进出动画由 CSS 伪类 `:-ix-absent`/`:-ix-entering`/`:-ix-exiting` 表达，块上没有动画属性（#032）。
 - 顶层键处理器的规则不变：块内的元素不注册到文档根（绑定文档 §3）。
 - `test` 沿用 XSLT/JSTL 的 `<if test>`。块的挂载机制沿用现有 `Block`（以前一兄弟定位，`Bindings.java:977-1013`，本就不需要占位节点）；需要改的是一份实例由单个根变为多个根（`Instance.root`）。
 
@@ -442,7 +442,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 11. ~~i18n 写法~~ 已定（I 前）：元素级消息，`t`/`t:<属性>`，译文内 `%n$s` 插入参数子元素、`<名>…</名>` 复制 `mark` 子元素，`:lang()` 按语言区分外观；见 `ref/SD-ixchel-i18n-20261102.md`（#027）。
 12. ~~V1 盒子外观的语言范围~~ 已定（V1 前）：伪元素只做装饰，`content` 只收 `""`/`none`，因为 CSS 字符串会绕开 i18n 与字面文本 lint；背景按标准做多层列表，避免为叠图多套元素；渐变只做 `linear-gradient`；`box-shadow` 含 `inset` 且可过渡；`border-image` 与 `image-rendering: pixelated` 同批，因 MC 九宫格多为像素风；`:not`/`:is`/`:where` 收完整选择器列表。逐项范围见路线图 V1。
 13. ~~V2 尺寸与排版的语义~~ 已定（V2 前）：块容器用 taffy 标准块布局（外边距折叠、匿名块），不映射为 flex，符合 #003；`line-height: normal` 保持现行行高；vw/vh 以 GUI 视口为准；`Length` 改为"百分比 + 像素"，使 px 与 % 之间的过渡按标准插值；grid 接 taffy 的全部写法、不做 subgrid。逐项范围见路线图 V2。
-14. ~~V3 动画的时间与事件~~ 已定（V3 前）：用墙钟，游戏暂停不冻结，视效不跟逻辑时间；只加 `on:animationend`，`animationiteration` 无使用方；`@starting-style` 按标准含整页首次加载。逐项范围见路线图 V3。
+14. ~~V3 动画的时间与事件~~ 已定（V3 前）：用墙钟，游戏暂停不冻结，视效不跟逻辑时间；只加 `on:animationend`，`animationiteration` 无使用方。补定（V3 中，#032）：进出动画不用 `@starting-style` 与块属性 `leave`，改为进出单元上的三个状态伪类，作者只写 CSS。逐项范围见路线图 V3。
 
 ### 7. 实现顺序
 

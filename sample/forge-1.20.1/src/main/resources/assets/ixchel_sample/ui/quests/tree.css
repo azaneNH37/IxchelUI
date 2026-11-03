@@ -45,10 +45,12 @@
   height: 16px;
 }
 
-/* QuestsView.VIEW_WIDTH x VIEW_HEIGHT: zooming keeps the center of this box still. */
+/* QuestsView.VIEW_WIDTH x VIEW_HEIGHT: zooming keeps the center of this box still. Clips the detail
+   panel while it slides in and out at the right edge. */
 .stage {
   width: 240px;
   height: 200px;
+  overflow: hidden;
 }
 
 .view {
@@ -157,6 +159,16 @@
   border-image: url("ixchel_sample:textures/gui/quest_frame.png") 4 fill round;
   image-rendering: pixelated;
   box-shadow: -3px 0 8px #000000C0;
+  transition: transform 200ms ease-out;
+}
+
+/* Slides in from the right edge when it opens and back out when it closes. */
+.detail:-ix-absent {
+  transform: translateX(120px);
+}
+
+.detail:-ix-exiting {
+  transition-timing-function: ease-in;
 }
 
 /* A gold rule above the quest's name. */

@@ -15,6 +15,7 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,12 +64,31 @@ public final class StyleEngine {
 
     /**
      * Sees each freshly cascaded style before it is stored, and may change it; children inherit
-     * the changed values. Used by transitions.
+     * the changed values. Used by animations and transitions.
      */
     @FunctionalInterface
     public interface Hook {
-        /** @param previous the element's style before this restyle, {@code null} on its first */
-        void computed(Element e, ComputedStyle previous, ComputedStyle next);
+        /**
+         * @param previous the element's style before this restyle, {@code null} on its first
+         * @param cascade  answers about {@code next} until the hook returns
+         */
+        void computed(Element e, ComputedStyle previous, ComputedStyle next, Cascade cascade);
+    }
+
+    /** What the cascade knows about the style a {@link Hook} is given. */
+    public interface Cascade {
+        /** Whether an {@code !important} declaration set {@code def}. */
+        boolean important(PropertyDef<?> def);
+
+        /** The {@code @keyframes} named {@code name}, the last defined in any sheet, or {@code null}. */
+        Keyframes keyframes(String name);
+
+        /**
+         * A keyframe's {@code declared} value of {@code def} computed for the element whose style is
+         * {@code next}: {@code var()}s, relative units and CSS-wide keywords resolved as in its cascade;
+         * {@code null} when invalid after substitution, reported once.
+         */
+        Object compute(PropertyDef<?> def, Object declared, ComputedStyle next);
     }
 
     private final PropertyRegistry registry;
@@ -77,6 +97,12 @@ public final class StyleEngine {
     private final Index elements = new Index();
     private final Index before = new Index();
     private final Index after = new Index();
+    /** The {@link Element} state bits some selector tests. */
+    private int states;
+    private final Map<String, Keyframes> keyframes = new HashMap<>();
+    /** The ids of the longhands an {@code !important} declaration set in the style computed last. */
+    private final BitSet important = new BitSet();
+    private final HookCascade cascade = new HookCascade();
     /** Weakly keyed, so entries leave with their elements; a new inline style replaces its element's entry. */
     private final Map<Element, Inline> inlineCache = new WeakHashMap<>();
     private final List<Entry> scratch = new ArrayList<>();
@@ -90,7 +116,7 @@ public final class StyleEngine {
 
     /** {@code diag} receives errors from inline styles, compiled when an element is restyled with a new one. */
     public StyleEngine(PropertyRegistry registry, List<StyleSheet> sheets, Diagnostics diag) {
-        this(registry, List.of(), List.of(), List.of(), sheets, diag, (e, previous, next) -> {
+        this(registry, List.of(), List.of(), List.of(), sheets, diag, (e, previous, next, cascade) -> {
         });
     }
 
@@ -119,13 +145,20 @@ public final class StyleEngine {
             for (StyleSheet.StyleRule r : sheet.rules()) {
                 Entry e = new Entry(r.selector(), r.declarations(), origin, r.selector().specificity(), base + r.order());
                 order = Math.max(order, e.order + 1);
+                states |= r.selector().states();
                 switch (r.selector().pseudoElement()) {
                     case NONE -> elements.add(e);
                     case BEFORE -> before.add(e);
                     case AFTER -> after.add(e);
                 }
             }
+            keyframes.putAll(sheet.keyframes());
         }
+    }
+
+    /** Whether some rule's selector tests one of the {@link Element} state bits in {@code mask}. */
+    public boolean uses(int mask) {
+        return (states & mask) != 0;
     }
 
     /**
@@ -165,9 +198,12 @@ public final class StyleEngine {
                 rem = parent.computed().get(CssProperties.FONT_SIZE).value();
             }
             if (self) {
+                ComputedStyle previous = e.computed();
+                Declarations.Compiled inline = inline(e);
                 elements.collect(e, false, scratch);
-                ComputedStyle next = compute(e, inline(e), parent.computed());
-                hook.computed(e, e.computed(), next);
+                ComputedStyle next = compute(e, inline, parent.computed());
+                cascade.parent = parent.computed();
+                hook.computed(e, previous, next, cascade);
                 e.setComputed(next);
             }
             if (self || e.hasStyleDirtyDescendant()) {
@@ -188,18 +224,21 @@ public final class StyleEngine {
         if (!force && (p == null || !p.isStyleDirty())) {
             return;
         }
-        (isAfter ? after : before).collect(host, true, scratch);
+        Index rules = isAfter ? after : before;
+        rules.collect(host, true, scratch);
         if (scratch.isEmpty()) {
             host.dropPseudo(isAfter);
             return;
         }
+        ComputedStyle previous = p == null ? null : p.computed();
         ComputedStyle next = compute(null, Declarations.Compiled.EMPTY, host.computed());
         if (next.get(CssProperties.CONTENT) != Keywords.Content.EMPTY) {
             host.dropPseudo(isAfter);
             return;
         }
         p = host.generatePseudo(isAfter);
-        hook.computed(p, p.computed(), next);
+        cascade.parent = host.computed();
+        hook.computed(p, previous, next, cascade);
         p.setComputed(next);
         p.clearStyleDirty();
     }
@@ -211,6 +250,7 @@ public final class StyleEngine {
     private ComputedStyle compute(Element e, Declarations.Compiled inline, ComputedStyle parent) {
         List<Entry> matched = scratch;
         matched.sort(CASCADE_ORDER);
+        important.clear();
 
         Map<PropertyDef<?>, Object> bound = e == null ? Map.of() : e.boundStyle();
         Map<String, List<ComponentValue>> boundCustom = e == null ? Map.of() : e.boundCustom();
@@ -235,6 +275,9 @@ public final class StyleEngine {
             for (Declarations.Longhand d : inline.longhands()) {
                 if (d.important() == important && !(anyBound && bound.containsKey(d.property()))) {
                     set(cs, d.property(), d.value(), parent);
+                    if (important) {
+                        this.important.set(d.property().id());
+                    }
                 }
             }
             if (!important && anyBound) {
@@ -374,9 +417,8 @@ public final class StyleEngine {
             }
         }
 
-        /** Replaces {@code out} with the rules matching {@code e}, or with {@code origin}, the pseudo-element rules whose element it is. */
+        /** Adds to {@code out} the rules matching {@code e}, or with {@code origin}, the pseudo-element rules whose element it is. */
         void collect(Element e, boolean origin, List<Entry> out) {
-            out.clear();
             if (empty) {
                 return;
             }
@@ -407,6 +449,9 @@ public final class StyleEngine {
         for (Declarations.Longhand d : decls) {
             if (d.important() == important) {
                 set(cs, d.property(), d.value(), parent);
+                if (important) {
+                    this.important.set(d.property().id());
+                }
             }
         }
     }
@@ -468,6 +513,54 @@ public final class StyleEngine {
             cs.set(def, def.initial());
         } else {
             cs.set(def, (T) value);
+        }
+    }
+
+    /** The {@link Cascade} handed to the hook; {@code parent} is the style the hooked one inherits from. */
+    private final class HookCascade implements Cascade {
+        ComputedStyle parent;
+
+        @Override
+        public boolean important(PropertyDef<?> def) {
+            return important.get(def.id());
+        }
+
+        @Override
+        public Keyframes keyframes(String name) {
+            return keyframes.get(name);
+        }
+
+        @Override
+        public Object compute(PropertyDef<?> def, Object declared, ComputedStyle next) {
+            float parentSize = parent.get(CssProperties.FONT_SIZE).value();
+            float size = next.get(CssProperties.FONT_SIZE).value();
+            Object v = declared;
+            if (v instanceof Declarations.Pending p) {
+                units.rem = rem;
+                units.em = def == CssProperties.FONT_SIZE ? parentSize : size;
+                v = p.resolve(next.custom(), units, diag);
+                if (units.viewportUsed) {
+                    usesViewport = true;
+                    units.viewportUsed = false;
+                }
+                if (v == null) {
+                    return null;
+                }
+            }
+            if (v == Declarations.Wide.INHERIT) {
+                return parent.get(def);
+            }
+            if (v == Declarations.Wide.INITIAL) {
+                return def.initial();
+            }
+            if (def == CssProperties.FONT_SIZE && v instanceof Length l && l.unit() != Length.Unit.PX) {
+                return Length.px(l.resolve(parentSize));
+            }
+            if (def == CssProperties.LINE_HEIGHT && v instanceof LineHeight lh && lh.kind() == LineHeight.Kind.LENGTH
+                    && lh.length().unit() != Length.Unit.PX) {
+                return LineHeight.of(Length.px(lh.length().resolve(size)));
+            }
+            return v;
         }
     }
 }

@@ -18,6 +18,7 @@ import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.FormFacet;
 import com.azane.ixchel.core.dom.Node;
+import com.azane.ixchel.core.dom.Presence;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.dom.UiEvent;
@@ -80,6 +81,8 @@ final class Compiler {
     private final PropertyRegistry properties;
     private final TopLayer topLayer;
     private final Map<String, ComponentDef> components;
+    /** Where blocks enter and exit their copies. */
+    final Presence presence;
     private Env env;
 
     /**
@@ -88,7 +91,7 @@ final class Compiler {
      */
     Compiler(Element documentRoot, ViewModel model, Map<String, Name> names, String owner,
              Bindings.TextConverter text, TagRegistry tags, PropertyRegistry properties, TopLayer topLayer,
-             Map<String, ComponentDef> components, Diagnostics diag) {
+             Map<String, ComponentDef> components, Presence presence, Diagnostics diag) {
         this.documentRoot = documentRoot;
         this.model = model;
         this.text = text;
@@ -96,6 +99,7 @@ final class Compiler {
         this.properties = properties;
         this.topLayer = topLayer;
         this.components = components;
+        this.presence = presence;
         this.env = new Env(names, diag, owner, false, null);
     }
 
@@ -315,8 +319,8 @@ final class Compiler {
             return null;
         }
         check(block, indexName == null ? rowEnv : rowEnv.with(indexName, new Ref(MODEL.held(0), Integer.class)));
-        return new EachBlock(this, env, block.children(), parent, prev, list.cell(), alias, rowType, indexName, keyInput,
-                keyRef.cell(), each, key);
+        return new EachBlock(this, env, block.children(), parent, prev, list.cell(), alias, rowType, indexName,
+                keyInput, keyRef.cell(), each, key);
     }
 
     /** Compiles a throwaway copy of a block's content, so its problems are reported while it is not mounted. */
