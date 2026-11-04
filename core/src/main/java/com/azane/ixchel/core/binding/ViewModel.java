@@ -9,10 +9,10 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Base class for the data a template binds to. Declare cells and actions as fields; the field name is
+ * Base class for the data a view binds to. Declare cells and actions as fields; the field name is
  * the name used in {@code bind:*} and {@code on:*} attributes. Dependencies are fixed when a cell is
  * built and can only point at cells built before it, so the graph cannot have cycles. A component
- * with a view model of its own declares its {@code <template>}'s parameters and events as ports:
+ * with a view model of its own declares its {@code <component>}'s parameters and events as ports:
  * {@link #param()}, {@link #twoWay()} and {@link #event()} fields named after them.
  *
  * <pre>{@code

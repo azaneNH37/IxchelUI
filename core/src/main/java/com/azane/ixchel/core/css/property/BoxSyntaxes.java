@@ -60,7 +60,7 @@ final class BoxSyntaxes {
                 }
             }
             diag.report(PropertyCode.UNSUPPORTED_VALUE, v.pos(), "content takes only \"\" or none; ::before and ::after are decoration",
-                    "put text in the template, where it is translated");
+                    "put text in the view, where it is translated");
             return null;
         };
     }

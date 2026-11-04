@@ -9,7 +9,9 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#028
 
 ## Summary
 
-主题是一个自成一体的外观包：公开的 `--ix-*` 变量、给库词汇（标准元素、`ix-*` 组件、`.ix-*` 表面类）穿外观的规则、自带的 `@keyframes` 与特效，可以 `@import` 一个基底主题。每个页面用一行 `<link rel="theme">` 显式选择；宿主推荐写一份自己的主题文件供页面链接，资源包覆盖这一份即可换皮；mod 级默认主题留给以后的宿主配置文件。现有能力能做完整的原版与 dark，全息与赛博还缺切角、像素化、字体三项，以及两个内置 layer 特效。
+主题是一个自成一体的外观包：公开的 `--ix-*` 变量、给库词汇（标准元素、`ix-*` 组件、`.ix-*` 表面类）穿外观的规则、自带的 `@keyframes` 与特效，可以 `@import` 一个基底主题。每个页面用一行 `<link rel="theme">` 显式选择；宿主推荐写一份自己的主题文件供页面链接，资源包覆盖这一份即可换皮；mod 级默认主题留给以后的宿主配置文件。库的特效与组件显式引入，多个引入可合成包（#039）。现有能力能做完整的原版与 dark，全息与赛博还缺切角、像素化、字体三项，以及两个内置 layer 特效。§9 各项已于 2026-11-04 按默认推荐定下。
+
+> 文件与引用规则由资源规范（`ref/D-ixchel-resource-spec-20261105.md`，#041）取代：主题是被页面 stylesheet `@link` 的 partial，不再有 `rel="theme"`、主题层、`@import`、`@-ix-effect` 与包；内置特效为 `glint.ixeffect`、`dissolve.ixeffect`，css 中按别名引用。本文其余内容（变量表、表面类、能力缺口、四套主题）不变。
 
 ## Detail
 
@@ -77,13 +79,13 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#028
 #### 3.3 规则
 
 - 一个页面至多一个 `<link rel="theme">`，写多个报错；组件文件不能链接主题（沿用现有规则），组件经变量跟随使用它的页面。
-- href：内置主题 `@ixchel/themes/<名>`（无扩展名，同 `@ixchel/effects/<名>`）；项目主题按普通路径（相对模板目录或 `ns:path`），可被资源包覆盖。内置主题在 classpath（#001），资源包不可覆盖、不随资源重载热更新。
-- 主题文件是 CSS，开头至多一个 `@import "<主题 href>"`，导入目标必须是主题；链可以多级，成环报错（core 链接图已有环检测）。`@import` 只在主题文件中开放，其它样式表仍报错（语言文档 §4.4）。
-- 层叠：主题文件及其导入链整体进主题层，基底在前；层叠顺序仍为 UA → 组件 → 主题 → 作者（语言文档 §4.1）。
+- href：内置主题 `@ixchel/themes/<名>`（库 href 不带扩展名，#039）；项目主题按真实文件路径（相对模板目录或 `ns:path`，带 `.css`），可被资源包覆盖。内置主题在 classpath（#001），资源包不可覆盖、不随资源重载热更新。
+- 主题文件是 CSS，开头（注释之后、第一条规则之前）可写至多一个 `@import "<主题 href>";` 与任意个 `@-ix-effect "<特效 href>";`。被 `rel="theme"` 或 `@import` 引用的文件即主题，不另设标记；导入链可以多级，成环报 `load/import-cycle`。两种 at-rule 只在主题文件中开放，其它样式表或写在规则之后报 `css/misplaced-import`。特效用独立的 `@-ix-effect` 而非 `@import`：库 href 不带扩展名，`@import` 分不出目标种类。
+- 层叠：主题文件及其导入链整体进主题层，基底在前；层叠顺序仍为 UA → 组件 → 主题 → 作者（语言文档 §4.1）。主题按文档编译，对该文档的特效注册表，故能写特效参数。
 - 页面没有 `rel="theme"` 时只有 UA 样式，lint 不报。以后的宿主配置文件可给出 mod 级默认主题，只作用于没写 `rel="theme"` 的页面，页面上的选择永远优先。
-- 换主题不改盒子尺寸：主题规则不写尺寸、内外边距、`border` 宽度、`display`、`gap`；框线、斜面、发光都用 inset `box-shadow` 与背景层画。改变文字度量的属性（`font-family`、`font-weight`、`text-transform`）只用在 `.ix-title` 这类按内容定宽的位置。
-- 库资源免链接：主题内与页面中都可直接使用内置特效与 `ix-*` 组件，不写 `<link>`；项目自己的组件与特效仍显式链接（它们是页面的真实依赖）。这修改 #028 中"内置特效从 `@ixchel/effects/…` 引入"一句。
-- 取代：`<link rel="stylesheet" href="@ixchel/<名>.css">` 删除（clean cutover），写了报错并提示改用 `rel="theme"`。
+- 换主题不改盒子尺寸：边框宽度由 UA 决定（`button`、`input`、`select`、`dialog`、`ix-tooltip` 1px；表面类无边框），主题只写颜色（含 `border-color`）、背景层、inset `box-shadow`、`backdrop-filter`，不写尺寸、内外边距、`border-width`、`display`、`gap`。改变文字度量的属性（`font-family`、`font-weight`、`text-transform`）只用在 `.ix-title` 这类按内容定宽的位置。
+- 引入：库的特效与组件按文件显式引入，或经包（#039）；主题用到的特效由主题文件 `@-ix-effect` 引入，页面不必再写。
+- 取代：`<link rel="stylesheet" href="@ixchel/<名>.css">` 删除（clean cutover），旧文件不存在，报 `load/file-not-found`；错误码 `load/library-sheet-not-on-page`、`load/unknown-library-sheet` 停用，组件文件链接主题报 `load/theme-not-on-page`，多个主题报 `load/multiple-themes`。
 
 #### 3.4 表面类
 
@@ -97,7 +99,7 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#028
 | `.ix-muted` | 次要文字 |
 | `.ix-divider` | 分隔线 |
 
-浮层不需要表面类：`ix-tooltip`、`dialog` 本身是元素。选中态沿用由使用方添加的 `.selected`，是否改为 `.ix-selected` 在 TH1 定。未选 `<ix-panel>` 元素：一个元素可叠多个类（`class="ix-panel sidebar"`），也不必每种底板新增元素定义。
+浮层不需要表面类：`ix-tooltip`、`dialog` 本身是元素。选中态为 `.ix-selected`，主题不再选中通用的 `.selected`（作者自己的 `.selected` 由作者 CSS 负责）。未选 `<ix-panel>` 元素：一个元素可叠多个类（`class="ix-panel sidebar"`），也不必每种底板新增元素定义。
 
 #### 3.5 不做
 
@@ -107,18 +109,22 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#028
 
 ### 4. 变量体系
 
-按角色命名，不按组件命名；tabs、进度条、tree、滚动条、slot 由角色组合，新增组件不必给每套主题加变量。草案（TH1 定稿）：
+按角色命名，不按组件命名；tabs、进度条、tree、滚动条、slot 由角色组合，新增组件不必给每套主题加变量。定稿（2026-11-04，草案加 `--ix-overlay-text`：原版浮层是深底白字，与面板相反）：
 
 | 组 | 变量 | 说明 |
 |---|---|---|
-| 表面 | `--ix-<面>-bg`、`--ix-<面>-image`、`--ix-<面>-shadow`、`--ix-<面>-backdrop`；面 = `panel`、`well`、`overlay`、`control` | `-shadow` 含框线与斜面（inset）及外投影，`-image` 是背景层列表（含 `paint()`），`-backdrop` 是 `backdrop-filter` 值 |
+| 表面 | `--ix-<面>-bg`、`--ix-<面>-image`、`--ix-<面>-shadow`、`--ix-<面>-backdrop`；面 = `panel`、`well`、`overlay`、`control`；另有 `--ix-control-border`、`--ix-overlay-border` | `-shadow` 含框线与斜面（inset）及外投影，`-image` 是背景层列表（含 `paint()`），`-backdrop` 是 `backdrop-filter` 值；`-border` 只给 UA 保留宽度的边框（`button`、`ix-tooltip`）上色，未设为透明（TH1 补） |
 | 状态 | `--ix-hover`、`--ix-active`、`--ix-selected`、`--ix-selected-text`、`--ix-disabled-text`、`--ix-focus` | 叠色与焦点环 |
-| 文字 | `--ix-text`、`--ix-title`、`--ix-text-muted`、`--ix-text-dim`、`--ix-text-shadow`、`--ix-title-font` | |
+| 文字 | `--ix-text`、`--ix-title`、`--ix-text-muted`、`--ix-text-dim`、`--ix-text-shadow`、`--ix-title-font`、`--ix-overlay-text` | `--ix-title-font` 随 TH3 |
 | 强调与语义 | `--ix-accent`、`--ix-on-accent`、`--ix-positive`、`--ix-negative`、`--ix-warning` | |
-| 形状 | `--ix-radius`、`--ix-corner` | `--ix-corner` 为 `corner-shape` 值（§5.1） |
+| 形状 | `--ix-radius`、`--ix-corner` | `--ix-corner` 为 `corner-shape` 值（§5.1），随 TH2 |
 | 动效 | `--ix-duration`、`--ix-easing` | |
 
+L3 变量的去向：`--ix-surface` → `--ix-panel-bg`；`--ix-frame` 并入 `--ix-panel-shadow`；`--ix-well` → `--ix-well-bg`；`--ix-button`、`--ix-button-frame` → `--ix-control-bg`、`--ix-control-shadow`；`--ix-button-hover` → `--ix-hover` 叠在 `--ix-control-bg` 上；`--ix-button-text` → `--ix-text`；`--ix-button-disabled-text` → `--ix-disabled-text`；`--ix-tooltip`、`--ix-tooltip-frame`、`--ix-tooltip-text` → `--ix-overlay-bg`、`--ix-overlay-shadow`、`--ix-overlay-text`。
+
 `shape-rendering`（§5.2）、`-ix-click-sound` 是继承属性，主题直接写在 `:root`，不另设变量。
+
+TH1 的基底只给 L3 已有的词汇穿外观（`.ix-panel`、`.ix-title`、`button`、`ix-tooltip`）与新增的表面类；`input`、`select`、`dialog` 的主题规则随 TH4 四套主题一并写，TH1 前后不变。
 
 ### 5. 能力缺口与补法
 
@@ -144,8 +150,10 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#028
 
 #### 5.4 内置特效
 
-- `chromatic`（layer）：色差 / RGB 分离，全息用。
-- `glitch`（layer）：切片错位与闪烁，赛博用。
+- `ix-chromatic`（layer）：色差 / RGB 分离，全息用。
+- `ix-glitch`（layer）：切片错位与闪烁，赛博用。
+- `ix-cooldown`（box，参数 `--ix-cooldown-progress`）：图标冷却扫描，由 U4 移入 TH4。
+- 现有 `glint`、`dissolve` 改名 `ix-glint`、`ix-dissolve`。
 - 扫描线不做特效：1×2px 渐变平铺已能表达。
 
 #### 5.5 不补
@@ -169,15 +177,16 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#028
 
 - 陈列页：sample 中一份模板列出所有表面类与标准控件的全部状态，四个页面文件各链接一套主题、共用该模板；四张 playtest 截图。
 - 换主题不改布局：同一陈列页在四套主题下元素的布局矩形一致，写成 playtest 断言。
-- kit：schema 列出内置与项目主题及其变量；lint 报多个 `rel="theme"`、主题文件外的 `@import`、导入非主题、未知的 `--ix-*` 与 `.ix-*`。
+- kit：schema 列出内置与项目主题及其变量；lint 报多个 `rel="theme"`、主题文件外或规则之后的 `@import`/`@-ix-effect`、导入成环。不 lint 未知的 `--ix-*` 与 `.ix-*`（#039）。
 
 ### 8. 实现顺序
 
 见 `ref/D-ixchel-roadmap-20261029.md` TH1–TH4：主题机制 → 形状与像素化 → 文字 → 四套主题与陈列页，之后 U4。
 
-### 9. 待定
+### 9. 已定（2026-11-04）
 
-1. 内置特效免链接后的命名：建议 `ix-` 前缀（`paint(ix-glint)`，参数 `--ix-glint-color`），避免与项目同名特效冲突；参数与主题变量同处 `--ix-*`，均属库所有。TH1 定。
-2. 项目主题能否使用项目特效：CSS 文件不能写 `<link>`，需要另定引入方式，或限定项目主题只用内置特效。TH1 定。
-3. 主题自带进出动画：会使整页关闭延后（#032），内置主题是否带、时长上限多少。TH4 定。
-4. 选中态类名 `.selected` 是否改为 `.ix-selected`。TH1 定。
+1. 内置特效命名：`ix-` 前缀（`paint(ix-glint)`，参数 `--ix-glint-color`），文件名同样带前缀。
+2. 项目主题可用项目特效：主题文件以 `@-ix-effect` 引入，内置与项目特效同一写法。
+3. 主题自带进出动画：只有 `holo` 带入场动画，内置主题不带离场动画（离场会推迟整页关闭，#032）。
+4. 选中态类名改为 `.ix-selected`。
+5. 内置特效与组件不免链接，显式引入或经包（#039）。

@@ -4,7 +4,7 @@ import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.StyledText;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -184,7 +184,7 @@ class UiDocumentTextTest {
                 .c { text-shadow: 1px 1px }
                 .d { text-shadow: 1px 1px 0 #000 }
                 """));
-        assertEquals(List.of("css/unsupported-value@t.css:1:27", "css/unsupported-value@t.css:2:31",
+        assertEquals(List.of("css/unsupported-value@t.css:1:40", "css/unsupported-value@t.css:2:31",
                 "css/unsupported-value@t.css:3:19"), DiagCodes.of(e));
     }
 }

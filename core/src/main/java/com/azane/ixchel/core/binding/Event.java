@@ -4,7 +4,7 @@ import java.util.function.Consumer;
 
 /**
  * A component's output, made with {@link ViewModel#event()} and stored in a field named after the
- * {@code <template events>} entry: {@link #emit} runs the user's {@code on:<name>} statements, which
+ * {@code <component events>} entry: {@link #emit} runs the user's {@code on:<name>} statements, which
  * see the payload as {@code $event}. Declare {@code Event<Void>} for an event without payload. Without
  * a listener, or once its model is closed, emitting does nothing. Client thread only.
  */

@@ -69,7 +69,7 @@ public final class MachinePlaytest {
                 .expect("empty bucket left in the water slot", () -> menu().getSlot(MachineMenu.WATER_SLOT).getItem().is(Items.BUCKET))
                 .shot("machine-ready")
                 .click(".recipe")
-                .waitUntil("first recipe selected, working", () -> Playtest.query(".recipe.selected").size() == 1
+                .waitUntil("first recipe selected, working", () -> Playtest.query(".recipe.ix-selected").size() == 1
                         && Playtest.text(".status").equals("Working"), Playtest.WAIT)
                 .hover(".tank")
                 .shot("machine-working")
@@ -105,7 +105,7 @@ public final class MachinePlaytest {
                 .run(() -> Playtest.clickSlot(MachineMenu.HOTBAR_START + BARS))
                 .run(() -> Playtest.clickSlot(MachineMenu.OUTPUT))
                 .expect("output slot refuses a stack", () -> menu().getCarried().is(Items.IRON_BARS))
-                .click(".title")
+                .click(".ix-title")
                 .expect("panel click keeps the carried stack", () -> menu().getCarried().is(Items.IRON_BARS))
                 .run(() -> Playtest.clickAt(2, 2, 0))
                 .waitUntilServer("outside click drops it", p -> p.getInventory().countItem(Items.IRON_BARS) == 0

@@ -1,104 +1,106 @@
-<link rel="stylesheet" href="@ixchel/dark.css"/>
-<link rel="stylesheet" href="page.css"/>
-<link rel="component" href="help.html"/>
-<div class="screen">
-  <div class="panel">
-    <div class="header">
-      <span class="title" t="ixchel_sample.index.tooltips.title"></span>
-      <span class="hint" t="ixchel_sample.tooltips.hint"></span>
-    </div>
-    <div class="body">
-      <div class="column">
-        <span class="section" t="ixchel_sample.tooltips.buttons"></span>
-        <div class="row">
-          <button class="save" t="ixchel_sample.tooltips.save"><ix-tooltip class="tip">
-            <div class="text" t="ixchel_sample.tooltips.save.tip"><span mark="key" class="key"></span></div>
-          </ix-tooltip></button>
-          <button class="cast" bind:disabled="cooldown > 0" t="ixchel_sample.tooltips.cast"><ix-tooltip class="tip">
-            <span class="tip-head" t="ixchel_sample.tooltips.cast.tip"></span>
-            <span class="countdown" bind:class:ready="cooldown == 0"><if test="cooldown > 0"><span t="ixchel_sample.tooltips.ready_in"><span bind:text="cooldown"></span></span></if><if test="cooldown == 0"><span t="ixchel_sample.tooltips.ready"></span></if></span>
-          </ix-tooltip></button>
-        </div>
-
-        <span class="section" t="ixchel_sample.tooltips.form"></span>
-        <div class="row">
-          <input class="name" t:placeholder="ixchel_sample.tooltips.name" bind:value="name"><ix-tooltip class="tip">
-            <span t="ixchel_sample.tooltips.name.tip"></span>
-          </ix-tooltip></input>
-          <select class="mode" bind:value="mode"><ix-tooltip class="tip">
-            <span t="ixchel_sample.tooltips.mode.tip"></span>
-          </ix-tooltip>
-            <option value="smooth" t="ixchel_sample.tooltips.mode.smooth"></option>
-            <option value="steps" t="ixchel_sample.tooltips.mode.steps"></option>
-            <option value="off" t="ixchel_sample.tooltips.mode.off"></option>
-          </select>
-        </div>
-
-        <span class="section" t="ixchel_sample.tooltips.terms"></span>
-        <div class="text" t="ixchel_sample.tooltips.terms.text"><span class="term" t="ixchel_sample.tooltips.terms.tick"><ix-tooltip class="tip">
-          <span t="ixchel_sample.tooltips.terms.tick.tip"></span>
-        </ix-tooltip></span><a class="link" t="ixchel_sample.tooltips.terms.repeater"><ix-tooltip class="tip">
-          <span t="ixchel_sample.tooltips.terms.repeater.tip"></span>
-        </ix-tooltip></a></div>
-
-        <span class="section" t="ixchel_sample.tooltips.items"></span>
-        <div class="row">
-          <mc-item class="item vanilla" bind:item="sword"></mc-item>
-          <mc-item class="item custom" bind:item="apple"><ix-tooltip class="tip">
-            <span class="tip-head" t="ixchel_sample.tooltips.apple"></span>
-            <span t="ixchel_sample.tooltips.apple.text"></span>
-          </ix-tooltip></mc-item>
-          <mc-item class="item lines" bind:item="sword"><ix-tooltip class="tip">
-            <mc-tooltip-lines bind:item="sword"></mc-tooltip-lines>
-            <span class="tip-extra" t="ixchel_sample.tooltips.sword.extra"></span>
-          </ix-tooltip></mc-item>
-        </div>
-
-        <span class="section" t="ixchel_sample.tooltips.nested"></span>
-        <div class="row">
-          <div class="outer custom"><span t="ixchel_sample.tooltips.outer"></span><ix-tooltip class="tip"><span t="ixchel_sample.tooltips.outer.tip"></span></ix-tooltip>
-            <div class="inner"><span t="ixchel_sample.tooltips.inner"></span><ix-tooltip class="tip"><span t="ixchel_sample.tooltips.inner.tip"></span></ix-tooltip></div>
-          </div>
-          <div class="outer titled" t:title="ixchel_sample.tooltips.outer.title"><span t="ixchel_sample.tooltips.outer"></span>
-            <div class="inner" t:title="ixchel_sample.tooltips.inner.title"><span t="ixchel_sample.tooltips.inner"></span></div>
-          </div>
-        </div>
+<page>
+  <link href="page.css"/>
+  <link href="help.html"/>
+  <link href="@ixchel/mc/tooltip-lines.html"/>
+  <div class="screen">
+    <div class="ix-panel">
+      <div class="header">
+        <span class="ix-title" t="ixchel_sample.index.tooltips.title"></span>
+        <span class="hint" t="ixchel_sample.tooltips.hint"></span>
       </div>
+      <div class="body">
+        <div class="column">
+          <span class="section" t="ixchel_sample.tooltips.buttons"></span>
+          <div class="row">
+            <button class="save" t="ixchel_sample.tooltips.save"><ix-tooltip class="tip">
+              <div class="text" t="ixchel_sample.tooltips.save.tip"><span mark="key" class="key"></span></div>
+            </ix-tooltip></button>
+            <button class="cast" bind:disabled="cooldown > 0" t="ixchel_sample.tooltips.cast"><ix-tooltip class="tip">
+              <span class="tip-head" t="ixchel_sample.tooltips.cast.tip"></span>
+              <span class="countdown" bind:class:ready="cooldown == 0"><if test="cooldown > 0"><span t="ixchel_sample.tooltips.ready_in"><span bind:text="cooldown"></span></span></if><if test="cooldown == 0"><span t="ixchel_sample.tooltips.ready"></span></if></span>
+            </ix-tooltip></button>
+          </div>
 
-      <div class="column wide">
-        <span class="section" t="ixchel_sample.tooltips.list"></span>
-        <div class="list">
-          <for each="entries" as="e" key="e"><div class="entry">
-            <span t="ixchel_sample.tooltips.entry"><span bind:text="e"></span></span>
-            <ix-tooltip class="tip">
-              <span class="tip-head" t="ixchel_sample.tooltips.entry.of"><span bind:text="e"></span><span bind:text="entries.size"></span></span>
-              <span t="ixchel_sample.tooltips.entry.tip"></span>
+          <span class="section" t="ixchel_sample.tooltips.form"></span>
+          <div class="row">
+            <input class="name" t:placeholder="ixchel_sample.tooltips.name" bind:value="name"><ix-tooltip class="tip">
+              <span t="ixchel_sample.tooltips.name.tip"></span>
+            </ix-tooltip></input>
+            <select class="mode" bind:value="mode"><ix-tooltip class="tip">
+              <span t="ixchel_sample.tooltips.mode.tip"></span>
             </ix-tooltip>
-          </div></for>
+              <option value="smooth" t="ixchel_sample.tooltips.mode.smooth"></option>
+              <option value="steps" t="ixchel_sample.tooltips.mode.steps"></option>
+              <option value="off" t="ixchel_sample.tooltips.mode.off"></option>
+            </select>
+          </div>
+
+          <span class="section" t="ixchel_sample.tooltips.terms"></span>
+          <div class="text" t="ixchel_sample.tooltips.terms.text"><span class="term" t="ixchel_sample.tooltips.terms.tick"><ix-tooltip class="tip">
+            <span t="ixchel_sample.tooltips.terms.tick.tip"></span>
+          </ix-tooltip></span><a class="link" t="ixchel_sample.tooltips.terms.repeater"><ix-tooltip class="tip">
+            <span t="ixchel_sample.tooltips.terms.repeater.tip"></span>
+          </ix-tooltip></a></div>
+
+          <span class="section" t="ixchel_sample.tooltips.items"></span>
+          <div class="row">
+            <mc-item class="item vanilla" bind:item="sword"></mc-item>
+            <mc-item class="item custom" bind:item="apple"><ix-tooltip class="tip">
+              <span class="tip-head" t="ixchel_sample.tooltips.apple"></span>
+              <span t="ixchel_sample.tooltips.apple.text"></span>
+            </ix-tooltip></mc-item>
+            <mc-item class="item lines" bind:item="sword"><ix-tooltip class="tip">
+              <mc-tooltip-lines bind:item="sword"></mc-tooltip-lines>
+              <span class="tip-extra" t="ixchel_sample.tooltips.sword.extra"></span>
+            </ix-tooltip></mc-item>
+          </div>
+
+          <span class="section" t="ixchel_sample.tooltips.nested"></span>
+          <div class="row">
+            <div class="outer custom"><span t="ixchel_sample.tooltips.outer"></span><ix-tooltip class="tip"><span t="ixchel_sample.tooltips.outer.tip"></span></ix-tooltip>
+              <div class="inner"><span t="ixchel_sample.tooltips.inner"></span><ix-tooltip class="tip"><span t="ixchel_sample.tooltips.inner.tip"></span></ix-tooltip></div>
+            </div>
+            <div class="outer titled" t:title="ixchel_sample.tooltips.outer.title"><span t="ixchel_sample.tooltips.outer"></span>
+              <div class="inner" t:title="ixchel_sample.tooltips.inner.title"><span t="ixchel_sample.tooltips.inner"></span></div>
+            </div>
+          </div>
         </div>
 
-        <span class="section" t="ixchel_sample.tooltips.component"></span>
-        <div class="row">
-          <help-badge>
-            <span class="tip-head" t="ixchel_sample.tooltips.badge"></span>
-            <span t="ixchel_sample.tooltips.badge.text"></span>
-          </help-badge>
-          <button class="open" on:click="dialogOpen = true" t="ixchel_sample.tooltips.open"></button>
-        </div>
+        <div class="column wide">
+          <span class="section" t="ixchel_sample.tooltips.list"></span>
+          <div class="list">
+            <for each="entries" as="e" key="e"><div class="entry">
+              <span t="ixchel_sample.tooltips.entry"><span bind:text="e"></span></span>
+              <ix-tooltip class="tip">
+                <span class="tip-head" t="ixchel_sample.tooltips.entry.of"><span bind:text="e"></span><span bind:text="entries.size"></span></span>
+                <span t="ixchel_sample.tooltips.entry.tip"></span>
+              </ix-tooltip>
+            </div></for>
+          </div>
 
-        <span class="section" t="ixchel_sample.tooltips.native"></span>
-        <sample-gauge class="gauge" bind:fraction="cooldownLeft"><ix-tooltip class="tip">
-          <span t="ixchel_sample.tooltips.native.tip"></span>
-        </ix-tooltip></sample-gauge>
+          <span class="section" t="ixchel_sample.tooltips.component"></span>
+          <div class="row">
+            <help-badge>
+              <span class="tip-head" t="ixchel_sample.tooltips.badge"></span>
+              <span t="ixchel_sample.tooltips.badge.text"></span>
+            </help-badge>
+            <button class="open" on:click="dialogOpen = true" t="ixchel_sample.tooltips.open"></button>
+          </div>
+
+          <span class="section" t="ixchel_sample.tooltips.native"></span>
+          <sample-gauge class="gauge" bind:fraction="cooldownLeft"><ix-tooltip class="tip">
+            <span t="ixchel_sample.tooltips.native.tip"></span>
+          </ix-tooltip></sample-gauge>
+        </div>
       </div>
     </div>
+    <dialog class="dialog" bind:open="dialogOpen">
+      <span t="ixchel_sample.tooltips.dialog"></span>
+      <div class="row">
+        <button class="close" on:click="dialogOpen = false" t="ixchel_sample.tooltips.close"><ix-tooltip class="tip">
+          <span t="ixchel_sample.tooltips.close.tip"></span>
+        </ix-tooltip></button>
+      </div>
+    </dialog>
   </div>
-  <dialog class="dialog" bind:open="dialogOpen">
-    <span t="ixchel_sample.tooltips.dialog"></span>
-    <div class="row">
-      <button class="close" on:click="dialogOpen = false" t="ixchel_sample.tooltips.close"><ix-tooltip class="tip">
-        <span t="ixchel_sample.tooltips.close.tip"></span>
-      </ix-tooltip></button>
-    </div>
-  </dialog>
-</div>
+</page>

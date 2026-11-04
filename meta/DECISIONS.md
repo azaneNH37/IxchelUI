@@ -164,7 +164,7 @@
 ## #028 UI 特效 = 资源文件定义的具名效果，经 CSS 引用
 - **decided**: 2026-11-02
 - **context**: 流光、溶解、CRT 等效果没有 Web 标准写法，库以 shade 分发、不带固定 namespace 的 assets、不用 mixin，而 MC 的 shader 程序按名字全局缓存
-- **decision**: 特效为 `.ixeffect` 文件（`kind box|layer|backdrop` + `param 名 { syntax; inherits; initial-value }`（照搬 `@property`，`inherits` 必填）+ GLSL `effect()`，用库内原语库组合），由 `<link rel="effect">` 按资源路径引入；`box` 写 `background-image: paint(名)`，`layer` 写 `filter: -ix-paint(名)`，`backdrop` 写在 `backdrop-filter` 中；参数为自定义属性 `--名-参数`，按声明类型校验、可过渡；程序名为 `<宿主modid>_ixchel_fx<n>`（每次构造取新名，避开全局表复用旧编译结果），文档加载时按特效 id 编译、文本不变则复用，新程序编译成功后才关闭旧实例（库自带 shader 见 #033）；内置特效同格式，现从 `@ixchel/effects/…` 引入，TH1 起改为免链接（#034）。标准 CSS 能表达的效果走标准属性。细节见 `ref/SD-ixchel-ui-effects-20261102.md`
+- **decision**: 特效为 `.ixeffect` 文件（`kind box|layer|backdrop` + `param 名 { syntax; inherits; initial-value }`（照搬 `@property`，`inherits` 必填）+ GLSL `effect()`，用库内原语库组合），由 `<link rel="effect">` 按资源路径引入（主题文件内用 `@-ix-effect`，#039）；`box` 写 `background-image: paint(名)`，`layer` 写 `filter: -ix-paint(名)`，`backdrop` 写在 `backdrop-filter` 中；参数为自定义属性 `--名-参数`，按声明类型校验、可过渡；程序名为 `<宿主modid>_ixchel_fx<n>`（每次构造取新名，避开全局表复用旧编译结果），文档加载时按特效 id 编译、文本不变则复用，新程序编译成功后才关闭旧实例（库自带 shader 见 #033）；内置特效同格式、同样显式引入，名字带 `ix-` 前缀（`paint(ix-glint)`、`--ix-glint-color`，#039）。标准 CSS 能表达的效果走标准属性。细节见 `ref/SD-ixchel-ui-effects-20261102.md`
 - **rejected**: 位置参数 `paint(名, 参数…)`——不能单独覆盖或过渡；包裹元素 `<ix-effect>`——特效属于样式，包裹会改结构且不能与标准 filter 串链；运行时节点图或万能 shader——调试与缓存成本高、无需求；全局特效注册表——多宿主下撞名（同 #015）；`PostChain`——只读固定资源路径
 
 ## #029 圆角、阴影、渐变走路径 C，圆角只做外观
@@ -176,7 +176,7 @@
 ## #030 宿主原生元素 = 实现类声明 + 按 modid 注册
 - **decided**: 2026-11-02
 - **context**: 宿主要写自绘标签；kit 不运行游戏，标签与载荷类型必须能静态读取；shade 后同名类互不相通，但开发环境与未来的共用形态不应依赖这一点
-- **decision**: 在实现类上用 `@NativeElement` 声明标签、普通属性与载荷名；载荷类型从 `NativePayload<T>`（绘制接口 `NativePainter<T>` 继承它）读取，绑定可传 `T` 或 `Supplier<T>`。宿主只调用 `McElements.register(modid, painter)`，声明与实现一起注册；kit 不初始化宿主类，读取同一注解和泛型信息。运行时与 kit 经同一个声明适配器构造元素定义；按模板 namespace 合并宿主登记。仍不与语言文档 §3.4 的 Java 组件合并
+- **decision**: 在实现类上用 `@UiElement` 声明标签、普通属性与载荷名；载荷类型从 `ElementPayload<T>`（绘制接口 `ElementPainter<T>` 继承它）读取，绑定可传 `T` 或 `Supplier<T>`。宿主经统一登记（#041）按 modid 注册实现，声明与实现一起注册；kit 不初始化宿主类，读取同一注解和泛型信息。运行时与 kit 经同一个声明适配器构造元素定义；按页面 namespace 合并宿主登记。元素是词汇、组件是资源，二者在使用处同构（#041）
 - **rejected**: 要求作者手写资源声明——与实现重复，载荷类型会漂移，注册和声明易漏一边；不分 modid 的全局表——多宿主下撞名（同 #015）
 
 ## #031 元素以消费阶段的切面组合定义
@@ -200,13 +200,13 @@
 ## #034 主题 = 页面显式选择的外观包
 - **decided**: 2026-11-04
 - **context**: 拟定四套内置主题时，原 #018（共用规则 + `:root` 配色）只能换颜色、带不了规则与特效，挂在通用类名 `.panel`、`.title` 上，且每页要链接主题与库资源；原版、全息、赛博需要各自的装饰、动画与特效
-- **decision**: 主题 = `--ix-*` 变量（按角色命名的公开接口）+ 给库词汇（标准元素、`ix-*` 组件、`.ix-*` 表面类）穿外观的规则 + 自带的 `@keyframes` 与内置特效，主题文件开头至多一个 `@import` 基底主题（`@import` 只在主题文件开放）。页面用至多一个 `<link rel="theme" href>` 显式选择，内置为 `@ixchel/themes/<名>`（classpath），项目主题按普通路径（资源包可覆盖）；推荐宿主写一份自己的主题供页面链接，资源包覆盖它即可换皮；mod 级默认主题留给以后的宿主配置文件，页面选择永远优先，没选则只有 UA 样式。组件不能链接主题，经变量跟随页面。主题不改盒子尺寸，框线用 inset `box-shadow` 与背景层画。内置特效与 `ix-*` 组件免链接，项目资源仍显式链接。内置主题之间仍共用一份基于变量的规则以免重复。`:root` 匹配模板顶层元素；替换后无效的普通属性按 unset 处理并报告一次，无效的自定义属性视为未定义（沿用原 #018）。细节见 `ref/SD-ixchel-themes-20261104.md`
-- **rejected**: 只用 mod 级默认主题——页面不能自我说明，lint 与编辑器要额外解析配置；每个主题只换配色——全息、赛博的装饰与动画无处安放；表面做成 `<ix-panel>` 元素——不能与作者类叠用，每种底板都要新元素；子树换主题——要求主题规则只经变量，与自带规则冲突
+- **decision**: 主题 = `--ix-*` 变量（按角色命名的公开接口，变量表见主题文档 §4）+ 给库词汇（标准元素、`ix-*` 组件、`.ix-*` 表面类）穿外观的规则 + 自带的 `@keyframes` 与特效。主题不是一种文件，只是 partial 的一种用途：页面的 stylesheet 以 `@link` 引入主题 partial，按层排在作者规则之下（#041）；内置为 `@ixchel/themes/<名>.css`，项目主题按普通路径（资源包可覆盖）；推荐宿主写一份自己的主题供页面链接，资源包覆盖它即可换皮；mod 级默认主题留给以后的宿主配置文件。组件经变量跟随页面。主题不改盒子尺寸：边框宽度由 UA 决定（`button`、`input`、`select`、`dialog`、`ix-tooltip` 为 1px，`.ix-panel` 等表面类无边框），主题只改颜色、背景层与 inset `box-shadow`。表面类首批 `.ix-panel`、`.ix-well`、`.ix-title`、`.ix-muted`、`.ix-divider`、`.ix-selected`（选中态不再用通用的 `.selected`）。内置主题共用基底 `@ixchel/themes/base.css`，各自 `@link` 它。`:root` 匹配视图根下的顶层元素；替换后无效的普通属性按 unset 处理并报告一次，无效的自定义属性视为未定义（沿用原 #018）。细节见 `ref/SD-ixchel-themes-20261104.md`，文件与引用规则以 #041 为准
+- **rejected**: 只用 mod 级默认主题——页面不能自我说明，lint 与编辑器要额外解析配置；每个主题只换配色——全息、赛博的装饰与动画无处安放；表面做成 `<ix-panel>` 元素——不能与作者类叠用，每种底板都要新元素；子树换主题——要求主题规则只经变量，与自带规则冲突；主题写 `border` 宽度——换主题移动布局（L3 的 vanilla 与 dark 差 1px）；内置特效免链接——见 #039
 
 ## #035 组件可带每实例的子 ViewModel
 - **decided**: 2026-11-04
 - **context**: 带数据的复用件（玩家背包、按方块读能量与红石的面板控件）只能让每个页面 ViewModel 各自取数再传入，sample 已有三份背包下标列表；语言文档 §3.4 原草图要每个界面以 `Components.of` 登记工厂
-- **decision**: 组件分模板组件与 Java 组件，使用处同构。Java 组件 = 组件文件 + `@UiTemplate` 指向它的 ViewModel 类 + `UiComponents.register(modid, 类, 无参工厂)`；签名仍写在 `<template params events>`，类以 `Param<T>`（只读）、`TwoWay<T>`（双向，写回使用方路径，未传入时为本实例局部状态）、`Event<T>`（`emit`）字段按名一一对应，不符报 `component/signature-mismatch`；`ModelShape.Kind` 为 `CELL`/`ACTION`/`EVENT`（按组件体内用法），`Member.port` 标出对外签名；子模型随外壳元素挂载、真正移除（离场结束）时关闭，热重载重建；组件只经事件与使用方通信。数据入口只有 ViewModel：组件的输入只有参数，宿主与客户端状态由组件 ViewModel 的来源读取，不设框架值（`$` 只留给 `$event`）；容器界面的菜单即 `player.containerMenu`（原版点击要求它与界面菜单一致）。写 ViewModel 的判据：要读未传入的外部数据、有 UI 外副作用、表达式算不出的计算或持有资源，否则写模板组件；库的 `ix-*` 不带 ViewModel。数值拓宽（`Integer` → `Long`/`Float`/`Double`，`Double` → `Float`）对所有绑定生效，字面量属性仍为 `String`。库组件的来源与登记见 #037。细节见 `ref/SD-ixchel-context-model-and-components-20261030.md` §3.7
+- **decision**: 组件分视图组件与 Java 组件，使用处同构。Java 组件 = 组件文件 + `@UiView` 指向它的 ViewModel 类（`*Model`）+ 统一登记（#041）的无参工厂；签名仍写在 `<component name params events>`，类以 `Param<T>`（只读）、`TwoWay<T>`（双向，写回使用方路径，未传入时为本实例局部状态）、`Event<T>`（`emit`）字段按名一一对应，不符报 `component/signature-mismatch`；`ModelShape.Kind` 为 `CELL`/`ACTION`/`EVENT`（按组件体内用法），`Member.port` 标出对外签名；子模型随外壳元素挂载、真正移除（离场结束）时关闭，热重载重建；组件只经事件与使用方通信。数据入口只有 ViewModel：组件的输入只有参数，宿主与客户端状态由组件 ViewModel 的来源读取，不设框架值（`$` 只留给 `$event`）；容器界面的菜单即 `player.containerMenu`（原版点击要求它与界面菜单一致）。写 ViewModel 的判据：要读未传入的外部数据、有 UI 外副作用、表达式算不出的计算或持有资源，否则写视图组件；库的 `ix-*` 不带 ViewModel。数值拓宽（`Integer` → `Long`/`Float`/`Double`，`Double` → `Float`）对所有绑定生效，字面量属性仍为 `String`。细节见 `ref/SD-ixchel-context-model-and-components-20261030.md` §3.7
 - **rejected**: ViewModel 作参数（使用方须知实现方式，`<for>` 行与 Java 列表的身份须人工对齐）；每屏 `Components.of` 登记（每个用到的界面重复登记）；参数以 `Cell` 声明（与 `source` 字段不可区分，kit 无法静态读取）；签名只写在 Java 类（组件文件自身说明不了接口，默认值无处写表达式）；工厂带构造参数（依赖只应来自端口与客户端状态）；宿主注入的 `$` 框架值作参数默认值（L4-L5 曾有 `$menu`/`$player`）——绕过 ViewModel 的第二个数据入口，存在性随界面种类而定，模板与 kit 都看不到
 
 ## #036 来源可脱离 ViewModel 按 key 共享（Feed）
@@ -215,14 +215,32 @@
 - **decision**: 来源拆为静态定义 `Feed<K,T>`（`polled` 只依赖 key；`opened` 第一个引用时打开资源、最后一个释放时关闭；默认每周期读一次，`perTick()` 按客户端 tick）与按 key 共享的实例；实例表挂在各 `Feed` 上，`Feed` 作为静态常量即每份库副本一张，引用经 `Scope` 计数。周期为一次 `Bindings.update()`（core 内计数，同一帧两个文档各算一次），tick 由 mc 层经 `Feed.tickClock` 提供（`Gui#getGuiTicks`，无世界时也计数）。ViewModel 以 `source(feed, key)`/`source(feed, keyCell)` 持引用，key 变化时释放旧实例、取得新实例。只读；不做共享可写状态与共享派生。细节见 `ref/SD-ixchel-viewmodel-and-binding-20261026.md` §10
 - **rejected**: 每文档一张表（页面 ViewModel 先于文档构造，构造时接不通）；共享可写状态（破坏 `Value` 只属于一个 ViewModel 的语义）；共享派生族（派生惰性且廉价，无观察到的需要）；由上层统一取数往下传值作为唯一方式（仍是默认做法，但组件不能单独按 `pos` 使用）
 
-## #037 库资源统一按 `@ixchel/` 路径解析，库词汇为每层一张预引入表
+## #037 库资源统一按 `@ixchel/` 路径解析
 - **decided**: 2026-11-04
-- **context**: L4 后 `@ixchel/` 背后有三套实现（`LibrarySheets` 名字表、`LibraryEffects` 名字列表、`UiHosting.LibraryComponent` 每组件一个读取函数），Java 组件分宿主与库两张表；库组件不能 link 自己的样式表，只能内联；库组件只在容器界面传入，其它界面报未知标签；core 将来自带的 `ix-*` 组件无处放，TH1 的 `@ixchel/themes/` 会是第四套
-- **decision**: `@ixchel/<路径>` 是与 `ns:path` 并列的文件命名空间：同一套 `resolve`（库文件内的相对路径在 `@ixchel/` 下解析，`..` 不越出）与读取，读取按前缀分派——`@ixchel/` 读库（classpath，按层的锚点类相对读取，随 relocate 移动），其余经宿主；库文件不进热重载文件表，资源包不能覆盖。库 = 文件根 + 预引入表（标签 → `@ixchel/` 组件文件）+ 库 Java 组件，core 一份、mc 层 `extend` 一份，与 `TagRegistry` 同形；内容在代码中声明，不枚举 classpath。预引入表中的标签在每个文档都已知、首次使用时加载，显式 link 同一文件等价；只有 `@ixchel/` 文件可声明 `ix-`/`mc-` 名。Java 组件只有一张表，按文件 id，宿主条目与库条目同表。主题与特效经同一读取器；页面 link 的库主题仍进主题层（TH1 改为 `rel="theme"`）。只能用于容器界面的库组件在其它界面报错位置在使用处。宿主扩展（原生元素、Java 组件）仍按 modid 登记，不进库
-- **rejected**: 保持各资源种类各一套（新增种类各加一套）；库文件放 `assets/<固定 namespace>/` 让资源包覆盖（违反 #001）；枚举 classpath 目录得出库内容（jar 内不可靠）；库组件只许内联样式（与项目组件写法分叉）
+- **context**: L4 后 `@ixchel/` 背后有三套实现（`LibrarySheets` 名字表、`LibraryEffects` 名字列表、`UiHosting.LibraryComponent` 每组件一个读取函数），Java 组件分宿主与库两张表；库组件不能 link 自己的样式表，只能内联；core 将来自带的 `ix-*` 组件无处放，TH1 的 `@ixchel/themes/` 会是第四套
+- **decision**: `@ixchel/<路径>` 是与 `ns:path` 并列的文件命名空间：同一套 `resolve`（库文件内的相对路径在 `@ixchel/` 下解析，`..` 不越出）、文件种类、引用规则与诊断，读取按前缀分派——`@ixchel/` 读库（classpath，经锚点类相对读取，随 relocate 移动），其余经宿主；库文件不进热重载文件表，资源包不能覆盖。库只登记文件根：一段 `@ixchel/` 路径映射到锚点类旁的专用目录，根下整棵子树即公开文件，不另设目录或导出清单；运行时只按 id 读取，kit 按条目读取根所在的 jar 或目录得出清单。只有 `@ixchel/` 文件可声明 `ix-`/`mc-` 名（#041 §4）。元素与组件的 Java 部分由 core、mc 与宿主经同一 API 登记（#041 §6），Java 组件按文件 id 一张表
+- **rejected**: 保持各资源种类各一套（新增种类各加一套）；库文件放 `assets/<固定 namespace>/` 让资源包覆盖（违反 #001）；运行时枚举 classpath 目录得出库内容（jar 内不可靠）；库组件只许内联样式（与项目组件写法分叉）；库文件跟实现类放在一起（内部分包成为公开路径）；在代码中逐个登记主题、特效与包（与"不 link 就不可见"重复，两个事实来源）
 
 ## #038 不在顶层显示的子树内，组件实例暂停轮询
 - **decided**: 2026-11-04
 - **context**: `<mc-tooltip-lines>` 为"隐藏 tooltip 不取行"专设了原生内容种类 `content=lines` 与 mc 层每帧找元素、填行的循环（E2）。L4 后它可写成 Java 组件，但组件实例每帧 poll，存储终端每格一个 tooltip 时回到 E2 要避免的开销
 - **decision**: 组件子模型的外壳元素位于一个顶层种类元素（带 `LayerFacet`：`<ix-tooltip>`、`<ix-drag-preview>`、`<dialog>`）之内、而该元素当前不在顶层时，跳过它的 poll（首次 poll 同样推迟）；元素进入顶层的那一帧在样式与布局之前 poll，同帧显示新值。只看顶层状态，不看 `display: none`（计算值晚于绑定一帧，会先显示旧值）。`<mc-tooltip-lines>` 改为 mc 层库 Java 组件（`params="item"`，每行一个元素，空行保留行高），删除 `NativeElement.lines`、`TagRegistry.hasLineContent` 与 `TooltipLines`
 - **rejected**: 保留原生元素（为一个元素设一种内容种类，宿主写不出同类控件）；按 `display: none` 暂停（晚一帧）；由组件自己判断可见性（子模型拿不到文档，#035 只经端口通信）
+
+## #039 库资源按文件显式引入，不设包
+- **decided**: 2026-11-04（2026-11-05 修订：删除包，href 带扩展名）
+- **context**: L5 的预引入表与 TH1 原定的内置特效免链接让库的名字默认进入每个文档：要靠保留前缀防撞名、特效常驻编译、页面说明不了依赖。TH1 的包只省几行 link，却多一种文件，库还要按界面种类拆包
+- **decision**: 语言词汇默认存在：UA 样式、标准元素与引擎元素（`ix-tooltip`、`ix-drag-preview`）、mc 宿主层元素（`mc-item`、`mc-entity`、`mc-slot`）、GLSL 原语。库的 css、特效与组件与项目文件同样按文件显式 link（#041）：视图 link 组件与至多一个 stylesheet，css 以 `@link` 引入 partial 与特效；同一文件经多处 link 只加载一次。href 一律带扩展名，库与项目同一写法。用了未 link 的组件标签时，`view/unknown-tag` 提示应 link 的文件 id。`ix-` 是库与引擎的名字：非库文件定义 `ix-`/`mc-` 名报错，使用未知的 `.ix-*` 类或 `--ix-*` 变量报 `style/unknown-library-class`、`style/unknown-library-token`
+- **rejected**: 库资源免链接（预引入表，L5 曾实现）——见 context；包（TH1 曾实现）——多一种文件，包内容按界面种类拆分，页面依赖不再一眼可见；库 href 省略扩展名——引用方要按引用种类补，文件种类改由引用方决定
+
+## #040 组件外观挂点为公开的部件类，组件与元素不求可互换
+- **decided**: 2026-11-04
+- **context**: U4 的 `ix-*` 组件由主题穿外观，而组件不做样式隔离（#015），主题与资源包选中的组件内部类名事实上就是公开 API；`ix-bar` 与 `<progress>` 的取舍取决于组件与元素端口是否统一
+- **decision**: 组件内部要被主题选中的元素带 `.ix-<组件>-<部件>` 类（`.ix-bar-fill`），列入 schema，改名即破坏性变更；不做 `::part()`。放弃"组件与元素实现可互换"：进度条做 `ix-bar` 组件，不做 `<progress>`。组件的禁用写外壳元素上的普通 `disabled`，子树随之禁用、可用 `:disabled` 选中（同 `<fieldset>`），不设统一参数
+- **rejected**: `::part()`——要新的引擎机制，无样式隔离时没有收益；端口统一——要给元素加插槽、给组件事件加过滤器，代价大于一处进度条；`disabled` 作组件参数——每个组件各写一遍，外壳上的 `disabled` 本已是全局属性
+
+## #041 资源规范：文件自我声明种类，统一 link 与登记
+- **decided**: 2026-11-05
+- **context**: L5–TH1 迭代叠出 rel 种类、`@import`、`@-ix-effect`、主题层、预引入、包等多套规则，"template" 一词指代模板文件、组件根标签与解析结果；库与宿主资源各一套登记
+- **decision**: 以 `ref/D-ixchel-resource-spec-20261105.md` 为准。文件自我声明种类：css 以 `@stylesheet;`/`@partial;` 开头，html（视图）以唯一根元素 `<page>` 或 `<component name params events>` 声明。引用只有 link：视图根内、元素前的 `<link href>`（至多一个 stylesheet、任意个组件），css 的 `@link "<href>" [as Alias];`（partial 与特效）；种类不符报 `link/wrong-kind`。展开时每个文件只出现一次、各占一层，层叠为 UA < 被 link 的层 < 作者层 < 内联；删除 `<style>`、`@import`、`@-ix-effect`、`rel`。特效只由 css link，别名 PascalCase、只在本文件有效，参数写 `--<Alias>-<param>`。前缀：`-ix-` 语法扩展，`ix-` 库与引擎名字，`ix_`/`Ix` GLSL。命名：html 统称视图，注解 `@UiView`，ViewModel 子类 `*Model`，元素注解 `@UiElement`。登记：core、mc、宿主用同一 API 登记元素与组件的 Java 部分，库另登记文件根
+- **rejected**: 引用方决定文件种类（rel、补扩展名）——同一文件可被当作两种东西；保留主题层——主题只是被 link 的 partial；组件名做文件局部别名——它进入元素树，被选择器与查询观察到；特效别名加 `E` 前缀——首字母大写已专指特效

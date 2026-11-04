@@ -7,8 +7,8 @@ import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.TextNode;
-import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.core.template.Translations;
+import com.azane.ixchel.core.view.TagRegistry;
+import com.azane.ixchel.core.view.Translations;
 import com.azane.ixchel.core.text.TextMeasurer;
 import org.junit.jupiter.api.Test;
 
@@ -75,44 +75,49 @@ class UiDocumentTest {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load(
                 "<div class=\"a\" style=\"colr: red\"><blink></blink></div>",
                 ".a { width: 10 }"));
-        assertEquals(List.of("template/unknown-tag@t.html:2:34", "css/missing-unit@t.css:1:13",
+        assertEquals(List.of("view/unknown-tag@t.html:2:34", "css/missing-unit@t.css:1:26",
                 "css/unknown-property@t.html:2:23"), DiagCodes.of(e));
     }
 
     @Test
-    void linkedAndInlineSheetsApplyInDocumentOrder() {
+    void partialsLayerInPostOrderUnderTheirStylesheetAndImportantReversesTheLayers() {
         Map<String, String> sheets = Map.of(
-                "a.css", ".n { width: 10px; height: 8px; background-color: #f00 }",
-                "b.css", ".n { background-color: #00f }");
-        UiDocument doc = UiDocument.load("""
-                <link rel="stylesheet" href="a.css"/>
-                <style>.n { height: 4px; background-color: #0f0 }</style>
-                <link rel="stylesheet" href="b.css"/>
-                <div class="n"></div>
-                """, "t.html", sheets::get, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES);
-        assertEquals("rect 0 0 10 4 #FF0000FF", frame(doc, 100, 100));
+                "base.css", "@partial; .n { width: 10px; height: 8px !important; background-color: #f00 }",
+                "p.css", "@partial; @link \"base.css\"; .n { background-color: #0f0; height: 1px }",
+                "q.css", "@partial; @link \"base.css\"; .n { background-color: #00f }",
+                "a.css", "@stylesheet; @link \"p.css\"; @link \"q.css\"; .n { height: 4px !important; width: 20px }");
+        UiDocument doc = UiDocument.load(GoldenTest.page("<link href=\"a.css\"/><div class=\"n\"></div>"), "t.html",
+                sheets::get, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES);
+        assertEquals("rect 0 0 20 8 #FF0000FF", frame(doc, 100, 100));
     }
 
     @Test
     void loadReportsBadLinksAtTheirPositions() {
-        UiLoadException thrown = assertThrows(UiLoadException.class, () -> UiDocument.load("""
-                <div></div>
-                <link rel="stylesheet" href="nope.css"/>
-                <div><link rel="stylesheet" href="t.css"/></div>
-                <link rel="icon" href="t.css"/>
-                <link rel="stylesheet"/>
-                <link rel="stylesheet" href="t.css" class="x" bind:href="t"></link>
-                """, "t.html", GoldenTest.sheet(""), com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertEquals(List.of("template/misplaced-element@t.html:3:6", "template/invalid-link@t.html:4:1",
-                "template/invalid-link@t.html:5:1", "template/unknown-attribute@t.html:6:37",
-                "template/unknown-attribute@t.html:6:47", "template/invalid-link@t.html:6:1",
-                "template/mismatched-closing-tag@t.html:6:61", "load/file-not-found@t.html:2:1"), DiagCodes.of(thrown));
+        Map<String, String> files = Map.of(
+                "a.css", "@stylesheet; @link \"loop.css\"; @link \"s.css\"; @link \"nope.css\"; @link \"m.css\";",
+                "loop.css", "@partial; @link \"loop.css\";",
+                "s.css", "@stylesheet;",
+                "m.css", ".x {}",
+                "c.html", "<page></page>");
+        UiLoadException thrown = assertThrows(UiLoadException.class, () -> UiDocument.load(GoldenTest.page("""
+                <link href="a.css"/><link href="b.css"/>
+                <link rel="icon" href="c.html"/>
+                <link href="x.ixeffect"/>
+                <link href="d.html"></link>
+                <div><link href="t.css"/></div>
+                <link href="nope.html"/>
+                """), "t.html", files::get, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
+        assertEquals(List.of("view/invalid-link@t.html:1:27", "view/unknown-attribute@t.html:2:7",
+                "link/wrong-kind@t.html:2:1", "link/wrong-kind@t.html:3:1", "view/invalid-link@t.html:4:1",
+                "link/file-not-found@t.html:4:1", "view/misplaced-element@t.html:5:6", "view/link-after-element@t.html:6:1",
+                "link/cycle@loop.css:1:11", "link/wrong-kind@a.css:1:32", "link/file-not-found@a.css:1:47",
+                "css/missing-kind@m.css:1:1"), DiagCodes.of(thrown));
     }
 
     @Test
     void aStylesheetTheHostCannotReadFailsTheLoadAtItsLink() {
-        UiLoadException failed = assertThrows(UiLoadException.class, () -> UiDocument.load("<link rel=\"stylesheet\" href=\"nope.css\"/>", "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertEquals(List.of("load/unreadable-file@t.html:1:1"), DiagCodes.of(failed));
+        UiLoadException failed = assertThrows(UiLoadException.class, () -> UiDocument.load(GoldenTest.page("<link href=\"nope.css\"/>"), "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
+        assertEquals(List.of("link/unreadable-file@t.html:1:7"), DiagCodes.of(failed));
     }
 
     @Test

@@ -1,0 +1,61 @@
+/*
+ * The rules every built-in theme shares, written against the --ix-* variables the theme sets on
+ * :root; a theme links this first. Visual only: no sizes, margins, padding or border widths (the
+ * user agent sheet owns those), so changing themes never moves a box.
+ */
+@partial;
+.ix-panel {
+    background-color: var(--ix-panel-bg, transparent);
+    background-image: var(--ix-panel-image, none);
+    box-shadow: var(--ix-panel-shadow, none);
+    color: var(--ix-text);
+}
+
+.ix-well {
+    background-color: var(--ix-well-bg, transparent);
+    background-image: var(--ix-well-image, none);
+    box-shadow: var(--ix-well-shadow, none);
+}
+
+.ix-title {
+    color: var(--ix-title);
+}
+
+.ix-muted {
+    color: var(--ix-text-muted);
+}
+
+.ix-divider {
+    background-color: var(--ix-text-dim);
+}
+
+button {
+    border-color: var(--ix-control-border, transparent);
+    background-color: var(--ix-control-bg);
+    background-image: var(--ix-control-image, none);
+    box-shadow: var(--ix-control-shadow, none);
+    color: var(--ix-text);
+    transition: background-color 120ms;
+}
+
+button:hover, button:focus {
+    background-image: linear-gradient(var(--ix-hover), var(--ix-hover));
+}
+
+.ix-selected {
+    background-color: var(--ix-selected);
+    color: var(--ix-selected-text);
+}
+
+button:disabled {
+    background-image: var(--ix-control-image, none);
+    color: var(--ix-disabled-text);
+}
+
+ix-tooltip:open {
+    border-color: var(--ix-overlay-border, transparent);
+    background-color: var(--ix-overlay-bg);
+    background-image: var(--ix-overlay-image, none);
+    box-shadow: var(--ix-overlay-shadow, none);
+    color: var(--ix-overlay-text);
+}

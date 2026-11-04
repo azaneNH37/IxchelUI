@@ -2,8 +2,8 @@ package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.diag.Diagnostics;
-import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.core.template.Translations;
+import com.azane.ixchel.core.view.TagRegistry;
+import com.azane.ixchel.core.view.Translations;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -62,6 +62,6 @@ class UiDocumentTranslationTest {
     void aLangWithoutARangeOrASecondLangInOneCompoundIsReported() {
         Diagnostics diag = UiDocument.lint(GoldenTest.linked("<div></div>"), "t.html",
                 GoldenTest.sheet("div:lang() {}\ndiv:lang(en):lang(zh) {}"), com.azane.ixchel.core.html.HtmlElements.TAGS, Translations.NONE, null, Set.of());
-        assertEquals(List.of("css/invalid-lang@t.css:1:5", "css/invalid-lang@t.css:2:14"), DiagCodes.of(diag));
+        assertEquals(List.of("css/invalid-lang@t.css:1:18", "css/invalid-lang@t.css:2:14"), DiagCodes.of(diag));
     }
 }

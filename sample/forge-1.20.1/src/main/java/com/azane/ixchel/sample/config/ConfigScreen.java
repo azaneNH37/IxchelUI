@@ -29,7 +29,7 @@ public final class ConfigScreen {
 
     private static Screen create(Screen parent) {
         UiScreen[] screen = new UiScreen[1];
-        screen[0] = new UiScreen(new ConfigView(() -> screen[0].onClose()), parent);
+        screen[0] = new UiScreen(new ConfigModel(() -> screen[0].onClose()), parent);
         return screen[0];
     }
 }

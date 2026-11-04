@@ -14,7 +14,7 @@ public final class IxchelSampleMod {
     public IxchelSampleMod(IEventBus modBus, Dist dist) {
         RefitNetwork.register(modBus);
         if (dist.isClient()) {
-            IxchelNeoForge.registerHud(modBus, AmmoHudView.class, AmmoHudView::new);
+            IxchelNeoForge.registerHud(modBus, AmmoHudModel.class, AmmoHudModel::new);
             RefitClient.init(modBus);
         }
     }

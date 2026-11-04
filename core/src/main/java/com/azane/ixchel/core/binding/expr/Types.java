@@ -114,7 +114,7 @@ public final class Types {
     }
 
     /**
-     * Whether a value of type {@code t} can be a native element's payload of type {@code payload}:
+     * Whether a value of type {@code t} can be a drawn element's payload of type {@code payload}:
      * a {@code payload} or a {@code Supplier} of one. True when {@code payload} is {@code null} or
      * {@code Object}, and when {@code t} (or its type argument) is {@code Object} or unknown, since
      * nothing can be checked then.

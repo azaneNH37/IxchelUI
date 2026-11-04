@@ -1,9 +1,15 @@
+@stylesheet;
+@link "../themes/overlay.css";
+@link "@ixchel/effects/glint.ixeffect";
+@link "@ixchel/effects/dissolve.ixeffect" as Burn;
+@link "spotlight.ixeffect";
+
 .screen {
   width: 100%;
   height: 100%;
 }
 
-.panel {
+.ix-panel {
   flex-grow: 1;
   margin: 6px;
   padding: 6px;
@@ -21,7 +27,7 @@
   gap: 2px;
 }
 
-.tab.selected {
+.tab.ix-selected {
   background-color: var(--ix-selected);
   color: var(--ix-selected-text);
 }
@@ -98,7 +104,7 @@
   flex-direction: row;
   gap: 2px;
   padding: 2px;
-  background-color: var(--ix-well);
+  background-color: var(--ix-well-bg);
 }
 
 .items.whole {
@@ -116,7 +122,7 @@
   gap: 4px;
   padding: 4px 6px;
   border: 1px solid var(--ix-text-dim);
-  background-color: var(--ix-well);
+  background-color: var(--ix-well-bg);
   transition: opacity 300ms;
 }
 
@@ -235,9 +241,9 @@ button {
    burn away, one on a toggle with a transition and one stepped through by a binding. */
 .glint {
   border-radius: 4px;
-  background-image: paint(glint);
-  --glint-color: #ffd860;
-  --glint-speed: 0.4;
+  background-image: paint(Glint);
+  --Glint-color: #ffd860;
+  --Glint-speed: 0.4;
 }
 
 .spotlight {
@@ -246,8 +252,8 @@ button {
   justify-content: center;
   align-items: center;
   border-radius: 6px;
-  background-image: paint(spotlight);
-  --spotlight-reach: 30px;
+  background-image: paint(Spotlight);
+  --Spotlight-reach: 30px;
 }
 
 /* Opaque, so a burnt card leaves one flat color whatever the world behind the panel shows. */
@@ -261,13 +267,13 @@ button {
 .burn,
 .scrub {
   border-radius: 3px;
-  filter: -ix-paint(dissolve);
+  filter: -ix-paint(Burn);
 }
 
 .burn {
-  transition: --dissolve-progress 1500ms linear;
+  transition: --Burn-progress 1500ms linear;
 }
 
 .burn.burnt {
-  --dissolve-progress: 1;
+  --Burn-progress: 1;
 }

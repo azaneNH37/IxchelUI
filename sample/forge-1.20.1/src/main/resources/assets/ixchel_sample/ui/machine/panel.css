@@ -1,9 +1,13 @@
 /* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. The side
    configuration slides out of the panel's right edge (outside the GUI area). */
-.panel {
+@stylesheet;
+@link "../themes/container.css";
+@link "../common/slot.css";
+
+.ix-panel {
   margin: auto;
   width: 178px;
-  padding: 7px;
+  padding: 8px;
 }
 
 /* Title and status on their own lines: side by side they need more than the 162px inside the panel. */
@@ -124,7 +128,7 @@
   width: 18px;
   height: 18px;
   padding: 1px;
-  background-color: var(--ix-well);
+  background-color: var(--ix-well-bg);
   transition: background-color 120ms;
 }
 
@@ -132,7 +136,7 @@
   background-color: #B0B0B0;
 }
 
-.recipe.selected {
+.recipe.ix-selected {
   background-color: var(--ix-selected);
   border: 1px solid var(--ix-positive);
   padding: 0px;
@@ -161,17 +165,18 @@ button {
 /* Slides out to the right: the width animates from 0, the rows inside are clipped meanwhile. */
 .sides {
   position: absolute;
-  left: 177px;
-  top: 20px;
+  left: 178px;
+  top: 21px;
   width: 0px;
   overflow: hidden;
-  background-color: var(--ix-surface);
+  background-color: var(--ix-panel-bg);
   transition: width 200ms;
 }
 
 .sides.open {
   width: 80px;
-  border: var(--ix-frame);
+  padding: 1px;
+  box-shadow: var(--ix-panel-shadow);
 }
 
 .side {

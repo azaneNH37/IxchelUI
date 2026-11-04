@@ -63,7 +63,7 @@ public final class StoragePlaytest {
             }, Playtest.WAIT);
             // The real right-click path: the client uses the item, the server opens the menu.
             s.run(() -> Minecraft.getInstance().gameMode.useItem(Minecraft.getInstance().player, InteractionHand.MAIN_HAND));
-            // Fails if the scan misses chests, the first sync is not a full snapshot, or the template has errors.
+            // Fails if the scan misses chests, the first sync is not a full snapshot, or the view has errors.
             s.waitUntil("terminal open without errors, every kind synced", () -> Playtest.menu(TerminalMenu.class) != null
                     && Playtest.document().diagnostics().errorCount() == 0
                     && Playtest.text(".summary").equals(kinds[0] + " / " + kinds[0]), 40);

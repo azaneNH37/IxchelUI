@@ -1,7 +1,7 @@
 package com.azane.ixchel.mc.document;
 
 import com.azane.ixchel.core.binding.Feed;
-import com.azane.ixchel.core.binding.UiTemplate;
+import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.Diagnostics;
@@ -12,11 +12,11 @@ import com.azane.ixchel.core.event.Clipboard;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.runtime.UiHosting;
-import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.mc.element.McElements;
+import com.azane.ixchel.core.view.TagRegistry;
+import com.azane.ixchel.mc.UiRegistries;
 import com.azane.ixchel.mc.element.Tooltips;
 import com.azane.ixchel.mc.paint.McPainter;
-import com.azane.ixchel.mc.paint.NativePainter;
+import com.azane.ixchel.mc.paint.ElementPainter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
@@ -26,12 +26,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import org.slf4j.Logger;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * A document as every host (screen, container screen, HUD) runs it: loaded from the host mod's
- * resources, reloaded on demand, framed and painted with the native elements, with the tooltip of
+ * resources, reloaded on demand, framed and painted with its registered elements, with the tooltip of
  * what is under the pointer, the system clipboard for its inputs and vanilla's click sound for its
  * controls. The view model lives as long as this object and is kept across reloads.
  *
@@ -58,9 +59,9 @@ public final class HostedDocument implements AutoCloseable {
 
     private final McResources resources;
     private final DevResources dev;
-    private final String templatePath;
+    private final String pagePath;
     private final TagRegistry tags;
-    private final Map<String, NativePainter<?>> painters;
+    private final Map<String, ElementPainter<?>> painters;
     private final UiHosting hosting;
     private final ViewModel model;
     private final Runnable onReload;
@@ -83,33 +84,41 @@ public final class HostedDocument implements AutoCloseable {
 
     /**
      * Loads the document now. In a development run, warns when {@code model}'s class does not declare
-     * {@code template} with {@link UiTemplate}: the lint then skips the template's binding checks.
+     * {@code page} with {@link UiView}: the lint then skips the page's binding checks.
      *
-     * @param template the template; its namespace is the host mod id, its stylesheets are {@code <link>}ed
-     * @param tags     the elements the template may use, such as {@link McElements#TAGS}; the host's
-     *                 own, {@linkplain McElements#register registered} under its mod id, are added to them
-     * @param hosting  the library and the host mod's Java components
-     * @param model    the view model the template binds to, or {@code null}; closed by {@link #close}
+     * @param page     the page; its namespace is the host mod id, whose {@linkplain UiRegistries#hosting
+     *                 hosting} it sees; its stylesheets are {@code <link>}ed
+     * @param model    the view model the page binds to, or {@code null}; closed by {@link #close}
      * @param onReload runs after a later load replaced the document
      * @throws UiLoadException outside development when the document has errors
      */
-    public HostedDocument(ResourceLocation template, TagRegistry tags, UiHosting hosting, ViewModel model, Runnable onReload) {
-        this.dev = DevResources.forHost(template.getNamespace());
-        this.resources = new McResources(template.getNamespace(), dev);
-        this.templatePath = template.getPath();
-        McElements.Hosted hosted = McElements.forHost(template.getNamespace(), tags);
-        this.tags = hosted.tags();
-        this.painters = hosted.painters();
-        this.painter = new McPainter(template.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
-        this.tooltipPainter = new McPainter(template.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
-        this.hosting = hosting;
+    public HostedDocument(ResourceLocation page, ViewModel model, Runnable onReload) {
+        this.dev = DevResources.forHost(page.getNamespace());
+        this.resources = new McResources(page.getNamespace(), dev);
+        this.pagePath = page.getPath();
+        this.hosting = UiRegistries.hosting(page.getNamespace());
+        this.tags = hosting.tags(false);
+        this.painters = painters(hosting, tags);
+        this.painter = new McPainter(page.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
+        this.tooltipPainter = new McPainter(page.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
         this.model = model;
         this.onReload = onReload;
-        if (dev != null && model != null && !UiTemplate.Ids.covers(model.getClass(), template.toString())) {
-            LOG.warn("Ixchel UI: {} is not declared in the @UiTemplate of {}; the lint skips its binding checks",
-                    template, model.getClass().getName());
+        if (dev != null && model != null && !UiView.Ids.covers(model.getClass(), page.toString())) {
+            LOG.warn("Ixchel UI: {} is not declared in the @UiView of {}; the lint skips its binding checks",
+                    page, model.getClass().getName());
         }
         load();
+    }
+
+    /** The painter of each element of {@code tags} whose registered implementation is one, by tag. */
+    private static Map<String, ElementPainter<?>> painters(UiHosting hosting, TagRegistry tags) {
+        Map<String, ElementPainter<?>> out = new HashMap<>();
+        for (String tag : tags.tags()) {
+            if (hosting.implementation(tag) instanceof ElementPainter<?> p) {
+                out.put(tag, p);
+            }
+        }
+        return Map.copyOf(out);
     }
 
     /**
@@ -125,7 +134,7 @@ public final class HostedDocument implements AutoCloseable {
 
     private boolean load() {
         try {
-            McResources.Loaded loaded = resources.load(Minecraft.getInstance().getResourceManager(), templatePath, tags, model,
+            McResources.Loaded loaded = resources.load(Minecraft.getInstance().getResourceManager(), pagePath, tags, model,
                     hosting);
             Diagnostics compiled = new Diagnostics();
             painter.compileEffects(loaded.document().effects().all(), compiled);
@@ -152,7 +161,7 @@ public final class HostedDocument implements AutoCloseable {
             if (dev == null) {
                 throw e;
             }
-            LOG.error("Ixchel UI: {} failed to load, keeping the previous version\n{}", templatePath, e.getMessage());
+            LOG.error("Ixchel UI: {} failed to load, keeping the previous version\n{}", pagePath, e.getMessage());
             loadErrors = e.diagnostics().stream().filter(d -> d.severity() == Diagnostic.Severity.ERROR).toList();
             return false;
         }
@@ -162,7 +171,7 @@ public final class HostedDocument implements AutoCloseable {
     public void watch() {
         if (dev != null && watcher == null) {
             watcher = dev.watcher(this::reload);
-            watcher.watch(files == null ? List.of(templatePath) : files);
+            watcher.watch(files == null ? List.of(pagePath) : files);
         }
     }
 
@@ -192,7 +201,7 @@ public final class HostedDocument implements AutoCloseable {
         return displayList;
     }
 
-    /** Paints the display list of the last {@link #frame}; native elements react to the pointer, NaN in a HUD. */
+    /** Paints the display list of the last {@link #frame}; drawn elements react to the pointer, NaN in a HUD. */
     public void paint(GuiGraphics g, float pointerX, float pointerY) {
         if (displayList != null) {
             painter.paint(g, displayList, pointerX, pointerY, document.frameTime());
@@ -207,7 +216,7 @@ public final class HostedDocument implements AutoCloseable {
     /**
      * Draws what the last {@link #frame} shows at the pointer above everything the document drew: the
      * drag preview of a dragged element, the shown {@code <ix-tooltip>}, or the vanilla tooltip of the
-     * native element's painter or the {@code title}.
+     * drawn element's painter or the {@code title}.
      */
     public void drawTooltip(GuiGraphics g, int mouseX, int mouseY) {
         if (document == null) {

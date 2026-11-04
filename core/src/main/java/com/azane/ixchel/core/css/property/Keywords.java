@@ -12,7 +12,7 @@ public final class Keywords {
      * holds an inline formatting context: its children must be text, {@code inline} or
      * {@code inline-block} elements, or {@code none}. {@code flex} is the initial value, so an element
      * without a {@code display} is a flex container; {@code <span>}, {@code <a>}, {@code <img>} and native
-     * elements default to {@code inline}. {@code <img>} and native elements are replaced: their own
+     * elements default to {@code inline}. {@code <img>} and drawn elements are replaced: their own
      * children, if any, are laid out as in a flex container whatever their {@code display}. {@code grid}
      * is a grid container; like a flex container it blockifies its items.
      */

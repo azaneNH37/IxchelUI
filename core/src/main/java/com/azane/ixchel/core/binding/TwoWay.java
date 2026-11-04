@@ -4,8 +4,8 @@ import java.util.function.Consumer;
 
 /**
  * A component's two-way input, made with {@link ViewModel#twoWay()} and stored in a field named after
- * the {@code <template params>} entry. {@link #set} writes to the writable path the user passed; when
- * the user passed none it is this instance's local state, starting at the template's default. It is
+ * the {@code <component params>} entry. {@link #set} writes to the writable path the user passed; when
+ * the user passed none it is this instance's local state, starting at the view's default. It is
  * wired after the constructor: {@link #get()} and {@link #set} throw until then.
  */
 public final class TwoWay<T> extends Cell<T> {

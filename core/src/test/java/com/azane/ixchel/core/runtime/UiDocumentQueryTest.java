@@ -4,7 +4,7 @@ import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -29,13 +29,13 @@ class UiDocumentQueryTest {
     @Test
     void matchesInDocumentOrderAndFollowsMountedBlocks() {
         Model m = new Model();
-        UiDocument doc = UiDocument.load("""
+        UiDocument doc = UiDocument.load(GoldenTest.page("""
                 <div id="list" class="list">
                   <for each="rows" as="r" key="r"><span class="row" bind:text="r"></span></for>
                 </div>
                 <if test="open"><div id="panel"><span id="inner" class="row"></span></div></if>
                 <span id="last" class="row"></span>
-                """, "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
+                """), "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES, m, Bindings.PLAIN_TEXT);
         doc.frame(100, 100);
         assertEquals("span span last", names(doc.querySelectorAll(".row")));
         assertEquals("span span", names(doc.querySelectorAll(".list > .row")));
@@ -49,7 +49,7 @@ class UiDocumentQueryTest {
 
     @Test
     void invalidSelectorThrows() {
-        UiDocument doc = UiDocument.load("<div></div>", "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO,
+        UiDocument doc = UiDocument.load(GoldenTest.page("<div></div>"), "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO,
                 GoldenTest.NO_IMAGES);
         assertThrows(IllegalArgumentException.class, () -> doc.querySelectorAll("div >"));
     }

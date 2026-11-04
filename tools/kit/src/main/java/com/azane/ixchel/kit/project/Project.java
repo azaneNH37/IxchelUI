@@ -1,9 +1,10 @@
 package com.azane.ixchel.kit.project;
 
-import com.azane.ixchel.core.binding.UiTemplate;
+import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.effect.Effect;
-import com.azane.ixchel.core.library.Library;
-import com.azane.ixchel.core.template.NativeElement;
+import com.azane.ixchel.core.runtime.UiHosting;
+import com.azane.ixchel.core.runtime.UiRegistry;
+import com.azane.ixchel.core.view.UiElement;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,19 +33,19 @@ import java.util.stream.Stream;
 public final class Project {
     private static final String ASSETS = "assets";
 
-    /** A class of the mc layer: where the library's declared elements and components are found on the classpath. */
-    private static final String MC_LAYER_CLASS = "com/azane/ixchel/mc/element/McElements.class";
+    /** A class of the mc layer: where its elements and registry are found on the classpath. */
+    private static final String MC_LAYER_CLASS = "com/azane/ixchel/mc/UiRegistries.class";
     private static final String MC_LAYER_PACKAGES = "com/azane/ixchel/mc/";
     private static final String MC_LAYER_PACKAGE_NAME = "com.azane.ixchel.mc.";
-    /** The field naming a layer's library in its holder class. */
-    private static final String LIBRARY_FIELD = "LIBRARY";
+    /** The field holding the mc layer's registry in its holder class. */
+    private static final String REGISTRY_FIELD = "MC";
 
     private final List<Path> resources;
     private final List<Path> classes;
     private final ClassLoader loader;
 
     /**
-     * A class with {@link UiTemplate} and the ids or patterns it lists.
+     * A class with {@link UiView} and the ids or patterns it lists.
      */
     public record Annotated(Class<?> type, List<String> patterns) {
         public Annotated {
@@ -145,7 +146,7 @@ public final class Project {
     }
 
     /** The ids of every {@code .html} file under {@code assets/<namespace>/} of the resource roots, sorted. */
-    public List<String> templates() {
+    public List<String> views() {
         return files(".html");
     }
 
@@ -177,9 +178,9 @@ public final class Project {
     }
 
     /**
-     * Every class under the classes directories carrying {@link UiTemplate}, loaded without
+     * Every class under the classes directories carrying {@link UiView}, loaded without
      * initialization through {@link #loader()}, in class name order. Classes of the mc layer's
-     * packages are the library's ({@link #library()}), not the project's.
+     * packages are the library's ({@link #hosting}), not the project's.
      *
      * @throws IllegalStateException if such a class cannot be loaded from the classpath
      */
@@ -189,10 +190,10 @@ public final class Project {
         for (Path root : classes) {
             try {
                 ClassFiles.scan(root, "", (name, bytes) -> {
-                    if (!name.startsWith(MC_LAYER_PACKAGE_NAME) && ClassFiles.mentions(bytes, UiTemplate.class)
+                    if (!name.startsWith(MC_LAYER_PACKAGE_NAME) && ClassFiles.mentions(bytes, UiView.class)
                             && seen.add(name)) {
                         Class<?> type = load(name);
-                        UiTemplate t = type.getAnnotation(UiTemplate.class);
+                        UiView t = type.getAnnotation(UiView.class);
                         if (t != null) {
                             out.add(new Annotated(type, List.of(t.value())));
                         }
@@ -207,17 +208,29 @@ public final class Project {
     }
 
     /**
-     * The library documents of the project get: the mc layer's {@code public static final Library
-     * LIBRARY} on the classpath, its holder initialized; {@link Library#CORE} without an mc layer.
+     * What the project's documents see: {@link UiRegistry#CORE}, the mc layer's {@code public static
+     * final UiRegistry MC} on the classpath, its holder initialized, if there is an mc layer, and
+     * {@code hosts}.
      *
      * @throws IllegalStateException if the holder cannot be loaded, or the mc layer has more than one
      */
-    public Library library() {
+    public UiHosting hosting(UiRegistry... hosts) {
+        List<UiRegistry> all = new ArrayList<>();
+        all.add(UiRegistry.CORE);
+        UiRegistry mc = mcRegistry();
+        if (mc != null) {
+            all.add(mc);
+        }
+        all.addAll(List.of(hosts));
+        return UiHosting.of(all.toArray(UiRegistry[]::new));
+    }
+
+    private UiRegistry mcRegistry() {
         Set<String> names = new TreeSet<>();
         try {
             for (Path root : mcLayerRoots()) {
                 ClassFiles.scan(root, MC_LAYER_PACKAGES, (name, bytes) -> {
-                    if (ClassFiles.mentions(bytes, Library.class)) {
+                    if (ClassFiles.mentions(bytes, UiRegistry.class)) {
                         names.add(name);
                     }
                 });
@@ -225,33 +238,33 @@ public final class Project {
         } catch (IOException e) {
             throw new UncheckedIOException("cannot read classes: " + e.getMessage(), e);
         }
-        Library found = null;
+        UiRegistry found = null;
         String holder = null;
         for (String name : names) {
             Field f;
             try {
-                f = load(name).getDeclaredField(LIBRARY_FIELD);
+                f = load(name).getDeclaredField(REGISTRY_FIELD);
             } catch (NoSuchFieldException e) {
                 continue;
             }
-            if (f.getType() != Library.class || !Modifier.isStatic(f.getModifiers()) || !Modifier.isPublic(f.getModifiers())) {
+            if (f.getType() != UiRegistry.class || !Modifier.isStatic(f.getModifiers()) || !Modifier.isPublic(f.getModifiers())) {
                 continue;
             }
             if (holder != null) {
-                throw new IllegalStateException("the mc layer has two libraries: " + holder + " and " + name);
+                throw new IllegalStateException("the mc layer has two registries: " + holder + " and " + name);
             }
             try {
-                found = (Library) f.get(null);
+                found = (UiRegistry) f.get(null);
             } catch (IllegalAccessException | LinkageError e) {
-                throw new IllegalStateException("cannot read " + name + "." + LIBRARY_FIELD + " (" + e + ")", e);
+                throw new IllegalStateException("cannot read " + name + "." + REGISTRY_FIELD + " (" + e + ")", e);
             }
             holder = name;
         }
-        return found != null ? found : Library.CORE;
+        return found;
     }
 
     /**
-     * Every class carrying {@link NativeElement}: those under the classes directories, then those of
+     * Every class carrying {@link UiElement}: those under the classes directories, then those of
      * the mc layer on the classpath (each copy of it counted once), loaded without initialization, in
      * class name order.
      *
@@ -262,14 +275,14 @@ public final class Project {
         try {
             for (Path root : classes) {
                 ClassFiles.scan(root, "", (name, bytes) -> {
-                    if (ClassFiles.mentions(bytes, NativeElement.class)) {
+                    if (ClassFiles.mentions(bytes, UiElement.class)) {
                         names.add(name);
                     }
                 });
             }
             for (Path root : mcLayerRoots()) {
                 ClassFiles.scan(root, MC_LAYER_PACKAGES, (name, bytes) -> {
-                    if (ClassFiles.mentions(bytes, NativeElement.class)) {
+                    if (ClassFiles.mentions(bytes, UiElement.class)) {
                         names.add(name);
                     }
                 });
@@ -280,7 +293,7 @@ public final class Project {
         List<Class<?>> out = new ArrayList<>();
         for (String name : names) {
             Class<?> type = load(name);
-            if (type.isAnnotationPresent(NativeElement.class)) {
+            if (type.isAnnotationPresent(UiElement.class)) {
                 out.add(type);
             }
         }

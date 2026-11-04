@@ -1,8 +1,12 @@
 /* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. */
-.panel {
+@stylesheet;
+@link "../themes/container.css";
+@link "../common/slot.css";
+
+.ix-panel {
   margin: auto;
   width: 186px;
-  padding: 7px;
+  padding: 8px;
 }
 
 .header {
@@ -40,7 +44,7 @@ button {
   width: 170px;
   height: 108px;
   overflow: auto;
-  background-color: var(--ix-well);
+  background-color: var(--ix-well-bg);
   margin-bottom: 4px;
 }
 

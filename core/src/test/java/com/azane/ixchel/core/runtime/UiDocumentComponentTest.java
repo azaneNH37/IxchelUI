@@ -8,7 +8,7 @@ import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.event.EventDispatcher;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiDocumentComponentTest {
     private static UiDocument load(String html, Map<String, String> files, ViewModel model) {
-        return UiDocument.load(html, "t.html", files::get, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES,
+        return UiDocument.load(GoldenTest.page(html), "t.html", files::get, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES,
                 model, Bindings.PLAIN_TEXT);
     }
 
@@ -80,11 +80,11 @@ class UiDocumentComponentTest {
     }
 
     private static final String COUNTER = """
-            <template name="ui-counter" params="count label='n' step=1" events="changed">
+            <component name="ui-counter" params="count label='n' step=1" events="changed">
             <button class="inc" on:click="count = count + step; changed(count)"><span bind:text="label + count"></span></button>
-            </template>
+            </component>
             """;
-    private static final String COUNTER_CSS = ".inc { width: 20px; height: 10px; padding: 0; border-style: none }";
+    private static final String COUNTER_CSS = "@stylesheet; .inc { width: 20px; height: 10px; padding: 0; border-style: none }";
 
     static final class Counters extends ViewModel {
         final Value<Integer> total = state(1);
@@ -95,10 +95,11 @@ class UiDocumentComponentTest {
     void parametersWriteBackThroughTheUsersPathDefaultsAreLocalAndEventsCarryAPayload() {
         Counters m = new Counters();
         UiDocument doc = load("""
-                <link rel="component" href="ui/counter.html"/><style>ui-counter { width: 20px; height: 10px }</style>
+                <link href="page.css"/><link href="ui/counter.html"/>
                 <ui-counter id="a" bind:count="total" on:changed="last = $event"></ui-counter>
                 <ui-counter id="b" bind:count="total" label="x" bind:step="10"></ui-counter>
-                """, Map.of("ui/counter.html", "<link rel=\"stylesheet\" href=\"counter.css\"/>" + COUNTER,
+                """, Map.of("page.css", "@stylesheet; ui-counter { width: 20px; height: 10px }",
+                "ui/counter.html", COUNTER.replaceFirst(">", "><link href=\"counter.css\"/>"),
                 "ui/counter.css", COUNTER_CSS), m);
         doc.frame(100, 100);
         EventDispatcher ev = doc.events();
@@ -127,14 +128,14 @@ class UiDocumentComponentTest {
     void slotContentResolvesInTheUsersScopeAndAnyGivenContentSuppressesTheFallback() {
         Card m = new Card();
         UiDocument doc = load("""
-                <link rel="component" href="card.html"/>
+                <link href="card.html"/>
                 <ui-card id="c1"><span slot="title">T</span><span bind:text="msg"></span></ui-card>
                 <ui-card id="c2"></ui-card>
                 <ui-card id="c3"><if test="show" slot="title"><span>late</span></if></ui-card>
                 """, Map.of("card.html", """
-                <template name="ui-card">
+                <component name="ui-card">
                 <div class="head"><slot name="title"><span>untitled</span></slot></div><div class="body"><slot></slot></div>
-                </template>
+                </component>
                 """), m);
         doc.frame(100, 100);
         assertEquals("Thi", byId(doc, "c1").textContent());
@@ -151,28 +152,28 @@ class UiDocumentComponentTest {
     @Test
     void loadReportsComponentMisuseAtTheUseAndBodyErrorsWithTheUseAppended() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
-                <link rel="component" href="counter.html"/><link rel="component" href="card.html"/>
-                <link rel="component" href="loop-a.html"/><link rel="component" href="dup.html"/>
+                <link href="counter.html"/><link href="card.html"/>
+                <link href="loop-a.html"/><link href="dup.html"/>
                 <ui-counter bind:count="total + 1"></ui-counter>
                 <ui-counter label="a" bind:label="'b'" bind:count="total"></ui-counter>
                 <ui-counter></ui-counter>
                 <ui-card><span slot="nope"></span></ui-card>
                 <ui-counter bind:count="total" on:changed.shift="last = 1"></ui-counter>
                 """, Map.of("counter.html", COUNTER,
-                "card.html", "<template name=\"ui-card\" events=\"done\"><button on:click=\"done; done(1)\"></button></template>",
-                "loop-a.html", "<link rel=\"component\" href=\"loop-b.html\"/><template name=\"ui-a\"></template>",
-                "loop-b.html", "<link rel=\"component\" href=\"loop-a.html\"/><template name=\"ui-b\"></template>",
-                "dup.html", "<template name=\"ui-card\"></template>"), new Counters()));
-        assertEquals(List.of("load/component-cycle@loop-b.html:1:1", "load/duplicate-component@dup.html:1:1",
+                "card.html", "<component name=\"ui-card\" events=\"done\"><button on:click=\"done; done(1)\"></button></component>",
+                "loop-a.html", "<component name=\"ui-a\"><link href=\"loop-b.html\"/></component>",
+                "loop-b.html", "<component name=\"ui-b\"><link href=\"loop-a.html\"/></component>",
+                "dup.html", "<component name=\"ui-card\"></component>"), new Counters()));
+        assertEquals(List.of("link/cycle@loop-b.html:1:24", "link/duplicate-component@dup.html:1:1",
                 "binding/not-assignable@counter.html:2:31", "binding/duplicate-parameter@t.html:4:1",
                 "binding/missing-parameter@t.html:5:1", "binding/unknown-slot@t.html:6:10",
-                "binding/event-payload@card.html:1:64", "binding/unexpected-filter@t.html:7:32"), DiagCodes.of(e));
+                "binding/event-payload@card.html:1:65", "binding/unexpected-filter@t.html:7:32"), DiagCodes.of(e));
     }
 
     @Test
     void aParameterWhoseBindingFailsIsNotAlsoReportedMissing() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
-                <link rel="component" href="counter.html"/>
+                <link href="counter.html"/>
                 <ui-counter bind:count="nope"></ui-counter>
                 """, Map.of("counter.html", COUNTER), new Counters()));
         assertEquals(List.of("binding/unknown-name@t.html:2:25"), DiagCodes.of(e));
@@ -184,12 +185,13 @@ class UiDocumentComponentTest {
     @Test
     void authorRulesBeatComponentRulesImportantReversesThatAndInlineBeatsBoth() {
         UiDocument doc = load("""
-                <link rel="component" href="tag.html"/><link rel="stylesheet" href="page.css"/>
+                <link href="tag.html"/><link href="page.css"/>
                 <ui-tag></ui-tag>
                 """, Map.of("tag.html", """
-                <style>.a { color: #f00 } .b { color: #0f0 !important } .c { color: #f00 }</style>
-                <template name="ui-tag"><span class="a">a</span><span class="b">b</span><span class="c" style="color: #00f">c</span></template>
-                """, "page.css", ".a { color: #00f } .c { color: #0f0 } .b { color: #f00 !important }"), new Styled());
+                <component name="ui-tag"><link href="tag.css"/>
+                <span class="a">a</span><span class="b">b</span><span class="c" style="color: #00f">c</span></component>
+                """, "tag.css", "@stylesheet; .a { color: #f00 } .b { color: #0f0 !important } .c { color: #f00 }",
+                "page.css", "@stylesheet; .a { color: #00f } .c { color: #0f0 } .b { color: #f00 !important }"), new Styled());
         assertEquals("""
                 text 0 0 9 #FF0000FF "a"
                 text 0 9 9 #FF00FF00 "b"
@@ -202,20 +204,22 @@ class UiDocumentComponentTest {
     }
 
     @Test
-    void themeLayerSitsBetweenComponentsAndAuthorAndItsPropertiesReachEveryElement() {
+    void aLinkedThemeJoinsTheAuthorLayerAndItsPropertiesReachEveryElement() {
         Themed m = new Themed();
         UiDocument doc = load("""
-                <link rel="component" href="btn.html"/><link rel="stylesheet" href="@ixchel/dark.css"/>
-                <style>.title { color: #0f0 } .muted { color: var(--ix-text-muted) } .accent { color: var(--accent) }</style>
-                <div class="panel" bind:style:--accent="accent"><span class="title">t</span><span class="muted">m</span>
+                <link href="btn.html"/><link href="page.css"/>
+                <div class="ix-panel" bind:style:--accent="accent"><span class="ix-title">t</span><span class="muted">m</span>
                 <ui-btn class="accent"></ui-btn></div>
-                """, Map.of("btn.html", """
-                <style>ui-btn button.b { background-color: #f00; color: var(--ix-accent) }</style>
-                <template name="ui-btn"><button class="b">b</button></template>
-                """), m);
+                """, Map.of("page.css", """
+                @stylesheet;
+                @link "@ixchel/themes/dark.css";
+                .ix-title { color: #0f0 } .muted { color: var(--ix-text-muted) } .accent { color: var(--accent) }
+                """, "btn.html", """
+                <component name="ui-btn"><link href="btn.css"/><button class="b">b</button></component>
+                """, "btn.css", "@stylesheet; ui-btn button.b { background-color: #f00; color: var(--ix-accent) }"), m);
         doc.frame(100, 100);
-        assertEquals(0xE0101418, doc.querySelectorAll(".panel").get(0).computed().get(CssProperties.BACKGROUND_COLOR));
-        assertEquals(0xFF00FF00, doc.querySelectorAll(".title").get(0).computed().get(CssProperties.COLOR));
+        assertEquals(0xE0101418, doc.querySelectorAll(".ix-panel").get(0).computed().get(CssProperties.BACKGROUND_COLOR));
+        assertEquals(0xFF00FF00, doc.querySelectorAll(".ix-title").get(0).computed().get(CssProperties.COLOR));
         assertEquals(0xFFAAAAAA, doc.querySelectorAll(".muted").get(0).computed().get(CssProperties.COLOR));
         Element b = doc.querySelectorAll("button").get(0);
         assertEquals(0x30FFFFFF, b.computed().get(CssProperties.BACKGROUND_COLOR), "the theme beats a more specific component rule");
@@ -228,11 +232,40 @@ class UiDocumentComponentTest {
     }
 
     @Test
-    void libraryStylesheetsMustExistAndOnlyThePageLinksThem() {
+    void aProjectThemeBuildsOnABaseAndBringsItsEffects() {
+        UiDocument doc = load("""
+                <link href="page.css"/>
+                <div class="ix-panel"></div>
+                """, Map.of("page.css", "@stylesheet; @link \"themes/main.css\";", "themes/main.css", """
+                /* the host's theme */
+                @partial;
+                @link "@ixchel/themes/dark.css";
+                @link "../fx/shine.ixeffect";
+                :root { --ix-panel-bg: #123456 }
+                .ix-panel { background-image: paint(Shine); --Shine-speed: 2 }
+                """, "fx/shine.ixeffect", """
+                kind box;
+                param speed { syntax: <number>; inherits: false; initial-value: 1; }
+                vec4 effect(IxBox b) { return vec4(speed); }
+                """), new Styled());
+        doc.frame(100, 100);
+        Element panel = doc.querySelectorAll(".ix-panel").get(0);
+        assertEquals(0xFF123456, panel.computed().get(CssProperties.BACKGROUND_COLOR), "the theme overrides its base");
+        assertEquals(0xFFFFFFFF, panel.computed().get(CssProperties.COLOR), "the base's rules apply");
+        assertEquals(List.of("t.html", "page.css", "themes/main.css", "fx/shine.ixeffect"), doc.files());
+    }
+
+    @Test
+    void eachLinkMustNameTheKindItsPlaceExpects() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
-                <link rel="component" href="c.html"/><link rel="stylesheet" href="@ixchel/nope.css"/><ui-c></ui-c>
-                """, Map.of("c.html", "<link rel=\"stylesheet\" href=\"@ixchel/dark.css\"/><template name=\"ui-c\"></template>"),
-                new Styled()));
-        assertEquals(List.of("load/library-sheet-not-on-page@c.html:1:1", "load/unknown-library-sheet@t.html:1:38"), DiagCodes.of(e));
+                <link href="part.css"/><link href="c.html"/><ui-c></ui-c>
+                """, Map.of("part.css", "@partial;", "c.html", "<component name=\"ui-c\"><link href=\"p.html\"/></component>",
+                "p.html", "<page></page>"), new Styled()));
+        assertEquals(List.of("link/wrong-kind@c.html:1:24", "link/wrong-kind@t.html:1:7"), DiagCodes.of(e));
+
+        UiLoadException component = assertThrows(UiLoadException.class, () -> UiDocument.load(
+                "<component name=\"ui-c\"></component>", "t.html", Map.<String, String>of()::get,
+                com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
+        assertEquals(List.of("link/wrong-kind@t.html:1:1"), DiagCodes.of(component));
     }
 }

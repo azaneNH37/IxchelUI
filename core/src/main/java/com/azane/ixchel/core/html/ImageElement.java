@@ -9,15 +9,15 @@ import com.azane.ixchel.core.paint.PaintFacet;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.paint.Painter;
-import com.azane.ixchel.core.template.ContentModel;
-import com.azane.ixchel.core.template.TemplateCode;
+import com.azane.ixchel.core.view.ContentModel;
+import com.azane.ixchel.core.view.ViewCode;
 
 final class ImageElement {
     private ImageElement() {}
     static final ContentModel CONTENT = new HtmlContent.TooltipOnly() {
         @Override public void attributes(Element e, Diagnostics d) {
             if (e.attribute("src") == null && e.directives().stream().noneMatch(a -> a.name().equals("bind:src"))) {
-                d.report(TemplateCode.IMG_WITHOUT_SOURCE, e.pos(), "<img> requires a 'src' attribute or a 'bind:src' binding");
+                d.report(ViewCode.IMG_WITHOUT_SOURCE, e.pos(), "<img> requires a 'src' attribute or a 'bind:src' binding");
             }
         }
     };

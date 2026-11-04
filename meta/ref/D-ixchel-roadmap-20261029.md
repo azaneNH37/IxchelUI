@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），以及 L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则）；接下来是 TH1–TH4（主题机制、形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`），再 U4（组件库）；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则），以及 TH1（主题机制与库资源显式引入，#034、#039）、RS（按资源规范重做文件种类、引用与登记，#041）；之后 TH2–TH4（形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`），再 U4（组件库）；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -53,17 +53,18 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | V2 | 完成 | — | `calc()` 与 `min()`/`max()`/`clamp()`、em/rem/vw/vh、`line-height`、`align-content`、grid、标准块布局（放宽 `display: block` 含块级子元素的限制） |
 | V3 | 完成 | — | `@keyframes` 与 `animation-*`、`on:animationend`、进出伪类 `:-ix-absent`/`:-ix-entering`/`:-ix-exiting`（#032） |
 | V4 | 完成 | S1、S6 | 整页开关动画：UiScreen 关闭与 UiHud 显隐复用进出伪类（#032） |
-| TH1 | 待做 | — | 主题机制：`<link rel="theme">`、主题文件与 `@import` 基底、`.ix-*` 表面类、按角色的 `--ix-*` 变量、内置特效免链接（#034；库组件免链接移到 L4） |
+| TH1 | 完成 | 全部页面的主题与库引入 | 主题机制：`<link rel="theme">`、主题文件的 `@import` 与 `@-ix-effect`、`.ix-*` 表面类、按角色的 `--ix-*` 变量；库资源显式引入与包、删除预引入表（#034、#039），结果见下文；文件与引用机制由 RS 重做 |
+| RS | 完成 | 全部页面 | 资源规范（`ref/D-ixchel-resource-spec-20261105.md`，#041）：视图根元素与 `<link href>`、css 的 `@stylesheet`/`@partial`/`@link`、特效别名、删除主题层与包、`ix-` 名字检查、统一登记与库根专用目录、改名（view、`@UiView`、`*Model`、`@UiElement`）；结果见下文 |
 | TH2 | 待做 | — | 形状与像素化：`corner-shape`、`shape-rendering: crisp-edges`、GLSL `ix_snap` |
-| TH3 | 待做 | — | 文字：`font-family`（MC 字体 id）、`text-transform`；`letter-spacing` 视 TH4 再定 |
-| TH4 | 待做 | — | 四套内置主题 `vanilla`、`dark`、`holo`、`cyber`，内置特效 `chromatic`、`glitch`，主题陈列页 |
+| TH3 | 待做 | — | 文字：`font-family`（MC 字体 id）、`text-transform`；不做 `letter-spacing` |
+| TH4 | 待做 | — | 四套内置主题 `vanilla`、`dark`、`holo`、`cyber`，内置特效 `ix-chromatic`、`ix-glitch`、`ix-cooldown`，主题陈列页 |
 | U4 | 待做 | — | `ix-` 组件库与内置元素补齐，讨论中（`ref/SD-ixchel-u4-components-20261104.md`） |
 | FX1 | 完成 | — | 私有图层；`opacity` 整组语义（shader 构造并入 FX2） |
 | FX2 | 完成 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
 | FX3 | 完成 | — | `.ixeffect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028），结果见下文 |
 | REC | 待做 | — | playtest 动图录制：连续截帧合成 GIF/MP4；排期未定，只依赖 T2 |
 
-依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1，TH2、TH3 彼此独立，TH1–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → L5 → L6，L5 → TH1（`@ixchel/themes/` 走统一解析），L5 → U4（`ix-*` 组件进 core 的库）。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
+依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1 → RS → TH2、TH3（彼此独立），TH2–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → L5 → L6，L5 → TH1（`@ixchel/themes/` 走统一解析），L5 → U4（`ix-*` 组件进 core 的库）。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
 #### D0 改名与清理
 
@@ -349,38 +350,60 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 动机：kit 自行拼探针页判定组件文件、lint 不检查行内内容规则（`layout/block-in-inline`、`absolute-in-inline`、`inline-box-property` 只在布局时报出），两处与运行时分叉。
 - core：`TemplateLoader.declared(id, read, library, tags)` 返回文件顶层 `<template>` 声明的组件或 `null`，kit 的 `Components` 改用它。新类 `layout.Formatting` 按计算样式与树结构判定每个盒子的角色（`Mode`：叶子、弹性/网格项、块级流、段落；`FlowChild`：自成盒、行内；`InlineChild`：跳过、文本、行内盒、原子盒）并报行内内容错误；`LayoutEngine` 的 sync/collect 按它分支，`UiDocument.lint` 在 restyle 后调用 `Formatting.check`。lint 不跑布局、不编造视口或字体度量。
 - 不覆盖：`<if>`/`<for>` 块内容、未打开的顶层元素（与绑定检查同一边界）；依赖尺寸的检查（容器槽位过小等）仍只在运行时。
-- 待定：页面如何声明文档种类（普通/容器），使 lint 能检查 `<mc-slot>`、`containerOnly`；单独一阶段。
+- 已定（2026-11-04，原待定）：文档种类由 Java 侧推出（`@UiTemplate` 所在的类为容器界面的 ViewModel，或宿主类型），页面上不写声明；实施单独一阶段。
 - 验收：core 与 kit 测试；`build` 两版 lint 零错误；`-Pplaytest=all` 通过。
 - 结果（2026-11-04）：完成，按上列实施；sample 页面无新报错。`UiDocumentTest` 原先固定"lint 不报行内规则"的用例改为断言报出。验收：core 与 kit 测试、`build`、两版 lint 零错误；`-Pplaytest=all` 260/262，失败两项为 env 帧时间（未改动时同样超标）与 effects 的 glint 移动检查（单跑与重跑均通过，检查对相位敏感，暂不修，归 REC 一并处理）。
 
 #### TH1 主题机制
 
-- 设计依据：`ref/SD-ixchel-themes-20261104.md` §3、§4（#034）。
-- 先定：主题文档 §9 的 1、2、4（内置特效命名、项目主题能否用项目特效、`.selected` 是否改名）；§4 变量表定稿。
-- 引擎：`<link rel="theme">`（每页至多一个，组件文件链接报错）；主题文件开头的 `@import`（只导入主题，成环报错，其它样式表仍报错），导入链整体进主题层；内置主题改为 `@ixchel/themes/<名>`，删除 `rel="stylesheet" href="@ixchel/<名>.css"`（报错并提示）；内置特效免链接（库组件免链接已在 L4）；`theme.css` 改挂 `.ix-*` 表面类与按角色的变量，框线改为 inset `box-shadow`。
-- 工具：lint 报多个 `rel="theme"`、主题文件外的 `@import`、导入非主题、未知的 `--ix-*` 与 `.ix-*`；schema 列出主题及其变量。
-- sample：所有页面改用 `rel="theme"` 与 `.ix-*`；容器界面与其余界面各写一份宿主主题（基于 `vanilla`、`dark`）供页面链接，示范推荐写法；effects 页去掉内置特效的 link。
-- 验收：`-Pplaytest=all` 截图与迁移前一致（vanilla 框线改画法后的像素差人工核对）；两版 lint 零错误；`build`。
+- 设计依据：`ref/SD-ixchel-themes-20261104.md` §3、§4、§9（#034、#039）。
+- 已定（2026-11-04）：主题文档 §9 与 §4 变量表；边框宽度归 UA；库资源显式引入与包（#039）。
+- 引擎：`<link rel="theme">`（每页至多一个，报 `load/multiple-themes`；组件文件链接报 `load/theme-not-on-page`）；主题文件开头的 `@import "<主题>"`（至多一个）与 `@-ix-effect "<特效>"`，别处报 `css/misplaced-import`，导入成环报 `load/import-cycle`；导入链整体进主题层，主题按文档对特效注册表编译；内置主题为 `@ixchel/themes/<名>`，`base` 共用规则、`vanilla`/`dark` 各自 `@import` 它；删除 `LibrarySheets` 的组合表与 `load/library-sheet-not-on-page`、`load/unknown-library-sheet`。显式引入：删除 `Library` 预引入表，新增 `<link rel="package">`（只含 link 的文件，可含组件、特效、包）；库 href 不带扩展名、按引用种类补，项目 href 带扩展名（特效也带）；`Library` 增加主题、特效、包的目录，取代 `LibraryEffects` 名单；mc 层库文件移到库根下的公开路径（`@ixchel/mc/tooltip-lines`、`@ixchel/mc/player-inventory`），每版一个 `@ixchel/mc/components` 包；内置特效改名 `ix-glint`、`ix-dissolve`。
+- 工具：lint 报上列错误码；schema 列出主题（内置与项目）及其变量、库特效、包及其内容。不 lint 未知的 `--ix-*`/`.ix-*`。
+- sample：所有页面改用 `rel="theme"` 与 `.ix-*`、`.ix-selected`（主题负责的选中态）；容器界面与其余界面各写一份宿主主题（基于 `vanilla`、`dark`）供页面链接；用到 `<mc-*>` 组件的页面引入 `@ixchel/mc/components`；effects 页改用 `ix-` 特效名，项目特效 href 带扩展名。原先靠 1px `border` 的 vanilla 面板补 1px `padding`。
+- 验收：`-Pplaytest=all` 通过，背包槽位位置不变，截图差异（vanilla 框线改画法、dark 按钮恢复 UA 的 1px 边框）人工核对；两版 lint 零错误；`build`；1.21.1 冒烟。
+- 结果（2026-11-04）：完成。core：`ParsedSheet.imports` 收集主题文件开头的 `@import`/`@-ix-effect`（新码 `css/invalid-import`、`css/misplaced-import`）；`TemplateLoader` 解析 `rel="theme"`、`rel="package"`，`Loaded.themes` 为 `Theme(id, 解析结果)` 列表（基底在前），另公开 `theme(href, read, library)` 与 `packaged(id, …)` 供工具读取；新码 `load/multiple-themes`、`load/theme-not-on-page`、`load/import-cycle`、`load/package-content`；`UiDocument` 按文档对特效注册表编译主题；`Library` 删除预引入表，`Builder.component(类, 工厂)` 由类的 `@UiTemplate` 取文件，`theme`/`effect`/`pack` 登记目录；`LibraryEffects` 删除，`LibrarySheets` 只剩 UA 与原生元素样式；`themes/theme.css` 换成 `base.css`。mc（两版）：库文件移到 `@ixchel/mc/tooltip-lines`、`@ixchel/mc/player-inventory`。kit：schema 的 `librarySheets` 换成 `themes`（内置与页面链接到的项目主题，变量含基底的）与 `packages`；`Components` 按库的包与 Java 组件声明库组件。sample（1.20.1）：`ui/themes/container.css`（基于 `vanilla`）与 `overlay.css`（基于 `dark`），三个容器界面的 `.ix-panel` 内边距 7px→8px、machine 侧边栏 `border` 改为 `box-shadow` 加 1px 内边距并右下移 1px；playtest 只改选择器。1.21.1 sample 无主题，只改 `.ix-selected`。
+  - 与"已定"的出入：
+    - mc 包按界面种类分两个：`@ixchel/mc/components`（两版，`<mc-tooltip-lines>`）与 `@ixchel/mc/container`（仅 1.20.1，引入前者并加 `<mc-player-inventory>`）。包在引入时加载其中全部组件，`<mc-player-inventory>` 含 `<mc-slot>`，非容器界面引入即报未知标签；原"使用处报错"随预引入表一起消失。
+    - 变量表多两个：`--ix-control-border`、`--ix-overlay-border`，给 UA 保留宽度的 `button` 与 `ix-tooltip` 边框上色（未设为透明）；主题文档 §4 已补。
+    - sample 中原先不吃主题选中底色的元素（loot 筛选、quests 节点）在 `.ix-selected` 上自设 `background-color: transparent`，waypoints 选中行自设字色。
+  - 验证：core 与 kit 测试；`build`；两版 lint 零错误（临时页面确认 lint 报出新码）；`-Pplaytest=all` 14 项 262 断言全过（首轮 tooltips 页因引入含 `<mc-slot>` 的包整项失败，即上条出入；glint 移动检查偶发失败，见 REC）；machine、config 截图人工核对外观与布局不变；1.21.1 冒烟由用户确认。
+  - 已知：dark 下按钮恢复 UA 的 1px 透明边框，按钮比 L3 大 2px（playtest 未断言到）；dark 悬停为 `--ix-hover` 叠在 `--ix-control-bg` 上，选中的按钮悬停时也叠色。
+
+#### RS 资源规范
+
+- 设计依据：`ref/D-ixchel-resource-spec-20261105.md`（#041；修订 #030、#034、#035、#037、#039）。
+- 分批提交，顺序：改名（view、`@UiView`、`*Model`、`@UiElement`、诊断前缀）→ 视图根元素与 `<link href>`、删除包 → css 文件种类与 `@link`、删除主题层与 `@import`/`@-ix-effect`/`<style>` → 特效别名与 `--<Alias>-<param>` → `ix-` 名字检查 → 统一登记与库根专用目录 → kit、sample、文档。
+- 验收：core 与 kit 测试；`build`；两版 lint 零错误；全部完成后一次 `-Pplaytest=all`，截图与 TH1 一致；1.21.1 冒烟。
+- 结果（2026-11-05）：完成，五个提交（改名；视图与样式表；特效别名；统一登记；库名字检查）。core：视图根元素 `<page>`/`<component>` 与 `<link href>`，`link.Linker` 取代 `TemplateLoader`；css 文件声明 `@stylesheet;`/`@partial;`，经 `@link` 引入部分样式与特效，部分样式按后序分层、`!important` 反序；删除包、主题层、`@import`/`@-ix-effect` 与 `<style>`；特效在每个 css 文件内以 PascalCase 别名引用，参数为 `--<Alias>-<param>`，按文件改写为由特效文件 id 生成的内部名（规则、行内样式、`bind:style` 同一套）；新码 `effect/invalid-alias`、`duplicate-alias`、`unknown-alias`、`unmarked-param`，删 `duplicate-effect`、`unknown-effect`。登记：`runtime.UiRegistry`（`CORE`、`library()`、`host(modid)`）登记元素、Java 组件与库文件根，`UiHosting.of` 合成并拒绝重名，宿主不得登记 `ix-`/`mc-` 标签或 `@ixchel/` 文件；`Library` 只剩按前缀的根（库文件在锚点类旁的 `ui/` 目录），运行时只按 id 读取；`JavaComponent` 移到 `binding`，`NativeElements` 改为 `DeclaredElements`，术语"原生元素"改为"绘制元素"。mc（两版）：`UiRegistries`（`MC`、`register`、`hosting`）取代 `McLibrary`、`UiComponents`、`McElements.register` 与 `ContainerLayout.TAGS`，`<mc-slot>` 以 `element(ContainerLayout.class, SlotSnapshot.PAINTER)` 登记，`HostedDocument` 不再收额外绘制器。kit：经 `UiRegistries.MC` 反射读取 mc 层的库，`LibraryFiles` 扫描库根（目录与 jar）列出库文件，schema 的库主题为全部库 `@partial` css（因此含 `base.css`）；lint 按全部库 css 的 `.ix-*` 类与 `--ix-*` 变量检查宿主 css 与行内样式（`style/unknown-library-class`、`style/unknown-library-token`，警告），组件样式表在 `:root` 设自定义属性报 `style/component-root-token`（加载与 lint 都查）。sample 两版迁移，lint 零错误零警告；`-Pplaytest=all` 14 项 262 断言全过。
+  - 与"已定"的出入：`ix-` 名字表只由工具构建（运行时不枚举文件，故不查）；`<mc-slot>` 由登记携带绘制器，不再是 `HostedDocument` 的参数。
+  - 推迟：`core.view` 由原 `template` 包整体改名，解析器与宿主可见的元素声明（`UiElement`、`ElementPayload`、`TagRegistry`）仍同包，按契约拆包留待后续。
 
 #### TH2 形状与像素化
 
 - 设计依据：主题文档 §5.1、§5.2。
-- 引擎：`corner-shape`（`round | bevel | notch | scoop | square`，可过渡与否随 CSS），沿用圆角 SDF 与遮罩图集，背景、框线、阴影同时生效；继承属性 `shape-rendering: auto | crisp-edges`，`crisp-edges` 时遮罩每 GUI 像素 1 纹素、最近邻采样；GLSL 原语 `ix_snap(p)`。两个 mc 版本。
+- 已定（2026-11-04）：`crisp-edges` 用每宿主第二张最近邻过滤的遮罩图集，遮罩键带密度；`corner-shape` 同时作用于背景、框线、阴影、box 特效的 SDF、私有图层裁剪与 `backdrop-filter`（GLSL `IxBox` 加形状参数）；取值每角一个关键字，不做 `superellipse()`，不可过渡；不改盒子尺寸，主题可随意设置。
+- 主题接入（承 TH1）：`base` 给 `.ix-panel`、`.ix-well`、`button`、`ix-tooltip:open` 写 `corner-shape: var(--ix-corner, round)` 与 `border-radius: var(--ix-radius, 0)`；`shape-rendering` 由主题写在 `:root`（`vanilla` 开 `crisp-edges`，`dark` 不开）；`--ix-corner`、`--ix-radius` 进主题文档 §4 表，schema 随之列出。
+- 引擎：`corner-shape`（`round | bevel | notch | scoop | square`，1–4 值），沿用圆角 SDF 与遮罩图集；继承属性 `shape-rendering: auto | crisp-edges`，`crisp-edges` 时遮罩每 GUI 像素 1 纹素、最近邻采样；GLSL 原语 `ix_snap(p)`。两个 mc 版本。
 - 验收：effects 页加一个标签：五种 `corner-shape`、`crisp-edges` 开关前后的圆角与阴影各一格，像素断言阶梯与切角；1.21.1 冒烟。
 
 #### TH3 文字
 
 - 设计依据：主题文档 §5.3。
-- 引擎：`font-family` 取 MC 字体资源 id 列表（未知 id 开发期报错），测量与绘制按 `Style.withFont`；`text-transform: none | uppercase | lowercase`。两个 mc 版本。
+- 已定（2026-11-04）：core 的 `TextMeasurer`/`TextShaper` 加字体参数；`Component` 片段自带的字体优先于 CSS `font-family`；`text-transform` 作用于全部文本（含 `t=` 译文与 `Component`），测量前变换；未知字体 id 只在运行时开发期报错，lint 不查（字体是资源包内容）；不做 `letter-spacing`。
+- 主题接入（承 TH1）：`base` 给 `.ix-title` 写 `font-family: var(--ix-title-font, inherit)`，`text-transform` 由各主题直接写。
+- 先定：字体与大写会改文字宽度，与"主题不改盒子尺寸"冲突——TH4 的布局矩形断言只覆盖定宽元素，还是限定主题只改标题字体并给标题定宽。
+- 引擎：`font-family` 取 MC 字体资源 id 列表，测量与绘制按 `Style.withFont`；`text-transform: none | uppercase | lowercase`。两个 mc 版本。
 - 验收：`minecraft:uniform`、`minecraft:alt` 与大写各一行截图；行内排版测量与绘制宽度一致（core 测试覆盖 `text-transform`）。
 
 #### TH4 四套内置主题
 
 - 设计依据：主题文档 §6、§7。
-- 先定：主题文档 §9-3（主题自带进出动画与时长上限）。
-- 内容：`vanilla`、`dark`、`holo`、`cyber` 四套，内置之间共用一份基于变量的规则；内置特效 `chromatic`、`glitch`（layer）。
+- 已定（2026-11-04）：只有 `holo` 带入场动画，内置主题不带离场动画；`ix-cooldown` 由 U4 并入（box，参数 `--ix-cooldown-progress`）；陈列页单独定 `FrameTimer` 预算，不沿用 env HUD（其 p95 在未改动时已超 6000 us）。
+- 承 TH1：`input`、`select`、`dialog` 的主题规则只上色（UA 的边框宽度不动），与 `button` 同用 `--ix-control-*`、`--ix-overlay-*`；dark 系按钮的 1px 透明边框保留，陈列页以此为基准；选中叠悬停是否去掉随陈列页一并定；主题自带特效经主题文件的 `@-ix-effect` 引入；glint 移动检查的相位问题仍归 REC。
+- 内容：`vanilla`、`dark`、`holo`、`cyber` 四套，共用 `base`；四套补齐 `input`、`select`、`dialog` 的主题规则；内置特效 `ix-chromatic`、`ix-glitch`（layer）、`ix-cooldown`（box）。
 - sample：主题陈列页，一份模板列出所有表面类与标准控件的全部状态，四个页面各链接一套主题。
-- 验收：四张陈列页截图；同一陈列页在四套主题下的布局矩形一致（playtest 断言）；全息与赛博常驻动画进 `FrameTimer` 预算；1.21.1 冒烟。
+- 验收：四张陈列页截图；同一陈列页在四套主题下的布局矩形一致（playtest 断言）；全息与赛博常驻动画在陈列页预算内；1.21.1 冒烟。
 
 #### REC playtest 动图录制
 

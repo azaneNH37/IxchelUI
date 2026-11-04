@@ -35,7 +35,7 @@ flowchart LR
 | `css.syntax` | CSS Syntax L3 分词、组件值 | diag |
 | `css.selector` | 选择器解析、优先级、匹配 | css.syntax, dom |
 | `css.property` | 属性注册表：名称、语法、初值、是否继承、是否影响布局、是否可过渡 | css.syntax |
-| `dom` / `template` | `Element` 树、类名与状态位；顶层 `TopLayer` 与进出单元 `Presence`（#032，块副本、整页、顶层条目共用；经 `Presence.Motion` 端口询问运动状态，不依赖 `anim`）；严格模板解析器；`TemplateLoader`（链接图：相对路径、`@ixchel/` 库命名空间、预引入表、递归加载、去重、环检测、热重载文件表，mc 层只按 id 读取宿主文本）与 `ComponentDef`；翻译端口 `Translations` 与解析期译文展开（#027） | diag, css.property（计算值）, css.syntax（`style` 属性的声明）, text（强制换行字符）, library（template） |
+| `dom` / `view` / `link` | `Element` 树、类名与状态位；顶层 `TopLayer` 与进出单元 `Presence`（#032，块副本、整页、顶层条目共用；经 `Presence.Motion` 端口询问运动状态，不依赖 `anim`）；`view`：严格视图解析器（根元素 `<page>`/`<component>`）、`ComponentDef`、`TagRegistry`、`@UiElement`，翻译端口 `Translations` 与解析期译文展开（#027）；`link`：`Linker`（链接图：相对路径、`@ixchel/` 库命名空间、视图的 `<link href>`、css 的 `@link` 与特效别名、按文件分组件层与作者层、递归加载、去重、环检测、热重载文件表，mc 层只按 id 读取宿主文本，#041） | diag, css.property（计算值）, css.syntax（`style` 属性的声明、css 文件的解析）, text（强制换行字符）, effect、library（link） |
 | `style` | 规则索引、匹配、层叠、`var()`、计算值 | dom, css.* |
 | `anim` | transition、`@keyframes` | style |
 | `text` | 文本测量接口与结果缓存、换行 | — |
@@ -43,11 +43,11 @@ flowchart LR
 | `paint` | DisplayList 生成、裁剪栈 | dom, css.property, layout, text |
 | `event` | 命中测试、三阶段派发、焦点、hover/active/focus 状态位、`Keys` 键名表与剪贴板端口；通过 `InteractionFacet` 调用元素默认行为，只把所需操作交给内部 `Actions`；`UiEvent` 与监听器存放在 `dom` | dom, layout, css.property |
 | `binding` | ViewModel 作者 API：ViewModel / Cell / Value / Derived / Source / Action / Scope / EventInfo；包内 Polled / Held / Flat；`ModelAccess` 是只发给 `binding.compile` 的内部接缝（#017） | — |
-| `library` | 库的 `@ixchel/` 文件命名空间：按层的文件根（锚点类相对读取 classpath）、预引入表（标签 → 组件文件 id）、库 Java 组件；core 的库 `Library.CORE`，mc 层 `extend`（#037） | binding |
+| `library` | 库的 `@ixchel/` 文件命名空间：按前缀的文件根（锚点类相对读取 classpath 的 `ui/` 目录），只按 id 读取、从不枚举；根由 `runtime.UiRegistry` 登记（#037、#041） | — |
 | `binding.expr` | 表达式语言：`Expr` 语法树、`Parser`、`Expressions`（类型检查与编译为输入加求值函数）、`Types` 类型规则 | binding |
 | `binding.compile` | 模板绑定：`Bindings` 入口、`Compiler`（按名字表解析）、`Name`/`Ref`/`Part`/`Anchor`、`Block`/`IfBlock`/`EachBlock`、`Binding`/`StyleBinding`；双向 `bind:value`、`bind:scrolltop`；`on:keydown.<key>` 过滤查 `event.Keys`，鼠标与修饰键过滤（`.left`/`.right`/`.shift`…）精确匹配（#012）；块副本作为 `dom.Presence` 单元进出 | binding, binding.expr, dom, template, event |
-| `html` | 内置元素定义的装配与各元素专有行为；原生元素声明转为同一种切面组合。切面接口归各消费阶段，阶段不反向依赖内置定义。选择组合而非元素继承，避免 DOM 反向依赖流水线；interaction/layout 暂不作为宿主扩展契约（#031） | dom, template, layout, paint, event, style |
-| `runtime` | `UiDocument`：组装上述阶段、帧驱动、热重载入口 | 全部 |
+| `html` | 内置元素定义的装配与各元素专有行为；绘制元素（`@UiElement`）声明转为同一种切面组合。切面接口归各消费阶段，阶段不反向依赖内置定义。选择组合而非元素继承，避免 DOM 反向依赖流水线；interaction/layout 暂不作为宿主扩展契约（#031） | dom, template, layout, paint, event, style |
+| `runtime` | `UiDocument`：组装上述阶段、帧驱动、热重载入口；`UiRegistry`（元素、Java 组件、库文件根的登记：`CORE`、各层库、每宿主一份）与 `UiHosting`（文档所见的登记合集，#041） | 全部 |
 
 `css.property` 是**唯一的支持清单**：解析、校验、开发期报错、特性文档与 VS Code `css.customData` 都由它生成，不另维护列表。
 
@@ -63,12 +63,12 @@ flowchart LR
 - 样式脏标记的粒度是子树：元素脏表示它与整棵子树都重算；祖先只记"有脏后代"，供样式阶段跳过干净子树。没有结构伪类与兄弟组合符，所以增删子节点不标父元素脏；属性选择器只有 `[a]`、`[a=v]`，只匹配元素自身。例外：改 `id` 标该元素脏（参与 `#id` 匹配），已算过样式的元素被挂到（新）父节点下时标该元素脏（继承值与组合选择器随祖先变化）。`class`/`style` 不走 `setAttribute`，分别用 `addClass`/`removeClass` 与 `setInlineStyle`。
 - 坐标是文档 GUI 像素，原点在视口左上；`LayoutBox` 存绝对坐标的 border box。模板顶层元素的父节点是尺寸等于视口的隐式根。
 - `font-size` 以 GUI 像素计，`9px` = vanilla 字体 1 倍（行高 9）；`DrawCommand.Text` 的 `(x, y)` 是行框左上角，基线对齐由 `McPainter` 处理。
-- 物品不单设绘制命令类型，走 `Custom(kind, payload, x, y, w, h)`：原生元素由实现类上的 `@NativeElement` 声明，载荷类型从泛型取得；宿主经 `McElements.register(modid, painter)` 登记（#030）。payload 只能经 `bind:<payload>` 写入（按引用判断变化），原生元素的绘制切面输出 `Custom`，core 不解释宿主对象。mc 层 `<mc-item bind:item>` 用 vanilla `renderItem` 按元素尺寸缩放绘制；深度按重叠分层（§4）。
+- 物品不单设绘制命令类型，走 `Custom(kind, payload, x, y, w, h)`：绘制元素由实现类上的 `@UiElement` 声明，载荷类型从泛型取得；宿主经 `UiRegistries.register(UiRegistry.host(modid).element(painter))` 登记（#030、#041）。payload 只能经 `bind:<payload>` 写入（按引用判断变化），绘制元素的绘制切面输出 `Custom`，core 不解释宿主对象。mc 层 `<mc-item bind:item>` 用 vanilla `renderItem` 按元素尺寸缩放绘制；深度按重叠分层（§4）。
 - `Syntax.parse` 报错后返回 `null`，该声明整条丢弃；简写在解析期展开，`ComputedStyle` 只存长写属性。选择器列表中任一项非法则整条规则丢弃（同 CSS）。
 - 布局只在计算值中 `affectsLayout` 属性变化、文本、字号或子节点列表变化，或视口变化时才跑 taffy；只改颜色、背景等的重算不调用 taffy `setStyle`。
 - 干净帧：上一帧以来无重算、无文本与子节点变化、视口不变、未调用 `invalidateText()` 时，`UiDocument.frame` 跳过布局同步与绘制，沿用上一帧的 `DisplayList`，core 不分配。`DisplayList` 带版本号，只在重绘时递增，`McPainter` 据此复用顶点缓冲。
-- 模板属性分两类：普通属性（按 `TagRegistry` 校验）与指令（`bind:*`、`on:*`、`state:*`，连同名字与值的源位置原样保存在 `Element` 上，交给 binding 层校验）。`t` 为保留属性（开发期报错）。`TagRegistry` 是实例：core 提供 HTML 子集，mc 层追加原生元素后传入加载。
-- 文本是样式片段（`dom.StyledText`）：模板中的文字与 `<span>`/`<a>` 按 CSS 取样式，绑定值经宿主的 `Bindings.TextConverter` 转换，mc 层把 `Component` 拆成带颜色与格式的片段，二者走同一套 core 行内排版（#019）；`TextMeasurer` 按样式测量，`DrawCommand.Text` 带粗体、斜体、下划线、删除线、混淆标志。行内格式化上下文只由 `display: block` 建立，flex 中的行内子元素按 CSS blockify；`inline` 元素不支持盒属性（开发期报错），`inline-block`、`<img>`、原生元素与表单控件是原子行内盒。字体或资源重载后宿主调用 `UiDocument.invalidateText()`。
+- 模板属性分两类：普通属性（按 `TagRegistry` 校验）与指令（`bind:*`、`on:*`、`state:*`，连同名字与值的源位置原样保存在 `Element` 上，交给 binding 层校验）。`t` 为保留属性（开发期报错）。`TagRegistry` 是实例，由文档的 `UiHosting` 按登记的元素构建：core 提供 HTML 子集，mc 层与宿主的绘制元素经 `UiRegistry` 加入。
+- 文本是样式片段（`dom.StyledText`）：模板中的文字与 `<span>`/`<a>` 按 CSS 取样式，绑定值经宿主的 `Bindings.TextConverter` 转换，mc 层把 `Component` 拆成带颜色与格式的片段，二者走同一套 core 行内排版（#019）；`TextMeasurer` 按样式测量，`DrawCommand.Text` 带粗体、斜体、下划线、删除线、混淆标志。行内格式化上下文只由 `display: block` 建立，flex 中的行内子元素按 CSS blockify；`inline` 元素不支持盒属性（开发期报错），`inline-block`、`<img>`、绘制元素与表单控件是原子行内盒。字体或资源重载后宿主调用 `UiDocument.invalidateText()`。
 - 加载的 `Diagnostics` 留在 `UiDocument` 上：成功加载的警告与加载后才出现的错误（如延迟编译的内联样式）宿主都能读到，供开发期叠加层显示。
 
 M1 已知限制（均为开发期可见行为，后续按场景放开）：
@@ -85,22 +85,22 @@ M1 已知限制（均为开发期可见行为，后续按场景放开）：
 
 | 包 | 契约 | 主要类 |
 |---|---|---|
-| `mc`（根） | 宿主 API：把原版的屏幕、容器屏幕、HUD 帧与输入交给文档；宿主 `render` 的帧计时 | `UiScreen`、`UiContainerScreen`、`UiHud`、`FrameTimer` |
+| `mc`（根） | 宿主 API：把原版的屏幕、容器屏幕、HUD 帧与输入交给文档；宿主的元素与 Java 组件登记、本层的库；宿主 `render` 的帧计时 | `UiScreen`、`UiContainerScreen`、`UiHud`、`UiRegistries`（`MC`、`register`、`hosting`）、`FrameTimer` |
 | `mc.document` | 文档生命周期，所有宿主共用：从宿主资源加载（`<link>` 解析）、开发期热重载与保留上一版、错误叠加层、逐帧绘制与 tooltip；view model 跨重载保留；已关屏幕的文档画到离场结束（V4，加载器层转发绘制事件） | `HostedDocument`、`ExitingDocuments`；`McResources`、`DevResources`、`DevOverlay` 包内私有 |
-| `mc.element` | 原版内容进入文档：每个原生元素一个单元，自带标签、绘制（`NativePainter`）与 tooltip 解析 | `McElements`（`TAGS`、`PAINTERS`）、`Tooltips`；`ItemElement`、`EntityElement` 包内私有 |
-| `mc.container` | 容器槽位接入：GUI 区域、`Slot.x/y` 写回与还原、隐藏规则、hover 判定、`IXCHEL` 逐槽裁剪绘制、关闭后的槽位内容快照 | `ContainerLayout`（含 `<mc-slot index>` 的 `TAGS`）、`ClippedSlotItems`、`SlotSnapshot`；`SlotPositions` 包内私有 |
-| `mc.paint` | core 端口实现：DisplayList 回放（自写顶点合批、scissor、按重叠分层）、文本与图片测量、`sprite:` 图集精灵 | `McPainter`、`NativePainter`、`McTextMeasurer`、`McImageMeasurer`；`Sprites`、`Layers` 包内私有 |
+| `mc.element` | 原版内容进入文档：每个绘制元素一个单元，自带标签、绘制（`ElementPainter`）与 tooltip 解析；库组件 `<mc-tooltip-lines>` | `McElements.into`（把本包元素与组件登记进 `UiRegistries.MC`）、`Tooltips`；`ItemElement`、`EntityElement`、`TooltipLinesModel` 包内私有 |
+| `mc.container` | 容器槽位接入：GUI 区域、`Slot.x/y` 写回与还原、隐藏规则、hover 判定、`IXCHEL` 逐槽裁剪绘制、关闭后的槽位内容快照 | `ContainerLayout`（`<mc-slot index>` 的声明类）、`ClippedSlotItems`、`SlotSnapshot`（`PAINTER` 绘制 `<mc-slot>`）；`SlotPositions`、`PlayerInventoryModel` 包内私有 |
+| `mc.paint` | core 端口实现：DisplayList 回放（自写顶点合批、scissor、按重叠分层）、文本与图片测量、`sprite:` 图集精灵 | `McPainter`、`ElementPainter`、`McTextMeasurer`、`McImageMeasurer`；`Sprites`、`Layers` 包内私有 |
 | `mc.source` | 游戏状态作为数据源 | `ClientSources`、`WorldProjection` |
 | `mc.playtest` | 游戏内测试（仅开发期，T2，#026）：按 `-Dixchel.playtest.<modid>` 运行、进开发世界、经原版 `Screen` 驱动 core `PlaytestDriver`、服务端步骤、截图、槽位、断言失败转储与退出码 | `Playtests`、`Playtest`；`ScreenInput` 包内私有 |
 
-依赖单向：根 → document/container → element → paint；playtest → 根；source 独立。`McPainter` 不认识任何原生元素，按 `DrawCommand.Custom.kind` 查 `NativePainter`，绘制返回写入的深度。每条命令画在之前与它矩形相交的命令所达到的最高深度上（`Layers`，原生元素只按边框盒算），深度只随同一处叠了几层增长；原先"原生绘制后其后命令整体抬高"在约 70 格物品网格时越过 GUI 远平面（Forge 1.20.1 为 z 10000）。1.21.1 为最小集：无 `container`、`playtest`、`<mc-entity>`、`sprite:`，其余包与 1.20.1 同构。
+依赖单向：根 → document/container → element → paint；playtest → 根；source 独立。`McPainter` 不认识任何绘制元素，按 `DrawCommand.Custom.kind` 查 `ElementPainter`，绘制返回写入的深度。每条命令画在之前与它矩形相交的命令所达到的最高深度上（`Layers`，绘制元素只按边框盒算），深度只随同一处叠了几层增长；原先"原生绘制后其后命令整体抬高"在约 70 格物品网格时越过 GUI 远平面（Forge 1.20.1 为 z 10000）。1.21.1 为最小集：无 `container`、`playtest`、`<mc-entity>`、`sprite:`，其余包与 1.20.1 同构。
 
 `ixchel-<加载器>-<版本>`：只做注册——`registerHud` 构造 `UiHud`，把它挂到 HUD 层与资源重载监听，安装 `WorldProjection` 的相机捕获；1.20.1 另有 `installPlaytests`，以 tick 事件实现游戏内测试的 `Pump`；不碰文档加载与开发期设施。
 
 ### 5. 模板解析器（#007）
 
 - 规则类 XML：标签必须闭合或自闭合、属性必须加引号、不做隐式闭合；未知标签与属性开发期报错，带文件:行:列。
-- 仅识别注册过的元素（HTML 子集 + 原生元素）；`<style>` 与 `style` 属性交给 css 包。
+- 仅识别登记过的元素（HTML 子集 + 绘制元素）；`style` 属性交给 css 包。
 - 估计约 0.5k 行（推断）。
 
 jsoup 的问题在 HTML5 容错建树（隐式闭合、adoption agency、foster parenting）会静默改写结构，而非 DOM 模型本身。

@@ -66,7 +66,7 @@ class UiDocumentUnitsTest {
                 div { padding: 1em 2em 3em 4em 5em }
                 div { width: min(1px, 2) }
                 """));
-        assertEquals(List.of("css/unsupported-unit@t.css:1:14", "css/function-arguments@t.css:2:22",
+        assertEquals(List.of("css/unsupported-unit@t.css:1:27", "css/function-arguments@t.css:2:22",
                 "css/function-arguments@t.css:3:23", "css/value-count@t.css:4:32", "css/function-arguments@t.css:5:14"),
                 DiagCodes.of(e));
     }

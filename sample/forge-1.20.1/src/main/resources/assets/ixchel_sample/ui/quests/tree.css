@@ -1,3 +1,6 @@
+@stylesheet;
+@link "../themes/overlay.css";
+
 .screen {
   width: 100%;
   height: 100%;
@@ -5,7 +8,7 @@
   justify-content: center;
 }
 
-.panel {
+.ix-panel {
   padding: 6px;
 }
 
@@ -111,7 +114,9 @@
   opacity: 0.45;
 }
 
-.node.selected {
+/* The theme's selected fill would show around the frame texture. */
+.node.ix-selected {
+  background-color: transparent;
   transform: scale(1.15);
   border-radius: 5px;
   box-shadow: 0 0 6px 2px #FFFF5590;

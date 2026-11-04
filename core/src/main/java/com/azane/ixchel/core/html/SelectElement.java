@@ -17,8 +17,8 @@ import com.azane.ixchel.core.layout.LayoutFacet;
 import com.azane.ixchel.core.paint.PaintFacet;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
-import com.azane.ixchel.core.template.ContentModel;
-import com.azane.ixchel.core.template.TemplateCode;
+import com.azane.ixchel.core.view.ContentModel;
+import com.azane.ixchel.core.view.ViewCode;
 import com.azane.ixchel.core.text.TextShaper;
 import java.util.List;
 
@@ -29,7 +29,7 @@ final class SelectElement {
         @Override public boolean ownsText() { return false; }
         @Override public boolean children(Element e, List<Node> children, Diagnostics d) {
             if (onlyOptions(children, true)) return true;
-            d.report(TemplateCode.INVALID_CHILDREN, e.pos(), "<select> may only contain <option> elements, directly or in <for> and <if>, and an <ix-tooltip>");
+            d.report(ViewCode.INVALID_CHILDREN, e.pos(), "<select> may only contain <option> elements, directly or in <for> and <if>, and an <ix-tooltip>");
             return false;
         }
     };
@@ -37,7 +37,7 @@ final class SelectElement {
     static final ContentModel OPTION_CONTENT = new ContentModel() {
         @Override public boolean children(Element e, List<Node> children, Diagnostics d) {
             for (Node n : children) if (!(n instanceof TextNode)) {
-                d.report(TemplateCode.INVALID_CHILDREN, e.pos(), "<option> may only contain text");
+                d.report(ViewCode.INVALID_CHILDREN, e.pos(), "<option> may only contain text");
                 return false;
             }
             return true;

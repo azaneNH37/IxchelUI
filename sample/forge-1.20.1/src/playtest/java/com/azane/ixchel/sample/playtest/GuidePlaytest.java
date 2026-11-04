@@ -13,7 +13,7 @@ import org.lwjgl.glfw.GLFW;
 import java.util.List;
 
 /**
- * {@code -Pplaytest=guide}: the contents list the entry templates; a link inside a paragraph (hit on its
+ * {@code -Pplaytest=guide}: the contents list the entry views; a link inside a paragraph (hit on its
  * line) opens an entry, Back and Backspace walk the history back to the spread left; the page arrows
  * and Left/Right turn spreads, sliding the pages in view; a crafting grid cycles a cell through the
  * items it accepts; the long entry holds the frame budget standing still and turning every tick.
@@ -32,7 +32,7 @@ public final class GuidePlaytest {
     public static void register(Playtests playtests) {
         playtests.register("guide", s -> {
             s.run(Guide::open);
-            s.waitUntil("the contents list every entry template, sorted", () -> Playtest.isOpen()
+            s.waitUntil("the contents list every entry view, sorted", () -> Playtest.isOpen()
                     && Playtest.texts(".toc a").equals(List.of("Circuits", "Pistons", "Storage", "Typesetting"))
                     && Playtest.text(".folio").equals("1 / 1"), Playtest.WAIT);
             s.expect("the pages load without errors", GuidePlaytest::clean);

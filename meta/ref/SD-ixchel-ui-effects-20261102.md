@@ -147,7 +147,7 @@ vec4 effect(IxLayer l) {
 - `param` 照搬 `@property` 的三个描述符，`inherits` 必填；`syntax` 取 CSS 值类型：`<number>`、`<length>`、`<percentage>`、`<color>`、`<angle>`、`<time>`。库生成 uniform：位置、尺寸与长度均为物理像素（长度按 GUI 缩放换算），颜色转 vec4，角度转弧度；参数名中的 `-` 在 GLSL 中写作 `_`。
 - 库把 `effect()` 包成完整的 fsh/vsh/json 并引入原语库；作者只写组合。头部解析在 core（kit 静态可读），包装与编译在各版本 mc。
 - 圆角取自 `border-radius`（V1 已支持）。
-- 内置特效用同一格式写，随库发布在 classpath，从 `@ixchel/effects/…` 引入，与 `LibrarySheets` 的 `@ixchel/` 命名一致，资源包不能覆盖。宿主自己的 `.ixeffect` 在 assets，资源包可按同一资源 id 覆盖来换皮。
+- 内置特效用同一格式写，随库发布在 classpath，名字带 `ix-` 前缀，从 `@ixchel/effects/ix-<名>` 显式引入（#039），资源包不能覆盖。宿主自己的 `.ixeffect` 在 assets，href 带扩展名，资源包可按同一资源 id 覆盖来换皮。
 
 ### 6. 使用
 

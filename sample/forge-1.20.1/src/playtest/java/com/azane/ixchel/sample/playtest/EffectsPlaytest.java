@@ -43,7 +43,7 @@ public final class EffectsPlaytest {
                     near(overlap(".stack.whole"), topOnly(".stack.whole"), 3));
             s.expect("square by square, the overlap shows both", () ->
                     !near(overlap(".stack.apart"), topOnly(".stack.apart"), 10));
-            // Fails if native elements are drawn outside the group's layer and keep full opacity.
+            // Fails if drawn elements are drawn outside the group's layer and keep full opacity.
             s.expect("items in a faded group fade too", () ->
                     !near(center(".items.whole .item", 1), center(".items:not(.whole) .item", 1), 10));
             s.click(".toggle");

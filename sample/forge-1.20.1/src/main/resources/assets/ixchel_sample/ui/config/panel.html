@@ -1,96 +1,97 @@
-<link rel="stylesheet" href="@ixchel/dark.css"/>
-<link rel="stylesheet" href="panel.css"/>
-<div class="screen" on:keydown.escape="cancel">
-  <div class="panel">
-    <div class="header">
-      <span class="title" t="ixchel_sample.config.title"></span>
-      <input class="search" t:placeholder="ixchel_sample.config.search" bind:value="query"/>
-    </div>
-    <div class="body">
-      <div class="categories">
-        <for each="categories" as="c" key="c.id"><div class="category" tabindex="0"
-             bind:class:active="c.active" on:click="select(c)" on:keydown.enter="select(c)">
-          <span bind:text="c.label"></span>
-        </div></for>
+<page>
+  <link href="panel.css"/>
+  <div class="screen" on:keydown.escape="cancel">
+    <div class="ix-panel">
+      <div class="header">
+        <span class="ix-title" t="ixchel_sample.config.title"></span>
+        <input class="search" t:placeholder="ixchel_sample.config.search" bind:value="query"/>
       </div>
-      <div class="entries">
-        <if test="rows.size == 0"><span class="none" t="ixchel_sample.config.no_match"></span></if>
-        <for each="rows" as="r" key="r.id"><div class="entry"
-             bind:class:modified="r.modified" bind:class:invalid="r.invalid">
-          <ix-tooltip class="entry-tip">
-            <span class="tip-name" bind:text="r.label"></span>
-            <span class="tip-path" bind:text="r.id"></span>
-            <span bind:text="r.comment"></span>
-            <if test="r.restart"><span class="tip-restart" t="ixchel_sample.config.restart_tip"></span></if>
-          </ix-tooltip>
-          <div class="line">
-            <div class="marker"></div>
-            <span class="name" bind:text="r.label"></span>
-            <if test="r.restart"><span class="restart" t="ixchel_sample.config.restart"></span></if>
-            <div class="control">
-              <if test="r.bool"><input type="checkbox" class="check" bind:checked="r.on"/></if>
-              <if test="r.number"><div class="number">
-                <input type="range" class="slider" bind:min="r.min" bind:max="r.max" bind:step="r.step" bind:value="r.value"/>
-                <input type="number" class="num" bind:min="r.min" bind:max="r.max" bind:step="r.step" bind:value="r.value"/>
-              </div></if>
-              <if test="r.choice"><select class="choice" bind:value="r.value">
-                <for each="r.choices" as="o" key="o"><option bind:value="o" bind:text="o"></option></for>
-              </select></if>
-              <if test="r.text"><input class="text" bind:value="r.value"/></if>
-              <if test="r.color"><div class="color">
-                <div class="swatch" bind:style:background-color="r.swatch"></div>
-                <input class="hex" maxlength="7" bind:value="r.value"/>
-              </div></if>
-              <if test="r.list"><div class="list">
-                <span class="summary" bind:text="r.value"></span>
-                <button class="edit" on:click="editList(r)" t="ixchel_sample.config.edit"></button>
-              </div></if>
-              <button class="reset" bind:disabled="r.atDefault" on:click="reset(r)" t="ixchel_sample.config.reset"></button>
-            </div>
-          </div>
-          <if test="r.invalid"><span class="error" bind:text="r.error"></span></if>
-        </div></for>
-      </div>
-    </div>
-    <div class="footer">
-      <span class="status" bind:text="status"></span>
-      <if test="restartPending"><span class="note" t="ixchel_sample.config.restart_note"></span></if>
-      <button class="undo" bind:disabled="!canUndo" on:click="undo" t="ixchel_sample.config.undo"></button>
-      <button class="cancel" on:click="cancel" t="gui.cancel"></button>
-      <button class="save" bind:disabled="!canSave" on:click="save" t="ixchel_sample.config.save"></button>
-    </div>
-  </div>
-  <dialog class="list-dialog" bind:open="listOpen">
-    <span class="dialog-title" bind:text="listTitle"></span>
-    <div class="items" bind:class:sorting="grabbed >= 0">
-      <for each="items" as="i" key="i.id"><div class="item" bind:class:dragged="grabbed == i.id" on:drop="moveTo(i)">
-        <div class="grip" draggable="true" t:title="ixchel_sample.config.reorder" on:dragstart="grabbed = i.id" on:dragend="grabbed = -1">
-          <ix-drag-preview class="item-ghost"><span bind:text="i.text"></span></ix-drag-preview>
+      <div class="body">
+        <div class="categories">
+          <for each="categories" as="c" key="c.id"><div class="category" tabindex="0"
+               bind:class:active="c.active" on:click="select(c)" on:keydown.enter="select(c)">
+            <span bind:text="c.label"></span>
+          </div></for>
         </div>
-        <input class="item-text" bind:value="i.text"/>
-        <button class="remove" on:click="removeItem(i)" t="ixchel_sample.config.remove"></button>
-      </div></for>
+        <div class="entries">
+          <if test="rows.size == 0"><span class="none" t="ixchel_sample.config.no_match"></span></if>
+          <for each="rows" as="r" key="r.id"><div class="entry"
+               bind:class:modified="r.modified" bind:class:invalid="r.invalid">
+            <ix-tooltip class="entry-tip">
+              <span class="tip-name" bind:text="r.label"></span>
+              <span class="tip-path" bind:text="r.id"></span>
+              <span bind:text="r.comment"></span>
+              <if test="r.restart"><span class="tip-restart" t="ixchel_sample.config.restart_tip"></span></if>
+            </ix-tooltip>
+            <div class="line">
+              <div class="marker"></div>
+              <span class="name" bind:text="r.label"></span>
+              <if test="r.restart"><span class="restart" t="ixchel_sample.config.restart"></span></if>
+              <div class="control">
+                <if test="r.bool"><input type="checkbox" class="check" bind:checked="r.on"/></if>
+                <if test="r.number"><div class="number">
+                  <input type="range" class="slider" bind:min="r.min" bind:max="r.max" bind:step="r.step" bind:value="r.value"/>
+                  <input type="number" class="num" bind:min="r.min" bind:max="r.max" bind:step="r.step" bind:value="r.value"/>
+                </div></if>
+                <if test="r.choice"><select class="choice" bind:value="r.value">
+                  <for each="r.choices" as="o" key="o"><option bind:value="o" bind:text="o"></option></for>
+                </select></if>
+                <if test="r.text"><input class="text" bind:value="r.value"/></if>
+                <if test="r.color"><div class="color">
+                  <div class="swatch" bind:style:background-color="r.swatch"></div>
+                  <input class="hex" maxlength="7" bind:value="r.value"/>
+                </div></if>
+                <if test="r.list"><div class="list">
+                  <span class="summary" bind:text="r.value"></span>
+                  <button class="edit" on:click="editList(r)" t="ixchel_sample.config.edit"></button>
+                </div></if>
+                <button class="reset" bind:disabled="r.atDefault" on:click="reset(r)" t="ixchel_sample.config.reset"></button>
+              </div>
+            </div>
+            <if test="r.invalid"><span class="error" bind:text="r.error"></span></if>
+          </div></for>
+        </div>
+      </div>
+      <div class="footer">
+        <span class="status" bind:text="status"></span>
+        <if test="restartPending"><span class="note" t="ixchel_sample.config.restart_note"></span></if>
+        <button class="undo" bind:disabled="!canUndo" on:click="undo" t="ixchel_sample.config.undo"></button>
+        <button class="cancel" on:click="cancel" t="gui.cancel"></button>
+        <button class="save" bind:disabled="!canSave" on:click="save" t="ixchel_sample.config.save"></button>
+      </div>
     </div>
-    <div class="dialog-row">
-      <button class="add" on:click="addItem" t="ixchel_sample.config.add"></button>
-      <select class="preset" bind:value="preset" on:change="addPreset">
-        <option value="" t="ixchel_sample.config.preset"></option>
-        <option value="minecraft:rotten_flesh" t="item.minecraft.rotten_flesh"></option>
-        <option value="minecraft:poisonous_potato" t="item.minecraft.poisonous_potato"></option>
-        <option value="minecraft:spider_eye" t="item.minecraft.spider_eye"></option>
-        <option value="minecraft:dead_bush" t="block.minecraft.dead_bush"></option>
-      </select>
-    </div>
-    <div class="dialog-row">
-      <button class="list-cancel" on:click="listOpen = false" t="gui.cancel"></button>
-      <button class="list-done" on:click="applyList" t="gui.done"></button>
-    </div>
-  </dialog>
-  <dialog class="confirm" bind:open="confirming">
-    <span t="ixchel_sample.config.discard_question"></span>
-    <div class="dialog-row">
-      <button class="keep" on:click="confirming = false" t="ixchel_sample.config.keep_editing"></button>
-      <button class="discard" on:click="discard" t="ixchel_sample.config.discard"></button>
-    </div>
-  </dialog>
-</div>
+    <dialog class="list-dialog" bind:open="listOpen">
+      <span class="dialog-title" bind:text="listTitle"></span>
+      <div class="items" bind:class:sorting="grabbed >= 0">
+        <for each="items" as="i" key="i.id"><div class="item" bind:class:dragged="grabbed == i.id" on:drop="moveTo(i)">
+          <div class="grip" draggable="true" t:title="ixchel_sample.config.reorder" on:dragstart="grabbed = i.id" on:dragend="grabbed = -1">
+            <ix-drag-preview class="item-ghost"><span bind:text="i.text"></span></ix-drag-preview>
+          </div>
+          <input class="item-text" bind:value="i.text"/>
+          <button class="remove" on:click="removeItem(i)" t="ixchel_sample.config.remove"></button>
+        </div></for>
+      </div>
+      <div class="dialog-row">
+        <button class="add" on:click="addItem" t="ixchel_sample.config.add"></button>
+        <select class="preset" bind:value="preset" on:change="addPreset">
+          <option value="" t="ixchel_sample.config.preset"></option>
+          <option value="minecraft:rotten_flesh" t="item.minecraft.rotten_flesh"></option>
+          <option value="minecraft:poisonous_potato" t="item.minecraft.poisonous_potato"></option>
+          <option value="minecraft:spider_eye" t="item.minecraft.spider_eye"></option>
+          <option value="minecraft:dead_bush" t="block.minecraft.dead_bush"></option>
+        </select>
+      </div>
+      <div class="dialog-row">
+        <button class="list-cancel" on:click="listOpen = false" t="gui.cancel"></button>
+        <button class="list-done" on:click="applyList" t="gui.done"></button>
+      </div>
+    </dialog>
+    <dialog class="confirm" bind:open="confirming">
+      <span t="ixchel_sample.config.discard_question"></span>
+      <div class="dialog-row">
+        <button class="keep" on:click="confirming = false" t="ixchel_sample.config.keep_editing"></button>
+        <button class="discard" on:click="discard" t="ixchel_sample.config.discard"></button>
+      </div>
+    </dialog>
+  </div>
+</page>

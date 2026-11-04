@@ -3,7 +3,7 @@ package com.azane.ixchel.core.runtime;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.paint.ImageMeasurer;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -202,7 +202,7 @@ class UiDocumentBackgroundTest {
                 .k { background-image: linear-gradient(red, 50%, blue) }
                 .l { background-image: linear-gradient(to left left, red, blue) }
                 """, GoldenTest.NO_IMAGES));
-        assertEquals(List.of("css/invalid-resource-location@t.css:1:28", "css/unsupported-value@t.css:2:38",
+        assertEquals(List.of("css/invalid-resource-location@t.css:1:41", "css/unsupported-value@t.css:2:38",
                 "css/function-arguments@t.css:3:24", "css/invalid-resource-location@t.css:4:28", "css/unsupported-value@t.css:5:23",
                 "css/negative-value@t.css:6:23", "css/value-count@t.css:7:31", "css/invalid-value@t.css:8:27",
                 "css/invalid-value@t.css:9:25", "css/not-animatable@t.css:10:18", "css/unsupported-value@t.css:11:45",

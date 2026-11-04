@@ -42,7 +42,7 @@ public final class Main {
     private static final String USAGE = """
             usage:
               lint --resources <dir>... --classpath <entry>... [--enable <code-id>...] [--json]
-                  checks every template under <dir>/assets/<namespace>/; exits 1 on errors.
+                  checks every view under <dir>/assets/<namespace>/; exits 1 on errors.
                   Translations are checked in en_us. --enable turns on opt-in checks such as
                   i18n/literal-text.
               schema [--resources <dir>...] [--classpath <entry>...] [--json]
@@ -52,7 +52,7 @@ public final class Main {
             Every option takes several paths, separate or joined with the platform's path separator.
             --classpath takes the project's runtime classpath. Its directories are the project's
             compiled output, where view models are looked for; its jars supply their field types
-            and the Ixchel mc layer's native element declarations and library components. Pass it
+            and the Ixchel mc layer's element declarations, registry and library files. Pass it
             as an argument, not as the kit's own classpath: the kit reads it through a loader that
             skips jar signatures, which a patched development Minecraft jar fails.""";
 

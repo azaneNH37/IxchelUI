@@ -11,7 +11,7 @@ import java.util.List;
 import static com.azane.ixchel.core.binding.compile.Bindings.MODEL;
 
 /**
- * The view model of one Java component instance and its template's bindings, a part after its
+ * The view model of one Java component instance and its view's bindings, a part after its
  * parameter defaults: its first update joins the models polled each pass and polls the model, with
  * every port readable, so the bindings start from real values. It closes with the copy holding the
  * instance.
@@ -38,7 +38,7 @@ final class ChildModel implements Part {
     private boolean closed;
 
     /**
-     * @param body   the template's bindings, updated only after the model's first poll
+     * @param body   the view's bindings, updated only after the model's first poll
      * @param polled the document's component models polled each pass, after its page's
      * @param diag   where a failure to close is reported, at the shell
      */

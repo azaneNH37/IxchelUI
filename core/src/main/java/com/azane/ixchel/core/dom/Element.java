@@ -19,7 +19,7 @@ import java.util.Set;
 
 /**
  * Plain data shared by the pipeline stages: the tree, classes, attributes and interaction state come
- * from the template, bindings and events; {@link #computed()} and {@link #box()} are written by the
+ * from the view, bindings and events; {@link #computed()} and {@link #box()} are written by the
  * style and layout passes.
  *
  * <p>Style invalidation: a class, state, attribute (attributes take part in {@code [attr]}
@@ -89,7 +89,7 @@ public final class Element extends Node {
     private Map<String, List<ComponentValue>> boundCustom;
     private Map<String, List<ComponentValue>> boundCustomView = Map.of();
     private List<Registration> listeners;
-    /** Created on first use, once the template has set {@code type}. */
+    /** Created on first use, once the view has set {@code type}. */
     private FormControl control;
     private boolean controlResolved;
     private Element before;
@@ -174,7 +174,7 @@ public final class Element extends Node {
 
     /**
      * The {@code ::before} box the style pass generated for this element, or {@code null}. A
-     * pseudo-element is not among the {@link #children()}, so queries, templates and bindings never
+     * pseudo-element is not among the {@link #children()}, so queries, views and bindings never
      * see it; its {@link #parent()} is this element, so it inherits from it and layout and paint
      * place it before the first child.
      */
@@ -356,7 +356,7 @@ public final class Element extends Node {
         }
     }
 
-    /** The template's directives ({@code bind:*}, {@code on:*}, {@code state:*}, block attributes), in source order. */
+    /** The view's directives ({@code bind:*}, {@code on:*}, {@code state:*}, block attributes), in source order. */
     public List<Directive> directives() {
         return Collections.unmodifiableList(directives);
     }
@@ -365,7 +365,7 @@ public final class Element extends Node {
         directives.add(directive);
     }
 
-    /** The host object a native element is drawn from; set by its payload binding. */
+    /** The host object a drawn element is drawn from; set by its payload binding. */
     public Object payload() {
         return payload;
     }
@@ -427,7 +427,7 @@ public final class Element extends Node {
         this.inert = inert;
     }
 
-    /** Declarations from the {@code style} attribute, parsed by the template loader. */
+    /** Declarations from the {@code style} attribute, parsed by the view loader. */
     public List<Rule.Declaration> inlineStyle() {
         return inlineStyle;
     }

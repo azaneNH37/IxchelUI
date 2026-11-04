@@ -260,9 +260,11 @@ final class WaypointsView extends ViewModel {
 
 #### 3.3 顶层声明
 
-- `<link rel="stylesheet" href>`（现有）：相对模板目录或 `ns:path`；库内样式表用保留写法 `@ixchel/<名>.css`（前缀使用 namespace 不允许的字符，避免与 `ns:path` 冲突）。
+> 文件种类、`<link>`、`<style>`、`@import` 与包的规则由资源规范（`ref/D-ixchel-resource-spec-20261105.md`，#041）取代：视图以 `<page>`/`<component>` 为根，`<link href>` 不写 `rel`，css 以 `@link` 引入 partial 与特效。本节与 §4.4 中与之冲突的描述以资源规范为准。
+
+- `<link rel="stylesheet" href>`（现有）：相对模板目录或 `ns:path`。库的样式以主题提供，页面以 `<link rel="theme" href="@ixchel/themes/<名>"/>` 选择（#034，TH1 起；L3 的 `@ixchel/<名>.css` 已删除）。
 - `<link rel="component" href>`：路径规则同上；被引入的组件文件可再引入组件。组件文件随模板与样式表加入热重载监听列表（`McResources.Loaded.files`）。
-- `@ixchel/<路径>`（#037）：库的文件命名空间，与 `ns:path` 同一套解析与读取，读取按前缀分派到库（classpath）；库文件内的相对路径在 `@ixchel/` 下解析，`..` 不越出。库文件不热重载，资源包不能覆盖。库的预引入表（标签 → `@ixchel/` 组件文件，core 一份、mc 层扩展一份）中的组件免链接、首次使用时加载，显式 link 同一文件等价。
+- `@ixchel/<路径>`（#037）：库的文件命名空间，与 `ns:path` 同一套解析与读取，读取按前缀分派到库（classpath）；库文件内的相对路径在 `@ixchel/` 下解析，`..` 不越出。库文件不热重载，资源包不能覆盖。库 href 不带扩展名，按引用种类补（#039）；库的组件、特效与项目资源一样须显式 link，或经 `<link rel="package">` 引入包（`@ixchel/mc/components`、容器界面用 `@ixchel/mc/container`）。
 
 #### 3.4 组件
 
@@ -379,7 +381,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 | 多个样式表 | 支持，经模板中的多个 `<link>` | — |
 | 嵌套（CSS Nesting） | 报错（`CssParser`："At-rules and nested rules are reported as errors"） | 随组件实现；解析期展开，不改样式引擎 |
 | `var()` 自定义属性 | 支持（L3）：带回退，自定义属性按普通层叠且总是继承，`bind:style:--x` 可写；替换后无效的属性取继承值或初值并报告一次 | — |
-| `@import` | 报错（不支持任何 at-rule） | 只在主题文件开头开放一个，导入基底主题（TH1，#034）；其它样式表仍由模板侧 `<link>` 组合 |
+| `@import` | 报错（不支持任何 at-rule） | 只在主题文件开头开放：至多一个 `@import` 导入基底主题，另有 `@-ix-effect` 引入特效（TH1，#034、#039）；其它样式表仍由模板侧 `<link>` 组合 |
 | `@layer` 语法 | 不支持 | 不开放，层由 link 位置决定 |
 | `@extend`、`@mixin` | — | 不做：不是 CSS 标准（#003），多 class 组合已覆盖 |
 

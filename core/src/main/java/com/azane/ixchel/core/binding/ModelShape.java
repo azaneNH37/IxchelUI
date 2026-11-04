@@ -9,13 +9,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * The names a view model class offers its templates, read from the class alone: every non-static,
+ * The names a view model class offers its views, read from the class alone: every non-static,
  * non-private field whose declared type is a {@link Cell}, an {@link Action} or an {@link Event}, a
- * subclass's field hiding a superclass's of the same name. A template loaded at runtime and the
+ * subclass's field hiding a superclass's of the same name. A view loaded at runtime and the
  * offline lint see the same table, so a check passes or fails in both.
  *
  * <pre>{@code
- * class QuestsView extends ViewModel {
+ * class QuestsModel extends ViewModel {
  *     final Value<String> filter = state("");      // CELL, String, writable
  *     final Derived<List<Quest>> shown = derive(filter, ...);   // CELL, List<Quest>, read-only
  *     final Action<Quest> track = action(q -> ...); // ACTION, Quest
@@ -25,7 +25,7 @@ import java.util.Map;
  * }
  * }</pre>
  *
- * A member's kind is how a component's template uses it; {@link Member#port()} marks the component's
+ * A member's kind is how a component's view uses it; {@link Member#port()} marks the component's
  * signature. A port field must name its type: a raw one is not a member.
  */
 public final class ModelShape {
@@ -37,7 +37,7 @@ public final class ModelShape {
      * @param type     the value type of a cell ({@code Object} when raw), the argument type of an
      *                 action ({@code Void} for none, {@code null} when raw), or the payload type of an
      *                 event ({@code Void} for none)
-     * @param writable whether templates may write the cell: its declared type is {@link Value} or
+     * @param writable whether views may write the cell: its declared type is {@link Value} or
      *                 {@link TwoWay}
      * @param port     whether it belongs to a component's signature: its declared type is
      *                 {@link Param}, {@link TwoWay} or {@link Event}

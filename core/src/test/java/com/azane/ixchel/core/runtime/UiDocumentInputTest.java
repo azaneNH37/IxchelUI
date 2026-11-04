@@ -8,7 +8,7 @@ import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.event.Clipboard;
 import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.event.Keys;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -153,7 +153,7 @@ class UiDocumentInputTest {
             final Cell<String> frozen = source(com.azane.ixchel.core.binding.Source.polled(() -> "f"));
             final Value<Integer> count = state(0);
         }));
-        assertEquals(List.of("template/invalid-children@t.html:2:8", "binding/two-way-target@t.html:3:20",
+        assertEquals(List.of("view/invalid-children@t.html:2:8", "binding/two-way-target@t.html:3:20",
                 "binding/two-way-target@t.html:4:20", "binding/two-way-target@t.html:5:22"), DiagCodes.of(e));
     }
 }

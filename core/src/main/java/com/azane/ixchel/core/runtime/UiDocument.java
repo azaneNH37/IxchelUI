@@ -22,31 +22,33 @@ import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.Presence;
 import com.azane.ixchel.core.dom.TopLayer;
-import com.azane.ixchel.core.library.Library;
 import com.azane.ixchel.core.layout.Formatting;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.ImageMeasurer;
 import com.azane.ixchel.core.paint.Painter;
 import com.azane.ixchel.core.paint.RoundedClipCheck;
+import com.azane.ixchel.core.style.ComponentRootTokens;
+import com.azane.ixchel.core.style.LibraryNames;
 import com.azane.ixchel.core.style.StyleEngine;
 import com.azane.ixchel.core.style.StyleSheet;
-import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.core.template.TemplateCode;
-import com.azane.ixchel.core.template.TemplateLoader;
-import com.azane.ixchel.core.template.Translations;
+import com.azane.ixchel.core.view.ComponentDef;
+import com.azane.ixchel.core.view.TagRegistry;
+import com.azane.ixchel.core.link.Linker;
+import com.azane.ixchel.core.view.Translations;
 import com.azane.ixchel.core.text.TextMeasurer;
 import com.azane.ixchel.core.text.TextShaper;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 /**
- * One loaded UI: template tree under an implicit viewport-sized root, its styles, bindings, and the
+ * One loaded UI: page tree under an implicit viewport-sized root, its styles, bindings, and the
  * per-frame pipeline animations and transitions → {@link Presence} → bindings → style → layout →
  * paint → {@code animationend} events. The document's top-level elements enter as it loads. A frame
  * in which nothing changed and no animation, transition, entry or exit runs does no work and keeps
@@ -56,16 +58,17 @@ import java.util.function.LongSupplier;
  * style or layout. The caret of a focused {@code <input>} blinks every {@value #BLINK_MS} ms,
  * restarting visible on each edit or move.
  *
- * <p>Below the template's stylesheets sit the theme layer, the library stylesheets the page links
- * as {@code @ixchel/<name>}, the component layer, the stylesheets component files link, and a
- * user-agent stylesheet with the defaults of the inline elements, the native elements, the form
- * controls, {@code <dialog>}, {@code <ix-tooltip>} and {@code <ix-drag-preview>} (see
- * {@link LibrarySheets}). Open selects and dialogs, and the tooltip or drag preview shown at the
- * pointer, live in the document's {@link TopLayer}, which layout, paint and input share.
+ * <p>The page's stylesheet and the partials it links make the author layer; below it sits the
+ * component layer, the stylesheets of the component files with their partials (see {@link Linker}),
+ * and below that a user-agent stylesheet with the defaults of the inline elements, the native
+ * elements, the form controls, {@code <dialog>}, {@code <ix-tooltip>} and {@code <ix-drag-preview>}
+ * (see {@link UserAgentSheets}).
+ * Open selects and dialogs, and the tooltip or drag preview shown at the pointer, live in the
+ * document's {@link TopLayer}, which layout, paint and input share.
  *
- * <p>The effects the template and its components link ({@link Effects}) register their params as
- * typed properties of this document only: its styles, transitions, keyframes and bindings compile
- * against the registry they extend.
+ * <p>The effects the css files link ({@link Effects}) register
+ * their params as typed properties of this document only: its styles, partials included, transitions,
+ * keyframes and bindings compile against the registry they extend.
  *
  * <p>A {@link UiHosting} adds the library and the host's Java components. Component
  * instances own view models, which end with their instance or with {@link #close()}.
@@ -123,33 +126,32 @@ public final class UiDocument {
     }
 
     /** Loads a document without a view model; it sees only its local states. */
-    public static UiDocument load(String template, String templateFile, Function<String, String> files,
+    public static UiDocument load(String page, String pageFile, Function<String, String> files,
                                   TagRegistry tags, TextMeasurer measurer, ImageMeasurer images) {
-        return load(template, templateFile, files, tags, Translations.NONE, measurer, images, null, Bindings.PLAIN_TEXT);
+        return load(page, pageFile, files, tags, Translations.NONE, measurer, images, null, Bindings.PLAIN_TEXT);
     }
 
-    /** Loads a document whose template translates nothing. */
-    public static UiDocument load(String template, String templateFile, Function<String, String> files,
+    /** Loads a document whose page translates nothing. */
+    public static UiDocument load(String page, String pageFile, Function<String, String> files,
                                   TagRegistry tags, TextMeasurer measurer, ImageMeasurer images, ViewModel model,
                                   Bindings.TextConverter text) {
-        return load(template, templateFile, files, tags, Translations.NONE, measurer, images, model, text);
+        return load(page, pageFile, files, tags, Translations.NONE, measurer, images, model, text);
     }
 
     /** Loads a document without anything hosted. */
-    public static UiDocument load(String template, String templateFile, Function<String, String> files,
+    public static UiDocument load(String page, String pageFile, Function<String, String> files,
                                   TagRegistry tags, Translations translations, TextMeasurer measurer, ImageMeasurer images,
                                   ViewModel model, Bindings.TextConverter text) {
-        return load(template, templateFile, files, tags, translations, measurer, images, model, text, UiHosting.NONE);
+        return load(page, pageFile, files, tags, translations, measurer, images, model, text, UiHosting.NONE);
     }
 
     /**
-     * Parses and validates everything up front, with every file the template links directly or
-     * through components; stylesheets apply in document order, {@code <link rel="stylesheet">} and
-     * {@code <style>} interleaved. Every error found is reported in one {@link UiLoadException};
+     * Parses and validates everything up front, with every file the page links directly or
+     * through other files. Every error found is reported in one {@link UiLoadException};
      * warnings stay readable through {@link #diagnostics()}. Bindings are resolved and their initial
      * values written here.
      *
-     * @param templateFile the template's id, {@code namespace:path} or a bare path; links resolve against it
+     * @param pageFile the page's id, {@code namespace:path} or a bare path; links resolve against it
      * @param files        the text of a file id, {@code null} if there is none; a {@link RuntimeException}
      *                     is reported as a load error at the link
      * @param translations the language's translations; its language is the root's {@code lang}
@@ -158,11 +160,11 @@ public final class UiDocument {
      * @param text         converts bound values to text (the mc layer keeps a component's styles)
      * @param hosting      the library and the host's Java components it may use
      */
-    public static UiDocument load(String template, String templateFile, Function<String, String> files,
+    public static UiDocument load(String page, String pageFile, Function<String, String> files,
                                   TagRegistry tags, Translations translations, TextMeasurer measurer, ImageMeasurer images,
                                   ViewModel model, Bindings.TextConverter text, UiHosting hosting) {
         Diagnostics diag = new Diagnostics();
-        Parsed p = parse(template, templateFile, files, tags, translations, hosting, diag);
+        Parsed p = parse(page, pageFile, files, tags, translations, hosting, null, diag);
         Animations animations = new Animations(p.root);
         Transitions transitions = new Transitions(p.effects.registry(), p.root, animations);
         StyleEngine style = p.style(tags, diag, animations, transitions);
@@ -170,7 +172,7 @@ public final class UiDocument {
                 style.uses(Presence.STATES));
         TopLayer topLayer = new TopLayer(presence);
         Bindings bindings = Bindings.compile(p.root, model, p.loaded.components(), hosting.forBindings(p.loaded.componentFiles()),
-                text, tags, p.effects.registry(), topLayer, presence, diag);
+                text, tags, p.effects, p.loaded::aliasesOf, topLayer, presence, diag);
         try {
             Presence.Unit documentUnit = presence.enterDocument(p.root);
             style.restyle(p.root);
@@ -186,109 +188,107 @@ public final class UiDocument {
     }
 
     /** Lints a document without anything hosted. */
-    public static Diagnostics lint(String template, String templateFile, Function<String, String> files,
+    public static Diagnostics lint(String page, String pageFile, Function<String, String> files,
                                    TagRegistry tags, Translations translations, ModelShape shape,
                                    Set<? extends DiagCode> enabled) {
-        return lint(template, templateFile, files, tags, translations, shape, enabled, UiHosting.NONE);
+        return lint(page, pageFile, files, tags, translations, shape, enabled, UiHosting.NONE, null);
     }
 
     /**
-     * Lints a template as {@link #load} would load it, without a view model instance and without
-     * laying it out: the template, every linked file, every binding against {@code shape}'s declared
+     * Lints a page as {@link #load} would load it, without a view model instance and without
+     * laying it out: the page, every linked file, every binding against {@code shape}'s declared
      * types, the cascade, and the inline content rules layout checks ({@link Formatting}). Never
      * throws for problems; they are all in the result. Problems that need values or a viewport are
      * not found, nor those in block content or closed top layer elements, which only values show.
      *
      * @param shape   the view model class's shape, or {@code null} for a document without one
      * @param enabled the {@linkplain DiagCode#optIn() opt-in} checks to run
-     * @param hosting what the document may use; only declarations are read, no factory or value
+     * @param hosting    what the document may use; only declarations are read, no factory or value
+     * @param vocabulary the names the library exports, which the host's css is checked against;
+     *                   {@code null} to skip that check
      */
-    public static Diagnostics lint(String template, String templateFile, Function<String, String> files,
+    public static Diagnostics lint(String page, String pageFile, Function<String, String> files,
                                    TagRegistry tags, Translations translations, ModelShape shape,
-                                   Set<? extends DiagCode> enabled, UiHosting hosting) {
+                                   Set<? extends DiagCode> enabled, UiHosting hosting, LibraryNames vocabulary) {
         Diagnostics diag = new Diagnostics(enabled);
-        Parsed p = parse(template, templateFile, files, tags, translations, hosting, diag);
+        Parsed p = parse(page, pageFile, files, tags, translations, hosting, vocabulary, diag);
         Bindings.lint(p.root, shape, p.loaded.components(), hosting.forBindings(p.loaded.componentFiles()),
-                Bindings.PLAIN_TEXT, tags, p.effects.registry(), new TopLayer(Presence.instant()), diag);
+                Bindings.PLAIN_TEXT, tags, p.effects, p.loaded::aliasesOf, new TopLayer(Presence.instant()), diag);
         Animations animations = new Animations(p.root);
         p.style(tags, diag, animations, new Transitions(p.effects.registry(), p.root, animations)).restyle(p.root);
         new Formatting(diag).check(p.root);
         return diag;
     }
 
-    /** A template and its stylesheets parsed, its roots under the implicit document root. */
-    private record Parsed(TemplateLoader.Loaded loaded, Effects effects, Element root, List<StyleSheet> components,
-                          List<StyleSheet> themes, List<StyleSheet> author) {
+    /** A page and its stylesheets parsed, its roots under the implicit document root. */
+    private record Parsed(Linker.Loaded loaded, Effects effects, Element root, List<StyleSheet> layers) {
         StyleEngine style(TagRegistry tags, Diagnostics diag, Animations animations, Transitions transitions) {
-            List<StyleSheet> userAgent = new ArrayList<>(List.of(LibrarySheets.USER_AGENT));
-            userAgent.addAll(LibrarySheets.nativeElements(tags));
+            List<StyleSheet> userAgent = new ArrayList<>(List.of(UserAgentSheets.USER_AGENT));
+            userAgent.addAll(UserAgentSheets.drawnElements(tags));
             RoundedClipCheck roundedClip = new RoundedClipCheck(diag);
             StyleEngine.Hook hook = (e, previous, next, cascade) -> {
                 roundedClip.computed(e, previous, next, cascade);
                 animations.computed(e, previous, next, cascade);
                 transitions.computed(e, previous, next, cascade);
             };
-            return new StyleEngine(effects.registry(), userAgent, components, themes, author, diag, hook);
+            return new StyleEngine(effects.registry(), userAgent, layers, diag, hook);
         }
     }
 
-    private static Parsed parse(String template, String templateFile, Function<String, String> files,
-                                TagRegistry tags, Translations translations, UiHosting hosting, Diagnostics diag) {
-        TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, hosting.library(), tags,
+    private static Parsed parse(String page, String pageFile, Function<String, String> files,
+                                TagRegistry tags, Translations translations, UiHosting hosting, LibraryNames vocabulary,
+                                Diagnostics diag) {
+        Linker.Loaded loaded = Linker.load(page, pageFile, files, hosting.library(), tags,
                 translations, diag);
         Effects effects = Effects.load(loaded.effects(), CssProperties.REGISTRY, diag);
-        List<StyleSheet> components = sheets(loaded.componentSheets(), effects, diag);
-        List<StyleSheet> themes = library(loaded.library(), diag);
-        List<StyleSheet> author = sheets(loaded.pageSheets(), effects, diag);
-        Element root = new Element(ElementType.plain("#root"), new SourcePos(templateFile, 1, 1));
+        // a partial both layers use is compiled once
+        Map<String, StyleSheet> compiled = new HashMap<>();
+        List<StyleSheet> layers = new ArrayList<>(loaded.componentLayer().size() + loaded.authorLayer().size());
+        for (List<Linker.Sheet> layer : List.of(loaded.componentLayer(), loaded.authorLayer())) {
+            boolean component = layer == loaded.componentLayer();
+            for (Linker.Sheet s : layer) {
+                layers.add(compiled.computeIfAbsent(s.id(), id -> {
+                    if (component) {
+                        ComponentRootTokens.check(s.sheet(), diag);
+                    }
+                    if (vocabulary != null) {
+                        vocabulary.check(s.id(), s.sheet(), diag);
+                    }
+                    return compile(s, effects, diag);
+                }));
+            }
+        }
+        if (vocabulary != null) {
+            vocabulary.inline(loaded.page().roots(), diag);
+            for (ComponentDef c : loaded.components().values()) {
+                vocabulary.inline(c.body(), diag);
+            }
+        }
+        Element root = new Element(ElementType.plain("#root"), new SourcePos(pageFile, 1, 1));
         if (translations.language() != null) {
             root.setAttribute("lang", translations.language());
         }
         for (Node n : loaded.page().roots()) {
             root.appendChild(n);
         }
-        return new Parsed(loaded, effects, root, components, themes, author);
+        return new Parsed(loaded, effects, root, layers);
     }
 
-    /** Compiles {@code sources} against the document's registry, reporting their misuses of effects. */
-    private static List<StyleSheet> sheets(List<TemplateLoader.Sheet> sources, Effects effects, Diagnostics diag) {
-        List<StyleSheet> out = new ArrayList<>(sources.size());
-        for (TemplateLoader.Sheet s : sources) {
-            ParsedSheet parsed = CssParser.parseStylesheet(s.css(), s.start(), diag);
-            effects.check(parsed, diag);
-            out.add(StyleSheet.compile(parsed, effects.registry(), diag));
-        }
-        return out;
-    }
-
-    /** The library stylesheets' files in cascade order, each once; an unknown name is reported at its link. */
-    private static List<StyleSheet> library(List<TemplateLoader.Theme> links, Diagnostics diag) {
-        Set<String> files = new LinkedHashSet<>();
-        for (TemplateLoader.Theme l : links) {
-            List<String> f = LibrarySheets.files(l.name());
-            if (f == null) {
-                diag.report(TemplateCode.UNKNOWN_LIBRARY_SHEET, l.pos(), "no library stylesheet '" + Library.PREFIX + l.name() + "'; there are "
-                        + String.join(", ", LibrarySheets.names()));
-            } else {
-                files.addAll(f);
-            }
-        }
-        List<StyleSheet> out = new ArrayList<>(files.size());
-        for (String f : files) {
-            out.add(LibrarySheets.sheet(f));
-        }
-        return out;
+    /** Compiles {@code sheet} against the document's registry, reporting its misuses of effects. */
+    private static StyleSheet compile(Linker.Sheet sheet, Effects effects, Diagnostics diag) {
+        effects.check(sheet.sheet(), sheet.aliases(), diag);
+        return StyleSheet.compile(sheet.sheet(), effects.registry(), diag);
     }
 
     /**
-     * The ids of the template and every file it linked, directly or through components, including
+     * The ids of the page and every file it linked, directly or through components, including
      * links that failed to load; a host reloads the document when one of them changes.
      */
     public List<String> files() {
         return files;
     }
 
-    /** The effects the template and its components link, which the host compiles. */
+    /** The effects the page and its components link, which the host compiles. */
     public Effects effects() {
         return effects;
     }
@@ -322,7 +322,7 @@ public final class UiDocument {
         return atPointerList;
     }
 
-    /** The implicit root; its children are the template's top-level elements. */
+    /** The implicit root; its children are the page's top-level elements. */
     public Element root() {
         return root;
     }

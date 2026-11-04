@@ -1,16 +1,18 @@
-<link rel="stylesheet" href="ammo_hud.css"/>
-<div class="hand">
-  <mc-item class="held" bind:item="gunIcon"></mc-item>
-  <img class="gun-icon" src="ixchel_sample:textures/hud/gun.png"/>
-  <div class="bar"></div>
-  <div class="info">
-    <div class="counts">
-      <span class="ammo" bind:class:empty="isEmpty" bind:text="loadedText"></span>
-      <div class="side">
-        <span class="reserve" bind:text="reserve"></span>
-        <img class="fire-mode" src="ixchel_sample:textures/hud/fire_mode_auto.png"/>
+<page>
+  <link href="ammo_hud.css"/>
+  <div class="hand">
+    <mc-item class="held" bind:item="gunIcon"></mc-item>
+    <img class="gun-icon" src="ixchel_sample:textures/hud/gun.png"/>
+    <div class="bar"></div>
+    <div class="info">
+      <div class="counts">
+        <span class="ammo" bind:class:empty="isEmpty" bind:text="loadedText"></span>
+        <div class="side">
+          <span class="reserve" bind:text="reserve"></span>
+          <img class="fire-mode" src="ixchel_sample:textures/hud/fire_mode_auto.png"/>
+        </div>
       </div>
+      <span class="version" bind:text="name"></span>
     </div>
-    <span class="version" bind:text="name"></span>
   </div>
-</div>
+</page>

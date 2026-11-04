@@ -3,8 +3,8 @@ package com.azane.ixchel.core.binding;
 import java.util.Objects;
 
 /**
- * A value the framework holds for templates to read: a block's row, an event, a component's event
- * payload, an action's pending flag and error. Templates cannot write it.
+ * A value the framework holds for views to read: a block's row, an event, a component's event
+ * payload, an action's pending flag and error. Views cannot write it.
  */
 final class Held<T> extends Cell<T> {
     private final ViewModel owner;

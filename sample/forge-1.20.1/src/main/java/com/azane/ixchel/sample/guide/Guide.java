@@ -9,7 +9,7 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * Guidebook sample (index only): a two-page book whose entries are the templates under
+ * Guidebook sample (index only): a two-page book whose entries are the pages under
  * {@code ui/guide/entries/}, a contents spread listing them, links between entries with a Back
  * history, and page turns. Each place opens its own screen and view model; the history lives here,
  * for the client session.
@@ -60,9 +60,9 @@ public final class Guide {
     }
 
     private static void show(Place place) {
-        ResourceLocation template = place.entry() == null ? CONTENTS
+        ResourceLocation page = place.entry() == null ? CONTENTS
                 : new ResourceLocation(IxchelSampleMod.MOD_ID, ENTRIES + "/" + place.entry() + ".html");
-        GuideView view = new GuideView(place);
-        Minecraft.getInstance().setScreen(new GuideScreen(template, view));
+        GuideModel view = new GuideModel(place);
+        Minecraft.getInstance().setScreen(new GuideScreen(page, view));
     }
 }

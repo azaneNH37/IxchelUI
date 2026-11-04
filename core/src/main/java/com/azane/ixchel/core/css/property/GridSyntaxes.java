@@ -23,7 +23,7 @@ final class GridSyntaxes {
      * {@code [line names]}. Line names inside or after an {@code auto-fill}/{@code auto-fit} repeat
      * are not supported: where they fall depends on the container's size.
      */
-    static Syntax<GridTracks> template() {
+    static Syntax<GridTracks> view() {
         return (value, pos, diag) -> {
             List<ComponentValue> parts = significant(value);
             if (parts.size() == 1 && parts.get(0) instanceof Token t && t.isIdent("none")) {

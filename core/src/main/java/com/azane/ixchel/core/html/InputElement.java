@@ -15,8 +15,8 @@ import com.azane.ixchel.core.layout.LayoutFacet;
 import com.azane.ixchel.core.paint.PaintFacet;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
-import com.azane.ixchel.core.template.ContentModel;
-import com.azane.ixchel.core.template.TemplateCode;
+import com.azane.ixchel.core.view.ContentModel;
+import com.azane.ixchel.core.view.ViewCode;
 
 final class InputElement {
     private InputElement() {}
@@ -25,7 +25,7 @@ final class InputElement {
     static final ContentModel CONTENT = new HtmlContent.TooltipOnly() {
         @Override public void attributes(Element e, Diagnostics d) {
             if (FormControl.Kind.ofInputType(e.attribute("type")) == null) {
-                d.report(TemplateCode.UNSUPPORTED_INPUT_TYPE, e.pos(), "unsupported <input type=\"" + e.attribute("type")
+                d.report(ViewCode.UNSUPPORTED_INPUT_TYPE, e.pos(), "unsupported <input type=\"" + e.attribute("type")
                         + "\">; supported: text, number, checkbox, range");
             }
         }

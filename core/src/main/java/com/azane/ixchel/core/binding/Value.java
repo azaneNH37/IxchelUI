@@ -2,7 +2,7 @@ package com.azane.ixchel.core.binding;
 
 import java.util.Objects;
 
-/** Local state: set by host code, and by the view where a template binds it two-way. */
+/** Local state: set by host code, and by the view where a view binds it two-way. */
 public final class Value<T> extends Cell<T> {
     private final ViewModel owner;
     private T value;

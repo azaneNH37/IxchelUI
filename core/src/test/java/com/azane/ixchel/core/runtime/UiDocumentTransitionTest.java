@@ -6,7 +6,7 @@ import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.Easing;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -123,7 +123,7 @@ class UiDocumentTransitionTest {
                 .d { transition: none, width 1s }
                 .e { transition-property: colr }
                 """));
-        assertEquals(List.of("css/not-animatable@t.css:1:18", "css/missing-unit@t.css:2:27",
+        assertEquals(List.of("css/not-animatable@t.css:1:31", "css/missing-unit@t.css:2:27",
                 "css/unsupported-value@t.css:3:34", "css/none-not-alone@t.css:4:18", "css/unknown-property@t.css:5:27"),
                 DiagCodes.of(e));
     }

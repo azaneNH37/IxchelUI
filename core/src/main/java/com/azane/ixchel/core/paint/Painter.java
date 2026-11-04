@@ -248,15 +248,15 @@ public final class Painter implements PaintFacet.Context {
         return kept;
     }
 
-    /** The linked effect {@code name} of {@code kind}; otherwise reports why not and returns {@code null}. */
-    private Effect effect(Element e, String name, Effect.Kind kind) {
-        Effect effect = effects.byName(name);
+    /** The linked effect of the file id {@code id}, of {@code kind}; otherwise reports why not and returns {@code null}. */
+    private Effect effect(Element e, String id, Effect.Kind kind) {
+        Effect effect = effects.byId(id);
         if (effect == null) {
-            report(e, EffectCode.UNKNOWN_EFFECT, effects.unknown(name));
+            report(e, EffectCode.UNKNOWN_ALIAS, Effects.unknown(id));
             return null;
         }
         if (effect.kind() != kind) {
-            report(e, EffectCode.WRONG_KIND, Effects.wrongKind(effect));
+            report(e, EffectCode.WRONG_KIND, Effects.wrongKind(effect, null));
             return null;
         }
         return effect;

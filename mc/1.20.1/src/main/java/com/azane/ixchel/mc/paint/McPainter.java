@@ -8,8 +8,8 @@ import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.paint.RoundRect;
 import com.azane.ixchel.core.paint.ShapeTessellator;
-import com.azane.ixchel.core.template.NativePayload;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.ElementPayload;
+import com.azane.ixchel.core.view.TagRegistry;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -46,7 +46,7 @@ import java.util.Map;
  * Replays a {@link DisplayList} into a {@link GuiGraphics}. Rects and images are written as raw
  * quads and submitted only when the render state (shader, texture, clip) changes or a text run
  * starts; text goes through {@link Font#drawInBatch} and is flushed before the next non-text command,
- * so paint order is kept. Native elements are drawn by their {@link NativePainter}.
+ * so paint order is kept. Drawn elements are drawn by their {@link ElementPainter}.
  *
  * <p>Fills, borders and shadows are {@link ShapeTessellator} meshes over the host's mask atlas
  * ({@link MaskTexture}), drawn with face culling off since their quads' winding varies. An image with a
@@ -84,7 +84,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
 
     private final Font font;
     private final TagRegistry tags;
-    private final Map<String, NativePainter<?>> natives;
+    private final Map<String, ElementPainter<?>> painters;
     private final Map<String, ResourceLocation> textures = new HashMap<>();
     private final Matrix4f textMatrix = new Matrix4f();
     private final Matrix4f local = new Matrix4f();
@@ -117,16 +117,16 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
 
     /**
      * @param modid   the host mod, whose mask atlas the shapes are drawn from
-     * @param tags    the types of the native elements, whose payload types {@code natives} are handed
-     * @param natives the painter of each native element kind ({@code DrawCommand.Custom#kind})
+     * @param tags    the types of the drawn elements, whose payload types {@code painters} are handed
+     * @param painters the painter of each drawn element kind ({@code DrawCommand.Custom#kind})
      */
-    public McPainter(String modid, Font font, TagRegistry tags, Map<String, NativePainter<?>> natives) {
+    public McPainter(String modid, Font font, TagRegistry tags, Map<String, ElementPainter<?>> painters) {
         this.modid = modid;
         this.masks = MaskTexture.forHost(modid);
         this.shapes = new ShapeTessellator(masks.atlas);
         this.font = font;
         this.tags = tags;
-        this.natives = Map.copyOf(natives);
+        this.painters = Map.copyOf(painters);
     }
 
     /**
@@ -138,7 +138,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     }
 
     /**
-     * Draws {@code list} in the current pose of {@code g}, with the pointer native elements and effects
+     * Draws {@code list} in the current pose of {@code g}, with the pointer drawn elements and effects
      * may react to (NaN in a HUD) and the document's time in nanoseconds; leaves blending disabled,
      * like vanilla blits.
      */
@@ -299,11 +299,11 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     @Override
     @SuppressWarnings("unchecked")
     public Void visitCustom(DrawCommand.Custom c) {
-        NativePainter<Object> p = (NativePainter<Object>) natives.get(c.kind());
+        ElementPainter<Object> p = (ElementPainter<Object>) painters.get(c.kind());
         if (p == null) {
-            throw new IllegalStateException("no painter for native element <" + c.kind() + ">");
+            throw new IllegalStateException("no painter for drawn element <" + c.kind() + ">");
         }
-        Object value = NativePayload.valueOf(c.payload(), tags.type(c.kind()));
+        Object value = ElementPayload.valueOf(c.payload(), tags.type(c.kind()));
         if (value == null) {
             return null;
         }

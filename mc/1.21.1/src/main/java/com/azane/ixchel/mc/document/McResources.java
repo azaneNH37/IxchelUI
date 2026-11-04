@@ -5,8 +5,8 @@ import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.runtime.UiHosting;
-import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.core.template.Translations;
+import com.azane.ixchel.core.view.TagRegistry;
+import com.azane.ixchel.core.view.Translations;
 import com.azane.ixchel.mc.paint.McImageMeasurer;
 import com.azane.ixchel.mc.paint.McTextMeasurer;
 import net.minecraft.client.Minecraft;
@@ -42,7 +42,7 @@ final class McResources {
     /**
      * A loaded document and the files it was read from.
      *
-     * @param files the template and every file it links, directly or through components, under the
+     * @param files the page and every file it links, directly or through components, under the
      *              host namespace, as paths under {@code assets/<hostModId>/} in load order; what a
      *              development watcher should watch
      */
@@ -50,12 +50,13 @@ final class McResources {
     }
 
     /**
-     * Loads a document from a template and the files it links, measured with the vanilla font;
+     * Loads a document from a page and the files it links, measured with the vanilla font;
      * images for {@code background-size: auto} are measured from {@code resources}. A {@code <link>}
      * href of the form {@code ns:path} names that resource (the host namespace reads through the
      * development source when present, other namespaces read packed resources); an href starting
-     * with {@code @ixchel/} names a stylesheet of the library, such as {@code @ixchel/vanilla.css}; any
-     * other href is relative to the linking file's directory ({@code ../common.css} allowed). Error positions name
+     * with {@code @ixchel/} names a library file without its extension, such as
+     * {@code @ixchel/themes/vanilla}; any other href is relative to the linking file's directory
+     * ({@code ../common.css} allowed). Error positions name
      * files as {@code modid:path}. A bound {@link Component} keeps its colors and formatting in
      * {@code bind:text} and is its plain string elsewhere. {@code t} attributes are translated into the
      * selected language, a key it lacks into {@code en_us} as the game does; the root's {@code lang} is
@@ -64,8 +65,8 @@ final class McResources {
      * @param model   the view model {@code bind:*} attributes refer to, or {@code null}
      * @param hosting the library and the host's Java components
      */
-    public Loaded load(ResourceManager resources, String templatePath, TagRegistry tags, ViewModel model, UiHosting hosting) {
-        UiDocument document = UiDocument.load(read(resources, templatePath), name(templatePath), id -> {
+    public Loaded load(ResourceManager resources, String pagePath, TagRegistry tags, ViewModel model, UiHosting hosting) {
+        UiDocument document = UiDocument.load(read(resources, pagePath), name(pagePath), id -> {
             int colon = id.indexOf(':');
             String ns = id.substring(0, colon);
             String path = id.substring(colon + 1);

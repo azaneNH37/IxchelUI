@@ -9,8 +9,11 @@ import java.util.Locale;
 
 /**
  * CSS Syntax Level 3 §5 parser restricted to what IxchelUI supports: qualified rules whose blocks hold
- * declarations and nested rules (CSS Nesting), and {@code @keyframes}. Other at-rules are reported as
- * errors and skipped.
+ * declarations and nested rules (CSS Nesting), {@code @keyframes}, the file's kind,
+ * {@code @stylesheet;} or {@code @partial;} as its first statement ({@link ParsedSheet#kind()}), and
+ * its {@code @link "<href>" [as <alias>];} lines before every rule ({@link ParsedSheet#links()}).
+ * Whether the file must declare a kind and what it may link are the caller's to check. Other at-rules
+ * are reported as errors and skipped.
  *
  * <p>Nested rules are expanded here into plain rules, each after the rule it is nested in:
  *
@@ -24,9 +27,17 @@ import java.util.Locale;
  * highest of the parent list's.
  */
 public final class CssParser {
+    private static final String EFFECT = ".ixeffect";
+
     private final List<Token> tokens;
     private final Diagnostics diag;
     private final List<ParsedSheet.Keyframes> keyframes = new ArrayList<>();
+    private final List<ParsedSheet.Link> links = new ArrayList<>();
+    private ParsedSheet.Kind kind;
+    /** Whether a statement came before: the kind must be the first. */
+    private boolean sawStatement;
+    /** Whether a rule or {@code @keyframes} came before: links must precede them. */
+    private boolean sawRule;
     private int i;
     private boolean warnedUnclosed;
 
@@ -39,11 +50,11 @@ public final class CssParser {
         return parseStylesheet(source, new SourcePos(file, 1, 1), diag);
     }
 
-    /** {@code start} is where an inline {@code <style>} body begins. */
+    /** {@code start} is the position of the source's first character. */
     public static ParsedSheet parseStylesheet(String source, SourcePos start, Diagnostics diag) {
         CssParser p = new CssParser(CssTokenizer.tokenize(source, start, diag), diag);
         List<Rule> rules = p.ruleList();
-        return new ParsedSheet(List.copyOf(rules), List.copyOf(p.keyframes));
+        return new ParsedSheet(p.kind, List.copyOf(p.links), List.copyOf(rules), List.copyOf(p.keyframes));
     }
 
     /** For a `style="..."` attribute; positions are offset so line 1 col 1 of `source` maps to `start`. */
@@ -97,18 +108,31 @@ public final class CssParser {
                     atRule();
                     break;
                 default:
+                    sawRule = true;
+                    sawStatement = true;
                     qualifiedRule(rules);
             }
         }
     }
 
-    /** A top-level at-rule: {@code @keyframes} is read, the rest skipped. */
+    /** A top-level at-rule: {@code @keyframes}, the kind and the links are read, the rest skipped. */
     private void atRule() {
         Token at = peek();
+        boolean first = !sawStatement;
+        sawStatement = true;
+        if (at.value().equals("stylesheet") || at.value().equals("partial")) {
+            kindRule(first);
+            return;
+        }
+        if (at.value().equals("link")) {
+            linkRule();
+            return;
+        }
         if (!at.value().equalsIgnoreCase("keyframes")) {
             skipAtRule();
             return;
         }
+        sawRule = true;
         take();
         List<ComponentValue> prelude = new ArrayList<>();
         while (!peek().is(Token.Kind.LBRACE)) {
@@ -147,6 +171,60 @@ public final class CssParser {
                     "style an entering element's first frame with :-ix-absent");
         } else {
             diag.report(CssSyntaxCode.UNSUPPORTED_AT_RULE, at.pos(), "unsupported at-rule @" + at.value());
+        }
+    }
+
+    /** The at-rule's prelude up to its {@code ;}, which is consumed, trimmed. */
+    private List<ComponentValue> statement() {
+        List<ComponentValue> prelude = new ArrayList<>();
+        while (!peek().is(Token.Kind.SEMICOLON) && !peek().is(Token.Kind.EOF)) {
+            ComponentValue v = componentValue();
+            if (v instanceof ComponentValue.Block b && b.open() == Token.Kind.LBRACE) {
+                break;
+            }
+            prelude.add(v);
+        }
+        if (peek().is(Token.Kind.SEMICOLON)) {
+            take();
+        }
+        return trim(prelude);
+    }
+
+    /** {@code @stylesheet;} or {@code @partial;}, which must be the file's first statement. */
+    private void kindRule(boolean first) {
+        Token at = take();
+        List<ComponentValue> prelude = statement();
+        if (!prelude.isEmpty()) {
+            diag.report(CssSyntaxCode.INVALID_KIND, at.pos(), "expected @" + at.value() + ";");
+        } else if (!first) {
+            diag.report(CssSyntaxCode.INVALID_KIND, at.pos(), "@" + at.value() + " must be the file's first statement");
+        } else {
+            kind = at.value().equals("stylesheet") ? ParsedSheet.Kind.STYLESHEET : ParsedSheet.Kind.PARTIAL;
+        }
+    }
+
+    /** {@code @link "href";} or {@code @link "href" as Alias;}. */
+    private void linkRule() {
+        Token at = take();
+        List<ComponentValue> prelude = new ArrayList<>(statement());
+        prelude.removeIf(v -> isToken(v, Token.Kind.WHITESPACE));
+        String href = prelude.size() >= 1 && prelude.get(0) instanceof Token t && t.is(Token.Kind.STRING) ? t.value() : null;
+        String alias = null;
+        boolean valid = href != null && !href.isEmpty();
+        if (valid && prelude.size() == 3 && prelude.get(1) instanceof Token as && as.isIdent("as")
+                && prelude.get(2) instanceof Token name && name.is(Token.Kind.IDENT)) {
+            alias = name.value();
+        } else if (prelude.size() != 1) {
+            valid = false;
+        }
+        if (!valid) {
+            diag.report(CssSyntaxCode.INVALID_LINK, at.pos(), "expected @link \"href\"; or @link \"href\" as Alias;");
+        } else if (alias != null && !href.endsWith(EFFECT)) {
+            diag.report(CssSyntaxCode.INVALID_LINK, at.pos(), "only an effect link takes an alias: as " + alias);
+        } else if (sawRule) {
+            diag.report(CssSyntaxCode.MISPLACED_LINK, at.pos(), "@link must come before the first rule");
+        } else {
+            links.add(new ParsedSheet.Link(href, alias, at.pos()));
         }
     }
 

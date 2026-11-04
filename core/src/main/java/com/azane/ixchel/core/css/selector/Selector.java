@@ -55,7 +55,7 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, P
 
     /**
      * {@code tag} and {@code id} are {@code null} when absent; {@code stateMask} uses {@link Element} state bits;
-     * {@code root} is {@code :root}, a top-level element of the template (a child of the implicit root);
+     * {@code root} is {@code :root}, a top-level element of the view (a child of the implicit root);
      * {@code langs} are the lowercase ranges of {@code :lang()}, empty when absent.
      */
     public record Compound(String tag, String id, List<String> classes, List<AttributeMatch> attributes, int stateMask,

@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * Warns where an element both rounds its corners and clips its overflow: the {@link Painter} clips to
  * the padding box's rectangle, so children show past the curve. Runs on every restyle, so lint finds
- * the template's styles and a loaded document the states it reaches; each position is reported once.
+ * the view's styles and a loaded document the states it reaches; each position is reported once.
  */
 public final class RoundedClipCheck implements StyleEngine.Hook {
     private final Diagnostics diag;

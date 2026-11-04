@@ -1,3 +1,6 @@
+@stylesheet;
+@link "../themes/overlay.css";
+
 .screen {
   width: 100%;
   height: 100%;
@@ -5,7 +8,7 @@
   justify-content: center;
 }
 
-.panel {
+.ix-panel {
   width: 400px;
   max-width: 100%;
   height: 100%;
@@ -47,7 +50,7 @@
 }
 
 .category.active {
-  background-color: var(--ix-button);
+  background-color: var(--ix-control-bg);
   color: var(--ix-text);
 }
 
@@ -56,7 +59,7 @@
   flex-grow: 1;
   flex-shrink: 1;
   overflow: auto;
-  background-color: var(--ix-well);
+  background-color: var(--ix-well-bg);
 }
 
 .none {
@@ -238,11 +241,12 @@ dialog {
 .grip {
   width: 6px;
   align-self: stretch;
-  background-color: var(--ix-button);
+  background-color: var(--ix-control-bg);
 }
 
 .grip:hover {
-  background-color: var(--ix-button-hover);
+  background-color: var(--ix-control-bg);
+  background-image: linear-gradient(var(--ix-hover), var(--ix-hover));
 }
 
 .item.dragged {

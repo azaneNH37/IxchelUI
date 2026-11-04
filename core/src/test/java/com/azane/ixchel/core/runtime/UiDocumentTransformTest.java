@@ -5,7 +5,7 @@ import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -57,7 +57,7 @@ class UiDocumentTransformTest {
     void anUnsupportedTransformFunctionIsReportedAtItsPosition() {
         UiLoadException e = assertThrows(UiLoadException.class, () ->
                 load("<div class=\"r\"></div>", ".r { transform: rotate(10deg) skew(5deg) }", null));
-        assertEquals(List.of("css/unsupported-value@t.css:1:31"), DiagCodes.of(e));
+        assertEquals(List.of("css/unsupported-value@t.css:1:44"), DiagCodes.of(e));
     }
 
     static final class Pan extends ViewModel {

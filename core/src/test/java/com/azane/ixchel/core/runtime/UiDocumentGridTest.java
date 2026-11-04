@@ -118,7 +118,7 @@ class UiDocumentGridTest {
                 .e { grid-template-columns: minmax(1fr, 10px) }
                 .f { grid-auto-flow: dense row column }
                 """));
-        assertEquals(List.of("css/function-arguments@t.css:1:47", "css/unsupported-value@t.css:2:47",
+        assertEquals(List.of("css/function-arguments@t.css:1:60", "css/unsupported-value@t.css:2:47",
                 "css/invalid-value@t.css:3:27", "css/invalid-value@t.css:4:16", "css/function-arguments@t.css:5:36",
                 "css/value-count@t.css:6:32"), DiagCodes.of(e));
     }

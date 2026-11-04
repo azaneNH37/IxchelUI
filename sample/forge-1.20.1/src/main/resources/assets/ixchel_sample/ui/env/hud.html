@@ -1,78 +1,80 @@
-<link rel="stylesheet" href="hud.css"/>
-<div class="env">
-  <div class="vitals">
-    <div class="line">
-      <div class="icons">
-        <for each="hearts" as="h" key="h.index"><div class="icon heart">
-          <div class="fill" bind:class:full="h.full" bind:class:half="h.half"></div>
-        </div></for>
-      </div>
-    </div>
-    <if test="armor > 0"><div class="line">
-      <div class="icons">
-        <for each="armorIcons" as="a" key="a.index"><div class="icon armor" bind:class:full="a.full" bind:class:half="a.half"></div></for>
-      </div>
-    </div></if>
-    <div class="line">
-      <div class="icons">
-        <for each="foodIcons" as="f" key="f.index"><div class="icon food">
-          <div class="fill" bind:class:full="f.full" bind:class:half="f.half"></div>
-        </div></for>
-      </div>
-    </div>
-    <div class="xp">
-      <div class="xp-fill" bind:style:width="progress * 100 + '%'"></div>
-    </div>
-    <span class="level" bind:text="level"></span>
-  </div>
-  <div class="top">
-    <div class="compass">
-      <div class="bar">
-        <div class="strip" bind:style:left="-heading">
-          <for each="marks" as="m" key="m.id"><div class="mark" bind:style:left="m.left" bind:class:major="m.major">
-            <div class="tick"></div>
-            <span class="mark-label" bind:text="m.label"></span>
+<page>
+  <link href="hud.css"/>
+  <div class="env">
+    <div class="vitals">
+      <div class="line">
+        <div class="icons">
+          <for each="hearts" as="h" key="h.index"><div class="icon heart">
+            <div class="fill" bind:class:full="h.full" bind:class:half="h.half"></div>
           </div></for>
         </div>
-        <div class="needle"></div>
       </div>
-      <for each="markers" as="w" key="w.id"><div class="waypoint" bind:style:left="w.left" bind:class:near="w.near" bind:class:edge="w.edge">
-        <div class="pip"></div>
-        <span class="waypoint-label" bind:text="w.label"></span>
-      </div></for>
-    </div>
-    <if test="hasBlock || hasEntity"><div class="target">
-      <if test="hasBlock"><div class="block">
-        <mc-item class="block-icon" bind:item="blockIcon"></mc-item>
-        <div class="lines">
-          <span class="name" bind:text="block.name"></span>
-          <span class="tool" bind:class:bad="!block.harvestable" bind:text="block.tool"></span>
-          <for each="block.properties" as="p" key="p.name"><div class="property">
-            <span class="key" bind:text="p.name"></span>
-            <span class="value" bind:text="p.value"></span>
-          </div></for>
-          <span class="mod" bind:text="block.mod"></span>
+      <if test="armor > 0"><div class="line">
+        <div class="icons">
+          <for each="armorIcons" as="a" key="a.index"><div class="icon armor" bind:class:full="a.full" bind:class:half="a.half"></div></for>
         </div>
       </div></if>
-      <if test="hasEntity"><div class="entity">
-        <span class="name" bind:text="entity.name"></span>
-        <if test="entity.living"><div class="health">
-          <div class="health-bar">
-            <div class="health-fill" bind:style:width="entityHealthWidth"></div>
+      <div class="line">
+        <div class="icons">
+          <for each="foodIcons" as="f" key="f.index"><div class="icon food">
+            <div class="fill" bind:class:full="f.full" bind:class:half="f.half"></div>
+          </div></for>
+        </div>
+      </div>
+      <div class="xp">
+        <div class="xp-fill" bind:style:width="progress * 100 + '%'"></div>
+      </div>
+      <span class="level" bind:text="level"></span>
+    </div>
+    <div class="top">
+      <div class="compass">
+        <div class="bar">
+          <div class="strip" bind:style:left="-heading">
+            <for each="marks" as="m" key="m.id"><div class="mark" bind:style:left="m.left" bind:class:major="m.major">
+              <div class="tick"></div>
+              <span class="mark-label" bind:text="m.label"></span>
+            </div></for>
           </div>
-          <span class="health-text" bind:text="entityHealth"></span>
+          <div class="needle"></div>
+        </div>
+        <for each="markers" as="w" key="w.id"><div class="waypoint" bind:style:left="w.left" bind:class:near="w.near" bind:class:edge="w.edge">
+          <div class="pip"></div>
+          <span class="waypoint-label" bind:text="w.label"></span>
+        </div></for>
+      </div>
+      <if test="hasBlock || hasEntity"><div class="target">
+        <if test="hasBlock"><div class="block">
+          <mc-item class="block-icon" bind:item="blockIcon"></mc-item>
+          <div class="lines">
+            <span class="name" bind:text="block.name"></span>
+            <span class="tool" bind:class:bad="!block.harvestable" bind:text="block.tool"></span>
+            <for each="block.properties" as="p" key="p.name"><div class="property">
+              <span class="key" bind:text="p.name"></span>
+              <span class="value" bind:text="p.value"></span>
+            </div></for>
+            <span class="mod" bind:text="block.mod"></span>
+          </div>
         </div></if>
-        <if test="entity.armor > 0"><span class="armor-text" bind:text="entity.armor + ' armor'"></span></if>
-        <span class="mod" bind:text="entity.mod"></span>
+        <if test="hasEntity"><div class="entity">
+          <span class="name" bind:text="entity.name"></span>
+          <if test="entity.living"><div class="health">
+            <div class="health-bar">
+              <div class="health-fill" bind:style:width="entityHealthWidth"></div>
+            </div>
+            <span class="health-text" bind:text="entityHealth"></span>
+          </div></if>
+          <if test="entity.armor > 0"><span class="armor-text" bind:text="entity.armor + ' armor'"></span></if>
+          <span class="mod" bind:text="entity.mod"></span>
+        </div></if>
       </div></if>
-    </div></if>
+    </div>
+    <div class="world">
+      <span class="biome" bind:text="world.biome"></span>
+      <span class="time" bind:text="world.time"></span>
+      <span class="weather" bind:text="world.weather"></span>
+      <span class="light" bind:text="world.light"></span>
+      <span class="coords" bind:text="world.coords"></span>
+      <span class="facing" bind:text="world.facing"></span>
+    </div>
   </div>
-  <div class="world">
-    <span class="biome" bind:text="world.biome"></span>
-    <span class="time" bind:text="world.time"></span>
-    <span class="weather" bind:text="world.weather"></span>
-    <span class="light" bind:text="world.light"></span>
-    <span class="coords" bind:text="world.coords"></span>
-    <span class="facing" bind:text="world.facing"></span>
-  </div>
-</div>
+</page>

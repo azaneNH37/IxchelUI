@@ -93,7 +93,7 @@ public final class TooltipsPlaytest {
             s.waitUntil("the badge's tooltip holds what it was given", () -> shows(".badge")
                     && Playtest.text(".badge-tip .tip-head").equals("Help from a component"), Playtest.WAIT);
 
-            // Fails if the host's element is unknown to the template, has no painter, or takes no pointer.
+            // Fails if the host's element is unknown to the view, has no painter, or takes no pointer.
             s.hover(".gauge");
             s.waitUntil("the host-made element paints and shows its tooltip", () -> shows(".gauge"), Playtest.WAIT);
             s.shot("tooltips-gauge");

@@ -34,10 +34,10 @@ public final class WaypointsPlaytest {
             });
             s.waitUntil("empty list shows its message", () -> Playtest.query(".empty").size() == 1, Playtest.WAIT);
             // Fails if opening a screen does not start from the document's :-ix-absent style.
-            s.expect("the panel opens below its place", () -> offset(Playtest.query(".panel").get(0)) > 1);
+            s.expect("the panel opens below its place", () -> offset(Playtest.query(".ix-panel").get(0)) > 1);
             s.shot("waypoints-entering");
             s.waitUntil("the panel settles", () -> Playtest.query(".screen:-ix-entering").isEmpty()
-                    && offset(Playtest.query(".panel").get(0)) == 0, Playtest.WAIT);
+                    && offset(Playtest.query(".ix-panel").get(0)) == 0, Playtest.WAIT);
             s.shot("waypoints-empty");
             // The button's title shows as a vanilla tooltip (screenshot only: nothing to query).
             s.hover("button");
@@ -46,9 +46,9 @@ public final class WaypointsPlaytest {
                 s.click("button");
             }
             s.waitUntil("eight rows, the last one selected", () -> Playtest.query(".row").size() == 8
-                    && Playtest.query(".row.selected").size() == 1 && selectedName().equals("Waypoint 8"), Playtest.WAIT);
+                    && Playtest.query(".row.ix-selected").size() == 1 && selectedName().equals("Waypoint 8"), Playtest.WAIT);
             s.expect("list scrolls: six rows fit", () -> Playtest.query(".list").get(0).maxScrollTop() > 0);
-            // The keys are template filters on the screen's top-level element: document-level, no focus needed.
+            // The keys are view filters on the screen's top-level element: document-level, no focus needed.
             s.key(GLFW.GLFW_KEY_UP);
             s.key(GLFW.GLFW_KEY_UP);
             s.waitUntil("Up twice selects waypoint 6", () -> selectedName().equals("Waypoint 6"), Playtest.WAIT);
@@ -90,7 +90,7 @@ public final class WaypointsPlaytest {
     }
 
     private static String selectedName() {
-        return Playtest.text(".row.selected .name");
+        return Playtest.text(".row.ix-selected .name");
     }
 
     /** How far below its layout {@code panel} paints. */

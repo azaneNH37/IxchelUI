@@ -2,7 +2,7 @@ package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.html.HtmlElements;
 import com.azane.ixchel.core.paint.ImageMeasurer;
-import com.azane.ixchel.core.template.Translations;
+import com.azane.ixchel.core.view.Translations;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

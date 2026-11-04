@@ -9,9 +9,9 @@ import java.util.List;
  * body after it, which defines {@code effect()} and may define helpers. Immutable; the host compiles
  * {@code body} once per {@code source} text.
  *
- * @param id       the file id, or the {@code @ixchel/effects/<name>} href of a built-in effect
- * @param name     the file name without {@code .ixeffect}: the name {@code paint()} and
- *                 {@code -ix-paint()} use and the prefix of the params' properties
+ * @param id       the file id: the effect's identity, and its internal name in {@code paint()} and
+ *                 {@code -ix-paint()} once {@link Aliases} rewrote the alias a css file gives it
+ * @param name     the file name without {@code .ixeffect}, from which the default alias is made
  * @param bodyLine the line of the file where {@code body} starts, for mapping compile errors back
  * @param source   the whole file, which identifies the program built from it
  */
@@ -19,9 +19,9 @@ public record Effect(String id, String name, Kind kind, List<Param> params, Stri
     public static final String EXTENSION = ".ixeffect";
 
     public enum Kind {
-        /** Draws an element's background layer: {@code background-image: paint(name)}. */
+        /** Draws an element's background layer: {@code background-image: paint(Alias)}. */
         BOX,
-        /** Maps the element's drawn layer: {@code filter: -ix-paint(name)}. */
+        /** Maps the element's drawn layer: {@code filter: -ix-paint(Alias)}. */
         LAYER
     }
 
@@ -40,9 +40,17 @@ public record Effect(String id, String name, Kind kind, List<Param> params, Stri
         params = List.copyOf(params);
     }
 
-    /** The custom property that sets {@code p}: {@code --<effect>-<param>}. */
+    /** The internal property of {@code p}: {@link #property(String, String)} of this effect. */
     public String property(Param p) {
-        return "--" + name + "-" + p.name();
+        return property(id, p.name());
+    }
+
+    /**
+     * The internal property of the param {@code param} of the effect {@code id}, which an author's
+     * {@code --Alias-param} becomes; built from the file id, it cannot clash with another effect's.
+     */
+    public static String property(String id, String param) {
+        return "--" + id + "-" + param;
     }
 
     /** How many floats the params' values take, as {@link ParamType#components()} counts them. */

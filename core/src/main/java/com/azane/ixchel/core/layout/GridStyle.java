@@ -24,8 +24,8 @@ final class GridStyle {
     }
 
     static void apply(ComputedStyle cs, TaffyStyle s) {
-        template(cs.get(CssProperties.GRID_TEMPLATE_ROWS), s.gridTemplateRows, s.gridTemplateRowsWithRepeat, s.gridTemplateRowNames);
-        template(cs.get(CssProperties.GRID_TEMPLATE_COLUMNS), s.gridTemplateColumns, s.gridTemplateColumnsWithRepeat, s.gridTemplateColumnNames);
+        view(cs.get(CssProperties.GRID_TEMPLATE_ROWS), s.gridTemplateRows, s.gridTemplateRowsWithRepeat, s.gridTemplateRowNames);
+        view(cs.get(CssProperties.GRID_TEMPLATE_COLUMNS), s.gridTemplateColumns, s.gridTemplateColumnsWithRepeat, s.gridTemplateColumnNames);
         for (GridAreas.Area a : cs.get(CssProperties.GRID_TEMPLATE_AREAS).areas()) {
             s.gridTemplateAreas.add(new GridTemplateArea(a.name(), a.rowStart(), a.rowEnd(), a.columnStart(), a.columnEnd()));
         }
@@ -41,11 +41,11 @@ final class GridStyle {
     }
 
     /**
-     * Taffy takes the template with an auto repeat in {@code withRepeat}, yet still counts the explicit
+     * Taffy takes the view with an auto repeat in {@code withRepeat}, yet still counts the explicit
      * tracks from {@code plain}; so {@code plain} always holds the counted tracks, expanded, and
      * {@code withRepeat} is filled only when there is an auto repeat.
      */
-    private static void template(GridTracks t, List<TrackSizingFunction> plain, List<GridTemplateComponent> withRepeat,
+    private static void view(GridTracks t, List<TrackSizingFunction> plain, List<GridTemplateComponent> withRepeat,
                                  List<NamedGridLine> names) {
         boolean auto = false;
         for (GridTracks.Entry e : t.entries()) {

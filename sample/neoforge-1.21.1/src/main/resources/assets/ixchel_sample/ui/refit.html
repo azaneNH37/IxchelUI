@@ -1,46 +1,48 @@
-<link rel="stylesheet" href="refit.css"/>
-<div class="screen">
-  <div class="panel">
-    <span class="title" bind:text="gunName"></span>
-    <if test="!valid"><div class="gone">
-      <span t="ixchel_sample.refit.gone"></span>
-    </div></if>
-    <if test="valid"><div class="body">
-      <div class="column">
-        <span class="label" t="ixchel_sample.refit.attachments"></span>
-        <for each="slots" as="s" key="s.type"><div class="row slot" tabindex="0"
-             on:click="select(s)" bind:class:selected="s.selected">
-          <mc-item class="icon" bind:item="s.icon"></mc-item>
-          <span bind:text="s.name"></span>
-        </div></for>
-      </div>
-      <if test="hasSelection"><div class="column">
-        <span class="label" bind:text="selectedName"></span>
-        <div class="options" bind:class:busy="install.pending">
-          <for each="options" as="o" key="o.id"><div class="row option" on:click="install(o)"
-               bind:class:installed="o.installed" bind:class:missing="o.missing">
-            <mc-item class="icon" bind:item="o.icon"></mc-item>
-            <span bind:text="o.label"></span>
+<page>
+  <link href="refit.css"/>
+  <div class="screen">
+    <div class="panel">
+      <span class="title" bind:text="gunName"></span>
+      <if test="!valid"><div class="gone">
+        <span t="ixchel_sample.refit.gone"></span>
+      </div></if>
+      <if test="valid"><div class="body">
+        <div class="column">
+          <span class="label" t="ixchel_sample.refit.attachments"></span>
+          <for each="slots" as="s" key="s.type"><div class="row slot" tabindex="0"
+               on:click="select(s)" bind:class:ix-selected="s.selected">
+            <mc-item class="icon" bind:item="s.icon"></mc-item>
+            <span bind:text="s.name"></span>
           </div></for>
         </div>
-        <if test="hasInstalled"><div class="button" on:click="remove" bind:class:busy="remove.pending">
-          <span t="ixchel_sample.refit.remove"></span>
+        <if test="hasSelection"><div class="column">
+          <span class="label" bind:text="selectedName"></span>
+          <div class="options" bind:class:busy="install.pending">
+            <for each="options" as="o" key="o.id"><div class="row option" on:click="install(o)"
+                 bind:class:installed="o.installed" bind:class:missing="o.missing">
+              <mc-item class="icon" bind:item="o.icon"></mc-item>
+              <span bind:text="o.label"></span>
+            </div></for>
+          </div>
+          <if test="hasInstalled"><div class="button" on:click="remove" bind:class:busy="remove.pending">
+            <span t="ixchel_sample.refit.remove"></span>
+          </div></if>
         </div></if>
+        <div class="column">
+          <span class="label" t="ixchel_sample.refit.laser"></span>
+          <for each="swatches" as="w" key="w.id"><div class="row swatch" on:click="pickLaser(w)"
+               bind:class:ix-selected="w.draft" bind:class:installed="w.current">
+            <mc-item class="icon" bind:item="w.icon"></mc-item>
+            <span bind:text="w.name"></span>
+          </div></for>
+          <if test="hasDraft"><div class="button" on:click="applyLaser" bind:class:busy="applyLaser.pending">
+            <span t="ixchel_sample.refit.apply"></span>
+          </div></if>
+        </div>
       </div></if>
-      <div class="column">
-        <span class="label" t="ixchel_sample.refit.laser"></span>
-        <for each="swatches" as="w" key="w.id"><div class="row swatch" on:click="pickLaser(w)"
-             bind:class:selected="w.draft" bind:class:installed="w.current">
-          <mc-item class="icon" bind:item="w.icon"></mc-item>
-          <span bind:text="w.name"></span>
-        </div></for>
-        <if test="hasDraft"><div class="button" on:click="applyLaser" bind:class:busy="applyLaser.pending">
-          <span t="ixchel_sample.refit.apply"></span>
-        </div></if>
-      </div>
-    </div></if>
-    <if test="hasError"><div class="error">
-      <span bind:text="errorText"></span>
-    </div></if>
+      <if test="hasError"><div class="error">
+        <span bind:text="errorText"></span>
+      </div></if>
+    </div>
   </div>
-</div>
+</page>

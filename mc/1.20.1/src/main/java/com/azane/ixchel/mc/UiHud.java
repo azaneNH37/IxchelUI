@@ -1,11 +1,10 @@
 package com.azane.ixchel.mc;
 
-import com.azane.ixchel.core.binding.UiTemplate;
+import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.mc.document.HostedDocument;
-import com.azane.ixchel.mc.element.McElements;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
@@ -18,56 +17,56 @@ import java.util.function.Supplier;
  * view model. A development run also reloads on save. Client thread only.
  *
  * <pre>{@code
- * @UiTemplate("ixchel_sample:ui/env/hud.html")
- * class EnvView extends ViewModel { ... }
+ * @UiView("ixchel_sample:ui/env/hud.html")
+ * class EnvModel extends ViewModel { ... }
  *
- * UiHud hud = IxchelForge.registerHud(modBus, EnvView.class, EnvView::new);
+ * UiHud hud = IxchelForge.registerHud(modBus, EnvModel.class, EnvModel::new);
  * hud.show(false);
  * }</pre>
  */
 public final class UiHud {
-    private final ResourceLocation template;
+    private final ResourceLocation page;
     private final Supplier<? extends ViewModel> model;
     private HostedDocument doc;
     private boolean shown = true;
 
     /**
-     * A HUD of the template {@code type} declares with {@link UiTemplate}.
+     * A HUD of the page {@code type} declares with {@link UiView}.
      *
-     * @param type  the view model class; it declares exactly one concrete template
+     * @param type  the view model class; it declares exactly one concrete page
      * @param model creates the view model on the first load
-     * @throws IllegalArgumentException if {@code type} does not declare exactly one concrete template
+     * @throws IllegalArgumentException if {@code type} does not declare exactly one concrete page
      */
     public <V extends ViewModel> UiHud(Class<V> type, Supplier<? extends V> model) {
-        this(DeclaredTemplate.of(type), model);
+        this(DeclaredView.of(type), model);
     }
 
     /**
-     * A HUD of a template without a view model.
+     * A HUD of a page without a view model.
      *
-     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     * @param page the page under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements
      */
-    public UiHud(ResourceLocation template) {
-        this(template, () -> null);
+    public UiHud(ResourceLocation page) {
+        this(page, () -> null);
     }
 
     /**
-     * A HUD of an explicit template.
+     * A HUD of an explicit page.
      *
-     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     * @param page the page under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements
-     * @param model    creates the view model on the first load; may return {@code null} for a template
+     * @param model    creates the view model on the first load; may return {@code null} for a page
      *                 without bindings
      */
-    public UiHud(ResourceLocation template, Supplier<? extends ViewModel> model) {
-        this.template = template;
+    public UiHud(ResourceLocation page, Supplier<? extends ViewModel> model) {
+        this.page = page;
         this.model = model;
     }
 
-    /** The template; the loader layer derives the layer id from it. */
-    public ResourceLocation template() {
-        return template;
+    /** The page; the loader layer derives the layer id from it. */
+    public ResourceLocation page() {
+        return page;
     }
 
     /**
@@ -79,7 +78,7 @@ public final class UiHud {
         if (doc == null) {
             ViewModel m = model.get();
             try {
-                doc = new HostedDocument(template, McElements.TAGS, UiComponents.hosting(template.getNamespace()), m, () -> { });
+                doc = new HostedDocument(page, false, m, () -> { });
             } catch (UiLoadException e) {
                 if (m != null) {
                     m.close();

@@ -1,16 +1,18 @@
-<link rel="stylesheet" href="@ixchel/dark.css"/>
-<link rel="component" href="book.html"/>
-<link rel="component" href="page.html"/>
-<guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
-            on:prev="prev" on:next="next" on:back="back" on:contents="contents"
-            on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
-  <guide-page t:heading="ixchel_sample.guide.title">
-    <div class="text" t="ixchel_sample.guide.intro"><mc-item class="icon" bind:item="icons.book"></mc-item><span mark="i" class="i"></span></div>
-    <div class="text" t="ixchel_sample.guide.navigation"><a mark="link" on:click="open('circuits')"></a><span mark="b" class="b"></span><span mark="key" class="key"></span></div>
-  </guide-page>
-  <guide-page t:heading="ixchel_sample.guide.contents">
-    <for each="entries" as="e" key="e.id"><div class="text toc">
-      <a on:click="open(e.id)" bind:text="e.title"></a>
-    </div></for>
-  </guide-page>
-</guide-book>
+<page>
+  <link href="guide.css"/>
+  <link href="book.html"/>
+  <link href="page.html"/>
+  <guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
+              on:prev="prev" on:next="next" on:back="back" on:contents="contents"
+              on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
+    <guide-page t:heading="ixchel_sample.guide.title">
+      <div class="text" t="ixchel_sample.guide.intro"><mc-item class="icon" bind:item="icons.book"></mc-item><span mark="i" class="i"></span></div>
+      <div class="text" t="ixchel_sample.guide.navigation"><a mark="link" on:click="open('circuits')"></a><span mark="b" class="b"></span><span mark="key" class="key"></span></div>
+    </guide-page>
+    <guide-page t:heading="ixchel_sample.guide.contents">
+      <for each="entries" as="e" key="e.id"><div class="text toc">
+        <a on:click="open(e.id)" bind:text="e.title"></a>
+      </div></for>
+    </guide-page>
+  </guide-book>
+</page>

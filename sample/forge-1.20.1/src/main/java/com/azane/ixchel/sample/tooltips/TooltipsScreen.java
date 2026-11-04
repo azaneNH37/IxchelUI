@@ -13,6 +13,6 @@ public final class TooltipsScreen {
     }
 
     public static void open() {
-        Minecraft.getInstance().setScreen(new UiScreen(new TooltipsView()));
+        Minecraft.getInstance().setScreen(new UiScreen(new TooltipsModel()));
     }
 }

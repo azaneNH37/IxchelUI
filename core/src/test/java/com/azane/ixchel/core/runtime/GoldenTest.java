@@ -5,7 +5,7 @@ import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.paint.ImageMeasurer;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import com.azane.ixchel.core.text.TextMeasurer;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -46,17 +46,22 @@ class GoldenTest {
     /** For documents without {@code background-size: auto}: every image is unknown. */
     static final ImageMeasurer NO_IMAGES = src -> null;
 
-    /** The {@code <link>} line for {@link #sheet} as line 1, so template positions in {@code html} start at line 2. */
+    /** {@code <page>} and the {@code <link>} of {@link #sheet} as line 1, so view positions in {@code html} start at line 2. */
     static String linked(String html) {
-        return "<link rel=\"stylesheet\" href=\"t.css\"/>\n" + html;
+        return "<page><link href=\"t.css\"/>\n" + html + "</page>";
     }
 
-    /** Serves {@code css} as {@code t.css}, the only linked file. */
+    /** {@code html} as a page's content, on its first line after {@code <page>}. */
+    static String page(String html) {
+        return "<page>" + html + "</page>";
+    }
+
+    /** Serves {@code css} as {@code t.css}, the only linked file; its first line starts after {@code @stylesheet;}. */
     static Function<String, String> sheet(String css) {
-        return Map.of("t.css", css)::get;
+        return Map.of("t.css", "@stylesheet; " + css)::get;
     }
 
-    /** For templates without {@code <link>}: reading any file fails. */
+    /** For views without {@code <link>}: reading any file fails. */
     static final Function<String, String> NO_SHEETS = href -> {
         throw new IllegalArgumentException("no stylesheet " + href);
     };

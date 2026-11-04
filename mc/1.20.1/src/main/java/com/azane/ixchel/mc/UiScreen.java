@@ -1,12 +1,11 @@
 package com.azane.ixchel.mc;
 
-import com.azane.ixchel.core.binding.UiTemplate;
+import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.mc.document.ExitingDocuments;
 import com.azane.ixchel.mc.document.HostedDocument;
-import com.azane.ixchel.mc.element.McElements;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -21,15 +20,15 @@ import net.minecraft.resources.ResourceLocation;
  * {@code :-ix-absent} rules animates out after the screen closed, while input is back with the game;
  * the host calls the loader glue's {@code installScreenExits()} once for that.
  *
- * <p>The template is the one the view model's class declares with {@link UiTemplate}; a model that
- * serves several templates, or none, is mounted with the template id:
+ * <p>The page is the one the view model's class declares with {@link UiView}; a model that
+ * serves several pages, or none, is mounted with the page id:
  *
  * <pre>{@code
- * @UiTemplate("ixchel_sample:ui/waypoints/list.html")
- * class WaypointsView extends ViewModel { ... }
+ * @UiView("ixchel_sample:ui/waypoints/list.html")
+ * class WaypointsModel extends ViewModel { ... }
  *
- * mc.setScreen(new UiScreen(new WaypointsView()));
- * mc.setScreen(new UiScreen(new ResourceLocation(MODID, "ui/guide/entries/" + page + ".html"), new GuideView()));
+ * mc.setScreen(new UiScreen(new WaypointsModel()));
+ * mc.setScreen(new UiScreen(new ResourceLocation(MODID, "ui/guide/entries/" + page + ".html"), new GuideModel()));
  * }</pre>
  *
  * <p>It needs no world: opened from the title screen or Forge's mod list ({@code Minecraft.level} and
@@ -39,7 +38,7 @@ import net.minecraft.resources.ResourceLocation;
  *
  * <pre>{@code
  * context.registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class, () ->
- *         new ConfigScreenHandler.ConfigScreenFactory((mc, modList) -> new UiScreen(new ConfigView(), modList)));
+ *         new ConfigScreenHandler.ConfigScreenFactory((mc, modList) -> new UiScreen(new ConfigModel(), modList)));
  * }</pre>
  *
  * <p>The document draws over that background, and a {@code backdrop-filter} reads it. A screen that
@@ -54,11 +53,11 @@ public class UiScreen extends Screen {
     private final Screen parent;
 
     /**
-     * A screen of the template {@code model}'s class declares, closing to the game (or to the title
+     * A screen of the page {@code model}'s class declares, closing to the game (or to the title
      * screen without a world).
      *
      * @param model the view model; closed with the screen
-     * @throws IllegalArgumentException if the class does not declare exactly one concrete template
+     * @throws IllegalArgumentException if the class does not declare exactly one concrete page
      * @throws UiLoadException          outside development when the document has errors
      */
     public UiScreen(ViewModel model) {
@@ -66,54 +65,54 @@ public class UiScreen extends Screen {
     }
 
     /**
-     * A screen of the template {@code model}'s class declares, closing to {@code parent}.
+     * A screen of the page {@code model}'s class declares, closing to {@code parent}.
      *
      * @param model  the view model; closed with the screen
      * @param parent the screen {@link #onClose} returns to, such as the mod list; {@code null} closes
      *               to the game
-     * @throws IllegalArgumentException if the class does not declare exactly one concrete template
+     * @throws IllegalArgumentException if the class does not declare exactly one concrete page
      * @throws UiLoadException          outside development when the document has errors
      */
     public UiScreen(ViewModel model, Screen parent) {
-        this(DeclaredTemplate.of(model.getClass()), model, parent);
+        this(DeclaredView.of(model.getClass()), model, parent);
     }
 
     /**
-     * A screen of a template without a view model, closing to the game.
+     * A screen of a page without a view model, closing to the game.
      *
-     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     * @param page the page under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements
      * @throws UiLoadException outside development when the document has errors
      */
-    public UiScreen(ResourceLocation template) {
-        this(template, null, null);
+    public UiScreen(ResourceLocation page) {
+        this(page, null, null);
     }
 
     /**
-     * A screen of an explicit template, closing to the game (or to the title screen without a world).
+     * A screen of an explicit page, closing to the game (or to the title screen without a world).
      *
-     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     * @param page the page under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements
-     * @param model    the view model the template binds to, or {@code null}; closed with the screen
+     * @param model    the view model the page binds to, or {@code null}; closed with the screen
      * @throws UiLoadException outside development when the document has errors
      */
-    public UiScreen(ResourceLocation template, ViewModel model) {
-        this(template, model, null);
+    public UiScreen(ResourceLocation page, ViewModel model) {
+        this(page, model, null);
     }
 
     /**
-     * A screen of an explicit template, closing to {@code parent}.
+     * A screen of an explicit page, closing to {@code parent}.
      *
-     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     * @param page the page under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements
-     * @param model    the view model the template binds to, or {@code null}; closed with the screen
+     * @param model    the view model the page binds to, or {@code null}; closed with the screen
      * @param parent   the screen {@link #onClose} returns to, such as the mod list; {@code null} closes
      *                 to the game
      * @throws UiLoadException outside development when the document has errors
      */
-    public UiScreen(ResourceLocation template, ViewModel model, Screen parent) {
+    public UiScreen(ResourceLocation page, ViewModel model, Screen parent) {
         super(Component.empty());
-        this.doc = new HostedDocument(template, McElements.TAGS, UiComponents.hosting(template.getNamespace()), model, () -> { });
+        this.doc = new HostedDocument(page, false, model, () -> { });
         this.parent = parent;
     }
 

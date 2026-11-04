@@ -1,5 +1,7 @@
 /* Vanilla's slot bevel: dark top and left, white bottom and right, around a 16x16 well. Sizes stay
    with each slot; the inventory component sets its own. */
+@partial;
+
 .slot {
   width: 18px;
   height: 18px;
@@ -7,7 +9,7 @@
 
 .slot,
 .ix-well {
-  background-color: var(--ix-well, #8B8B8B);
+  background-color: var(--ix-well-bg, #8B8B8B);
   border-width: 1px;
   border-style: solid;
   border-top-color: #373737;

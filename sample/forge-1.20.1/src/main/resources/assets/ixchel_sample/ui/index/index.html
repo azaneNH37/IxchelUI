@@ -1,18 +1,19 @@
-<link rel="stylesheet" href="@ixchel/dark.css"/>
-<link rel="stylesheet" href="index.css"/>
-<div class="screen">
-  <div class="panel">
-    <span class="title" t="ixchel_sample.index.title"></span>
-    <span class="hint" t="ixchel_sample.index.hint"></span>
-    <div class="list">
-      <for each="rows" as="r" key="r.id"><div class="row" tabindex="0" on:click="open(r)" bind:class:on="r.on">
-        <mc-item class="icon" bind:item="r.icon"></mc-item>
-        <div class="text">
-          <span class="name" bind:text="r.title"></span>
-          <span class="description" bind:text="r.description"></span>
-        </div>
-        <span class="state" bind:text="r.state"></span>
-      </div></for>
+<page>
+  <link href="index.css"/>
+  <div class="screen">
+    <div class="ix-panel">
+      <span class="ix-title" t="ixchel_sample.index.title"></span>
+      <span class="hint" t="ixchel_sample.index.hint"></span>
+      <div class="list">
+        <for each="rows" as="r" key="r.id"><div class="row" tabindex="0" on:click="open(r)" bind:class:on="r.on">
+          <mc-item class="icon" bind:item="r.icon"></mc-item>
+          <div class="text">
+            <span class="name" bind:text="r.title"></span>
+            <span class="description" bind:text="r.description"></span>
+          </div>
+          <span class="state" bind:text="r.state"></span>
+        </div></for>
+      </div>
     </div>
   </div>
-</div>
+</page>

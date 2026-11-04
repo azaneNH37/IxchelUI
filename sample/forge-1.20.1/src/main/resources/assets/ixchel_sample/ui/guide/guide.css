@@ -1,0 +1,3 @@
+/* The guide pages' look: the overlay theme; the book and its pages style themselves. */
+@stylesheet;
+@link "../themes/overlay.css";

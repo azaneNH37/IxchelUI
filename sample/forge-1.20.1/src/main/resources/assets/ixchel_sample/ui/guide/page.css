@@ -1,5 +1,7 @@
 /* The page of textures/gui/book.png is 146×180; vanilla's text area is 114 wide, clear of the binding
    on the left. */
+@stylesheet;
+
 .page {
   flex-shrink: 0;
   width: 146px;

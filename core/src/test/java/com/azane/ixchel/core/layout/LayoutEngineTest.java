@@ -12,8 +12,8 @@ import com.azane.ixchel.core.dom.Presence;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.style.StyleEngine;
 import com.azane.ixchel.core.style.StyleSheet;
-import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.core.template.TemplateParser;
+import com.azane.ixchel.core.view.TagRegistry;
+import com.azane.ixchel.core.view.ViewParser;
 import com.azane.ixchel.core.text.TextMeasurer;
 import com.azane.ixchel.core.text.TextShaper;
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ class LayoutEngineTest {
     void colorOnlyRestyleDoesNotRunTaffyButASizeChangeDoes() {
         Diagnostics diag = new Diagnostics();
         Element root = new Element(ElementType.plain("#root"), new SourcePos("t.html", 1, 1));
-        for (Node n : TemplateParser.parse("<div class=\"a\">x</div>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
+        for (Node n : ViewParser.parse("<page>" + "<div class=\"a\">x</div>" + "</page>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
             root.appendChild(n);
         }
         StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(
@@ -73,7 +73,7 @@ class LayoutEngineTest {
     void equalWidthTextChangeSkipsTaffyButAWiderOneReflows() {
         Diagnostics diag = new Diagnostics();
         Element root = new Element(ElementType.plain("#root"), new SourcePos("t.html", 1, 1));
-        for (Node n : TemplateParser.parse("<div class=\"row\"><span>x5</span><div class=\"mark\"></div></div>",
+        for (Node n : ViewParser.parse("<page>" + "<div class=\"row\"><span>x5</span><div class=\"mark\"></div></div>" + "</page>",
                 "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
             root.appendChild(n);
         }
@@ -108,7 +108,7 @@ class LayoutEngineTest {
     void theTooltipIsPlacedAtThePointerFlipsAtTheEdgesAndNeverReflowsTheDocument() {
         Diagnostics diag = new Diagnostics();
         Element root = new Element(ElementType.plain("#root"), new SourcePos("t.html", 1, 1));
-        for (Node n : TemplateParser.parse("<div class=\"a\">x<ix-tooltip class=\"tip\">t</ix-tooltip></div>",
+        for (Node n : ViewParser.parse("<page>" + "<div class=\"a\">x<ix-tooltip class=\"tip\">t</ix-tooltip></div>" + "</page>",
                 "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
             root.appendChild(n);
         }
@@ -145,7 +145,7 @@ class LayoutEngineTest {
     void aTooltipNarrowedByMaxWidthIsAsTallAsItsWrappedText() {
         Diagnostics diag = new Diagnostics();
         Element root = new Element(ElementType.plain("#root"), new SourcePos("t.html", 1, 1));
-        for (Node n : TemplateParser.parse("<div>x<ix-tooltip class=\"tip\"><div class=\"text\">aaaa bbbb cccc</div></ix-tooltip></div>",
+        for (Node n : ViewParser.parse("<page>" + "<div>x<ix-tooltip class=\"tip\"><div class=\"text\">aaaa bbbb cccc</div></ix-tooltip></div>" + "</page>",
                 "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
             root.appendChild(n);
         }

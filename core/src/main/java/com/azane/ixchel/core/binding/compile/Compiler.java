@@ -26,10 +26,13 @@ import com.azane.ixchel.core.dom.Presence;
 import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.dom.UiEvent;
+import com.azane.ixchel.core.effect.Aliases;
+import com.azane.ixchel.core.effect.EffectCode;
+import com.azane.ixchel.core.effect.Effects;
 import com.azane.ixchel.core.event.Keys;
-import com.azane.ixchel.core.template.ComponentDef;
-import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.core.template.TemplateParser;
+import com.azane.ixchel.core.view.ComponentDef;
+import com.azane.ixchel.core.view.TagRegistry;
+import com.azane.ixchel.core.view.ViewParser;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -49,6 +52,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static com.azane.ixchel.core.binding.compile.Bindings.MODEL;
 
@@ -61,12 +65,12 @@ import static com.azane.ixchel.core.binding.compile.Bindings.MODEL;
  */
 final class Compiler {
     /**
-     * The names visible where a template is being compiled, where its problems go, and, inside a
-     * component's template, what fills its slots.
+     * The names visible where a view is being compiled, where its problems go, and, inside a
+     * component's view, what fills its slots.
      *
      * @param owner     a page's view model class or a component's {@code <name>}, for messages
-     * @param component whether this is a component's template
-     * @param slots     the instance's slot content; {@code null} outside a component's template
+     * @param component whether this is a component's view
+     * @param slots     the instance's slot content; {@code null} outside a component's view
      * @param model     the view model local states here belong to: the page's, or the nearest
      *                  enclosing Java component's
      */
@@ -98,6 +102,8 @@ final class Compiler {
     private final Bindings.TextConverter text;
     private final TagRegistry tags;
     private final PropertyRegistry properties;
+    private final Effects effects;
+    private final Function<String, Aliases> aliases;
     private final TopLayer topLayer;
     private final Map<String, ComponentDef> components;
     /** The Java half of the components that have one, by component name. */
@@ -116,13 +122,16 @@ final class Compiler {
      * @param lint  whether this is a lint: nothing runs, so no component model may be built
      */
     Compiler(Element documentRoot, ViewModel model, Map<String, Name> names, String owner,
-             Bindings.TextConverter text, TagRegistry tags, PropertyRegistry properties, TopLayer topLayer,
+             Bindings.TextConverter text, TagRegistry tags, Effects effects, Function<String, Aliases> aliases,
+             TopLayer topLayer,
              Map<String, ComponentDef> components, Map<String, Bindings.Hosted.Model> models,
              boolean lint, Presence presence, Diagnostics diag) {
         this.documentRoot = documentRoot;
         this.text = text;
         this.tags = tags;
-        this.properties = properties;
+        this.properties = effects.registry();
+        this.effects = effects;
+        this.aliases = aliases;
         this.topLayer = topLayer;
         this.components = components;
         this.models = models;
@@ -370,7 +379,7 @@ final class Compiler {
         return null;
     }
 
-    /** A {@code <slot>} in a component's template: replaced by what the user gave, or by its own fallback content. */
+    /** A {@code <slot>} in a component's view: replaced by what the user gave, or by its own fallback content. */
     private Anchor slot(Element slot, Element parent, boolean attached, Anchor prev, Part.Group out,
                               List<Object> items) {
         String name = "";
@@ -408,8 +417,8 @@ final class Compiler {
 
     /**
      * {@code <name …>} of a component: the element stays as the instance's shell, its children become
-     * slot content, and the component's template is compiled into it with the parameters and events
-     * the shell's attributes give. A Java component's ports are wired to them, and its template sees
+     * slot content, and the component's view is compiled into it with the parameters and events
+     * the shell's attributes give. A Java component's ports are wired to them, and its view sees
      * the members of its model, which owns its local states and defaults.
      */
     private void instantiate(Element shell, ComponentDef def, Part.Group out) {
@@ -434,7 +443,7 @@ final class Compiler {
                 }
             } else if (name.equals("bind:text")) {
                 diag().report(BindingCode.COMPONENT_TEXT, a.namePos(),
-                        "bind:text cannot fill " + tag + ": its content is the component's template");
+                        "bind:text cannot fill " + tag + ": its content is the component's view");
             } else if (name.startsWith("on:") && def.events().contains(name.substring("on:".length()).split("\\.")[0])) {
                 if (name.indexOf('.') >= 0) {
                     diag().report(BindingCode.UNEXPECTED_FILTER, a.namePos(), "component events take no filters");
@@ -462,7 +471,7 @@ final class Compiler {
 
         Map<String, List<Node>> content = new HashMap<>();
         for (Node n : List.copyOf(shell.children())) {
-            String slot = n instanceof Element e && TemplateParser.slotOf(e) != null ? TemplateParser.slotOf(e) : "";
+            String slot = n instanceof Element e && ViewParser.slotOf(e) != null ? ViewParser.slotOf(e) : "";
             if (!def.slots().contains(slot) && !content.containsKey(slot)) {
                 diag().report(BindingCode.UNKNOWN_SLOT, n.pos(), slot.isEmpty()
                         ? tag + " has no default <slot>; this content would be dropped"
@@ -547,7 +556,7 @@ final class Compiler {
         listeners.forEach((event, a) -> listen(events.get(event), a));
     }
 
-    /** Leaves an instance whose template will not be compiled. */
+    /** Leaves an instance whose view will not be compiled. */
     private void abandon(Child child, Env user) {
         env = user;
         if (child != null) {
@@ -587,7 +596,7 @@ final class Compiler {
         return new Child(model, shape, members, real);
     }
 
-    /** Whether the {@code <template>}'s parameters and events are exactly the ports of {@code shape}; reports each that is not. */
+    /** Whether the {@code <component>}'s parameters and events are exactly the ports of {@code shape}; reports each that is not. */
     private static boolean signature(ComponentDef def, ModelShape shape, Diagnostics diag) {
         Map<String, ModelShape.Member> members = shape.members();
         String owner = shape.type().getSimpleName();
@@ -609,7 +618,7 @@ final class Compiler {
         for (ModelShape.Member m : members.values()) {
             if (m.port() && !def.hasParam(m.name()) && !def.events().contains(m.name())) {
                 diag.report(BindingCode.SIGNATURE_MISMATCH, def.pos(), "port field '" + m.name() + "' of "
-                        + m.owner().getSimpleName() + " is not declared by <template name=\"" + def.name() + "\">");
+                        + m.owner().getSimpleName() + " is not declared by <component name=\"" + def.name() + "\">");
                 ok = false;
             }
         }
@@ -790,7 +799,7 @@ final class Compiler {
             case "style" -> diag().report(BindingCode.INCOMPLETE_TARGET, a.namePos(),
                     "bind:style takes a property name: bind:style:<property>");
             case "type" -> diag().report(BindingCode.UNKNOWN_TARGET, a.namePos(),
-                    "an <input>'s type is fixed by the template", "write type=\"…\"");
+                    "an <input>'s type is fixed by the view", "write type=\"…\"");
             default -> {
                 boolean allowed = shell ? TagRegistry.GLOBAL_ATTRIBUTES.contains(target)
                         : tags.isAllowedAttribute(e.tag(), target);
@@ -805,10 +814,25 @@ final class Compiler {
         return null;
     }
 
-    /** {@code bind:style:<longhand>} or {@code bind:style:--<name>} with a String, Number or Object value. */
+    /**
+     * {@code bind:style:<longhand>} or {@code bind:style:--<name>} with a String, Number or Object
+     * value; an effect param, {@code --Alias-param}, takes the alias the view's stylesheet links.
+     */
     private Binding styleBinding(Element e, Directive a, Ref ref) {
-        String name = a.name().substring("bind:style:".length()).toLowerCase(Locale.ROOT);
+        String written = a.name().substring("bind:style:".length());
+        Aliases fileAliases = aliases.apply(a.namePos().file());
+        String name = written.startsWith("--") ? fileAliases.property(written) : written.toLowerCase(Locale.ROOT);
+        if (name == null) {
+            diag().report(EffectCode.UNKNOWN_ALIAS, a.namePos(), fileAliases.unknownProperty(written),
+                    "the view's stylesheet links the effects its bind:style may set");
+            return null;
+        }
         PropertyDef<?> property = properties.byName(name);
+        String unknownParam = property == null ? effects.unknownParam(name, fileAliases) : null;
+        if (unknownParam != null) {
+            diag().report(EffectCode.UNKNOWN_PARAM, a.namePos(), unknownParam);
+            return null;
+        }
         boolean custom = property == null && name.startsWith("--");
         if (!custom && property == null) {
             Shorthand shorthand = properties.shorthand(name);
@@ -833,14 +857,14 @@ final class Compiler {
             return null;
         }
         if (custom) {
-            return new CustomPropertyBinding(ref.cell(), a, diag(), e, name);
+            return new CustomPropertyBinding(ref.cell(), a, diag(), e, name, fileAliases);
         }
         if (number && property.syntax().numberUnit() == null) {
             diag().report(BindingCode.VALUE_TYPE, a.valuePos(), "'" + name + "' takes no plain numbers",
                     "bind a String with its CSS value");
             return null;
         }
-        return new StyleBinding(ref.cell(), a, diag(), e, property);
+        return new StyleBinding(ref.cell(), a, diag(), e, property, fileAliases);
     }
 
     /**
@@ -913,7 +937,7 @@ final class Compiler {
     private void handler(Element e, Directive a) {
         String[] parts = a.name().substring("on:".length()).split("\\.", -1);
         String eventName = parts[0];
-        UiEvent.Type type = UiEvent.Type.byTemplateName(eventName);
+        UiEvent.Type type = UiEvent.Type.byViewName(eventName);
         if (type == null) {
             diag().report(BindingCode.UNKNOWN_EVENT, a.namePos(),
                     "unknown event '" + eventName + "'; supported: " + eventNames());
@@ -1038,7 +1062,7 @@ final class Compiler {
         return () -> action.run(Types.convert(cell.get(), param));
     }
 
-    /** A component template raising one of its events; every call must carry the same payload type, or fit the declared one. */
+    /** A component view raising one of its events; every call must carry the same payload type, or fit the declared one. */
     private Runnable emit(Directive a, Expr.Call c, Name.Event port) {
         Ref arg = c.arg() == null ? null : compile(a, c.arg());
         if (c.arg() != null && arg == null) {
@@ -1231,7 +1255,7 @@ final class Compiler {
     private static String eventNames() {
         List<String> names = new ArrayList<>();
         for (UiEvent.Type t : UiEvent.Type.values()) {
-            names.add(t.templateName());
+            names.add(t.viewName());
         }
         return String.join(", ", names);
     }

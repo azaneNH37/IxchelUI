@@ -4,9 +4,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * What the template compiler needs from the model beyond its public API: cells the framework holds,
+ * What the view compiler needs from the model beyond its public API: cells the framework holds,
  * writes that do not flag the model, wiring a component's ports, and the per-frame poll. Host code
- * cannot use it: {@link #claim()} hands out the one instance once, and the template compiler takes
+ * cannot use it: {@link #claim()} hands out the one instance once, and the view compiler takes
  * it when it loads.
  */
 public interface ModelAccess {
@@ -15,7 +15,7 @@ public interface ModelAccess {
         return Bridge.claim();
     }
 
-    /** A cell templates can read but not write; its value changes only through {@link #replace}. */
+    /** A cell views can read but not write; its value changes only through {@link #replace}. */
     <T> Cell<T> held(T initial);
 
     /** A local state of {@code owner}, starting at {@code null}. */

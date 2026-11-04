@@ -6,8 +6,8 @@ import java.lang.reflect.Type;
 import java.util.function.Consumer;
 
 /**
- * What a name in a template stands for. A page sees its view model's non-private fields; a
- * component's template sees its parameters and events, and those of a Java component also the other
+ * What a name in a view stands for. A page sees its view model's non-private fields; a
+ * component's view sees its parameters and events, and those of a Java component also the other
  * members of its view model; all see their local states, {@code as} rows and, in handlers,
  * {@code $event}.
  */
@@ -22,8 +22,8 @@ sealed interface Name permits Ref, Name.Act, Name.Event, Name.Unset {
 
     /**
      * A component event. Its payload type is declared by its {@code Event<T>} field, or else fixed by
-     * the first call compiled in the component's template; the user's {@code on:<event>} handler is
-     * set after that template is compiled.
+     * the first call compiled in the component's view; the user's {@code on:<event>} handler is
+     * set after that view is compiled.
      */
     final class Event implements Name {
         final String name;

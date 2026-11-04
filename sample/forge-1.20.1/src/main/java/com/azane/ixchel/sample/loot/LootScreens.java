@@ -19,7 +19,7 @@ public final class LootScreens {
 
     /** Client only; from client setup. */
     public static void register(IEventBus modBus) {
-        hud = IxchelForge.registerHud(modBus, LootView.class, LootView::new)
+        hud = IxchelForge.registerHud(modBus, LootModel.class, LootModel::new)
                 .show(false);
     }
 
@@ -28,6 +28,6 @@ public final class LootScreens {
     }
 
     public static void openList() {
-        Minecraft.getInstance().setScreen(new UiScreen(new LootListView()));
+        Minecraft.getInstance().setScreen(new UiScreen(new LootListModel()));
     }
 }

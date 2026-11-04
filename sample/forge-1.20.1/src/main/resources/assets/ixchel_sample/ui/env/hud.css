@@ -1,5 +1,7 @@
 /* Three panels over the whole screen: vitals top-left, the crosshair target top-center (sized by
    its content), the surroundings top-right. Icons come from vanilla's HUD sheet, 9×9 each. */
+@stylesheet;
+
 .env {
   width: 100%;
   height: 100%;

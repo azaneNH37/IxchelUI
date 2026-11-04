@@ -6,7 +6,7 @@ import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.UiEvent;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,11 +24,11 @@ class UiDocumentDisabledTest {
     @Test
     void aDisabledElementMatchesDisabledAndItsSubtreeTakesNoClickOrFocusUntilEnabled() {
         Form m = new Form();
-        UiDocument doc = UiDocument.load("""
-                <link rel="stylesheet" href="t.css"/>
+        UiDocument doc = UiDocument.load(GoldenTest.page("""
+                <link href="t.css"/>
                 <div class="b" tabindex="0" bind:disabled="locked" on:click="save"><div class="in"></div></div>
                 <div class="other" tabindex="0"></div>
-                """, "t.html", GoldenTest.sheet("""
+                """), "t.html", GoldenTest.sheet("""
                 .b { width: 10px; height: 10px; background-color: #fff }
                 .b:disabled { background-color: #888 }
                 .in { width: 4px; height: 4px }

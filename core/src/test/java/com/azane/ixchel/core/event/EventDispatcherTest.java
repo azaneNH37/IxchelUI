@@ -7,7 +7,7 @@ import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.UiEvent;
 import com.azane.ixchel.core.runtime.UiDocument;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import com.azane.ixchel.core.text.TextMeasurer;
 import org.junit.jupiter.api.Test;
 
@@ -41,12 +41,13 @@ class EventDispatcherTest {
 
     /** a: 0..40 square; b overlaps its right half and paints later; c is clipped by a; d is hidden. */
     private static final String HTML = """
-            <link rel="stylesheet" href="t.css"/>
+            <link href="t.css"/>
             <div id="a" tabindex="0"><div id="c"></div></div>
             <div id="b" tabindex="0"><div id="b1"></div><div id="b2"></div></div>
             <div id="d"></div>
             """;
     private static final String CSS = """
+            @stylesheet;
             div { position: absolute }
             #a { left: 0; top: 0; width: 40px; height: 40px; overflow: hidden }
             #c { left: 30px; top: 0; width: 30px; height: 10px }
@@ -57,7 +58,7 @@ class EventDispatcherTest {
             """;
 
     private static UiDocument load() {
-        UiDocument doc = UiDocument.load(HTML, "t.html", Map.of("t.css", CSS)::get, com.azane.ixchel.core.html.HtmlElements.TAGS, MONO, src -> null);
+        UiDocument doc = UiDocument.load("<page>" + HTML + "</page>", "t.html", Map.of("t.css", CSS)::get, com.azane.ixchel.core.html.HtmlElements.TAGS, MONO, src -> null);
         doc.frame(100, 100);
         return doc;
     }

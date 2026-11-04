@@ -26,11 +26,11 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
- * Selector matching, cascade and inheritance. Precedence, lowest first: user-agent rules, then the
- * author origin's component layer and theme layer, then unlayered author rules, each by
- * (specificity, sheet order, rule order); then inline style. {@code !important} declarations come
- * after all of these, the order of origins and layers reversed: unlayered author, theme layer,
- * component layer, user agent; then inline. Layers are not compared by specificity. An element's
+ * Selector matching, cascade and inheritance. Rules sit in ordered layers: the user-agent sheets
+ * share the lowest, every other sheet is a layer of its own, above the sheets before it. Precedence,
+ * lowest first: each layer's rules by (specificity, sheet order, rule order), lower layers first; then
+ * inline style. {@code !important} declarations come after all of these, the order of layers
+ * reversed; then inline. Layers are not compared by specificity. An element's
  * {@linkplain Element#boundStyle() bound values} are inline declarations that replace the
  * {@code style} attribute's declarations of the same properties.
  *
@@ -46,20 +46,15 @@ import java.util.WeakHashMap;
  * It is restyled whenever its element is.
  */
 public final class StyleEngine {
-    private static final int USER_AGENT = 0;
-    private static final int COMPONENT = 1;
-    private static final int THEME = 2;
-    private static final int AUTHOR = 3;
-
-    /** {@code origin}: {@link #USER_AGENT} to {@link #AUTHOR}, the normal declarations' order. */
-    private record Entry(Selector selector, Declarations.Compiled declarations, int origin, int specificity, int order) {
+    /** {@code layer}: 0 for the user agent, then one per sheet, the normal declarations' order. */
+    private record Entry(Selector selector, Declarations.Compiled declarations, int layer, int specificity, int order) {
     }
 
     /** An element's compiled {@code style} attribute and the list it was compiled from. */
     private record Inline(List<Rule.Declaration> source, Declarations.Compiled compiled) {
     }
 
-    private static final Comparator<Entry> CASCADE_ORDER = Comparator.comparingInt(Entry::origin)
+    private static final Comparator<Entry> CASCADE_ORDER = Comparator.comparingInt(Entry::layer)
             .thenComparingInt(Entry::specificity).thenComparingInt(Entry::order);
 
     /**
@@ -116,34 +111,32 @@ public final class StyleEngine {
 
     /** {@code diag} receives errors from inline styles, compiled when an element is restyled with a new one. */
     public StyleEngine(PropertyRegistry registry, List<StyleSheet> sheets, Diagnostics diag) {
-        this(registry, List.of(), List.of(), List.of(), sheets, diag, (e, previous, next, cascade) -> {
+        this(registry, List.of(), sheets, diag, (e, previous, next, cascade) -> {
         });
     }
 
     /**
-     * @param userAgent  sheets below every author rule, such as the form controls' defaults
-     * @param components the author origin's component layer, the lowest layer
-     * @param themes     the author origin's theme layer, above the component layer and below every
-     *                   unlayered author rule
-     * @param diag       also receives declarations found invalid after {@code var()} substitution
+     * @param userAgent sheets below every other, sharing one layer, such as the form controls' defaults
+     * @param layers    the other sheets, each a layer above those before it
+     * @param diag      also receives declarations found invalid after {@code var()} substitution
      */
-    public StyleEngine(PropertyRegistry registry, List<StyleSheet> userAgent, List<StyleSheet> components,
-                       List<StyleSheet> themes, List<StyleSheet> sheets, Diagnostics diag, Hook hook) {
+    public StyleEngine(PropertyRegistry registry, List<StyleSheet> userAgent, List<StyleSheet> layers,
+                       Diagnostics diag, Hook hook) {
         this.registry = registry;
         this.hook = hook;
         this.diag = diag;
-        index(userAgent, USER_AGENT);
-        index(components, COMPONENT);
-        index(themes, THEME);
-        index(sheets, AUTHOR);
+        index(userAgent, 0);
+        for (int k = 0; k < layers.size(); k++) {
+            index(List.of(layers.get(k)), k + 1);
+        }
     }
 
-    private void index(List<StyleSheet> sheets, int origin) {
+    private void index(List<StyleSheet> sheets, int layer) {
         int order = 0;
         for (StyleSheet sheet : sheets) {
             int base = order;
             for (StyleSheet.StyleRule r : sheet.rules()) {
-                Entry e = new Entry(r.selector(), r.declarations(), origin, r.selector().specificity(), base + r.order());
+                Entry e = new Entry(r.selector(), r.declarations(), layer, r.selector().specificity(), base + r.order());
                 order = Math.max(order, e.order + 1);
                 states |= r.selector().states();
                 switch (r.selector().pseudoElement()) {
@@ -260,11 +253,10 @@ public final class StyleEngine {
         for (int pass = 0; pass < 2; pass++) {
             boolean important = pass == 1;
             if (important) {
-                for (int origin = AUTHOR; origin >= USER_AGENT; origin--) {
-                    for (Entry m : matched) {
-                        if (m.origin == origin) {
-                            apply(m.declarations.longhands(), true, cs, parent);
-                        }
+                for (int end = matched.size(), start; end > 0; end = start) {
+                    start = layerStart(matched, end);
+                    for (int k = start; k < end; k++) {
+                        apply(matched.get(k).declarations.longhands(), true, cs, parent);
                     }
                 }
             } else {
@@ -291,6 +283,16 @@ public final class StyleEngine {
         return cs;
     }
 
+    /** The start of the layer that ends at {@code end} in {@code matched}, sorted by layer. */
+    private static int layerStart(List<Entry> matched, int end) {
+        int layer = matched.get(end - 1).layer;
+        int start = end - 1;
+        while (start > 0 && matched.get(start - 1).layer == layer) {
+            start--;
+        }
+        return start;
+    }
+
     /**
      * An element's custom properties: {@code inherited} overridden by its cascaded declarations and {@code bound} values,
      * each with its {@code var()}s substituted; {@code inherited} itself when nothing declares one.
@@ -300,12 +302,16 @@ public final class StyleEngine {
         Map<String, List<ComponentValue>> declared = null;
         for (int pass = 0; pass < 2; pass++) {
             boolean important = pass == 1;
-            for (int origin = important ? AUTHOR : USER_AGENT; important ? origin >= USER_AGENT : origin <= AUTHOR;
-                 origin += important ? -1 : 1) {
-                for (Entry m : matched) {
-                    if (m.origin == origin) {
-                        declared = declare(m.declarations.customs(), important, null, declared);
+            if (important) {
+                for (int end = matched.size(), start; end > 0; end = start) {
+                    start = layerStart(matched, end);
+                    for (int k = start; k < end; k++) {
+                        declared = declare(matched.get(k).declarations.customs(), true, null, declared);
                     }
+                }
+            } else {
+                for (Entry m : matched) {
+                    declared = declare(m.declarations.customs(), false, null, declared);
                 }
             }
             declared = declare(inline.customs(), important, bound, declared);

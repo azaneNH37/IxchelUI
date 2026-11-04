@@ -112,8 +112,8 @@ public final class CssProperties {
     public static final PropertyDef<AlignSelf> JUSTIFY_SELF = R.register("justify-self", keyword(AlignSelf.class), AlignSelf.AUTO, false, true, false);
     public static final PropertyDef<Length> ROW_GAP = R.register("row-gap", GAP, Length.ZERO, false, true, true);
     public static final PropertyDef<Length> COLUMN_GAP = R.register("column-gap", GAP, Length.ZERO, false, true, true);
-    public static final PropertyDef<GridTracks> GRID_TEMPLATE_ROWS = R.register("grid-template-rows", GridSyntaxes.template(), GridTracks.NONE, false, true, false);
-    public static final PropertyDef<GridTracks> GRID_TEMPLATE_COLUMNS = R.register("grid-template-columns", GridSyntaxes.template(), GridTracks.NONE, false, true, false);
+    public static final PropertyDef<GridTracks> GRID_TEMPLATE_ROWS = R.register("grid-template-rows", GridSyntaxes.view(), GridTracks.NONE, false, true, false);
+    public static final PropertyDef<GridTracks> GRID_TEMPLATE_COLUMNS = R.register("grid-template-columns", GridSyntaxes.view(), GridTracks.NONE, false, true, false);
     public static final PropertyDef<GridAreas> GRID_TEMPLATE_AREAS = R.register("grid-template-areas", GridSyntaxes.areas(), GridAreas.NONE, false, true, false);
     public static final PropertyDef<GridTracks> GRID_AUTO_ROWS = R.register("grid-auto-rows", GridSyntaxes.autoTracks(), GridTracks.NONE, false, true, false);
     public static final PropertyDef<GridTracks> GRID_AUTO_COLUMNS = R.register("grid-auto-columns", GridSyntaxes.autoTracks(), GridTracks.NONE, false, true, false);

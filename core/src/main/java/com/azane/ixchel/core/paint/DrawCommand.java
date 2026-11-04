@@ -100,7 +100,7 @@ public sealed interface DrawCommand
     }
 
     /**
-     * A native element ({@link com.azane.ixchel.core.template.NativeElement}) for the
+     * A drawn element ({@link com.azane.ixchel.core.view.UiElement}) for the
      * host to draw in its border box. {@code kind} is the tag; the core never looks inside {@code payload}.
      */
     record Custom(String kind, Object payload, float x, float y, float width, float height) implements DrawCommand {

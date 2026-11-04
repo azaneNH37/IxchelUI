@@ -12,6 +12,6 @@ public final class QuestsScreen {
     }
 
     public static void open() {
-        Minecraft.getInstance().setScreen(new UiScreen(new QuestsView()));
+        Minecraft.getInstance().setScreen(new UiScreen(new QuestsModel()));
     }
 }

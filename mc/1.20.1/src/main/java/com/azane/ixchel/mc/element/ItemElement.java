@@ -1,8 +1,8 @@
 package com.azane.ixchel.mc.element;
 
 import com.azane.ixchel.core.paint.DrawCommand;
-import com.azane.ixchel.core.template.NativeElement;
-import com.azane.ixchel.mc.paint.NativePainter;
+import com.azane.ixchel.core.view.UiElement;
+import com.azane.ixchel.mc.paint.ElementPainter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -15,8 +15,8 @@ import net.minecraft.world.item.ItemStack;
  * changes, so a live stack is drawn every frame without any comparison or copy; keep the handle
  * instance stable. An empty stack draws nothing and has no tooltip.
  */
-@NativeElement(tag = "mc-item", payload = "item")
-final class ItemElement implements NativePainter<ItemStack> {
+@UiElement(tag = "mc-item", payload = "item")
+final class ItemElement implements ElementPainter<ItemStack> {
     private static final float SIZE = 16f;
     /** Vanilla item rendering writes depth up to {@code z + 158}. */
     private static final float DEPTH = 160f;

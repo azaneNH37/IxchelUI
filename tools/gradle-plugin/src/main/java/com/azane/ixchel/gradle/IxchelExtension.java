@@ -39,7 +39,7 @@ import java.util.Properties;
  *     game libraries, and taffy, a plain Java library, is added to the runs;</li>
  * <li>makes the shaded jar the mod's jar ({@code shadowJar}, no classifier; the plain jar becomes
  *     {@code -slim}), reobfuscated on Forge 1.20.1;</li>
- * <li>registers {@code ixchelLint}, the offline template lint, on {@code check}.</li>
+ * <li>registers {@code ixchelLint}, the offline view lint, on {@code check}.</li>
  * </ul>
  * {@link #mod} names the mod and where the library is relocated; {@link #playtests} adds the
  * in-game playtests; {@link #lint} configures the lint.
@@ -79,7 +79,7 @@ public abstract class IxchelExtension {
     /**
      * Names the mod, registers it with ModDevGradle on the main source set and relocates the library
      * under {@code shadePackage}: Ixchel to {@code <shadePackage>.ixchel}, taffy to
-     * {@code <shadePackage>.taffy}. Every run gets {@code ixchel.devResources.<modId>}, so templates
+     * {@code <shadePackage>.taffy}. Every run gets {@code ixchel.devResources.<modId>}, so views
      * and stylesheets reload from {@code src/main/resources}.
      */
     public void mod(String modId, String shadePackage) {
@@ -205,7 +205,7 @@ public abstract class IxchelExtension {
         SourceSet main = sourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
         TaskProvider<JavaExec> lint = project.getTasks().register("ixchelLint", JavaExec.class, t -> {
             t.setGroup("verification");
-            t.setDescription("Lints the UI templates against their view models.");
+            t.setDescription("Lints the UI views against their view models.");
             t.setClasspath(kit);
             t.getMainClass().set("com.azane.ixchel.kit.Main");
             FileCollection runtime = main.getRuntimeClasspath();

@@ -7,19 +7,21 @@ import com.azane.ixchel.core.binding.ModelShape;
 import com.azane.ixchel.core.binding.TwoWay;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
-import com.azane.ixchel.core.css.property.PropertyRegistry;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Presence;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.dom.TopLayer;
-import com.azane.ixchel.core.template.ComponentDef;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.effect.Aliases;
+import com.azane.ixchel.core.effect.Effects;
+import com.azane.ixchel.core.view.ComponentDef;
+import com.azane.ixchel.core.view.TagRegistry;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -29,7 +31,7 @@ import java.util.function.Supplier;
  * <span bind:text="loaded"></span>          <!-- value as text; the element must be empty -->
  * <div bind:class:empty="count == 0"></div> <!-- Boolean toggles a class -->
  * <img bind:src="icon"/>                    <!-- value as a plain attribute -->
- * <mc-item bind:item="gun"></mc-item>       <!-- host object as a native element's payload -->
+ * <mc-item bind:item="gun"></mc-item>       <!-- host object as a drawn element's payload -->
  * <div bind:style:width="xpPercent"></div>  <!-- one longhand: a String in its CSS syntax ("37.5%"),
  *                                                a Number as px or a plain number, null to unset -->
  * <span bind:text="selected.name"></span>   <!-- path: record components, read when the record changes -->
@@ -70,14 +72,14 @@ import java.util.function.Supplier;
  * }</pre>
  *
  * A page's names are its view model's non-private fields, local states and {@code <for>} rows; a
- * component's template sees only its parameters, events, local states and rows, and those of a Java
+ * component's view sees only its parameters, events, local states and rows, and those of a Java
  * component also the members of its view model, which lives as long as the instance. A two-way
  * binding takes a bare path to something writable: a local state, a {@code Value} field, a row
  * component of type {@code Value<T>} or a parameter given a writable path; so does the left side of
  * an assignment.
  * Block attributes are read outside the block's content. Every name, record component and type is
  * checked at load, per component instance, and problems point at their column in the value; problems
- * inside a component's template add {@code (in <name> at file:line:col)} for the instance.
+ * inside a component's view add {@code (in <name> at file:line:col)} for the instance.
  *
  * <p>A {@code bind:style:<property>} value is an inline declaration of that property: it overrides
  * stylesheet rules (except {@code !important} ones) and replaces the {@code style} attribute's
@@ -105,7 +107,7 @@ public final class Bindings {
     public static final TextConverter PLAIN_TEXT = v -> v == null ? "" : String.valueOf(v);
 
     /**
-     * What a host adds to a document's template.
+     * What a host adds to a document's view.
      *
      * @param models the view model of each Java component, by component name
      */
@@ -143,18 +145,19 @@ public final class Bindings {
      * @param components the components the document's tags name
      * @param hosted     the Java half of those that have one
      * @param text       converts bound values for {@code bind:text}, attribute bindings and string concatenation
-     * @param properties the properties {@code bind:style:*} may set
+     * @param effects    the linked effects, whose registry has the properties {@code bind:style:*} may set
+     * @param aliases    the effect aliases of the stylesheet of a view, by view id
      * @param topLayer   where {@code bind:open} opens and closes dialogs
      * @param presence   where blocks enter and exit their copies
      */
     public static Bindings compile(Element root, ViewModel model, Map<String, ComponentDef> components, Hosted hosted,
-                                   TextConverter text, TagRegistry tags, PropertyRegistry properties,
+                                   TextConverter text, TagRegistry tags, Effects effects, Function<String, Aliases> aliases,
                                    TopLayer topLayer, Presence presence, Diagnostics diag) {
         ViewModel m = model != null ? model : new ViewModel() {
         };
         String owner = model != null ? model.getClass().getSimpleName() : NO_MODEL;
         Map<String, Name> names = names(ModelShape.of(m.getClass()), m, false, root.pos(), diag);
-        Compiler c = new Compiler(root, m, names, owner, text, tags, properties, topLayer, components, hosted.models(),
+        Compiler c = new Compiler(root, m, names, owner, text, tags, effects, aliases, topLayer, components, hosted.models(),
                 false, presence, diag);
         Part.Group group = new Part.Group();
         Bindings b = new Bindings(m, group, c.children);
@@ -181,13 +184,13 @@ public final class Bindings {
      * @param shape the view model's shape, or {@code null} for a document without one
      */
     public static void lint(Element root, ModelShape shape, Map<String, ComponentDef> components, Hosted hosted,
-                            TextConverter text, TagRegistry tags, PropertyRegistry properties,
+                            TextConverter text, TagRegistry tags, Effects effects, Function<String, Aliases> aliases,
                             TopLayer topLayer, Diagnostics diag) {
         ViewModel stub = new ViewModel() {
         };
         String owner = shape != null ? shape.type().getSimpleName() : NO_MODEL;
         Map<String, Name> names = shape != null ? names(shape, stub, true, root.pos(), diag) : Map.of();
-        new Compiler(root, stub, names, owner, text, tags, properties, topLayer, components, hosted.models(),
+        new Compiler(root, stub, names, owner, text, tags, effects, aliases, topLayer, components, hosted.models(),
                 true, Presence.instant(), diag).compileRoot(new Part.Group());
     }
 

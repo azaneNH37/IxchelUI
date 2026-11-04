@@ -11,10 +11,10 @@ import net.minecraft.resources.ResourceLocation;
  * pages.
  */
 final class GuideScreen extends UiScreen {
-    private final GuideView view;
+    private final GuideModel view;
 
-    GuideScreen(ResourceLocation template, GuideView view) {
-        super(template, view);
+    GuideScreen(ResourceLocation page, GuideModel view) {
+        super(page, view);
         this.view = view;
     }
 

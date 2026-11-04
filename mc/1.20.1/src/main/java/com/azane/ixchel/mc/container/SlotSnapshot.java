@@ -2,7 +2,7 @@ package com.azane.ixchel.mc.container;
 
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.paint.DrawCommand;
-import com.azane.ixchel.mc.paint.NativePainter;
+import com.azane.ixchel.mc.paint.ElementPainter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.client.Minecraft;
@@ -21,7 +21,7 @@ import java.util.Map;
  */
 public final class SlotSnapshot {
     /** Draws a slot's copy centered in its element; a container screen's document has it for {@code <mc-slot>}. */
-    public static final NativePainter<Item> PAINTER = new NativePainter<>() {
+    public static final ElementPainter<Item> PAINTER = new ElementPainter<>() {
         /** The count over an item is drawn 200 above it. */
         private static final float DEPTH = 210f;
 

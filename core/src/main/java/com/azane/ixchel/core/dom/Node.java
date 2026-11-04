@@ -26,7 +26,7 @@ public abstract sealed class Node permits Element, TextNode {
     }
 
     /**
-     * A detached deep copy of what the template gave this node: tag, classes, attributes, inline
+     * A detached deep copy of what the view gave this node: tag, classes, attributes, inline
      * style, directives and children for an element, the text for a text node. Interaction state,
      * payloads, listeners and computed results are not copied.
      */

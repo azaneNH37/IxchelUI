@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A {@code <for>} or {@code <if>}: template content mounted by data. A block never enters the tree;
+ * A {@code <for>} or {@code <if>}: view content mounted by data. A block never enters the tree;
  * its nodes go into {@code parent} right after {@code prev}, the content before it there.
  */
 abstract class Block implements Part, Anchor {

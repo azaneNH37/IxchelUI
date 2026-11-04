@@ -92,6 +92,6 @@ class UiDocumentPseudoTest {
                 .a::before { content: "x" }
                 .b::after { content: attr(title) }
                 """));
-        assertEquals(List.of("css/unsupported-value@t.css:1:23", "css/unsupported-value@t.css:2:22"), DiagCodes.of(e));
+        assertEquals(List.of("css/unsupported-value@t.css:1:36", "css/unsupported-value@t.css:2:22"), DiagCodes.of(e));
     }
 }

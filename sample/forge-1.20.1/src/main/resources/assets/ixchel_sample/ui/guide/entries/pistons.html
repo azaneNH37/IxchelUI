@@ -1,16 +1,18 @@
-<link rel="stylesheet" href="@ixchel/dark.css"/>
-<link rel="component" href="../book.html"/>
-<link rel="component" href="../page.html"/>
-<link rel="component" href="../recipe.html"/>
-<guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
-            on:prev="prev" on:next="next" on:back="back" on:contents="contents"
-            on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
-  <guide-page t:heading="ixchel_sample.guide.pistons.heading">
-    <guide-recipe bind:grid="recipes.piston" bind:result="icons.piston"></guide-recipe>
-    <div class="text" t="ixchel_sample.guide.pistons.planks"><mc-item class="icon" bind:item="icons.planks"></mc-item><span mark="b" class="b"></span></div>
-  </guide-page>
-  <guide-page>
-    <div class="text" t="ixchel_sample.guide.pistons.power"><a mark="link" on:click="open('circuits')"></a></div>
-    <div class="text" t="ixchel_sample.guide.pistons.immovable"><span mark="b" class="red b"></span></div>
-  </guide-page>
-</guide-book>
+<page>
+  <link href="../guide.css"/>
+  <link href="../book.html"/>
+  <link href="../page.html"/>
+  <link href="../recipe.html"/>
+  <guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
+              on:prev="prev" on:next="next" on:back="back" on:contents="contents"
+              on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
+    <guide-page t:heading="ixchel_sample.guide.pistons.heading">
+      <guide-recipe bind:grid="recipes.piston" bind:result="icons.piston"></guide-recipe>
+      <div class="text" t="ixchel_sample.guide.pistons.planks"><mc-item class="icon" bind:item="icons.planks"></mc-item><span mark="b" class="b"></span></div>
+    </guide-page>
+    <guide-page>
+      <div class="text" t="ixchel_sample.guide.pistons.power"><a mark="link" on:click="open('circuits')"></a></div>
+      <div class="text" t="ixchel_sample.guide.pistons.immovable"><span mark="b" class="red b"></span></div>
+    </guide-page>
+  </guide-book>
+</page>

@@ -10,11 +10,11 @@ class UiDocumentOpacityTest {
     /** Fails if opacity multiplies colors again (overlaps blend inside the group) or a nested group is not its own layer. */
     @Test
     void opacityPaintsTheSubtreeAsOneLayerAndZeroPaintsNothingButStillHits() {
-        UiDocument doc = UiDocument.load("""
-                <link rel="stylesheet" href="t.css"/>
+        UiDocument doc = UiDocument.load(GoldenTest.page("""
+                <link href="t.css"/>
                 <div class="outer"><div class="inner">a</div><img class="pic" src="x:a.png"/></div>
                 <div class="gone"></div>
-                """, "t.html", GoldenTest.sheet("""
+                """), "t.html", GoldenTest.sheet("""
                 .outer { opacity: 0.5; background-color: #ff000080 }
                 .inner { opacity: 0.5; height: 10px; background-color: #fff; color: #00ff00 }
                 .pic { width: 4px; height: 4px }
@@ -39,12 +39,12 @@ class UiDocumentOpacityTest {
      */
     @Test
     void layerBoundsFollowTransformsAndClipsAndAnEmptyGroupOpensNone() {
-        UiDocument doc = UiDocument.load("""
-                <link rel="stylesheet" href="t.css"/>
+        UiDocument doc = UiDocument.load(GoldenTest.page("""
+                <link href="t.css"/>
                 <div class="moved"></div>
                 <div class="clipper"><div class="wide"></div></div>
                 <div class="empty"></div>
-                """, "t.html", GoldenTest.sheet("""
+                """), "t.html", GoldenTest.sheet("""
                 .moved { opacity: 0.5; width: 10px; height: 10px; background-color: #fff; transform: translate(20px, 0) scale(2) }
                 .clipper { opacity: 0.5; width: 10px; height: 10px; overflow: hidden }
                 .wide { width: 50px; height: 50px; background-color: #fff }
@@ -69,12 +69,12 @@ class UiDocumentOpacityTest {
      */
     @Test
     void filtersAndBlendModesOpenLayersGrownByTheirSpread() {
-        UiDocument doc = UiDocument.load("""
-                <link rel="stylesheet" href="t.css"/>
+        UiDocument doc = UiDocument.load(GoldenTest.page("""
+                <link href="t.css"/>
                 <div class="group"><div class="blurred"></div></div>
                 <div class="blended"></div>
                 <div class="glass"></div>
-                """, "t.html", GoldenTest.sheet("""
+                """), "t.html", GoldenTest.sheet("""
                 .group { opacity: 0.5 }
                 .blurred { filter: blur(2px); width: 10px; height: 10px; background-color: #fff }
                 .blended { mix-blend-mode: multiply; backdrop-filter: grayscale(1); width: 10px; height: 10px; background-color: #fff }

@@ -1,8 +1,8 @@
 package com.azane.ixchel.mc.element;
 
 import com.azane.ixchel.core.paint.DrawCommand;
-import com.azane.ixchel.core.template.NativeElement;
-import com.azane.ixchel.mc.paint.NativePainter;
+import com.azane.ixchel.core.view.UiElement;
+import com.azane.ixchel.mc.paint.ElementPainter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -14,8 +14,8 @@ import net.minecraft.world.entity.LivingEntity;
  * draws the player: lit from the front, head and body turned towards the pointer, or facing forward
  * without one.
  */
-@NativeElement(tag = "mc-entity", payload = "entity")
-final class EntityElement implements NativePainter<LivingEntity> {
+@UiElement(tag = "mc-entity", payload = "entity")
+final class EntityElement implements ElementPainter<LivingEntity> {
     /** Depth the entity model writes above its level, as an item's. */
     private static final float DEPTH = 160f;
 

@@ -7,9 +7,9 @@ import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
-import com.azane.ixchel.core.template.NativeElement;
-import com.azane.ixchel.core.template.TagRegistry;
-import com.azane.ixchel.mc.element.McElements;
+import com.azane.ixchel.core.view.UiElement;
+import com.azane.ixchel.core.view.TagRegistry;
+import com.azane.ixchel.mc.UiRegistries;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 
@@ -27,19 +27,18 @@ import java.util.TreeSet;
  * slot written back to {@code Slot.x/y} from its {@code <mc-slot>} element (see
  * {@code ref/SDG-ixchel-container-slot-integration} for the rules). Client thread only.
  */
-@NativeElement(tag = ContainerLayout.SLOT_TAG, attributes = ContainerLayout.INDEX_ATTRIBUTE, containerOnly = true)
+@UiElement(tag = ContainerLayout.SLOT_TAG, attributes = ContainerLayout.INDEX_ATTRIBUTE, containerOnly = true)
 public final class ContainerLayout {
-    /** Tag of the slot element. */
+    /**
+     * Tag of the slot element, {@code <mc-slot index="N">}, declared on this class and registered in
+     * {@link UiRegistries#MC}: the projection of menu slot {@code N}. The slot's 16×16 item area is
+     * centered in the element's border box and written back to {@code Slot.x/y}; vanilla keeps drawing
+     * the item and handling clicks, drags and quick moves there. Use {@code bind:index} for slots from
+     * an {@code each} row.
+     */
     public static final String SLOT_TAG = "mc-slot";
     /** Attribute holding the menu slot index. */
     public static final String INDEX_ATTRIBUTE = "index";
-    /**
-     * {@link McElements#TAGS} plus {@code <mc-slot index="N">}, declared on this class: the projection
-     * of menu slot {@code N}. The slot's 16×16 item area is centered in the element's border box and
-     * written back to {@code Slot.x/y}; vanilla keeps drawing the item and handling clicks, drags and
-     * quick moves there. Use {@code bind:index} for slots from an {@code each} row.
-     */
-    public static final TagRegistry TAGS = McElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.declare(ContainerLayout.class)).build();
 
     static final int ITEM_SIZE = 16;
 
@@ -102,7 +101,7 @@ public final class ContainerLayout {
         return true;
     }
 
-    /** The GUI area: the bounding box of the template's displayed top-level elements. */
+    /** The GUI area: the bounding box of the page's displayed top-level elements. */
     public int left() {
         return left;
     }

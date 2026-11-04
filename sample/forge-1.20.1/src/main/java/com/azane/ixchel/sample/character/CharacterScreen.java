@@ -20,6 +20,6 @@ public final class CharacterScreen {
     public static void open() {
         LocalPlayer player = Minecraft.getInstance().player;
         Minecraft.getInstance().setScreen(new UiContainerScreen<>(player.inventoryMenu, player.getInventory(),
-                player.getDisplayName(), new CharacterView()));
+                player.getDisplayName(), new CharacterModel()));
     }
 }

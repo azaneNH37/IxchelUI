@@ -3,8 +3,8 @@ package com.azane.ixchel.mc.element;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayerFacet;
 import com.azane.ixchel.core.dom.Node;
-import com.azane.ixchel.core.template.NativePayload;
-import com.azane.ixchel.mc.paint.NativePainter;
+import com.azane.ixchel.core.view.ElementPayload;
+import com.azane.ixchel.mc.paint.ElementPainter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -17,8 +17,8 @@ import java.util.Map;
 
 /**
  * The tooltip of the element under the pointer. An element has one when it has an {@code <ix-tooltip>}
- * child (the author's content, shown in the document's top layer), is a native element whose painter
- * {@linkplain NativePainter#hasTooltip has one} for its value now (an {@code <mc-item>}'s item tooltip),
+ * child (the author's content, shown in the document's top layer), is a drawn element whose painter
+ * {@linkplain ElementPainter#hasTooltip has one} for its value now (an {@code <mc-item>}'s item tooltip),
  * or has a {@code title} attribute (vanilla-style plain text). The deepest element that has one wins,
  * so a {@code title} on a row does not hide the item tooltip of an icon inside it; on one element, the
  * {@code <ix-tooltip>} wins, then the painter's. A screen picks the target before framing its document
@@ -39,9 +39,9 @@ public final class Tooltips {
      *
      * @param hovered  the deepest element under the pointer ({@link
      *                 com.azane.ixchel.core.event.EventDispatcher#hitTest})
-     * @param painters the painter of each native element, by tag
+     * @param painters the painter of each drawn element, by tag
      */
-    public static Element target(Element hovered, Map<String, NativePainter<?>> painters) {
+    public static Element target(Element hovered, Map<String, ElementPainter<?>> painters) {
         for (Element e = hovered; e != null; e = e.parent()) {
             if (tooltipOf(e) != null || nativeTooltip(e, painters) != null) {
                 return e;
@@ -72,7 +72,7 @@ public final class Tooltips {
      * @param z depth in the current pose the tooltip is raised by, above everything the document drew
      */
     @SuppressWarnings("unchecked")
-    public static void renderVanilla(GuiGraphics g, Font font, Element target, Map<String, NativePainter<?>> painters,
+    public static void renderVanilla(GuiGraphics g, Font font, Element target, Map<String, ElementPainter<?>> painters,
                                      float z, int mouseX, int mouseY) {
         if (tooltipOf(target) != null) {
             return;
@@ -80,7 +80,7 @@ public final class Tooltips {
         Object value = nativeTooltip(target, painters);
         if (value != null) {
             PoseStack ps = raise(g, z);
-            ((NativePainter<Object>) painters.get(target.tag())).renderTooltip(g, font, value, mouseX, mouseY);
+            ((ElementPainter<Object>) painters.get(target.tag())).renderTooltip(g, font, value, mouseX, mouseY);
             ps.popPose();
             return;
         }
@@ -97,14 +97,14 @@ public final class Tooltips {
         ps.popPose();
     }
 
-    /** The value of native element {@code e} when its painter has a tooltip for it now, else {@code null}. */
+    /** The value of drawn element {@code e} when its painter has a tooltip for it now, else {@code null}. */
     @SuppressWarnings("unchecked")
-    private static Object nativeTooltip(Element e, Map<String, NativePainter<?>> painters) {
+    private static Object nativeTooltip(Element e, Map<String, ElementPainter<?>> painters) {
         if (e.payload() == null) {
             return null;
         }
-        NativePainter<Object> p = (NativePainter<Object>) painters.get(e.tag());
-        Object value = NativePayload.valueOf(e.payload(), e.type());
+        ElementPainter<Object> p = (ElementPainter<Object>) painters.get(e.tag());
+        Object value = ElementPayload.valueOf(e.payload(), e.type());
         return p != null && value != null && p.hasTooltip(value) ? value : null;
     }
 

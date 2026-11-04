@@ -1,3 +1,6 @@
+@stylesheet;
+@link "../themes/overlay.css";
+
 .screen {
   width: 100%;
   height: 100%;
@@ -5,7 +8,7 @@
   justify-content: center;
 }
 
-.panel {
+.ix-panel {
   width: 260px;
   padding: 6px;
 }
@@ -33,20 +36,22 @@
   color: var(--ix-text-muted);
 }
 
-.filter:hover {
-  background-color: var(--ix-hover);
+/* Transparent over the theme's selected fill; the hover rule after it still lights it up. */
+.filter.ix-selected {
+  border-color: var(--ix-accent);
+  background-color: transparent;
+  color: var(--ix-accent);
 }
 
-.filter.selected {
-  border-color: var(--ix-accent);
-  color: var(--ix-accent);
+.filter:hover {
+  background-color: var(--ix-hover);
 }
 
 /* Eight rows tall; the wheel scrolls the rest. */
 .list {
   height: 160px;
   overflow: auto;
-  background-color: var(--ix-well);
+  background-color: var(--ix-well-bg);
 }
 
 .empty {
@@ -102,15 +107,17 @@
 
 .pick {
   padding: 2px 4px;
-  background-color: var(--ix-button);
-  color: var(--ix-button-text);
+  background-color: var(--ix-control-bg);
+  color: var(--ix-text);
 }
 
 .pick:hover {
-  background-color: var(--ix-button-hover);
+  background-color: var(--ix-control-bg);
+  background-image: linear-gradient(var(--ix-hover), var(--ix-hover));
 }
 
 .pick:disabled {
-  background-color: var(--ix-button-disabled);
-  color: var(--ix-button-disabled-text);
+  background-color: var(--ix-control-bg);
+  background-image: none;
+  color: var(--ix-disabled-text);
 }

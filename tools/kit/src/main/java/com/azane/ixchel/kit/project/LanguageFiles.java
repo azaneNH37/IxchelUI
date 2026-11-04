@@ -1,6 +1,6 @@
 package com.azane.ixchel.kit.project;
 
-import com.azane.ixchel.core.template.Translations;
+import com.azane.ixchel.core.view.Translations;
 
 import java.io.IOException;
 import java.io.InputStream;

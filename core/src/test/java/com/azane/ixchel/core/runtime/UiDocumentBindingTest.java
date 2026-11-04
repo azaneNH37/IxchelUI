@@ -11,7 +11,7 @@ import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.ElementType;
 import com.azane.ixchel.core.event.Keys;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -134,8 +134,8 @@ class UiDocumentBindingTest {
     @Test
     void aNameInADocumentWithoutAViewModelIsUnknown() {
         UiLoadException none = assertThrows(UiLoadException.class,
-                () -> UiDocument.load("<span bind:text=\"x\"></span>", "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertEquals(List.of("binding/unknown-name@t.html:1:18"), DiagCodes.of(none));
+                () -> UiDocument.load(GoldenTest.page("<span bind:text=\"x\"></span>"), "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
+        assertEquals(List.of("binding/unknown-name@t.html:1:24"), DiagCodes.of(none));
     }
 
     static final class Held extends ViewModel {
@@ -144,8 +144,8 @@ class UiDocumentBindingTest {
     }
 
     @Test
-    void aNativeElementPaintsItsBoundPayloadAndOnlyABindingCanSetIt() {
-        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", null)).build();
+    void aDrawnElementPaintsItsBoundPayloadAndOnlyABindingCanSetIt() {
+        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.DeclaredElements.type("item", Set.of(), "item", null)).build();
         Held m = new Held();
         UiDocument doc = UiDocument.load(GoldenTest.linked("<item class=\"i\" bind:item=\"stack\"></item>"), "t.html",
                 GoldenTest.sheet(".i { width: 16px; height: 16px }"), tags,
@@ -159,11 +159,11 @@ class UiDocumentBindingTest {
     }
 
     @Test
-    void aNativeElementsPayloadIsNotAnAttribute() {
-        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", null)).build();
+    void aDeclaredElementsPayloadIsNotAnAttribute() {
+        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.DeclaredElements.type("item", Set.of(), "item", null)).build();
         UiLoadException e = assertThrows(UiLoadException.class, () -> UiDocument.load(
-                "<item item=\"sword\"></item>", "t.html", GoldenTest.NO_SHEETS, tags, GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertEquals(List.of("template/unknown-attribute@t.html:1:7"), DiagCodes.of(e));
+                GoldenTest.page("<item item=\"sword\"></item>"), "t.html", GoldenTest.NO_SHEETS, tags, GoldenTest.MONO, GoldenTest.NO_IMAGES));
+        assertEquals(List.of("view/unknown-attribute@t.html:1:13"), DiagCodes.of(e));
     }
 
     record Row(String name, int count) {
@@ -442,8 +442,8 @@ class UiDocumentBindingTest {
                 <for each="rows" as="r" key="r.name"><span bind:text="r.missing"></span></for>
                 <for each="rows" as="rows" key="rows"></for>
                 """, "", new Picker()));
-        assertEquals(List.of("template/missing-block-attribute@t.html:2:1", "template/missing-block-attribute@t.html:2:1",
-                "template/unknown-block-attribute@t.html:6:17", "binding/value-type@t.html:3:12", "binding/value-type@t.html:4:11",
+        assertEquals(List.of("view/missing-block-attribute@t.html:2:1", "view/missing-block-attribute@t.html:2:1",
+                "view/unknown-block-attribute@t.html:6:17", "binding/value-type@t.html:3:12", "binding/value-type@t.html:4:11",
                 "binding/invalid-key@t.html:5:30", "binding/unknown-name@t.html:7:34",
                 "binding/unknown-member@t.html:8:57", "binding/hidden-name@t.html:9:22"), DiagCodes.of(e));
     }
@@ -593,7 +593,7 @@ class UiDocumentBindingTest {
     }
 
     private static final TagRegistry STRING_ITEM = com.azane.ixchel.core.html.HtmlElements.TAGS.extend()
-            .add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", String.class)).build();
+            .add(com.azane.ixchel.core.html.DeclaredElements.type("item", Set.of(), "item", String.class)).build();
 
     private static UiDocument loadItem(TagRegistry tags, ViewModel model) {
         return UiDocument.load(GoldenTest.linked("<item bind:item=\"p\"></item>"), "t.html", GoldenTest.sheet(""), tags,

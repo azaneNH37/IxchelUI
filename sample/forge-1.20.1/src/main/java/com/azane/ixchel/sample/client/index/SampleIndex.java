@@ -9,6 +9,6 @@ public final class SampleIndex {
     }
 
     public static void open() {
-        Minecraft.getInstance().setScreen(new UiScreen(new SampleIndexView(Samples.all())));
+        Minecraft.getInstance().setScreen(new UiScreen(new SampleIndexModel(Samples.all())));
     }
 }

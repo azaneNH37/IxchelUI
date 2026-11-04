@@ -186,7 +186,7 @@
   "ixchel_sample.tooltips.badge": "Help from a component",
   "ixchel_sample.tooltips.badge.text": "The badge puts what it is given into its tooltip",
   "ixchel_sample.tooltips.native": "A host-made element",
-  "ixchel_sample.tooltips.native.tip": "The mod draws this element; @NativeElement declares its tag on the painter class",
+  "ixchel_sample.tooltips.native.tip": "The mod draws this element; @UiElement declares its tag on the painter class",
   "ixchel_sample.tooltips.open": "Open a dialog",
   "ixchel_sample.tooltips.dialog": "Tooltips draw above the dialog",
   "ixchel_sample.tooltips.close": "Close",

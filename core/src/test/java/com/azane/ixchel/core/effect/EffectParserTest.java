@@ -2,12 +2,12 @@ package com.azane.ixchel.core.effect;
 
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.runtime.DiagCodes;
+import com.azane.ixchel.core.runtime.UiHosting;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EffectParserTest {
@@ -31,7 +31,6 @@ class EffectParserTest {
         assertTrue(color.inherits());
         assertEquals(0x80FF0000, color.initial());
         assertEquals("edge_color", color.uniform());
-        assertEquals("--burn-edge-color", e.property(color));
         assertEquals(ParamType.LENGTH, size.type());
         assertEquals(3f, size.initial());
         assertEquals(5, e.valueCount(), "a color takes four floats");
@@ -65,9 +64,15 @@ class EffectParserTest {
 
     @Test
     void theLibraryEffectsParse() {
-        assertEquals(Effect.Kind.BOX, LibraryEffects.effect("glint").kind());
-        assertEquals(Effect.Kind.LAYER, LibraryEffects.effect("dissolve").kind());
-        assertNull(LibraryEffects.effect("sparkle"));
+        assertEquals(Effect.Kind.BOX, parseOk("@ixchel/effects/glint.ixeffect").kind());
+        assertEquals(Effect.Kind.LAYER, parseOk("@ixchel/effects/dissolve.ixeffect").kind());
+    }
+
+    private static Effect parseOk(String id) {
+        Diagnostics diag = new Diagnostics();
+        Effect e = EffectParser.parse(UiHosting.NONE.library().read(id), id, diag);
+        assertEquals(List.of(), DiagCodes.of(diag));
+        return e;
     }
 
     private static List<String> codes(String text) {

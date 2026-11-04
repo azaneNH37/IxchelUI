@@ -2,7 +2,7 @@ package com.azane.ixchel.core.runtime;
 
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
-import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -67,12 +67,12 @@ class UiDocumentBorderTest {
     @Test
     void borderShorthandRejectsARepeatedWidth() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", "div { border: 1px 2px solid }"));
-        assertEquals(List.of("css/repeated-component@t.css:1:19"), DiagCodes.of(e));
+        assertEquals(List.of("css/repeated-component@t.css:1:32"), DiagCodes.of(e));
     }
 
     @Test
     void borderStyleRejectsAnUnsupportedStyle() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", "div { border-style: dashed }"));
-        assertEquals(List.of("css/invalid-value@t.css:1:21"), DiagCodes.of(e));
+        assertEquals(List.of("css/invalid-value@t.css:1:34"), DiagCodes.of(e));
     }
 }

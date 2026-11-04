@@ -56,7 +56,7 @@ import java.util.Set;
  * items is not laid out. An element whose {@code display} is {@code block}, or {@code inline} or
  * {@code inline-block} where its parent's flex layout blockifies it, is a block container: one taffy
  * leaf whose content is a paragraph of its inline descendants' text, in each one's font, and atomic
- * boxes. An atomic box is an {@code inline-block}, or an {@code <img>}, native element or form control
+ * boxes. An atomic box is an {@code inline-block}, or an {@code <img>}, drawn element or form control
  * whatever its {@code display}; it is laid out on its own at its max-content size (percentages resolve
  * against nothing) and sits on the baseline: the baseline of its last line when it holds text and has
  * {@code overflow: visible}, its bottom margin edge otherwise. Inside a block container, a {@code flex}

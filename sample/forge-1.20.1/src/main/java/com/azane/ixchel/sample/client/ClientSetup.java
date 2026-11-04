@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample.client;
 
-import com.azane.ixchel.mc.element.McElements;
+import com.azane.ixchel.core.runtime.UiRegistry;
+import com.azane.ixchel.mc.UiRegistries;
 import com.azane.ixchel.sample.IxchelSampleMod;
 import com.azane.ixchel.sample.character.CharacterScreen;
 import com.azane.ixchel.sample.client.index.SampleIndex;
@@ -35,7 +36,7 @@ public final class ClientSetup {
     /** Client only; from the mod constructor. */
     public static void init(FMLJavaModLoadingContext context) {
         IEventBus modBus = context.getModEventBus();
-        McElements.register(IxchelSampleMod.MOD_ID, new GaugeElement());
+        UiRegistries.register(UiRegistry.host(IxchelSampleMod.MOD_ID).element(new GaugeElement()));
         modBus.addListener(KeyBindings::register);
         modBus.addListener((FMLClientSetupEvent e) -> e.enqueueWork(() -> {
             MachineScreen.registerScreen();

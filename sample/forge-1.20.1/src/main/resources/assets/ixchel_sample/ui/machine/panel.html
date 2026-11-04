@@ -1,51 +1,53 @@
-<link rel="stylesheet" href="../common/slot.css"/>
-<link rel="stylesheet" href="@ixchel/vanilla.css"/>
-<link rel="stylesheet" href="panel.css"/>
-<div class="panel" state:sidesOpen="false">
-  <div class="header">
-    <span class="title" t="block.ixchel_sample.powered_stonecutter"></span>
-    <span class="status" bind:class:bad="statusBad" bind:text="statusText"></span>
-  </div>
-  <div class="body">
-    <div class="bar energy" bind:title="energyText">
-      <div class="energy-fill" bind:style:height="energyHeight"></div>
+<page>
+  <link href="panel.css"/>
+  <link href="@ixchel/mc/player-inventory.html"/>
+  <link href="@ixchel/mc/tooltip-lines.html"/>
+  <div class="ix-panel" state:sidesOpen="false">
+    <div class="header">
+      <span class="ix-title" t="block.ixchel_sample.powered_stonecutter"></span>
+      <span class="status" bind:class:bad="statusBad" bind:text="statusText"></span>
     </div>
-    <div class="bar tank" bind:title="waterText">
-      <div class="water-fill" bind:style:height="waterHeight" bind:style:background-color="waterColor"></div>
-    </div>
-    <div class="feed">
-      <mc-slot class="slot" index="1" t:title="ixchel_sample.machine.water_slot"></mc-slot>
-      <div class="flame">
-        <div class="flame-fill" bind:style:height="flameHeight" bind:style:background-position-y="flameY"></div>
+    <div class="body">
+      <div class="bar energy" bind:title="energyText">
+        <div class="energy-fill" bind:style:height="energyHeight"></div>
       </div>
-      <mc-slot class="slot" index="0" t:title="ixchel_sample.machine.fuel_slot"></mc-slot>
-    </div>
-    <div class="work">
-      <div class="io">
-        <mc-slot class="slot" index="2"></mc-slot>
-        <div class="arrow">
-          <div class="arrow-fill" bind:style:width="arrowWidth"></div>
+      <div class="bar tank" bind:title="waterText">
+        <div class="water-fill" bind:style:height="waterHeight" bind:style:background-color="waterColor"></div>
+      </div>
+      <div class="feed">
+        <mc-slot class="slot" index="1" t:title="ixchel_sample.machine.water_slot"></mc-slot>
+        <div class="flame">
+          <div class="flame-fill" bind:style:height="flameHeight" bind:style:background-position-y="flameY"></div>
         </div>
-        <mc-slot class="slot output" index="3"></mc-slot>
+        <mc-slot class="slot" index="0" t:title="ixchel_sample.machine.fuel_slot"></mc-slot>
       </div>
-      <div class="recipes">
-        <if test="recipes.size == 0"><span class="hint" t="ixchel_sample.machine.no_recipes"></span></if>
-        <for each="recipes" as="r" key="r.index"><div class="recipe" bind:class:selected="r.selected" bind:title="r.name"
-             on:click="pick(r)">
-          <mc-item class="icon" bind:item="r.icon"></mc-item>
-        </div></for>
+      <div class="work">
+        <div class="io">
+          <mc-slot class="slot" index="2"></mc-slot>
+          <div class="arrow">
+            <div class="arrow-fill" bind:style:width="arrowWidth"></div>
+          </div>
+          <mc-slot class="slot output" index="3"></mc-slot>
+        </div>
+        <div class="recipes">
+          <if test="recipes.size == 0"><span class="hint" t="ixchel_sample.machine.no_recipes"></span></if>
+          <for each="recipes" as="r" key="r.index"><div class="recipe" bind:class:ix-selected="r.selected" bind:title="r.name"
+               on:click="pick(r)">
+            <mc-item class="icon" bind:item="r.icon"></mc-item>
+          </div></for>
+        </div>
       </div>
     </div>
+    <div class="buttons">
+      <button class="redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></button>
+      <button class="sides-toggle" bind:class:ix-selected="sidesOpen" on:click="sidesOpen = !sidesOpen" t="ixchel_sample.machine.sides"></button>
+    </div>
+    <mc-player-inventory></mc-player-inventory>
+    <div class="sides" bind:class:open="sidesOpen">
+      <for each="sideRows" as="s" key="s.side"><div class="side" on:click="cycleSide(s)">
+        <span class="face" bind:text="s.face"></span>
+        <span class="mode" bind:class:input="s.input" bind:class:output="s.output" bind:text="s.mode"></span>
+      </div></for>
+    </div>
   </div>
-  <div class="buttons">
-    <button class="redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></button>
-    <button class="sides-toggle" bind:class:selected="sidesOpen" on:click="sidesOpen = !sidesOpen" t="ixchel_sample.machine.sides"></button>
-  </div>
-  <mc-player-inventory></mc-player-inventory>
-  <div class="sides" bind:class:open="sidesOpen">
-    <for each="sideRows" as="s" key="s.side"><div class="side" on:click="cycleSide(s)">
-      <span class="face" bind:text="s.face"></span>
-      <span class="mode" bind:class:input="s.input" bind:class:output="s.output" bind:text="s.mode"></span>
-    </div></for>
-  </div>
-</div>
+</page>

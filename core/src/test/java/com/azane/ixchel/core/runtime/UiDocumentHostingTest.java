@@ -10,15 +10,14 @@ import com.azane.ixchel.core.binding.Param;
 import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.TwoWay;
 import com.azane.ixchel.core.binding.Value;
-import com.azane.ixchel.core.binding.UiTemplate;
+import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.html.HtmlElements;
-import com.azane.ixchel.core.library.JavaComponent;
-import com.azane.ixchel.core.library.Library;
-import com.azane.ixchel.core.template.Translations;
+import com.azane.ixchel.core.binding.JavaComponent;
+import com.azane.ixchel.core.view.Translations;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -37,11 +36,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class UiDocumentHostingTest {
     private static final String DIAL_FILE = "ui/dial.html";
     private static final String DIAL = """
-            <template name="ui-dial" params="label level=5" events="picked">
+            <component name="ui-dial" params="label level=5" events="picked">
             <span class="c" bind:text="caption"></span><span class="v" bind:text="level"></span>
-            </template>
+            </component>
             """;
-    private static final String LINK = "<link rel=\"component\" href=\"ui/dial.html\"/>\n";
+    private static final String LINK = "<link href=\"ui/dial.html\"/>\n";
 
     private final List<Dial> dials = new ArrayList<>();
     private long nowMs;
@@ -65,20 +64,24 @@ class UiDocumentHostingTest {
     }
 
     private static UiDocument load(String html, Map<String, String> files, ViewModel model, UiHosting hosting) {
-        return UiDocument.load(html, "t.html", files::get, HtmlElements.TAGS, Translations.NONE, GoldenTest.MONO,
+        return UiDocument.load(GoldenTest.page(html), "t.html", files::get, HtmlElements.TAGS, Translations.NONE, GoldenTest.MONO,
                 GoldenTest.NO_IMAGES, model, Bindings.PLAIN_TEXT, hosting);
     }
 
     private static UiHosting hosting(String file, Class<? extends ViewModel> type, Supplier<? extends ViewModel> factory) {
-        return new UiHosting(Library.CORE, Map.of(file, new JavaComponent(type, factory)));
+        return UiHosting.of(UiRegistry.CORE, UiRegistry.host("t").component(file, new JavaComponent(type, factory)));
     }
 
     private UiHosting dial() {
-        return hosting(DIAL_FILE, Dial.class, () -> {
+        return UiHosting.of(UiRegistry.CORE, dialRegistry());
+    }
+
+    private UiRegistry dialRegistry() {
+        return UiRegistry.host("t").component(DIAL_FILE, new JavaComponent(Dial.class, () -> {
             Dial d = new Dial();
             dials.add(d);
             return d;
-        });
+        }));
     }
 
     private static Element byId(UiDocument doc, String id) {
@@ -140,16 +143,16 @@ class UiDocumentHostingTest {
     void portsAndTheTemplatesSignatureMustMatchBothWaysBeforeAnythingIsBuilt() {
         int[] built = new int[1];
         String odd = """
-                <template name="ui-odd" params="given plain missing" events="lost"></template>
+                <component name="ui-odd" params="given plain missing" events="lost"></component>
                 """;
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
-                <link rel="component" href="odd.html"/>
+                <link href="odd.html"/>
                 <ui-odd given="a" plain="b" missing="c"></ui-odd>
                 """, Map.of("odd.html", odd), new Page(), hosting("odd.html", Mismatched.class, () -> {
             built[0]++;
             return new Mismatched();
         })));
-        assertEquals(List.of("component/signature-mismatch@odd.html:1:39", "component/signature-mismatch@odd.html:1:45",
+        assertEquals(List.of("component/signature-mismatch@odd.html:1:40", "component/signature-mismatch@odd.html:1:46",
                 "component/signature-mismatch@odd.html:1:1", "component/signature-mismatch@odd.html:1:1",
                 "component/signature-mismatch@odd.html:1:1"), DiagCodes.of(e));
         assertEquals(0, built[0]);
@@ -169,8 +172,8 @@ class UiDocumentHostingTest {
     @Test
     void aPortNoFieldHoldsIsReportedAndItsModelClosed() {
         List<Stray> made = new ArrayList<>();
-        String file = "<template name=\"ui-stray\" params=\"given\"></template>";
-        String use = "<link rel=\"component\" href=\"f.html\"/><ui-stray given=\"a\"></ui-stray>";
+        String file = "<component name=\"ui-stray\" params=\"given\"></component>";
+        String use = "<link href=\"f.html\"/><ui-stray given=\"a\"></ui-stray>";
         UiLoadException e = assertThrows(UiLoadException.class, () -> load(use, Map.of("f.html", file), new Page(),
                 hosting("f.html", Stray.class, () -> {
                     Stray s = new Stray();
@@ -193,9 +196,9 @@ class UiDocumentHostingTest {
     @Test
     void readingAParamInAConstructorIsReportedAtTheUse() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
-                <link rel="component" href="f.html"/>
+                <link href="f.html"/>
                 <ui-eager given="a"></ui-eager>
-                """, Map.of("f.html", "<template name=\"ui-eager\" params=\"given\"></template>"), new Page(),
+                """, Map.of("f.html", "<component name=\"ui-eager\" params=\"given\"></component>"), new Page(),
                 hosting("f.html", Eager.class, Eager::new)));
         assertEquals(List.of("binding/runtime-exception@t.html:2:1"), DiagCodes.of(e));
     }
@@ -214,8 +217,8 @@ class UiDocumentHostingTest {
     }
 
     private static final String GAUGE = """
-            <template name="ui-gauge" params="ratio whole scale=2 trim=1 count=3">
-            <span bind:text="ratio + whole + scale + trim"></span></template>
+            <component name="ui-gauge" params="ratio whole scale=2 trim=1 count=3">
+            <span bind:text="ratio + whole + scale + trim"></span></component>
             """;
 
     @Test
@@ -223,7 +226,7 @@ class UiDocumentHostingTest {
         Numbers m = new Numbers();
         List<Gauge> made = new ArrayList<>();
         UiDocument doc = load("""
-                <link rel="component" href="g.html"/>
+                <link href="g.html"/>
                 <ui-gauge id="g" bind:ratio="half" bind:whole="one"></ui-gauge>
                 """, Map.of("g.html", GAUGE), m, hosting("g.html", Gauge.class, () -> {
             Gauge g = new Gauge();
@@ -246,19 +249,18 @@ class UiDocumentHostingTest {
     @Test
     void valuesThatDoNotFitAPortsDeclaredTypeAreRejected() {
         Map<String, String> files = Map.of("g.html", GAUGE, "bad.html",
-                "<template name=\"ui-bad\" params=\"ratio whole='x' scale trim count\"></template>");
-        Map<String, JavaComponent> java = new HashMap<>();
-        java.put("g.html", new JavaComponent(Gauge.class, Gauge::new));
-        java.put("bad.html", new JavaComponent(Gauge.class, Gauge::new));
+                "<component name=\"ui-bad\" params=\"ratio whole='x' scale trim count\"></component>");
+        UiRegistry java = UiRegistry.host("t").component("g.html", new JavaComponent(Gauge.class, Gauge::new))
+                .component("bad.html", new JavaComponent(Gauge.class, Gauge::new));
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
-                <link rel="component" href="g.html"/><link rel="component" href="bad.html"/>
+                <link href="g.html"/><link href="bad.html"/>
                 <ui-gauge ratio="1" bind:whole="1"></ui-gauge>
                 <ui-gauge bind:ratio="'x'" bind:whole="1"></ui-gauge>
                 <ui-gauge bind:ratio="1" bind:whole="1" bind:trim="total"></ui-gauge>
                 <ui-bad bind:ratio="1" bind:scale="1" bind:trim="wide" bind:count="1"></ui-bad>
-                """, files, new Page(), new UiHosting(Library.CORE, java)));
+                """, files, new Page(), UiHosting.of(UiRegistry.CORE, java)));
         assertEquals(List.of("component/param-type@t.html:2:1", "component/param-type@t.html:3:23",
-                "component/param-type@t.html:4:52", "component/param-type@bad.html:1:45",
+                "component/param-type@t.html:4:52", "component/param-type@bad.html:1:46",
                 "component/param-type@t.html:5:50"), DiagCodes.of(e));
     }
 
@@ -277,11 +279,11 @@ class UiDocumentHostingTest {
         Page m = new Page();
         List<Picker> made = new ArrayList<>();
         UiDocument doc = load("""
-                <link rel="component" href="p.html"/><style>ui-picker, button { width: 20px; height: 10px; padding: 0; border-style: none }</style>
+                <link href="p.html"/><link href="s.css"/>
                 <ui-picker on:picked="last = $event" on:done="total = total + 1" on:scaled="name = '' + $event"></ui-picker>
                 """, Map.of("p.html", """
-                <template name="ui-picker" events="picked done scaled"><button on:click="picked(9); scaled(1)"></button></template>
-                """), m, hosting("p.html", Picker.class, () -> {
+                <component name="ui-picker" events="picked done scaled"><button on:click="picked(9); scaled(1)"></button></component>
+                """, "s.css", "@stylesheet; ui-picker, button { width: 20px; height: 10px; padding: 0; border-style: none }"), m, hosting("p.html", Picker.class, () -> {
             Picker p = new Picker();
             made.add(p);
             return p;
@@ -293,20 +295,20 @@ class UiDocumentHostingTest {
 
         doc.events().mousePressed(5, 5, 0, 0);
         doc.events().mouseReleased(5, 5, 0, 0);
-        assertEquals(9, m.last.get(), "a template call fires the same listener");
-        assertEquals("1.0", m.name.get(), "a template call widens to the declared payload");
+        assertEquals(9, m.last.get(), "a view call fires the same listener");
+        assertEquals("1.0", m.name.get(), "a view call widens to the declared payload");
     }
 
     @Test
     void aTemplateCallMustFitTheDeclaredPayload() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
-                <link rel="component" href="p.html"/>
+                <link href="p.html"/>
                 <ui-picker></ui-picker>
                 """, Map.of("p.html", """
-                <template name="ui-picker" events="picked done scaled"><button on:click="picked('x'); picked; done(1)"></button></template>
+                <component name="ui-picker" events="picked done scaled"><button on:click="picked('x'); picked; done(1)"></button></component>
                 """), new Page(), hosting("p.html", Picker.class, Picker::new)));
-        assertEquals(List.of("binding/event-payload@p.html:1:74", "binding/event-payload@p.html:1:87",
-                "binding/event-payload@p.html:1:95"), DiagCodes.of(e));
+        assertEquals(List.of("binding/event-payload@p.html:1:75", "binding/event-payload@p.html:1:88",
+                "binding/event-payload@p.html:1:96"), DiagCodes.of(e));
     }
 
     @Test
@@ -314,12 +316,13 @@ class UiDocumentHostingTest {
         Page m = new Page();
         m.shown.set(false);
         UiDocument doc = load(LINK + """
-                <style>
+                <link href="s.css"/>
+                <if test="shown"><ui-dial id="d" label="x"></ui-dial></if>
+                """, Map.of(DIAL_FILE, DIAL, "s.css", """
+                @stylesheet;
                 ui-dial { width: 40px; height: 10px; transition: width 100ms linear }
                 ui-dial:-ix-absent { width: 0 }
-                </style>
-                <if test="shown"><ui-dial id="d" label="x"></ui-dial></if>
-                """, Map.of(DIAL_FILE, DIAL), m, dial());
+                """), m, dial());
         doc.clock(() -> nowMs * 1_000_000);
         frameAt(doc, 0);
         assertTrue(dials.isEmpty(), "an unmounted copy is only checked, nothing is built");
@@ -354,19 +357,17 @@ class UiDocumentHostingTest {
     void aRemovedCopyClosesTheInstancesNestedInsideIt() {
         Page m = new Page();
         List<Panel> panels = new ArrayList<>();
-        Map<String, JavaComponent> java = new HashMap<>(dial().components());
-        java.put("ui/panel.html", new JavaComponent(Panel.class, () -> {
+        UiRegistry java = dialRegistry().component("ui/panel.html", new JavaComponent(Panel.class, () -> {
             Panel p = new Panel();
             panels.add(p);
             return p;
         }));
         UiDocument doc = load("""
-                <link rel="component" href="ui/panel.html"/>
+                <link href="ui/panel.html"/>
                 <for each="rows" as="r" key="r"><div><if test="shown"><ui-panel></ui-panel></if></div></for>
                 """, Map.of(DIAL_FILE, DIAL, "ui/panel.html", """
-                <link rel="component" href="dial.html"/>
-                <template name="ui-panel"><ui-dial label="x"></ui-dial></template>
-                """), m, new UiHosting(Library.CORE, java));
+                <component name="ui-panel"><link href="dial.html"/><ui-dial label="x"></ui-dial></component>
+                """), m, UiHosting.of(UiRegistry.CORE, java));
         assertEquals(2, panels.size());
         assertEquals(2, dials.size());
 
@@ -425,7 +426,7 @@ class UiDocumentHostingTest {
         }
     }
 
-    private static final String READER = "<template name=\"ui-reader\" params=\"at\"><span bind:text=\"value\"></span></template>";
+    private static final String READER = "<component name=\"ui-reader\" params=\"at\"><span bind:text=\"value\"></span></component>";
 
     @Test
     void aFeedIsReadOncePerPassHoweverManyModelsAndInstancesUseIt() {
@@ -436,7 +437,7 @@ class UiDocumentHostingTest {
         });
         FeedPage m = new FeedPage(feed);
         UiDocument doc = load("""
-                <link rel="component" href="r.html"/>
+                <link href="r.html"/>
                 <ui-reader id="a" bind:at="which"></ui-reader><ui-reader id="b" at="a"></ui-reader>
                 """, Map.of("r.html", READER), m, hosting("r.html", Reader.class, () -> new Reader(feed)));
         assertEquals(List.of("a"), reads);
@@ -461,7 +462,7 @@ class UiDocumentHostingTest {
         }, r -> "v");
         FeedPage m = new FeedPage(Feed.polled(k -> k));
         UiDocument doc = load("""
-                <link rel="component" href="r.html"/>
+                <link href="r.html"/>
                 <if test="shown"><ui-reader bind:at="which"></ui-reader><ui-reader bind:at="which"></ui-reader></if>
                 """, Map.of("r.html", READER), m, hosting("r.html", Reader.class, () -> new Reader(feed)));
         assertEquals(List.of("open a"), log);
@@ -484,7 +485,7 @@ class UiDocumentHostingTest {
             return live.get(k);
         });
         UiDocument doc = load("""
-                <link rel="component" href="r.html"/>
+                <link href="r.html"/>
                 <div>x<ix-tooltip id="tip"><ui-reader id="r" at="a"></ui-reader></ix-tooltip></div>
                 """, Map.of("r.html", READER), new FeedPage(Feed.polled(k -> k)), hosting("r.html", Reader.class, () -> new Reader(feed)));
         doc.frame(100, 100);
@@ -518,7 +519,7 @@ class UiDocumentHostingTest {
         FeedPage m = new FeedPage(Feed.polled(k -> k));
         m.shown.set(false);
         UiDocument doc = load("""
-                <link rel="component" href="r.html"/>
+                <link href="r.html"/>
                 <dialog bind:open="shown"><ui-reader id="r" at="d"></ui-reader></dialog>
                 """, Map.of("r.html", READER), m, hosting("r.html", Reader.class, () -> new Reader(feed)));
         doc.frame(100, 100);
@@ -530,7 +531,7 @@ class UiDocumentHostingTest {
         assertEquals("D", byId(doc, "r").textContent());
     }
 
-    @UiTemplate("@ixchel/test/lib/mc-dial.html")
+    @UiView("@ixchel/test/lib/mc-dial.html")
     static final class LibDial extends ViewModel {
         final Param<String> label = param();
         final TwoWay<Integer> level = twoWay();
@@ -538,21 +539,20 @@ class UiDocumentHostingTest {
         final Derived<String> caption = derive(label, l -> "[" + l + "]");
     }
 
-    /** Test files under {@code @ixchel/test/}, read next to this class. */
-    private static final Library LIBRARY = Library.CORE.extend()
-            .root("test/", UiDocumentHostingTest.class)
-            .component("ix-badge", "test/lib/badge.html")
-            .component("mc-dial", LibDial.class, LibDial::new)
-            .build();
+    /** Test files under {@code @ixchel/test/}, read from {@code ui/} next to this class. */
+    private static final UiHosting LIBRARY = UiHosting.of(UiRegistry.CORE, UiRegistry.library()
+            .root("test/", UiDocumentHostingTest.class, "ui/")
+            .component(LibDial.class, LibDial::new));
 
     @Test
-    void aLibraryComponentNeedsNoLinkLinksItsOwnSheetAndIsLoadedOnce() {
-        UiDocument doc = load("""
-                <link rel="component" href="wrap.html"/><link rel="component" href="@ixchel/test/lib/badge.html"/>
+    void libraryComponentsLinkTheirOwnSheetsAndLoadOnce() {
+        String badge = "<link href=\"@ixchel/test/lib/badge.html\"/>";
+        UiDocument doc = load(badge + """
+                <link href="@ixchel/test/lib/mc-dial.html"/><link href="wrap.html"/>
                 <ix-badge id="a"></ix-badge><ix-badge id="b" note="b"></ix-badge><ui-wrap id="w"></ui-wrap>
                 <mc-dial id="d" label="x"></mc-dial>
-                """, Map.of("wrap.html", "<template name=\"ui-wrap\"><ix-badge note=\"w\"></ix-badge></template>"),
-                new Page(), new UiHosting(LIBRARY, Map.of()));
+                """, Map.of("wrap.html", "<component name=\"ui-wrap\">" + badge + "<ix-badge note=\"w\"></ix-badge></component>"),
+                new Page(), LIBRARY);
         doc.frame(100, 100);
         assertEquals("?", byId(doc, "a").textContent());
         assertEquals("w", byId(doc, "w").textContent());
@@ -562,28 +562,68 @@ class UiDocumentHostingTest {
     }
 
     @Test
+    void aLibraryComponentIsUnknownUntilLinked() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("<ix-badge></ix-badge>", Map.of(),
+                new Page(), LIBRARY));
+        assertEquals(List.of("view/unknown-tag@t.html:1:7"), DiagCodes.of(e));
+    }
+
+    @Test
     void reservedPrefixesStayRejectedForProjectFiles() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
-                <link rel="component" href="ix.html"/><link rel="component" href="mc.html"/>
+                <link href="ix.html"/><link href="mc.html"/>
                 <ix-other></ix-other>
-                """, Map.of("ix.html", "<template name=\"ix-mine\"></template>", "mc.html", "<template name=\"mc-mine\"></template>"),
-                new Page(), new UiHosting(LIBRARY, Map.of())));
-        assertEquals(List.of("template/invalid-component-name@ix.html:1:1", "template/invalid-component-name@mc.html:1:1",
-                "template/unknown-tag@t.html:2:1"), DiagCodes.of(e));
+                """, Map.of("ix.html", "<component name=\"ix-mine\"></component>", "mc.html", "<component name=\"mc-mine\"></component>"),
+                new Page(), LIBRARY));
+        assertEquals(List.of("view/invalid-component-name@ix.html:1:1", "view/invalid-component-name@mc.html:1:1",
+                "view/unknown-tag@t.html:2:1"), DiagCodes.of(e));
+    }
+
+    @com.azane.ixchel.core.view.UiElement(tag = "mc-mine")
+    static final class McMine {
+    }
+
+    /** Fails if a host could define a library name or file, which every other host would then see under its name. */
+    @Test
+    void aHostRegistryDefinesNoLibraryNamesOrFiles() {
+        assertThrows(IllegalArgumentException.class, () -> UiRegistry.host("t").element(McMine.class, null));
+        assertThrows(IllegalArgumentException.class, () -> UiRegistry.host("t").component(LibDial.class, LibDial::new));
+        assertThrows(IllegalArgumentException.class, () -> UiRegistry.host("t").root("t/", UiDocumentHostingTest.class, "ui/"));
+        assertThrows(IllegalArgumentException.class, () -> UiHosting.of(UiRegistry.CORE, UiRegistry.CORE));
+    }
+
+    /** Fails if a host file makes up an ix- name unnoticed, or a component's stylesheet setting tokens on :root goes unwarned. */
+    @Test
+    void hostFilesUseOnlyTheLibrarysIxNames() {
+        Map<String, String> files = Map.of(
+                "t.css", "@stylesheet;\n.ix-panel, .ix-pannel { --ix-panel-bg: red; --ix-panel-bgg: red; color: var(--ix-nope, red) }",
+                "c.html", "<component name=\"ui-c\"><link href=\"c.css\"/></component>",
+                "c.css", "@stylesheet;\n:root { --c-gap: 1px }");
+        String page = GoldenTest.page("<link href=\"t.css\"/><link href=\"c.html\"/>\n<ui-c></ui-c><div style=\"--ix-typo: 1\"></div>");
+        com.azane.ixchel.core.style.LibraryNames vocabulary = com.azane.ixchel.core.style.LibraryNames.of(
+                UiHosting.NONE.library(), List.of("@ixchel/themes/base.css", "@ixchel/themes/dark.css"));
+        assertEquals(List.of("style/component-root-token@c.css:2:9",
+                "style/unknown-library-class@t.css:2:12", "style/unknown-library-token@t.css:2:45",
+                "style/unknown-library-token@t.css:2:77", "style/unknown-library-token@t.html:2:26"),
+                DiagCodes.of(UiDocument.lint(page, "t.html", files::get, HtmlElements.TAGS, Translations.NONE, null, Set.of(),
+                        UiHosting.NONE, vocabulary)));
+        assertEquals(List.of("style/component-root-token@c.css:2:9"), DiagCodes.of(UiDocument.lint(page, "t.html", files::get,
+                HtmlElements.TAGS, Translations.NONE, null, Set.of(), UiHosting.NONE, null)), "without the vocabulary");
     }
 
     @Test
     void lintChecksAJavaComponentFromItsClassWithoutAFactory() {
-        Map<String, String> files = Map.of("odd.html", "<template name=\"ui-odd\" params=\"given\"></template>", DIAL_FILE,
+        Map<String, String> files = Map.of("odd.html", "<component name=\"ui-odd\" params=\"given\"></component>", DIAL_FILE,
                 DIAL.replace("bind:text=\"caption\"", "bind:text=\"nope\""));
-        UiHosting hosting = new UiHosting(Library.CORE, Map.of("odd.html", new JavaComponent(Mismatched.class, null),
-                DIAL_FILE, new JavaComponent(Dial.class, null)));
-        var diag = UiDocument.lint("""
-                <link rel="component" href="odd.html"/><link rel="component" href="ui/dial.html"/>
+        UiHosting hosting = UiHosting.of(UiRegistry.CORE, UiRegistry.host("t")
+                .component("odd.html", new JavaComponent(Mismatched.class, null))
+                .component(DIAL_FILE, new JavaComponent(Dial.class, null)));
+        var diag = UiDocument.lint(GoldenTest.page("""
+                <link href="odd.html"/><link href="ui/dial.html"/>
                 <ui-odd given="a"></ui-odd>
                 <ui-dial bind:label="total" bind:level="total + 1"></ui-dial>
                 <if test="shown"><ui-dial label="x"></ui-dial></if>
-                """, "t.html", files::get, HtmlElements.TAGS, Translations.NONE, ModelShape.of(Page.class), Set.of(), hosting);
+                """), "t.html", files::get, HtmlElements.TAGS, Translations.NONE, ModelShape.of(Page.class), Set.of(), hosting, null);
         assertEquals(List.of("component/signature-mismatch@odd.html:1:1", "component/signature-mismatch@odd.html:1:1",
                 "component/param-type@t.html:3:22", "component/read-only-two-way@t.html:3:41",
                 "binding/unknown-name@ui/dial.html:2:28"), DiagCodes.of(diag));

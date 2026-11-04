@@ -25,7 +25,7 @@ public final class MachineScreen {
     /** Client only; from client setup, after registries are ready. */
     public static void registerScreen() {
         MenuScreens.register(ModMenus.POWERED_STONECUTTER.get(), (MachineMenu menu, Inventory inv, Component title) ->
-                new UiContainerScreen<>(menu, inv, title, new MachineView(menu)));
+                new UiContainerScreen<>(menu, inv, title, new MachineModel(menu)));
     }
 
     /**

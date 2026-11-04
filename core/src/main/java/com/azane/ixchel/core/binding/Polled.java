@@ -1,6 +1,6 @@
 package com.azane.ixchel.core.binding;
 
-/** A value polled from a {@link Source} once per frame; read-only to host code and templates. */
+/** A value polled from a {@link Source} once per frame; read-only to host code and views. */
 final class Polled<T> extends Cell<T> {
     private final Source<T> source;
     private T value;

@@ -20,7 +20,7 @@ public final class TerminalScreen {
     /** Client only; from client setup, after registries are ready. */
     public static void registerScreen() {
         MenuScreens.register(ModMenus.STORAGE_TERMINAL.get(), (TerminalMenu menu, Inventory inv, Component title) ->
-                new UiContainerScreen<>(menu, inv, title, new TerminalView(menu), UiContainerScreen.SlotItemRendering.IXCHEL));
+                new UiContainerScreen<>(menu, inv, title, new TerminalModel(menu), UiContainerScreen.SlotItemRendering.IXCHEL));
     }
 
     /** The sample index's entry: opens the terminal on the storage around the player ({@link OpenTerminalPacket}). */

@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Key, button and modifier names a template may use in {@code on:keydown.<key>[.<modifier>…]},
+ * Key, button and modifier names a view may use in {@code on:keydown.<key>[.<modifier>…]},
  * {@code on:keyup.…} and {@code on:click[.<button>][.<modifier>…]} (also {@code mousedown},
  * {@code mouseup}) filters, mapped to GLFW codes. Keys: {@code enter escape space tab backspace
  * delete insert up down left right home end pageup pagedown f1…f12 a…z 0…9}; buttons: {@code left

@@ -135,7 +135,7 @@ class UiDocumentAnimationTest {
                 .a { animation: k 1s 2s 3s }
                 @media (x) { }
                 """));
-        assertEquals(List.of("css/invalid-keyframes-name@t.css:1:1", "css/invalid-keyframe-selector@t.css:2:16",
+        assertEquals(List.of("css/invalid-keyframes-name@t.css:1:14", "css/invalid-keyframe-selector@t.css:2:16",
                 "css/important-in-keyframe@t.css:2:56", "css/unsupported-at-rule@t.css:4:1",
                 "css/repeated-component@t.css:3:25", "css/not-animatable@t.css:2:41",
                 "css/function-arguments@t.css:2:112"), DiagCodes.of(e));

@@ -1,0 +1,26 @@
+/* The vanilla container look: light gray panels framed in dark gray, dark text. */
+@partial;
+@link "base.css";
+
+:root {
+    --ix-panel-bg: #C6C6C6;
+    --ix-panel-shadow: inset 0 0 0 1px #555555;
+    --ix-well-bg: #8B8B8B;
+    --ix-control-bg: #A0A0A0;
+    --ix-control-border: #555555;
+    --ix-overlay-bg: #100010F0;
+    --ix-overlay-border: #5000FF50;
+    --ix-overlay-text: #FFFFFF;
+    --ix-hover: #FFFFFF40;
+    --ix-selected: #E0E0E0;
+    --ix-selected-text: #202020;
+    --ix-disabled-text: #707070;
+    --ix-text: #404040;
+    --ix-title: #404040;
+    --ix-text-muted: #606060;
+    --ix-text-dim: #707070;
+    --ix-accent: #FFFF55;
+    --ix-positive: #3F7F3F;
+    --ix-negative: #AA2020;
+    --ix-warning: #C07020;
+}

@@ -79,7 +79,7 @@ public final class LootPlaytest {
             s.clickText(".filter", "Rare+");
             // Fails if the filter does not apply.
             s.waitUntil("Rare+ leaves the two apples", () -> Playtest.query(".row").size() == 2
-                    && Playtest.text(".filter.selected").equals("Rare+"), Playtest.WAIT);
+                    && Playtest.text(".filter.ix-selected").equals("Rare+"), Playtest.WAIT);
             s.clickText(".filter", "All");
             s.waitUntil("All shows four again", () -> Playtest.query(".row").size() == 4, Playtest.WAIT);
             s.click(".pick");

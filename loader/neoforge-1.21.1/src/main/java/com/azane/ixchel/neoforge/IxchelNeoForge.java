@@ -26,56 +26,56 @@ public final class IxchelNeoForge {
     }
 
     /**
-     * Registers a {@link UiHud} of the template {@code type} declares with
-     * {@link com.azane.ixchel.core.binding.UiTemplate} as a GUI layer above all vanilla layers and as a
+     * Registers a {@link UiHud} of the page {@code type} declares with
+     * {@link com.azane.ixchel.core.binding.UiView} as a GUI layer above all vanilla layers and as a
      * resource reload listener: the document loads at startup and again on F3+T, keeping its view
      * model; a load error fails that reload. The first call also installs the listener that lets
      * {@link WorldProjection} see the camera.
      *
      * <pre>{@code
-     * UiHud hud = IxchelNeoForge.registerHud(modBus, AmmoHudView.class, AmmoHudView::new);
+     * UiHud hud = IxchelNeoForge.registerHud(modBus, AmmoHudModel.class, AmmoHudModel::new);
      * }</pre>
      *
-     * The layer id is {@code <namespace>:<template path without .html>} ({@code mymod:ui/env/hud}).
+     * The layer id is {@code <namespace>:<page path without .html>} ({@code mymod:ui/env/hud}).
      *
      * @param modBus the host mod's event bus
-     * @param type   the view model class; it declares exactly one concrete template
+     * @param type   the view model class; it declares exactly one concrete page
      * @param model  creates the view model on the first load
-     * @throws IllegalArgumentException if {@code type} does not declare exactly one concrete template
+     * @throws IllegalArgumentException if {@code type} does not declare exactly one concrete page
      */
     public static <V extends ViewModel> UiHud registerHud(IEventBus modBus, Class<V> type, Supplier<? extends V> model) {
         return register(modBus, new UiHud(type, model));
     }
 
     /**
-     * As {@link #registerHud(IEventBus, Class, Supplier)}, for an explicit template.
+     * As {@link #registerHud(IEventBus, Class, Supplier)}, for an explicit page.
      *
      * @param modBus   the host mod's event bus
-     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     * @param page the page under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements. The layer id is
      *                 {@code <namespace>:<path without .html>} ({@code mymod:ui/env/hud})
      * @param model    creates the view model on the first load; may return {@code null} for a
-     *                 template without bindings
+     *                 page without bindings
      */
-    public static UiHud registerHud(IEventBus modBus, ResourceLocation template, Supplier<? extends ViewModel> model) {
-        return register(modBus, new UiHud(template, model));
+    public static UiHud registerHud(IEventBus modBus, ResourceLocation page, Supplier<? extends ViewModel> model) {
+        return register(modBus, new UiHud(page, model));
     }
 
     /**
-     * As {@link #registerHud(IEventBus, Class, Supplier)}, for a template without a view model.
+     * As {@link #registerHud(IEventBus, Class, Supplier)}, for a page without a view model.
      *
      * @param modBus   the host mod's event bus
-     * @param template the template under {@code assets/<namespace>/}; the namespace is the host mod
+     * @param page the page under {@code assets/<namespace>/}; the namespace is the host mod
      *                 id, stylesheets come from its {@code <link>} elements. The layer id is
      *                 {@code <namespace>:<path without .html>} ({@code mymod:ui/env/hud})
      */
-    public static UiHud registerHud(IEventBus modBus, ResourceLocation template) {
-        return register(modBus, new UiHud(template));
+    public static UiHud registerHud(IEventBus modBus, ResourceLocation page) {
+        return register(modBus, new UiHud(page));
     }
 
     private static UiHud register(IEventBus modBus, UiHud hud) {
-        ResourceLocation template = hud.template();
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(template.getNamespace(), layerId(template.getPath()));
+        ResourceLocation page = hud.page();
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(page.getNamespace(), layerId(page.getPath()));
         modBus.addListener((RegisterClientReloadListenersEvent e) ->
                 e.registerReloadListener((ResourceManagerReloadListener) manager -> hud.reload()));
         modBus.addListener((RegisterGuiLayersEvent e) ->
@@ -100,8 +100,8 @@ public final class IxchelNeoForge {
         NeoForge.EVENT_BUS.addListener((ScreenEvent.Render.Post e) -> ExitingDocuments.drawOverScreen(e.getGuiGraphics()));
     }
 
-    static String layerId(String templatePath) {
-        return templatePath.endsWith(".html") ? templatePath.substring(0, templatePath.length() - 5) : templatePath;
+    static String layerId(String pagePath) {
+        return pagePath.endsWith(".html") ? pagePath.substring(0, pagePath.length() - 5) : pagePath;
     }
 
     /** Lets {@link WorldProjection} see the camera every frame the level is drawn; once per library copy. */

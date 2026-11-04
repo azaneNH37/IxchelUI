@@ -14,6 +14,6 @@ public final class EffectsScreen {
     }
 
     public static void open() {
-        Minecraft.getInstance().setScreen(new UiScreen(new EffectsView()));
+        Minecraft.getInstance().setScreen(new UiScreen(new EffectsModel()));
     }
 }

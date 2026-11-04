@@ -29,6 +29,6 @@ class CodeCatalogTest {
 
     @Test
     void findsACodeById() {
-        assertEquals(KitCode.MISSING_TEMPLATE, CodeCatalog.find(CodeCatalogTest.class.getClassLoader(), "model/missing-template"));
+        assertEquals(KitCode.MISSING_VIEW, CodeCatalog.find(CodeCatalogTest.class.getClassLoader(), "model/missing-view"));
     }
 }

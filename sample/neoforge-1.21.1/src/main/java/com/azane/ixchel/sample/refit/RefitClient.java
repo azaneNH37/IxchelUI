@@ -24,13 +24,13 @@ public final class RefitClient {
             boolean canOpen = mc.player != null && mc.screen == null && Attachments.isGun(mc.player.getMainHandItem());
             while (OPEN.consumeClick()) {
                 if (canOpen) {
-                    mc.setScreen(screen(new RefitView(mc.player.getInventory().selected)));
+                    mc.setScreen(screen(new RefitModel(mc.player.getInventory().selected)));
                 }
             }
         });
     }
 
-    static UiScreen screen(RefitView view) {
+    static UiScreen screen(RefitModel view) {
         // A consumer outside the UI tree (TACZ moves the first-person camera): the action bar names
         // the attachment being looked at. The subscription ends when the screen closes.
         view.subscribe(view.selectedType, () -> {

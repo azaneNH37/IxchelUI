@@ -1,6 +1,6 @@
 package com.azane.ixchel.mc;
 
-import com.azane.ixchel.core.binding.UiTemplate;
+import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.paint.DisplayList;
@@ -21,22 +21,22 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import java.util.Map;
 
 /**
- * A container screen whose layout is a document. The host's menu defines the slots; the template
+ * A container screen whose layout is a document. The host's menu defines the slots; the page
  * places them with {@code <mc-slot index="N">} elements, and the resulting positions are written
  * back to {@code Slot.x/y}. Highlight, tooltips, clicks, drags, quick moves and the client prediction
  * stay vanilla, so other mods that read slot positions or {@code hoveredSlot} keep working. Who draws
  * the slot items is chosen by {@link SlotItemRendering}.
  *
  * <pre>{@code
- * @UiTemplate("ixchel_sample:ui/machine/panel.html")
- * class MachineView extends ViewModel { ... }
+ * @UiView("ixchel_sample:ui/machine/panel.html")
+ * class MachineModel extends ViewModel { ... }
  *
- * MenuScreens.register(MENU, (menu, inv, title) -> new UiContainerScreen<>(menu, inv, title, new MachineView(menu)));
+ * MenuScreens.register(MENU, (menu, inv, title) -> new UiContainerScreen<>(menu, inv, title, new MachineModel(menu)));
  * }</pre>
  *
- * <p>The template is the one the view model's class declares with {@link UiTemplate}; a model that
- * serves several templates, or none, is mounted with the template id
- * ({@code new UiContainerScreen<>(menu, inv, title, template, model)}).
+ * <p>The page is the one the view model's class declares with {@link UiView}; a model that
+ * serves several pages, or none, is mounted with the page id
+ * ({@code new UiContainerScreen<>(menu, inv, title, page, model)}).
  *
  * <p>Layout rules:
  * <ul>
@@ -48,7 +48,7 @@ import java.util.Map;
  *       {@link SlotItemRendering#VANILLA}, all of its item area with {@link SlotItemRendering#IXCHEL}).
  *       Slots follow scroll offsets.</li>
  *   <li>The screen's {@code leftPos/topPos/imageWidth/imageHeight}, which other mods read as the
- *       GUI area (JEI and EMI lay out beside it), are the bounding box of the template's top-level
+ *       GUI area (JEI and EMI lay out beside it), are the bounding box of the page's top-level
  *       elements. Make the panels themselves top-level and center them with {@code margin: auto};
  *       a full-screen wrapper makes the whole screen the GUI area. A click on no element counts as
  *       outside, so it drops the carried stack like vanilla.</li>
@@ -56,7 +56,7 @@ import java.util.Map;
  *       {@code <mc-slot>}; a panel drawn over a slot blocks it.</li>
  * </ul>
  * Mouse buttons go to the document and then to vanilla (see {@link #mouseClicked}); wheel and keys go
- * to the document first, and what it does not consume goes to vanilla. Template problems are
+ * to the document first, and what it does not consume goes to vanilla. ParsedView problems are
  * reported like other document errors (development overlay, log).
  */
 public class UiContainerScreen<M extends AbstractContainerMenu> extends AbstractContainerScreen<M> {
@@ -84,42 +84,41 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
     }
 
     /**
-     * A container screen of the template {@code model}'s class declares with {@link UiTemplate}.
+     * A container screen of the page {@code model}'s class declares with {@link UiView}.
      *
      * @param model     the view model; closed with the screen
      * @param slotItems who draws slot items
-     * @throws IllegalArgumentException if the class does not declare exactly one concrete template
+     * @throws IllegalArgumentException if the class does not declare exactly one concrete page
      * @throws UiLoadException          outside development when the document has errors
      */
     public UiContainerScreen(M menu, Inventory inventory, Component title, ViewModel model,
                              SlotItemRendering slotItems) {
-        this(menu, inventory, title, DeclaredTemplate.of(model.getClass()), model, slotItems);
+        this(menu, inventory, title, DeclaredView.of(model.getClass()), model, slotItems);
     }
 
     /**
      * Same as {@link #UiContainerScreen(AbstractContainerMenu, Inventory, Component, ResourceLocation, ViewModel, SlotItemRendering)}
      * with {@link SlotItemRendering#VANILLA}.
      */
-    public UiContainerScreen(M menu, Inventory inventory, Component title, ResourceLocation template, ViewModel model) {
-        this(menu, inventory, title, template, model, SlotItemRendering.VANILLA);
+    public UiContainerScreen(M menu, Inventory inventory, Component title, ResourceLocation page, ViewModel model) {
+        this(menu, inventory, title, page, model, SlotItemRendering.VANILLA);
     }
 
     /**
-     * A container screen of an explicit template.
+     * A container screen of an explicit page.
      *
-     * @param template  the template under {@code assets/<namespace>/}; the namespace is the host mod
+     * @param page  the page under {@code assets/<namespace>/}; the namespace is the host mod
      *                  id, stylesheets come from its {@code <link>} elements
-     * @param model     the view model the template binds to, or {@code null}; closed with the screen
+     * @param model     the view model the page binds to, or {@code null}; closed with the screen
      * @param slotItems who draws slot items
      * @throws UiLoadException outside development when the document has errors
      */
-    public UiContainerScreen(M menu, Inventory inventory, Component title, ResourceLocation template, ViewModel model,
+    public UiContainerScreen(M menu, Inventory inventory, Component title, ResourceLocation page, ViewModel model,
                              SlotItemRendering slotItems) {
         super(menu, inventory, title);
         this.layout = new ContainerLayout(menu, slotItems == SlotItemRendering.IXCHEL);
         this.clippedItems = slotItems == SlotItemRendering.IXCHEL ? new ClippedSlotItems() : null;
-        this.doc = new HostedDocument(template, ContainerLayout.TAGS, Map.of(ContainerLayout.SLOT_TAG, SlotSnapshot.PAINTER),
-                UiComponents.hosting(template.getNamespace()), model, layout::invalidate);
+        this.doc = new HostedDocument(page, true, model, layout::invalidate);
     }
 
     @Override

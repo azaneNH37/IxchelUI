@@ -37,13 +37,21 @@ class CssParserTest {
     }
 
     @Test
-    void atRuleIsReportedAndLaterRulesStillParse() {
+    void kindAndLeadingLinksAreCollectedAndMisplacedOnesReportedWhileLaterRulesStillParse() {
         Diagnostics diag = new Diagnostics();
-        List<Rule> rules = CssParser.parseStylesheet(
-                "@media (x) { .a { color: red } }\n@import 'x.css';\n.b { width: 1px }", "t.css", diag).rules();
-        assertEquals(1, rules.size());
-        assertEquals("width", rules.get(0).declarations().get(0).name());
-        assertEquals(List.of("css/unsupported-at-rule@t.css:1:1", "css/unsupported-at-rule@t.css:2:1"), DiagCodes.of(diag));
+        ParsedSheet sheet = CssParser.parseStylesheet("""
+                @partial; @link 'base.css'; @link "@ixchel/effects/glint.ixeffect" as Glint;
+                @link url(x.css); @link "x.css" as X; @partial;
+                @media (x) { .a { color: red } }
+                .b { width: 1px }
+                @link "late.css";""", "t.css", diag);
+        assertEquals(ParsedSheet.Kind.PARTIAL, sheet.kind());
+        assertEquals(1, sheet.rules().size());
+        assertEquals("width", sheet.rules().get(0).declarations().get(0).name());
+        assertEquals(List.of("base.css null", "@ixchel/effects/glint.ixeffect Glint"),
+                sheet.links().stream().map(l -> l.href() + " " + l.alias()).toList());
+        assertEquals(List.of("css/invalid-link@t.css:2:1", "css/invalid-link@t.css:2:19", "css/invalid-kind@t.css:2:39",
+                "css/unsupported-at-rule@t.css:3:1", "css/misplaced-link@t.css:5:1"), DiagCodes.of(diag));
     }
 
     private static String text(List<ComponentValue> values) {

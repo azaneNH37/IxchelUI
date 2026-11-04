@@ -113,8 +113,8 @@ public final class QuestsPlaytest {
             s.shot("quests-detail-leaving");
             s.waitUntil("close removes the details after the slide-out", () -> Playtest.query(".detail").isEmpty(), Playtest.WAIT);
             s.clickNth(".chapter", 1);
-            s.waitUntil("the second chapter replaces the canvas", () -> Playtest.query(".chapter.selected").size() == 1
-                    && Playtest.text(".chapter.selected span").equals(Quests.chapters().get(1).title())
+            s.waitUntil("the second chapter replaces the canvas", () -> Playtest.query(".chapter.ix-selected").size() == 1
+                    && Playtest.text(".chapter.ix-selected span").equals(Quests.chapters().get(1).title())
                     && Playtest.query(".node.done").isEmpty(), Playtest.WAIT);
 
             // Standing still nothing changes; panning changes one transform per tick (no layout).

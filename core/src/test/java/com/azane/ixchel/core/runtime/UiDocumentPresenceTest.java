@@ -237,7 +237,7 @@ class UiDocumentPresenceTest {
                 """, """
                 @starting-style { div { width: 0 } }
                 """, null));
-        assertEquals(List.of("template/unknown-block-attribute@t.html:2:17", "css/unsupported-at-rule@t.css:1:1"),
+        assertEquals(List.of("view/unknown-block-attribute@t.html:2:17", "css/unsupported-at-rule@t.css:1:14"),
                 DiagCodes.of(e));
     }
 

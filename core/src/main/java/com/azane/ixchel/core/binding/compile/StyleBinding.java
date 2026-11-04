@@ -5,11 +5,14 @@ import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.css.syntax.ComponentValue;
 import com.azane.ixchel.core.css.syntax.CssParser;
 import com.azane.ixchel.core.css.syntax.Token;
+import com.azane.ixchel.core.diag.DiagCode;
 import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.effect.Aliases;
+import com.azane.ixchel.core.effect.EffectCode;
 import com.azane.ixchel.core.style.Declarations;
 
 import java.util.List;
@@ -18,19 +21,22 @@ import java.util.Objects;
 /**
  * {@code bind:style:<property>}: writes the element's bound value of one longhand. An unchanged
  * value is not parsed again; an invalid one keeps the last valid value and is reported once
- * until a valid value arrives.
+ * until a valid value arrives. A String names effects by the aliases of the view's stylesheet.
  */
 final class StyleBinding extends Binding {
     private static final Object NONE = new Object();
     private final Element element;
     private final PropertyDef<?> property;
+    private final Aliases aliases;
     private Object last = NONE;
     private boolean invalid;
 
-    StyleBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element, PropertyDef<?> property) {
+    StyleBinding(Cell<?> cell, Directive a, Diagnostics diag, Element element, PropertyDef<?> property,
+                 Aliases aliases) {
         super(cell, a, diag);
         this.element = element;
         this.property = property;
+        this.aliases = aliases;
     }
 
     @Override
@@ -46,7 +52,7 @@ final class StyleBinding extends Binding {
             if (parsed == null) {
                 if (!invalid) {
                     invalid = true;
-                    diag.report(BindingCode.INVALID_STYLE_VALUE, attribute.valuePos(), "'" + attribute.value() + "' gave "
+                    diag.report(code(problems), attribute.valuePos(), "'" + attribute.value() + "' gave "
                             + describe(value) + " for '" + property.name() + "': " + firstError(problems));
                 }
                 return false;
@@ -65,6 +71,9 @@ final class StyleBinding extends Binding {
         SourcePos pos = attribute.valuePos();
         if (value instanceof String s) {
             List<ComponentValue> css = CssParser.parseValue(s, pos, problems);
+            if (!problems.hasErrors()) {
+                css = aliases.value(css, problems);
+            }
             return problems.hasErrors() ? null : Declarations.value(property, css, pos, problems);
         }
         if (value instanceof Number n) {
@@ -85,6 +94,12 @@ final class StyleBinding extends Binding {
         }
         problems.report(BindingCode.INVALID_STYLE_VALUE, pos, "expected a String or a Number");
         return null;
+    }
+
+    /** An unknown alias is reported as such; any other problem as an invalid value. */
+    static DiagCode code(Diagnostics problems) {
+        DiagCode first = problems.entries().get(0).code();
+        return first == EffectCode.UNKNOWN_ALIAS ? first : BindingCode.INVALID_STYLE_VALUE;
     }
 
     private static String describe(Object value) {

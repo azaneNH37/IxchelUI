@@ -1,14 +1,18 @@
 /* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. The pages
    share one box above the inventory; hidden pages keep their slots placed but not displayed. */
-.panel {
+@stylesheet;
+@link "../themes/container.css";
+@link "../common/slot.css";
+
+.ix-panel {
   margin: auto;
   width: 178px;
-  padding: 7px;
+  padding: 8px;
   transition: transform 300ms ease-in;
 }
 
 /* Only out: while the screen is open, vanilla draws slot items where the layout put them, ignoring transforms. */
-.panel:-ix-absent:-ix-exiting {
+.ix-panel:-ix-absent:-ix-exiting {
   transform: translateY(24px);
 }
 
@@ -20,17 +24,18 @@
 .tab {
   padding: 2px 4px;
   margin-right: 2px;
-  background-color: var(--ix-button);
+  background-color: var(--ix-control-bg);
   border-bottom: 1px solid #555555;
-  color: var(--ix-button-text);
+  color: var(--ix-text);
   transition: background-color 120ms;
 }
 
 .tab:hover {
-  background-color: var(--ix-button-hover);
+  background-color: var(--ix-control-bg);
+  background-image: linear-gradient(var(--ix-hover), var(--ix-hover));
 }
 
-.tab.selected {
+.tab.ix-selected {
   background-color: var(--ix-selected);
   border-bottom-color: var(--ix-selected);
   color: var(--ix-selected-text);
@@ -87,7 +92,7 @@
 .list {
   flex-direction: column;
   overflow: auto;
-  background-color: var(--ix-well);
+  background-color: var(--ix-well-bg);
   padding: 2px;
 }
 

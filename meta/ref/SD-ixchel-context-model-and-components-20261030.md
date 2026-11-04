@@ -164,7 +164,7 @@ final class EnergyView extends ViewModel {
 // 宿主：UiComponents.register(modid, EnergyView.class, EnergyView::new);
 ```
 
-- 关联与登记：组件文件被某个类的 `@UiTemplate` 指向、且该类已按 modid 登记无参工厂，即为 Java 组件；按模板 namespace 合并，同 #030。库组件（如 `mc-player-inventory`、`mc-tooltip-lines`）在库的预引入表中声明文件与类，免链接；宿主与库的 Java 组件同在一张按文件 id 的表（#037）。kit 不看登记，`@UiTemplate` 指向组件文件的类即按 Java 组件检查，库组件读库的声明。
+- 关联与登记：组件文件被某个类的 `@UiTemplate` 指向、且该类已按 modid 登记无参工厂，即为 Java 组件；按模板 namespace 合并，同 #030。库 Java 组件（如 `mc-player-inventory`、`mc-tooltip-lines`）由库按类登记（文件取自类的 `@UiTemplate`），页面照常显式 link 或经包引入（#039）；宿主与库的 Java 组件同在一张按文件 id 的表（#037）。kit 不看登记，`@UiTemplate` 指向组件文件的类即按 Java 组件检查，库组件读库的声明。
 - 轮询暂停：外壳元素位于当前不在顶层的顶层种类元素（未显示的 `<ix-tooltip>`、未打开的 `<dialog>`）之内时，子模型不 poll，进入顶层的那一帧在布局前 poll（#038）。
 - 签名：仍写在 `<template params events>`（默认值仍是模板表达式，可引用前面的参数），类中端口字段按名双向一一对应，不符报 `component/signature-mismatch`。端口字段的声明类型必须是 `Param`/`TwoWay`/`Event` 且带泛型实参：`Cell` 已被 `source` 字段使用，kit 只读声明。使用处按声明类型 `T` 检查；`TwoWay` 收到不可写表达式在使用处报错（模板组件由组件体内的赋值推出，Java 中的 `set` 推不出，故需声明）。
 - 成员表：`ModelShape.Kind` 为 `CELL`、`ACTION`、`EVENT`，按组件体内用法分（`Param`、`TwoWay` 在体内就是只读或可写的值）；`Member.port` 标出对外签名，只有签名核对与使用处检查看它。页面 ViewModel 没有端口成员。
@@ -180,14 +180,14 @@ final class EnergyView extends ViewModel {
 | 项 | 状态 |
 |---|---|
 | `<for>`/`<if>` 块语法取代属性形式 `each`/`if` | 已定，随 L2 做，语法见语言文档 §3.5 |
-| `<for>` 的空列表分支（`<empty>`，对照 Django `{% empty %}`、Angular `@empty`）、`<if>` 的 `<else>` | 待定。空列表：sample 有 5 处 `if="rows.size == 0"` 紧挨同一列表的 `each`（character、config、loot、machine、waypoints）；`<else>`：config 条目控件是 6 个按类型分支的 `if`（`config/panel.html:24-37`，互斥为【推断】） |
+| `<for>` 的空列表分支（`<empty>`，对照 Django `{% empty %}`、Angular `@empty`）、`<if>` 的 `<else>` | 已定做（2026-11-04），排期随 U4。依据：sample 有 5 处 `if="rows.size == 0"` 紧挨同一列表的 `each`（character、config、loot、machine、waypoints）；config 条目控件是 6 个按类型分支的 `if`（`config/panel.html:24-37`，互斥为【推断】） |
 | `provide:`/`uses` 共享上下文 | 暂缓，触发条件为第一个复合组件（tabs/tab）。若做：使用方显式 `uses`，加载期静态解析到最近的显式提供者（祖先 `provide:`、外层组件内的 `provide:`、Java 给的文档根），只读，可带默认值 |
 | 可写参数被组件写入时自动派发 `on:<名>change`（QML 每属性自动生成 `<名>Changed`） | 可选，首版不做 |
 | 行内嵌动作（`entry.reset`） | 不做：`derive` 重建行时动作状态丢失，且破坏 record 相等截断 |
 | `null` 显式化（`?.`/`??`） | 另议；有默认值的参数已避免"未传入即 `null`" |
 | 可选的结构声明 | 待第一次真实需要（Java 组件的参数类型来自 Java 声明，不属于此项） |
-| Java 组件的 `disabled` 约定（统一参数，或外壳元素上的普通 `disabled`） | 待定，触发条件为第一个需要页面禁用的 Java 组件 |
-| 组件与元素的端口差异（组件事件不接受过滤器、内容进插槽、主题挂点为内部类名） | 待定：统一端口或放弃"实现可互换"；`ix-bar` 与 `<progress>` 的取舍依赖它（U4 §5-2） |
+| 组件的 `disabled` 约定 | 已定（2026-11-04，#040）：外壳元素上的普通 `disabled`，子树随之禁用、可用 `:disabled` 选中（同 `<fieldset>`），模板组件与 Java 组件相同 |
+| 组件与元素的端口差异（组件事件不接受过滤器、内容进插槽、主题挂点为内部类名） | 已定（2026-11-04，#040）：不求可互换；主题挂点为公开的 `.ix-<组件>-<部件>` 类 |
 | 组件签名推导（对每个参数用到的路径、运算与写入，行多态式），用于错误信息、文档与资源包覆盖前后的签名差异 | 暂不做，触发条件为 Doc 阶段生成组件参考或资源包覆盖工具 |
 | 按（组件，参数类型）缓存编译结果 | 暂不做：现有编译与实例化一体，每个块实例都重新解析名字，没有可缓存的编译结果；触发条件为 `FrameTimer` 显示实例化超预算 |
 | 组件给自己的外壳元素加指令（`:host` 等价物） | 暂不做，触发条件为第一处组件需要按参数改变外壳元素的 class 或布局；候选：`<template>` 上的指令作用于外壳元素，在组件环境求值，与使用方写同一目标时报错 |

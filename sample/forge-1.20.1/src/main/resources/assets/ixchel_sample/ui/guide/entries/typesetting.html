@@ -1,71 +1,73 @@
-<link rel="stylesheet" href="@ixchel/dark.css"/>
-<link rel="component" href="../book.html"/>
-<link rel="component" href="../page.html"/>
-<!-- The long entry: six full pages of mixed styles, Chinese and English; the guide check times it.
-     A typesetting fixture whose text is the point: not translated, and English whatever the game language. -->
-<guide-book translate="no" lang="en" bind:spread="spread" bind:spreads="spreads" bind:history="history"
-            on:prev="prev" on:next="next" on:back="back" on:contents="contents"
-            on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
-  <guide-page heading="Typesetting">
-    <div class="text">
-      Text in a <span class="b">display: block</span> box flows across <span class="i">spans</span>,
-      <span class="red">colors</span>, <a on:click="open('circuits')">links</a> and items like
-      <mc-item class="icon" bind:item="icons.redstone"></mc-item> in one paragraph, and breaks
-      between words when a line is full.
-    </div>
-    <div class="text">
-      Whitespace collapses: line breaks and indentation in the template read as single spaces,
-      and a space between two elements stays.
-    </div>
-  </guide-page>
-  <guide-page heading="排版">
-    <div class="text">
-      中文没有空格，行内在任意两个汉字之间都可以断开。句号、逗号和右括号不会出现在行首，左括号不会留在行尾：「这样」排出来的段落读起来才顺。
-    </div>
-    <div class="text">
-      Mixed text works too: 红石粉 <mc-item class="icon" bind:item="icons.redstone"></mc-item>
-      可以传递 <span class="b">15</span> 格信号，每经过一格减弱一级。
-    </div>
-  </guide-page>
-  <guide-page heading="Styles">
-    <div class="text">
-      <span class="b">Bold</span>, <span class="i">italic</span>, <span class="s">struck</span>
-      and <a on:click="open('storage')">underlined links</a> come from <span class="i">font-weight</span>,
-      <span class="i">font-style</span> and <span class="i">text-decoration</span>; nested spans
-      <span class="b">add <span class="i">to <span class="red">each</span> other</span></span>.
-    </div>
-    <div class="text">
-      Keys such as <span class="key">Ctrl</span> + <span class="key">C</span> are inline-block boxes:
-      they keep a background and padding and never split across lines.
-    </div>
-  </guide-page>
-  <guide-page heading="Long lines">
-    <div class="text">
-      A word longer than the line, such as
-      supercalifragilisticexpialidocious, is cut where it overflows, since there is nowhere else
-      to break it.
-    </div>
-    <div class="text">
-      Redstone dust, torches, repeaters, comparators, observers, pistons, hoppers and lamps all
-      take part in circuits of every size.
-    </div>
-  </guide-page>
-  <guide-page heading="索引">
-    <div class="text">
-      红石火把 <mc-item class="icon" bind:item="icons.torch"></mc-item>、红石中继器
-      <mc-item class="icon" bind:item="icons.repeater"></mc-item>、红石灯
-      <mc-item class="icon" bind:item="icons.lamp"></mc-item>（见<a on:click="open('circuits')">电路</a>）；
-      活塞 <mc-item class="icon" bind:item="icons.piston"></mc-item>（见<a on:click="open('pistons')">活塞</a>）；
-      箱子 <mc-item class="icon" bind:item="icons.chest"></mc-item>（见<a on:click="open('storage')">存储</a>）。
-    </div>
-    <div class="text">
-      每一页都是作者写下的显式页元素，书不会自动分页；内容超出一页时，多出的部分被裁掉。
-    </div>
-  </guide-page>
-  <guide-page heading="The end">
-    <div class="text">
-      <span class="muted">Turn back with</span> <span class="key">←</span><span class="muted">, or open the</span>
-      <span class="b">Contents</span> <span class="muted">to pick another entry.</span>
-    </div>
-  </guide-page>
-</guide-book>
+<page>
+  <link href="../guide.css"/>
+  <link href="../book.html"/>
+  <link href="../page.html"/>
+  <!-- The long entry: six full pages of mixed styles, Chinese and English; the guide check times it.
+       A typesetting fixture whose text is the point: not translated, and English whatever the game language. -->
+  <guide-book translate="no" lang="en" bind:spread="spread" bind:spreads="spreads" bind:history="history"
+              on:prev="prev" on:next="next" on:back="back" on:contents="contents"
+              on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
+    <guide-page heading="Typesetting">
+      <div class="text">
+        Text in a <span class="b">display: block</span> box flows across <span class="i">spans</span>,
+        <span class="red">colors</span>, <a on:click="open('circuits')">links</a> and items like
+        <mc-item class="icon" bind:item="icons.redstone"></mc-item> in one paragraph, and breaks
+        between words when a line is full.
+      </div>
+      <div class="text">
+        Whitespace collapses: line breaks and indentation in the template read as single spaces,
+        and a space between two elements stays.
+      </div>
+    </guide-page>
+    <guide-page heading="排版">
+      <div class="text">
+        中文没有空格，行内在任意两个汉字之间都可以断开。句号、逗号和右括号不会出现在行首，左括号不会留在行尾：「这样」排出来的段落读起来才顺。
+      </div>
+      <div class="text">
+        Mixed text works too: 红石粉 <mc-item class="icon" bind:item="icons.redstone"></mc-item>
+        可以传递 <span class="b">15</span> 格信号，每经过一格减弱一级。
+      </div>
+    </guide-page>
+    <guide-page heading="Styles">
+      <div class="text">
+        <span class="b">Bold</span>, <span class="i">italic</span>, <span class="s">struck</span>
+        and <a on:click="open('storage')">underlined links</a> come from <span class="i">font-weight</span>,
+        <span class="i">font-style</span> and <span class="i">text-decoration</span>; nested spans
+        <span class="b">add <span class="i">to <span class="red">each</span> other</span></span>.
+      </div>
+      <div class="text">
+        Keys such as <span class="key">Ctrl</span> + <span class="key">C</span> are inline-block boxes:
+        they keep a background and padding and never split across lines.
+      </div>
+    </guide-page>
+    <guide-page heading="Long lines">
+      <div class="text">
+        A word longer than the line, such as
+        supercalifragilisticexpialidocious, is cut where it overflows, since there is nowhere else
+        to break it.
+      </div>
+      <div class="text">
+        Redstone dust, torches, repeaters, comparators, observers, pistons, hoppers and lamps all
+        take part in circuits of every size.
+      </div>
+    </guide-page>
+    <guide-page heading="索引">
+      <div class="text">
+        红石火把 <mc-item class="icon" bind:item="icons.torch"></mc-item>、红石中继器
+        <mc-item class="icon" bind:item="icons.repeater"></mc-item>、红石灯
+        <mc-item class="icon" bind:item="icons.lamp"></mc-item>（见<a on:click="open('circuits')">电路</a>）；
+        活塞 <mc-item class="icon" bind:item="icons.piston"></mc-item>（见<a on:click="open('pistons')">活塞</a>）；
+        箱子 <mc-item class="icon" bind:item="icons.chest"></mc-item>（见<a on:click="open('storage')">存储</a>）。
+      </div>
+      <div class="text">
+        每一页都是作者写下的显式页元素，书不会自动分页；内容超出一页时，多出的部分被裁掉。
+      </div>
+    </guide-page>
+    <guide-page heading="The end">
+      <div class="text">
+        <span class="muted">Turn back with</span> <span class="key">←</span><span class="muted">, or open the</span>
+        <span class="b">Contents</span> <span class="muted">to pick another entry.</span>
+      </div>
+    </guide-page>
+  </guide-book>
+</page>

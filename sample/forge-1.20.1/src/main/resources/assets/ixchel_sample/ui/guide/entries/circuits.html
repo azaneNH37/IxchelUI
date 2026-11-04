@@ -1,20 +1,22 @@
-<link rel="stylesheet" href="@ixchel/dark.css"/>
-<link rel="component" href="../book.html"/>
-<link rel="component" href="../page.html"/>
-<guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
-            on:prev="prev" on:next="next" on:back="back" on:contents="contents"
-            on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
-  <guide-page t:heading="ixchel_sample.guide.circuits.heading">
-    <div class="text" t="ixchel_sample.guide.circuits.dust"><mc-item class="icon" bind:item="icons.redstone"></mc-item><span mark="name" class="b red"></span><span mark="b" class="b"></span></div>
-    <div class="text" t="ixchel_sample.guide.circuits.torch"><mc-item class="icon" bind:item="icons.torch"></mc-item><span mark="b" class="b"></span><span mark="i" class="i"></span></div>
-    <div class="text" t="ixchel_sample.guide.circuits.piston"><a mark="link" on:click="open('pistons')"></a></div>
-  </guide-page>
-  <guide-page t:heading="ixchel_sample.guide.circuits.lamps">
-    <img class="picture" src="minecraft:textures/block/redstone_lamp_on.png"/>
-    <div class="text" t="ixchel_sample.guide.circuits.lamp"><mc-item class="icon" bind:item="icons.lamp"></mc-item><span mark="b" class="b"></span><span mark="green" class="green"></span></div>
-  </guide-page>
-  <guide-page t:heading="ixchel_sample.guide.circuits.repeaters">
-    <div class="text" t="ixchel_sample.guide.circuits.repeater"><mc-item class="icon" bind:item="icons.repeater"></mc-item><span mark="b" class="b"></span></div>
-    <div class="text" t="ixchel_sample.guide.circuits.diode"><span mark="muted" class="muted"></span><span mark="s" class="s"></span><a mark="link" on:click="open('storage')"></a></div>
-  </guide-page>
-</guide-book>
+<page>
+  <link href="../guide.css"/>
+  <link href="../book.html"/>
+  <link href="../page.html"/>
+  <guide-book bind:spread="spread" bind:spreads="spreads" bind:history="history"
+              on:prev="prev" on:next="next" on:back="back" on:contents="contents"
+              on:keydown.left="prev" on:keydown.right="next" on:keydown.backspace="back">
+    <guide-page t:heading="ixchel_sample.guide.circuits.heading">
+      <div class="text" t="ixchel_sample.guide.circuits.dust"><mc-item class="icon" bind:item="icons.redstone"></mc-item><span mark="name" class="b red"></span><span mark="b" class="b"></span></div>
+      <div class="text" t="ixchel_sample.guide.circuits.torch"><mc-item class="icon" bind:item="icons.torch"></mc-item><span mark="b" class="b"></span><span mark="i" class="i"></span></div>
+      <div class="text" t="ixchel_sample.guide.circuits.piston"><a mark="link" on:click="open('pistons')"></a></div>
+    </guide-page>
+    <guide-page t:heading="ixchel_sample.guide.circuits.lamps">
+      <img class="picture" src="minecraft:textures/block/redstone_lamp_on.png"/>
+      <div class="text" t="ixchel_sample.guide.circuits.lamp"><mc-item class="icon" bind:item="icons.lamp"></mc-item><span mark="b" class="b"></span><span mark="green" class="green"></span></div>
+    </guide-page>
+    <guide-page t:heading="ixchel_sample.guide.circuits.repeaters">
+      <div class="text" t="ixchel_sample.guide.circuits.repeater"><mc-item class="icon" bind:item="icons.repeater"></mc-item><span mark="b" class="b"></span></div>
+      <div class="text" t="ixchel_sample.guide.circuits.diode"><span mark="muted" class="muted"></span><span mark="s" class="s"></span><a mark="link" on:click="open('storage')"></a></div>
+    </guide-page>
+  </guide-book>
+</page>

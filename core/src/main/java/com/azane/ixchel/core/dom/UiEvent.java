@@ -31,15 +31,15 @@ public final class UiEvent {
         MOUSE_DOWN, MOUSE_UP, CLICK, MOUSE_MOVE, WHEEL, KEY_DOWN, KEY_UP, INPUT, CHANGE, CLOSE, SCROLL,
         DRAG_START, DRAG, DRAG_END, DROP, ANIMATION_END;
 
-        /** The name used in templates: {@code on:<name>}. */
-        public String templateName() {
+        /** The name used in views: {@code on:<name>}. */
+        public String viewName() {
             return name().replace("_", "").toLowerCase(Locale.ROOT);
         }
 
-        /** The type named {@code name} in templates, or {@code null}. */
-        public static Type byTemplateName(String name) {
+        /** The type named {@code name} in views, or {@code null}. */
+        public static Type byViewName(String name) {
             for (Type t : values()) {
-                if (t.templateName().equals(name)) {
+                if (t.viewName().equals(name)) {
                     return t;
                 }
             }
