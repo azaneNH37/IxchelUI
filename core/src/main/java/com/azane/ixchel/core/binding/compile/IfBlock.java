@@ -40,6 +40,13 @@ final class IfBlock extends Block {
     }
 
     @Override
+    public void close() {
+        if (instance != null) {
+            instance.group.close();
+        }
+    }
+
+    @Override
     public boolean update() {
         boolean exiting = unit != null && unit.exiting();
         boolean on;
@@ -72,6 +79,7 @@ final class IfBlock extends Block {
             Instance gone = instance;
             compiler.presence.exit(unit, true, () -> {
                 unmount(gone);
+                gone.group.close();
                 instance = null;
                 unit = null;
             });

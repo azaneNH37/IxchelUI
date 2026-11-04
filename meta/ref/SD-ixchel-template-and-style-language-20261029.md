@@ -254,7 +254,7 @@ final class WaypointsView extends ViewModel {
 
 - 前缀按领域划分，不按实现划分：组件改为原生元素或反之，标签名不变。`mc-fluid` 即使由加载器层实现也用 `mc-`。
 - 新增元素前先查 HTML 是否有标准元素（进度条用 `progress`，折叠用 `details`/`summary`），依次再考虑 `ix-`、`mc-`。
-- 组件 `name` 不得以 `ix-`、`mc-` 开头，加载期报错。校验只针对组件名：原生元素只由 mc 层登记（宿主没有登记入口，见路线文档 D0 结果），`mc-slot` 等不受此限。
+- 项目组件 `name` 不得以 `ix-`、`mc-` 开头，加载期报错；库自带的组件文件（classpath，免链接）不受此限（L4，#035）。原生元素只由 mc 层登记（宿主没有登记入口，见路线文档 D0 结果），`mc-slot` 等不受此限。
 - 不含连字符的模板保留标签：`template`、`slot`（HTML 标准元素，按 §3.4 的组件语义）与控制块 `for`、`if`（非 HTML，§3.5）。
 - 撞名只可能发生在一个宿主内部：库按宿主 shade（#001），文档可用的标签只来自 HTML、库与该宿主。同一文档中两个组件同名，加载期报错。
 
@@ -269,12 +269,7 @@ final class WaypointsView extends ViewModel {
 - 外壳元素：组件实例在树中保留外壳元素，模板内容成为它的子元素。使用方的 CSS 给外壳元素定尺寸与位置，组件自己的 CSS 管内部。
 - 端口与使用处写法、名字的可见范围、可写性、插槽、类型检查、实例生命周期：见 `ref/SD-ixchel-context-model-and-components-20261030.md` §1、§3。要点：组件体只见自己的参数、事件与局部状态；外壳元素上的指令与插槽内容在使用方作用域中解析；写权限由使用方传入可写路径授予；未传入的参数取默认值成为实例的局部状态，无默认值即必填；参数名、事件名与全局属性重名在加载期报错。
 - 加载期解析并校验每个组件文件，诊断定位到组件文件的行列。
-- 带 Java 逻辑的组件（后续）：宿主在 Java 侧按组件路径登记工厂，每个实例得到一个子 ViewModel。模板中不写 Java 类名，relocate 后类名会变（#001）。
-
-  ```java
-  new UiScreen(template, view, parent,
-          Components.of("ixchel_sample:ui/common/color-picker.html", ColorPickerView::new));
-  ```
+- 带 Java 逻辑的组件（L4，#035）：组件文件 + `@UiTemplate` 指向它的 ViewModel 类 + 宿主按 modid 登记无参工厂（`UiComponents.register(modid, 类, 工厂)`），签名仍在 `<template>`；模板中不写 Java 类名，relocate 后类名会变（#001）。细节见上下文模型文档 §3.7。
 
 #### 3.5 指令
 
@@ -350,11 +345,13 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 
 #### 4.2 主题
 
+> TH1 起本节由 `ref/SD-ixchel-themes-20261104.md`（#034）取代：页面用 `<link rel="theme">` 选择主题，主题可带规则、`@keyframes` 与内置特效并 `@import` 基底，表面类改为 `.ix-*`，变量按角色重排。以下为 L3 的现状。
+
 - 只含视觉：颜色、边框、文字色，以及 `:hover`、`:focus`、`:disabled` 等状态；不含 `width`、`height`、`margin`。
 - 首批 `vanilla`（原版容器灰：`#C6C6C6` 底、`#555555` 边、`#404040` 字）与 `dark`（暗色浮层：`#101418E0` 底、`#FFFF55` 标题），来源为 sample 现有两族外观。
 - 按 #001 放 classpath，以相对 core 类的路径读取（同 `UiDocument.UserAgent`），relocate 后可用；不随资源重载热更新。
 - UA 样式表保持为不引入主题时的兜底外观。
-- 构成（L3 实现，#018）：每份主题 = 共用规则 `themes/theme.css`（`.panel`、`.title`、`button` 及 `:hover`/`:focus`、`.selected`、`:disabled`，值全部为 `var(--ix-*)`）加只在 `:root` 上设变量的配色表；同时链接多份时共用规则只进一次。
+- 构成（L3 实现，原 #018，现 #034）：每份主题 = 共用规则 `themes/theme.css`（`.panel`、`.title`、`button` 及 `:hover`/`:focus`、`.selected`、`:disabled`，值全部为 `var(--ix-*)`）加只在 `:root` 上设变量的配色表；同时链接多份时共用规则只进一次。
 - `--ix-*` 变量是对页面与组件公开的接口，作者 CSS 用它们表达角色色：
 
 | 变量 | 角色 | vanilla | dark |
@@ -381,7 +378,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 | 多个样式表 | 支持，经模板中的多个 `<link>` | — |
 | 嵌套（CSS Nesting） | 报错（`CssParser`："At-rules and nested rules are reported as errors"） | 随组件实现；解析期展开，不改样式引擎 |
 | `var()` 自定义属性 | 支持（L3）：带回退，自定义属性按普通层叠且总是继承，`bind:style:--x` 可写；替换后无效的属性取继承值或初值并报告一次 | — |
-| `@import` | 报错（不支持任何 at-rule） | 暂缓：文件组合已由模板侧 `<link>` 完成 |
+| `@import` | 报错（不支持任何 at-rule） | 只在主题文件开头开放一个，导入基底主题（TH1，#034）；其它样式表仍由模板侧 `<link>` 组合 |
 | `@layer` 语法 | 不支持 | 不开放，层由 link 位置决定 |
 | `@extend`、`@mixin` | — | 不做：不是 CSS 标准（#003），多 class 组合已覆盖 |
 

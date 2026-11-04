@@ -5,6 +5,7 @@ import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.azane.ixchel.core.runtime.UiHosting;
 import com.azane.ixchel.mc.container.ClippedSlotItems;
 import com.azane.ixchel.mc.container.ContainerLayout;
 import com.azane.ixchel.mc.container.SlotSnapshot;
@@ -119,6 +120,8 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         this.layout = new ContainerLayout(menu, slotItems == SlotItemRendering.IXCHEL);
         this.clippedItems = slotItems == SlotItemRendering.IXCHEL ? new ClippedSlotItems() : null;
         this.doc = new HostedDocument(template, ContainerLayout.TAGS, Map.of(ContainerLayout.SLOT_TAG, SlotSnapshot.PAINTER),
+                UiComponents.hosting(template.getNamespace(), ContainerLayout.LIBRARY,
+                        Map.of("$menu", new UiHosting.FrameworkValue<AbstractContainerMenu>(AbstractContainerMenu.class, () -> menu))),
                 model, layout::invalidate);
     }
 

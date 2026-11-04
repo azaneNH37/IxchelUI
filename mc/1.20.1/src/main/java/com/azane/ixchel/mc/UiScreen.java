@@ -113,7 +113,7 @@ public class UiScreen extends Screen {
      */
     public UiScreen(ResourceLocation template, ViewModel model, Screen parent) {
         super(Component.empty());
-        this.doc = new HostedDocument(template, McElements.TAGS, model, () -> { });
+        this.doc = new HostedDocument(template, McElements.TAGS, UiComponents.hosting(template.getNamespace()), model, () -> { });
         this.parent = parent;
     }
 

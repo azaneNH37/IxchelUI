@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.document;
 
+import com.azane.ixchel.core.binding.Feed;
 import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.Diagnostic;
@@ -10,6 +11,7 @@ import com.azane.ixchel.core.event.ClickSound;
 import com.azane.ixchel.core.event.Clipboard;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.azane.ixchel.core.runtime.UiHosting;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.mc.element.McElements;
 import com.azane.ixchel.mc.element.TooltipLines;
@@ -61,6 +63,7 @@ public final class HostedDocument implements AutoCloseable {
     private final String templatePath;
     private final TagRegistry tags;
     private final Map<String, NativePainter<?>> painters;
+    private final UiHosting hosting;
     private final ViewModel model;
     private final Runnable onReload;
     private final McPainter painter;
@@ -78,6 +81,11 @@ public final class HostedDocument implements AutoCloseable {
     private DevResources.Watcher watcher;
     private int logged;
 
+    static {
+        // Counts while no level is loaded too; it stands still while the game is paused, as the game does.
+        Feed.tickClock(() -> Minecraft.getInstance().gui.getGuiTicks());
+    }
+
     /**
      * Loads the document now. In a development run, warns when {@code model}'s class does not declare
      * {@code template} with {@link UiTemplate}: the lint then skips the template's binding checks.
@@ -85,20 +93,21 @@ public final class HostedDocument implements AutoCloseable {
      * @param template the template; its namespace is the host mod id, its stylesheets are {@code <link>}ed
      * @param tags     the elements the template may use, such as {@link McElements#TAGS}; the host's
      *                 own, {@linkplain McElements#register registered} under its mod id, are added to them
+     * @param hosting  the host mod's Java components, the library components and framework values of the host
      * @param model    the view model the template binds to, or {@code null}; closed by {@link #close}
      * @param onReload runs after a later load replaced the document
      * @throws UiLoadException outside development when the document has errors
      */
-    public HostedDocument(ResourceLocation template, TagRegistry tags, ViewModel model, Runnable onReload) {
-        this(template, tags, Map.of(), model, onReload);
+    public HostedDocument(ResourceLocation template, TagRegistry tags, UiHosting hosting, ViewModel model, Runnable onReload) {
+        this(template, tags, Map.of(), hosting, model, onReload);
     }
 
     /**
-     * As {@link #HostedDocument(ResourceLocation, TagRegistry, ViewModel, Runnable)}, with painters for
+     * As {@link #HostedDocument(ResourceLocation, TagRegistry, UiHosting, ViewModel, Runnable)}, with painters for
      * elements of {@code tags} that declare no payload but get one from the host, by tag.
      */
-    public HostedDocument(ResourceLocation template, TagRegistry tags, Map<String, NativePainter<?>> own, ViewModel model,
-                          Runnable onReload) {
+    public HostedDocument(ResourceLocation template, TagRegistry tags, Map<String, NativePainter<?>> own, UiHosting hosting,
+                          ViewModel model, Runnable onReload) {
         this.dev = DevResources.forHost(template.getNamespace());
         this.resources = new McResources(template.getNamespace(), dev);
         this.templatePath = template.getPath();
@@ -109,6 +118,7 @@ public final class HostedDocument implements AutoCloseable {
         this.painters = all;
         this.painter = new McPainter(template.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
         this.tooltipPainter = new McPainter(template.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
+        this.hosting = hosting;
         this.model = model;
         this.onReload = onReload;
         if (dev != null && model != null && !UiTemplate.Ids.covers(model.getClass(), template.toString())) {
@@ -131,10 +141,17 @@ public final class HostedDocument implements AutoCloseable {
 
     private boolean load() {
         try {
-            McResources.Loaded loaded = resources.load(Minecraft.getInstance().getResourceManager(), templatePath, tags, model);
+            McResources.Loaded loaded = resources.load(Minecraft.getInstance().getResourceManager(), templatePath, tags, model,
+                    hosting);
             Diagnostics compiled = new Diagnostics();
             painter.compileEffects(loaded.document().effects().all(), compiled);
-            compiled.throwIfErrors();
+            if (compiled.errorCount() > 0) {
+                loaded.document().close();
+                compiled.throwIfErrors();
+            }
+            if (document != null) {
+                document.close();
+            }
             document = loaded.document();
             document.events().setClipboard(CLIPBOARD);
             document.events().setClickSound(CLICK_SOUND);
@@ -248,9 +265,12 @@ public final class HostedDocument implements AutoCloseable {
         return document.diagnostics().entries().stream().filter(d -> d.severity() == Diagnostic.Severity.ERROR).toList();
     }
 
-    /** Closes the view model and stops the development watcher. */
+    /** Closes the document, the view model and stops the development watcher. */
     @Override
     public void close() {
+        if (document != null) {
+            document.close();
+        }
         if (model != null) {
             model.close();
         }

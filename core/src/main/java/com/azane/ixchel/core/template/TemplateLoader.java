@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Loads a page and every file it links, directly or through components: stylesheets, component
@@ -24,6 +25,10 @@ import java.util.function.Function;
  * component layer once, dependencies before dependents. A file linking itself through components and
  * two files declaring the same component name are errors. An effect file linked by several files is
  * read once.
+ *
+ * <p>A tag naming a {@link LibraryFile} needs no link: its first use in any file loads the component
+ * like a link would, under its {@value #LIBRARY} id. Only these files may declare names starting with
+ * {@code ix-} or {@code mc-}. They do not count among the files read through the host.
  *
  * <p>A stylesheet {@code href} starting with {@value #LIBRARY} names a stylesheet of the library,
  * such as a theme; it is not read through the host. Only the page may link one, since it styles the
@@ -42,6 +47,15 @@ public final class TemplateLoader {
     public record Library(String name, SourcePos pos) {
     }
 
+    /**
+     * A component file of the library.
+     *
+     * @param id     starts with {@link #LIBRARY}
+     * @param source reads it, instead of the host
+     */
+    public record LibraryFile(String id, Supplier<String> source) {
+    }
+
     private static final String EFFECT_EXTENSION = ".ixeffect";
 
     /**
@@ -53,17 +67,20 @@ public final class TemplateLoader {
 
     /**
      * @param components every component reachable from the page, by name
+     * @param componentFiles the file id of each of them, by name
      * @param componentSheets the component layer, in load order
      * @param pageSheets the author layer, in document order
      * @param library the library stylesheets the page links, each once, in document order
      * @param effects the effect files read, each once, in first-link order
-     * @param files the ids of the page and every file read for it, in first-read order
+     * @param files the ids of the page and every file read for it through the host, in first-read order
      */
-    public record Loaded(Template page, Map<String, ComponentDef> components, List<Sheet> componentSheets,
-                         List<Sheet> pageSheets, List<Library> library, List<EffectFile> effects, List<String> files) {
+    public record Loaded(Template page, Map<String, ComponentDef> components, Map<String, String> componentFiles,
+                         List<Sheet> componentSheets, List<Sheet> pageSheets, List<Library> library,
+                         List<EffectFile> effects, List<String> files) {
     }
 
     private final Function<String, String> read;
+    private final Map<String, LibraryFile> libraryFiles;
     private final TagRegistry tags;
     private final Translations translations;
     private final Diagnostics diag;
@@ -76,38 +93,80 @@ public final class TemplateLoader {
     private final Set<String> files = new LinkedHashSet<>();
     private final Map<String, EffectFile> effects = new LinkedHashMap<>();
 
-    private TemplateLoader(Function<String, String> read, TagRegistry tags, Translations translations, Diagnostics diag) {
+    private TemplateLoader(Function<String, String> read, Map<String, LibraryFile> libraryFiles, TagRegistry tags,
+                           Translations translations, Diagnostics diag) {
         this.read = read;
+        this.libraryFiles = libraryFiles;
         this.tags = tags;
         this.translations = translations;
         this.diag = diag;
     }
 
+    /** Loads a page in a document without library components. */
+    public static Loaded load(String template, String id, Function<String, String> read, TagRegistry tags,
+                              Translations translations, Diagnostics diag) {
+        return load(template, id, read, Map.of(), tags, translations, diag);
+    }
+
     /**
      * @param read         the text of a file id, {@code null} if there is no such file; a thrown exception's
      *                     message is reported as the reason the file cannot be loaded
+     * @param libraryFiles the component files of the library, by the tag naming each
      * @param translations resolves the {@code t} attributes of the page and its components
      */
-    public static Loaded load(String template, String id, Function<String, String> read, TagRegistry tags,
-                              Translations translations, Diagnostics diag) {
-        TemplateLoader l = new TemplateLoader(read, tags, translations, diag);
+    public static Loaded load(String template, String id, Function<String, String> read,
+                              Map<String, LibraryFile> libraryFiles, TagRegistry tags, Translations translations,
+                              Diagnostics diag) {
+        TemplateLoader l = new TemplateLoader(read, libraryFiles, tags, translations, diag);
         l.files.add(id);
         l.loading.push(id);
-        Template page = TemplateParser.parse(template, id, tags, (href, at) -> l.link(id, href, at), translations, false, diag);
+        Template page = TemplateParser.parse(template, id, tags, l.new FileLinker(id), translations,
+                TemplateParser.FileKind.PAGE, diag);
         List<Sheet> sheets = l.sheets(id, page, true);
         l.effects(id, page);
-        return new Loaded(page, Map.copyOf(l.components), List.copyOf(l.componentSheets), sheets,
+        return new Loaded(page, Map.copyOf(l.components), Map.copyOf(l.fileOfName), List.copyOf(l.componentSheets), sheets,
                 List.copyOf(l.library.values()), List.copyOf(l.effects.values()), List.copyOf(l.files));
     }
 
-    private ComponentDef link(String from, String href, SourcePos at) {
-        String id;
-        try {
-            id = resolve(from, href);
-        } catch (IllegalArgumentException e) {
-            diag.report(TemplateCode.UNREADABLE_FILE, at, "cannot load component '" + href + "': " + e.getMessage());
-            return null;
+    /** What the file {@code from} links. */
+    private final class FileLinker implements TemplateParser.Linker {
+        private final String from;
+
+        FileLinker(String from) {
+            this.from = from;
         }
+
+        @Override
+        public ComponentDef link(String href, SourcePos at) {
+            String id;
+            try {
+                id = resolve(from, href);
+            } catch (IllegalArgumentException e) {
+                diag.report(TemplateCode.UNREADABLE_FILE, at, "cannot load component '" + href + "': " + e.getMessage());
+                return null;
+            }
+            return component(id, href, at, TemplateParser.FileKind.COMPONENT, () -> text(id, href, at, "component file"));
+        }
+
+        @Override
+        public ComponentDef library(String tag, SourcePos at) {
+            LibraryFile file = libraryFiles.get(tag);
+            if (file == null) {
+                return null;
+            }
+            ComponentDef def = component(file.id(), tag, at, TemplateParser.FileKind.LIBRARY_COMPONENT,
+                    () -> fetch(file.source(), tag, at, "library component"));
+            if (def != null && !def.name().equals(tag)) {
+                diag.report(TemplateCode.INVALID_COMPONENT_NAME, def.pos(), "library file '" + file.id() + "' declares <"
+                        + def.name() + ">, not <" + tag + ">");
+                return null;
+            }
+            return def;
+        }
+    }
+
+    /** The component of the file {@code id}, parsed from {@code source} the first time. */
+    private ComponentDef component(String id, String href, SourcePos at, TemplateParser.FileKind kind, Supplier<String> source) {
         if (loading.contains(id)) {
             diag.report(TemplateCode.COMPONENT_CYCLE, at, "component file '" + href + "' links back to itself through " + String.join(" <- ", loading));
             return null;
@@ -116,12 +175,12 @@ public final class TemplateLoader {
             return byFile.get(id);
         }
         byFile.put(id, null);
-        String text = text(id, href, at, "component file");
+        String text = source.get();
         if (text == null) {
             return null;
         }
         loading.push(id);
-        Template t = TemplateParser.parse(text, id, tags, (h, p) -> link(id, h, p), translations, true, diag);
+        Template t = TemplateParser.parse(text, id, tags, new FileLinker(id), translations, kind, diag);
         loading.pop();
         componentSheets.addAll(sheets(id, t, false));
         effects(id, t);
@@ -191,11 +250,15 @@ public final class TemplateLoader {
         }
     }
 
-    /** Reads {@code id}, reporting a failure at {@code at}. */
+    /** Reads {@code id} through the host, reporting a failure at {@code at}. */
     private String text(String id, String href, SourcePos at, String what) {
         files.add(id);
+        return fetch(() -> read.apply(id), href, at, what);
+    }
+
+    private String fetch(Supplier<String> source, String href, SourcePos at, String what) {
         try {
-            String text = read.apply(id);
+            String text = source.get();
             if (text == null) {
                 diag.report(TemplateCode.FILE_NOT_FOUND, at, what + " '" + href + "' not found");
             }

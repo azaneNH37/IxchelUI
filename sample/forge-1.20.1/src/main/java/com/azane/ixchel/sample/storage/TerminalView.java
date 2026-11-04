@@ -57,7 +57,6 @@ final class TerminalView extends ViewModel {
     final Derived<Integer> contentHeight;
     final Derived<Integer> padTop;
     final Derived<Component> sortLabel;
-    final Value<List<Integer>> inventory = state(range(TerminalMenu.INVENTORY_START, TerminalMenu.SLOT_COUNT));
 
     final Action<Void> cycleSort = action(() -> sortKey.set(SortKey.values()[(sortKey.get().ordinal() + 1) % SortKey.values().length]));
     final Action<Tile> take = action((Tile c) -> take(c, TakePacket.Mode.STACK));
@@ -159,13 +158,5 @@ final class TerminalView extends ViewModel {
             return n / scale + UNITS[unit];
         }
         return tenths / 10 + "." + tenths % 10 + UNITS[unit];
-    }
-
-    private static List<Integer> range(int from, int to) {
-        List<Integer> out = new ArrayList<>();
-        for (int i = from; i < to; i++) {
-            out.add(i);
-        }
-        return out;
     }
 }

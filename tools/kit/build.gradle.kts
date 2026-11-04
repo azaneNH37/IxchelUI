@@ -1,6 +1,6 @@
 // Offline lint and schema for Ixchel UIs (`ixchel-kit`). Depends on core only: a host runs it with
 // JavaExec on its own runtime classpath, which supplies its view models and the mc layer's
-// native element declarations.
+// native element declarations and library components.
 plugins {
     id("ixchel.library")
 }

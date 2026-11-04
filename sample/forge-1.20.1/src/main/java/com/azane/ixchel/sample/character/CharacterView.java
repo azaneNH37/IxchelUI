@@ -20,13 +20,11 @@ import net.minecraft.world.effect.MobEffectUtil;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.inventory.InventoryMenu;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 /**
  * The character panel: four tabs over the player's inventory menu. Equipment holds the paper doll,
@@ -74,8 +72,6 @@ final class CharacterView extends ViewModel {
 
     final Value<String> tab = state("equipment");
     final Value<List<Tab>> tabs = state(tabs());
-    final Value<List<Integer>> inventory = state(range(InventoryMenu.INV_SLOT_START, InventoryMenu.INV_SLOT_END));
-    final Value<List<Integer>> hotbar = state(range(InventoryMenu.USE_ROW_SLOT_START, InventoryMenu.USE_ROW_SLOT_END));
 
     /** A stable handle: the painter reads the player at paint time, so the binding never changes. */
     final Value<Supplier<LivingEntity>> doll = state(() -> Minecraft.getInstance().player);
@@ -99,10 +95,6 @@ final class CharacterView extends ViewModel {
             out.add(new Tab(t, Component.translatable("ixchel_sample.character.tab." + t)));
         }
         return out;
-    }
-
-    private static List<Integer> range(int from, int to) {
-        return IntStream.range(from, to).boxed().toList();
     }
 
     private static List<AttributeRow> attributes(LocalPlayer p) {

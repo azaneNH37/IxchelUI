@@ -1,11 +1,13 @@
 package com.azane.ixchel.core.binding;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
  * What the template compiler needs from the model beyond its public API: cells the framework holds,
- * writes that do not flag the model, and the per-frame poll. Host code cannot use it: {@link #claim()}
- * hands out the one instance once, and the template compiler takes it when it loads.
+ * writes that do not flag the model, wiring a component's ports, and the per-frame poll. Host code
+ * cannot use it: {@link #claim()} hands out the one instance once, and the template compiler takes
+ * it when it loads.
  */
 public interface ModelAccess {
     /** The one instance; throws on every later call. */
@@ -37,9 +39,24 @@ public interface ModelAccess {
     /** An action of {@code owner} that does nothing, standing in for a member when no model instance exists. */
     <A> Action<A> idle(ViewModel owner);
 
+    /** Makes {@code port} read {@code cell}. */
+    <T> void wire(Param<T> port, Cell<? extends T> cell);
+
+    /** Makes {@code port} read {@code cell} and write through {@code writer}. */
+    <T> void wire(TwoWay<T> port, Cell<T> cell, Consumer<T> writer);
+
+    /** Makes {@code port} emit to {@code listener}. */
+    <T> void wire(Event<T> port, Consumer<? super T> listener);
+
+    /** How many of the ports {@code model} made are not wired yet. */
+    int unwiredPorts(ViewModel model);
+
+    /** Starts a pass: the next poll of each {@link Feed} instance reads it again. */
+    void nextPass();
+
     /**
-     * Runs posted work, polls every source once and notifies subscribers; returns whether any source
-     * or local state changed since the last call.
+     * Runs posted work, polls every source and feed once and notifies subscribers; returns whether
+     * any source, feed or local state changed since the last call.
      */
     boolean poll(ViewModel model);
 }

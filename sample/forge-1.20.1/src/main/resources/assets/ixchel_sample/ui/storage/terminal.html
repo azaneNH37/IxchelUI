@@ -24,8 +24,6 @@
   </div>
   <!-- Three of the four inventory rows in view; the wheel scrolls to the hotbar. Ixchel draws the items, clipped. -->
   <div class="inventory">
-    <div class="grid">
-      <for each="inventory" as="i" key="i"><mc-slot class="slot" bind:index="i"></mc-slot></for>
-    </div>
+    <mc-player-inventory></mc-player-inventory>
   </div>
 </div>

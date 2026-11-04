@@ -73,7 +73,7 @@ public final class StoragePlaytest {
             s.run(() -> s.record("only the rows in view are built: " + Playtest.query(".cell").size() + " cells, scroll range "
                     + view().maxScrollTop(), Playtest.query(".cell").size() == BUILT_CELLS
                     && view().maxScrollTop() == rows(kinds[0]) * CELL - 6 * CELL));
-            s.expect("every inventory slot placed", () -> Playtest.query(".slot").size() == 36);
+            s.expect("every inventory slot placed", () -> Playtest.query("mc-slot").size() == 36);
             s.hover(".cell mc-item");
             s.shot("storage-open");
 

@@ -91,6 +91,16 @@ final class EachBlock extends Block {
         }
     }
 
+    @Override
+    public void close() {
+        for (Instance i : rows.values()) {
+            i.group.close();
+        }
+        for (Instance i : leavingRows.values()) {
+            i.group.close();
+        }
+    }
+
     /** The last mounted node of the rows before {@code row}, or of what precedes the block. */
     private Node lastBefore(Instance row) {
         Node last = null;
@@ -178,6 +188,7 @@ final class EachBlock extends Block {
                 indexes.remove(gone);
                 forgetNodes(gone);
                 unmount(gone);
+                gone.group.close();
             });
             wrote = true;
         }

@@ -52,9 +52,9 @@ public final class Main {
             Every option takes several paths, separate or joined with the platform's path separator.
             --classpath takes the project's runtime classpath. Its directories are the project's
             compiled output, where view models are looked for; its jars supply their field types
-            and the Ixchel mc layer's native element declarations. Pass it as an argument, not as
-            the kit's own classpath: the kit reads it through a loader that skips jar signatures,
-            which a patched development Minecraft jar fails.""";
+            and the Ixchel mc layer's native element declarations and library components. Pass it
+            as an argument, not as the kit's own classpath: the kit reads it through a loader that
+            skips jar signatures, which a patched development Minecraft jar fails.""";
 
     private Main() {
     }

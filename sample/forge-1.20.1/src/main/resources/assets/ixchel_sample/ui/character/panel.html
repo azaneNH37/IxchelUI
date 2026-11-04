@@ -1,7 +1,6 @@
 <link rel="stylesheet" href="../common/slot.css"/>
 <link rel="stylesheet" href="@ixchel/vanilla.css"/>
 <link rel="stylesheet" href="panel.css"/>
-<link rel="component" href="../common/player-inventory.html"/>
 <div class="panel">
   <div class="tabs">
     <for each="tabs" as="t" key="t.id"><div class="tab" bind:class:selected="t.id == tab" on:click="select(t)">
@@ -54,5 +53,5 @@
       <span class="value" bind:text="s.value"></span>
     </div></for>
   </div>
-  <player-inventory bind:inventory="inventory" bind:hotbar="hotbar"></player-inventory>
+  <mc-player-inventory></mc-player-inventory>
 </div>

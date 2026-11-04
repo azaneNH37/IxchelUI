@@ -28,8 +28,9 @@ import java.util.TreeSet;
 /**
  * What a template author can write in a project: tags and their attributes, the library
  * stylesheets with their theme variables, the supported CSS properties and shorthands, the effects
- * a page can link with their params, the project's components and its view models' members. Value
- * syntax is not described: the property registry does not expose a description of it.
+ * a page can link with their params, the library's and the project's components and its view
+ * models' members. Value syntax is not described: the property registry does not expose a
+ * description of it.
  */
 public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Property> properties,
                      List<Shorthand> shorthands, List<Effect> effects, List<Component> components, List<Model> models) {
@@ -74,7 +75,7 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
     }
 
     /**
-     * @param file      the id of the file declaring it
+     * @param file      the id of the file declaring it; a library component's starts with {@code @ixchel/}
      * @param params    parameter names; {@code required} lists those without a default
      * @param slots     slot names, {@code ""} for the default slot
      */
@@ -87,9 +88,12 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
     }
 
     /**
-     * @param type the cell's value type or the action's argument type, {@code null} for a raw action
+     * @param kind {@code cell}, {@code action} or {@code event}
+     * @param type the cell's value type, the action's argument type or the event's payload type,
+     *             {@code null} for a raw action
+     * @param port whether a component's user wires it: a param, two-way param or event
      */
-    public record Member(String name, String kind, String type, boolean writable) {
+    public record Member(String name, String kind, String type, boolean writable, boolean port) {
     }
 
     /** Collects the schema of {@code project} with the tags of {@code elements}. */
@@ -132,17 +136,12 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
             }
         }
         List<Component> components = new ArrayList<>();
-        for (ComponentDef def : Components.scan(project, registry).defs()) {
-            List<String> params = new ArrayList<>();
-            List<String> required = new ArrayList<>();
-            for (ComponentDef.Param p : def.params()) {
-                params.add(p.name());
-                if (p.fallback() == null) {
-                    required.add(p.name());
-                }
-            }
-            components.add(new Component(def.name(), def.pos().file(), params, required, def.events(),
-                    List.copyOf(new TreeSet<>(def.slots()))));
+        Components scanned = Components.scan(project, registry);
+        for (Components.Library l : scanned.library()) {
+            components.add(component(l.def(), l.hosted().id()));
+        }
+        for (ComponentDef def : scanned.defs()) {
+            components.add(component(def, def.pos().file()));
         }
         components.sort(Comparator.comparing(Component::name));
         List<Model> models = new ArrayList<>();
@@ -154,7 +153,7 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
             for (ModelShape.Member m : ModelShape.of(a.type().asSubclass(ViewModel.class)).members().values()) {
                 Type t = m.type();
                 members.add(new Member(m.name(), m.kind().name().toLowerCase(), t == null ? null : t.getTypeName(),
-                        m.writable()));
+                        m.writable(), m.port()));
             }
             models.add(new Model(a.type().getName(), a.patterns(), members));
         }
@@ -183,7 +182,8 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
         out.put("models", models.stream().map(m -> object(
                 "class", m.type(), "templates", m.templates(),
                 "members", m.members().stream().map(x -> object(
-                        "name", x.name(), "kind", x.kind(), "type", x.type(), "writable", x.writable())).toList()))
+                        "name", x.name(), "kind", x.kind(), "type", x.type(), "writable", x.writable(),
+                        "port", x.port())).toList()))
                 .toList());
         return out;
     }
@@ -257,10 +257,25 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
                 if (x.writable()) {
                     sb.append(" writable");
                 }
+                if (x.port()) {
+                    sb.append(" port");
+                }
                 sb.append('\n');
             }
         }
         return sb.toString();
+    }
+
+    private static Component component(ComponentDef def, String file) {
+        List<String> params = new ArrayList<>();
+        List<String> required = new ArrayList<>();
+        for (ComponentDef.Param p : def.params()) {
+            params.add(p.name());
+            if (p.fallback() == null) {
+                required.add(p.name());
+            }
+        }
+        return new Component(def.name(), file, params, required, def.events(), List.copyOf(new TreeSet<>(def.slots())));
     }
 
     private static String params(Component c) {

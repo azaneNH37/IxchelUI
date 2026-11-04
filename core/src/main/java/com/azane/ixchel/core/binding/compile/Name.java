@@ -7,8 +7,9 @@ import java.util.function.Consumer;
 
 /**
  * What a name in a template stands for. A page sees its view model's non-private fields; a
- * component's template sees its parameters and events; both see their local states, {@code as} rows
- * and, in handlers, {@code $event}.
+ * component's template sees its parameters and events, and those of a Java component also the other
+ * members of its view model; all see their local states, {@code as} rows and, in handlers,
+ * {@code $event}.
  */
 sealed interface Name permits Ref, Name.Act, Name.Event, Name.Unset {
     /** An {@link Action} field; {@code param} is its argument type, {@code Void} for none. */
@@ -20,12 +21,15 @@ sealed interface Name permits Ref, Name.Act, Name.Event, Name.Unset {
     }
 
     /**
-     * A component event. Its payload type is fixed by the first call compiled in the component's
-     * template; the user's {@code on:<event>} handler is set after that template is compiled.
+     * A component event. Its payload type is declared by its {@code Event<T>} field, or else fixed by
+     * the first call compiled in the component's template; the user's {@code on:<event>} handler is
+     * set after that template is compiled.
      */
     final class Event implements Name {
         final String name;
-        /** Whether a call has fixed {@link #payload}. */
+        /** Whether its {@code Event<T>} field declares {@link #payload}: calls may widen to it. */
+        final boolean declared;
+        /** Whether {@link #payload} is known. */
         boolean called;
         /** The payload type, or {@code null} for an event without payload. */
         Type payload;
@@ -33,6 +37,15 @@ sealed interface Name permits Ref, Name.Act, Name.Event, Name.Unset {
 
         Event(String name) {
             this.name = name;
+            this.declared = false;
+        }
+
+        /** @param payload the type {@code T} of the event's field, {@code Void} for none */
+        Event(String name, Type payload) {
+            this.name = name;
+            this.declared = true;
+            this.called = true;
+            this.payload = payload == Void.class ? null : payload;
         }
 
         void fire(Object payload) {

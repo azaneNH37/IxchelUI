@@ -2,7 +2,7 @@
 tags: [survey, design]
 date: 2026-10-26
 origin: 讨论 ViewModel 原语如何与 UI 交互、如何实现、性能是否可接受，并把 Kumiko 调研中与数据层相关的结论（TACZ 场景、原语保证、必须保留的差异、验证矩阵）迁入本仓库，使数据层设计不再需要查阅 Kumiko。
-related: [DECISIONS.md#003, DECISIONS.md#004, ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md, ref/D-ixchel-module-breakdown-20261026.md, ref/SDG-ixchel-container-slot-integration-20261026.md, ref/SD-ixchel-context-model-and-components-20261030.md]
+related: [DECISIONS.md#003, DECISIONS.md#004, DECISIONS.md#035, DECISIONS.md#036, ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md, ref/D-ixchel-module-breakdown-20261026.md, ref/SDG-ixchel-container-slot-integration-20261026.md, ref/SD-ixchel-context-model-and-components-20261030.md]
 ---
 
 # Ixchel UI: ViewModel and Data Binding
@@ -218,3 +218,35 @@ record 中包含 `ItemStack` 时 record 的 `equals` 退化为引用比较，相
 - LDLib2 的数据层校准（Kumiko 调研的源码观察）：LDLib2 不只有轮询绑定，`IDataProvider` 有订阅，`TrackData` 是可写值加通知；已有 XML 模板、编辑器与实时预览。因此"外部化模板"与"有绑定"不是 Ixchel 的差异点，差异在部署性质与标准 CSS。
 - Angular Signals（依赖、失效与缓存作为一等机制）：https://angular.dev/guide/signals
 - React 的最小状态与派生数据：https://react.dev/learn/thinking-in-react
+
+### 10. 共享来源 Feed 与组件子模型（L4，#035、#036）
+
+#### 10.1 Feed
+
+来源拆为定义与实例。定义是静态常量，读取只依赖 key；实例按（定义，key）放在每份库副本一张的共享表里，一个去重周期只读一次，所有引用它的 ViewModel 共用同一个单元格。对照：React Query 的 `queryKey + queryFn`、Jotai `atomFamily`、Svelte `readable(start/stop)`；sample 的 `Replication.watch` 在网络层是同一模式。
+
+```java
+// 无资源：读取函数只依赖 key
+static final Feed<BlockPos, MachineState> MACHINE = Feed.polled(pos -> …);
+// 有资源：第一个引用时打开，最后一个引用释放时 close
+static final Feed<BlockPos, MachineState> MACHINE = Feed.opened(
+        pos -> Replication.watch(Network.MACHINE, pos),
+        replica -> replica.get() == null ? MachineState.NONE : replica.get());
+// 节奏：默认按帧，.perTick() 按客户端 tick 去重
+
+final Cell<MachineState> machine = source(MACHINE, pos);      // pos 可为常量或单元格（含 Param）
+```
+
+- 共享表挂在每个 `Feed` 实例上，`Feed` 作为静态常量即每份库副本一张（shade 后按宿主隔离）：页面 ViewModel 先于文档构造，构造时就要能接通；HUD 与界面同时读同一 key 时也共享。它是库内部状态，不改 MC 全局状态。
+- 去重周期：默认一次 `Bindings.update()`，由 core 内计数（同一帧的两个文档各算一个周期，最多读两次）；`perTick()` 的 tick 由 mc 层经 `Feed.tickClock(LongSupplier)` 提供（`Gui#getGuiTicks`，无世界时也计数，游戏暂停时停）。实例在本周期第一次被某个 ViewModel poll 时读取，之后同周期的 poll 只比较版本。
+- 引用由 ViewModel 的 `Scope` 持有，计数归零时释放实例（有资源的随之 close）。key 为单元格时，key 变化即释放旧实例、取得新实例；这也解决 Java 组件构造时读不到参数、按参数打开资源的问题。
+- ViewModel 的"有变化"计入所引用实例的版本变化，`subscribe` 随之对共享单元格生效（现只在本模型来源或 state 变化时检查）。
+- 值语义规则同 `Source`（不可变值，或带快照与比较）。
+- 不做：共享可写状态（`Value` 仍只属于一个 ViewModel）；共享派生（`MACHINE.map(...)`）；读取函数按调用方附加参数的变体。
+- 何时用：默认仍是上层一个 ViewModel 取数往下传值；方块实体 getter 级的重复轮询不是理由（§6 基线 0.5 µs/帧）。Feed 用于读取贵、`<for>` 实例多，或组件要单独按 key 使用。
+
+#### 10.2 组件子模型
+
+- Java 组件每实例一个子 ViewModel（上下文模型文档 §3.7）。端口字段 `Param<T>`/`TwoWay<T>`/`Event<T>` 由 `param()`/`twoWay()`/`event()` 创建，构造后由框架按字段名接线；接线复用 `Flat`（外层切换或内层变化都推进版本）。
+- `Bindings` 登记活着的子模型，每帧页面 poll 之后逐个 poll，任一变化即刷新（现为 `MODEL.poll(model) && root.update()`）；`Block.Instance` 持有实例的可关闭资源，真正移除时关闭。
+- `ModelAccess` 扩充端口接线与关闭子模型（#017）。

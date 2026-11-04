@@ -1,0 +1,16 @@
+<style>
+    mc-player-inventory > .main,
+    mc-player-inventory > .hotbar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        width: 162px;
+    }
+
+    mc-player-inventory > .hotbar {
+        margin-top: 4px;
+    }
+</style>
+<template name="mc-player-inventory" params="menu=$menu">
+    <div class="main"><for each="main" as="i" key="i"><mc-slot bind:index="i"></mc-slot></for></div>
+    <div class="hotbar"><for each="hotbar" as="i" key="i"><mc-slot bind:index="i"></mc-slot></for></div>
+</template>

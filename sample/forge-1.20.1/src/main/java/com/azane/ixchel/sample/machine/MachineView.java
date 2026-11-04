@@ -3,15 +3,15 @@ package com.azane.ixchel.sample.machine;
 import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Derived;
+import com.azane.ixchel.core.binding.Feed;
 import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.UiTemplate;
-import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.sample.network.Network;
-import com.azane.ixchel.sample.network.Replica;
 import com.azane.ixchel.sample.network.Replication;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BiomeColors;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
@@ -24,9 +24,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The machine screen. It watches the machine's replicated {@link MachineState} for as long as the
- * model lives and sends intents; a click shows its effect once the server's next snapshot arrives.
- * Intents set values rather than toggle them, so a repeated or late one does no harm.
+ * The machine screen. It reads the machine's replicated {@link MachineState} through {@link #STATE}
+ * and sends intents; a click shows its effect once the server's next snapshot arrives. Intents set
+ * values rather than toggle them, so a repeated or late one does no harm.
  */
 @UiTemplate("ixchel_sample:ui/machine/panel.html")
 final class MachineView extends ViewModel {
@@ -36,6 +36,11 @@ final class MachineView extends ViewModel {
 
     record SideRow(Direction side, Component face, Component mode, boolean input, boolean output) {
     }
+
+    /** The replicated state of the machine at a position; watched while some model reads it. */
+    private static final Feed<BlockPos, MachineState> STATE = Feed.opened(
+            pos -> Replication.watch(Network.MACHINE, pos),
+            replica -> replica.get() == null ? MachineState.NONE : replica.get());
 
     /** Pixels of furnace.png's arrow and flame. */
     private static final int ARROW_WIDTH = 24;
@@ -59,8 +64,6 @@ final class MachineView extends ViewModel {
     final Derived<List<RecipeRow>> recipes;
     final Derived<Component> redstoneLabel;
     final Derived<List<SideRow>> sideRows;
-    final Value<List<Integer>> inventory = state(range(MachineMenu.INVENTORY_START, MachineMenu.HOTBAR_START));
-    final Value<List<Integer>> hotbar = state(range(MachineMenu.HOTBAR_START, MachineMenu.SLOT_COUNT));
 
     final Action<RecipeRow> pick = action(this::pick);
     final Action<Void> cycleRedstone = action(this::cycleRedstone);
@@ -68,9 +71,7 @@ final class MachineView extends ViewModel {
 
     MachineView(MachineMenu menu) {
         this.menu = menu;
-        Replica<MachineState> replica = Replication.watch(Network.MACHINE, menu.pos);
-        scope().own(replica);
-        machine = source(Source.polled(() -> replica.get() == null ? MachineState.NONE : replica.get()));
+        machine = source(STATE, menu.pos);
         input = source(Source.polled(() -> menu.getSlot(MachineMenu.INPUT).getItem().getItem()));
         waterColor = source(Source.polled(() -> {
             Minecraft mc = Minecraft.getInstance();
@@ -131,14 +132,6 @@ final class MachineView extends ViewModel {
             MachineState.SideMode m = modes.get(d.get3DDataValue());
             out.add(new SideRow(d, Component.translatable("ixchel_sample.machine.face." + d.getName()), m.label(),
                     m == MachineState.SideMode.INPUT, m == MachineState.SideMode.OUTPUT));
-        }
-        return out;
-    }
-
-    private static List<Integer> range(int from, int to) {
-        List<Integer> out = new ArrayList<>(to - from);
-        for (int i = from; i < to; i++) {
-            out.add(i);
         }
         return out;
     }

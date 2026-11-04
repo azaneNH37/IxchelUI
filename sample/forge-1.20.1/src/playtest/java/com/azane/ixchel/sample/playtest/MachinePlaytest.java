@@ -42,7 +42,7 @@ public final class MachinePlaytest {
                 })
                 .waitUntil("machine open, every slot placed without errors", () -> menu() != null
                         && Playtest.document().diagnostics().errorCount() == 0
-                        && Playtest.query(".slot").size() == MachineMenu.SLOT_COUNT, Playtest.WAIT)
+                        && Playtest.query("mc-slot").size() == MachineMenu.SLOT_COUNT, Playtest.WAIT)
                 .expect("idle without input", () -> Playtest.text(".status").equals("Idle: no input"))
                 .run(() -> {
                     // The GUI area other mods avoid is the panel, not the whole screen.

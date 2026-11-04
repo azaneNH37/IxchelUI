@@ -2,9 +2,13 @@ package com.azane.ixchel.kit.schema;
 
 import com.azane.ixchel.kit.project.ClassFiles;
 import com.azane.ixchel.kit.project.ElementDeclarations;
+import com.azane.ixchel.kit.project.FixtureLibrary;
 import com.azane.ixchel.kit.project.Project;
+import com.azane.ixchel.kit.project.ProjectClassLoader;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.List;
@@ -28,15 +32,30 @@ class SchemaTest {
         assertTrue(tag(schema, "mc-slot").containerOnly());
         assertTrue(tag(schema, "mc-slot").attributes().contains("index"));
 
-        assertEquals(List.of("kit-part"), schema.components().stream().map(Schema.Component::name).toList());
-        assertEquals("kitfixture:ui/part.html", schema.components().get(0).file());
+        assertEquals(List.of("kit-gauge", "kit-meter", "kit-part"),
+                schema.components().stream().map(Schema.Component::name).toList());
+        assertEquals("kitfixture:ui/part.html", schema.components().get(2).file());
 
         Schema.Model claimed = schema.models().stream()
                 .filter(m -> m.type().endsWith("ClaimedView")).findFirst().orElseThrow();
         assertEquals(List.of("kitfixture:ui/claimed.html"), claimed.templates());
-        assertEquals(List.of(new Schema.Member("label", "cell", "java.lang.String", true)), claimed.members());
+        assertEquals(List.of(new Schema.Member("label", "cell", "java.lang.String", true, false)), claimed.members());
+        Schema.Model meter = schema.models().stream()
+                .filter(m -> m.type().endsWith("MeterView")).findFirst().orElseThrow();
+        assertEquals(List.of(new Schema.Member("amount", "cell", "java.lang.Integer", false, true)), meter.members());
 
         assertTrue(schema.properties().stream().anyMatch(p -> p.name().equals("color")));
+    }
+
+    @Test
+    void listsTheLibrarysComponentsOfTheMcLayer(@TempDir Path tmp) throws IOException {
+        try (ProjectClassLoader loader = new ProjectClassLoader(List.of(FixtureLibrary.mcLayer(tmp)),
+                SchemaTest.class.getClassLoader())) {
+            Project project = new Project(List.of(), List.of(), loader);
+            Schema schema = Schema.of(project, ElementDeclarations.load(project));
+            assertEquals(List.of(new Schema.Component("mc-kit-gauge", "@ixchel/kitfixture/kit-gauge.html",
+                    List.of("level"), List.of("level"), List.of(), List.of())), schema.components());
+        }
     }
 
     /** Fails if the library's or the project's effects go missing, or a param's property or initial value is written wrong. */

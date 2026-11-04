@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画），以及 FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效）；接下来是 U4（组件库）；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），以及 L4（Java 组件、共享来源 Feed、库组件加载，#035、#036）；接下来是 TH1–TH4（主题机制、形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`），再 U4（组件库）；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -34,6 +34,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | D | 完成 | S7、S4 箭头 | transform、拖拽 |
 | L2 | 完成 | — | 组件、组件层、CSS 嵌套 |
 | L3 | 完成 | — | 主题层与主题、`var()` |
+| L4 | 完成 | character、machine、storage 的背包 | Java 组件（每实例子 ViewModel、`Param`/`TwoWay`/`Event` 端口）、共享来源 `Feed`、数值拓宽、库组件文件免链接（#035、#036） |
 | E1 | 完成 | S8 | 文字排版补完：行内流式排版、CJK 断行、`Component` 富文本、行内链接 |
 | E2 | 完成 | S9；S1、S6、S7 的 tooltip | 文档内富 tooltip `<ix-tooltip>`，兼容原版物品 tooltip |
 | I | 完成 | 全部场景的界面文本 | i18n：`t` 语言键与参数 |
@@ -48,13 +49,17 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | V2 | 完成 | — | `calc()` 与 `min()`/`max()`/`clamp()`、em/rem/vw/vh、`line-height`、`align-content`、grid、标准块布局（放宽 `display: block` 含块级子元素的限制） |
 | V3 | 完成 | — | `@keyframes` 与 `animation-*`、`on:animationend`、进出伪类 `:-ix-absent`/`:-ix-entering`/`:-ix-exiting`（#032） |
 | V4 | 完成 | S1、S6 | 整页开关动画：UiScreen 关闭与 UiHud 显隐复用进出伪类（#032） |
-| U4 | 待做 | — | `ix-` 组件库：tabs、tree、进度条等 |
+| TH1 | 待做 | — | 主题机制：`<link rel="theme">`、主题文件与 `@import` 基底、`.ix-*` 表面类、按角色的 `--ix-*` 变量、内置特效免链接（#034；库组件免链接移到 L4） |
+| TH2 | 待做 | — | 形状与像素化：`corner-shape`、`shape-rendering: crisp-edges`、GLSL `ix_snap` |
+| TH3 | 待做 | — | 文字：`font-family`（MC 字体 id）、`text-transform`；`letter-spacing` 视 TH4 再定 |
+| TH4 | 待做 | — | 四套内置主题 `vanilla`、`dark`、`holo`、`cyber`，内置特效 `chromatic`、`glitch`，主题陈列页 |
+| U4 | 待做 | — | `ix-` 组件库与内置元素补齐，讨论中（`ref/SD-ixchel-u4-components-20261104.md`） |
 | FX1 | 完成 | — | 私有图层；`opacity` 整组语义（shader 构造并入 FX2） |
 | FX2 | 完成 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
 | FX3 | 完成 | — | `.ixeffect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028），结果见下文 |
 | REC | 待做 | — | playtest 动图录制：连续截帧合成 GIF/MP4；排期未定，只依赖 T2 |
 
-依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
+依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1，TH2、TH3 彼此独立，TH1–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → U4，L4 与 TH 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
 #### D0 改名与清理
 
@@ -94,7 +99,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 引擎：主题层；core 提供按名字读取库内样式表的入口（classpath，相对 core 类，同 `UiDocument.UserAgent`），两个 mc 层的 href 解析各加一个分支；`var()` 自定义属性（两份主题是同一结构的两套配色，满足语言文档 §4.4 的条件；也是页面状态影响组件外观的通道，上下文模型文档 §3.6）；`vanilla`、`dark` 两份主题。
 - sample：7 个场景按两族外观引入主题，删去重复配色。
 - 验收：作者 CSS 只剩布局与场景特有外观；`-Pcheck=all` 截图人工核对。
-- 结果（2026-10-30）：§6-1 定为 `@ixchel/<名>.css`，只能由页面链接（组件文件链接即报错，未知名字在 link 处报错）。L2 已把链接图移进 core，href 由 `TemplateLoader` 识别、`runtime.LibrarySheets`（接替 `UiDocument.UserAgent`）读取，两个 mc 层只改 javadoc。主题 = 共用规则 `themes/theme.css`（`.panel`、`.title`、`button` 各状态，全部写成 `var(--ix-*)`）加只设 `:root { --ix-* }` 的配色表 `vanilla.css`、`dark.css`（#018）。`var()` 带回退、可继承；自定义属性按普通层叠、总是继承，`bind:style:--x` 可写；`:root` 匹配模板顶层元素。sample 3 个场景用 vanilla、5 个页面（config、index、loot 列表、quests、waypoints）用 dark，env 与 loot HUD 不加主题；CSS 增 69 删 144 行，check 不改。接受的外观变化：按钮获焦时显示悬停底色；machine 选中按钮字色 `#404040`→`#202020`；index 行悬停 `#FFFFFF30`→`#FFFFFF20`、说明字色 `#A0A0A0`→`#AAAAAA`；config 条目悬停 `#FFFFFF10`→`#FFFFFF20`。已知偏差：成环的自定义属性带回退时可能取到回退值（规范要求环上一律无效），尚无场景触及。`-Pcheck=all` 143 项通过；testmod 1.21.1 只经 `build` 编译，未进游戏。
+- 结果（2026-10-30）：§6-1 定为 `@ixchel/<名>.css`，只能由页面链接（组件文件链接即报错，未知名字在 link 处报错）。L2 已把链接图移进 core，href 由 `TemplateLoader` 识别、`runtime.LibrarySheets`（接替 `UiDocument.UserAgent`）读取，两个 mc 层只改 javadoc。主题 = 共用规则 `themes/theme.css`（`.panel`、`.title`、`button` 各状态，全部写成 `var(--ix-*)`）加只设 `:root { --ix-* }` 的配色表 `vanilla.css`、`dark.css`（原 #018，现由 #034 取代，TH1 改造）。`var()` 带回退、可继承；自定义属性按普通层叠、总是继承，`bind:style:--x` 可写；`:root` 匹配模板顶层元素。sample 3 个场景用 vanilla、5 个页面（config、index、loot 列表、quests、waypoints）用 dark，env 与 loot HUD 不加主题；CSS 增 69 删 144 行，check 不改。接受的外观变化：按钮获焦时显示悬停底色；machine 选中按钮字色 `#404040`→`#202020`；index 行悬停 `#FFFFFF30`→`#FFFFFF20`、说明字色 `#A0A0A0`→`#AAAAAA`；config 条目悬停 `#FFFFFF10`→`#FFFFFF20`。已知偏差：成环的自定义属性带回退时可能取到回退值（规范要求环上一律无效），尚无场景触及。`-Pcheck=all` 143 项通过；testmod 1.21.1 只经 `build` 编译，未进游戏。
 
 #### E1 文字排版补完（S8 指南书）
 
@@ -285,6 +290,53 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - 未做：生产实例（Oculus + BSL + ImmediatelyFast + Embeddium）实测，待有该环境时补；`FrameTimer` 预算未单列着色器标签。
   - 已知：参数在 uniform 不存在时（正文没用到）原版打 "could not find uniform" 警告；行内 `style` 不经 `Effects.check`；类型化参数不能经 `var()` 读出；`kind backdrop` 报 `effect/unsupported-kind`；关闭特效的 `ShaderInstance` 会一并关掉共享的顶点程序对象，已链接的程序不受影响。
 
+#### L4 Java 组件与共享来源
+
+- 设计依据：上下文模型文档 §3.7、绑定文档 §10（#035、#036）。
+- 已定（2026-11-04）：共享表每份库副本一张；去重按帧与按 tick 两种，由 Feed 定义选择；数值拓宽 `Integer` → `Long`/`Float`/`Double`、`Double` → `Float`，字面量属性仍为 `String`；`disabled` 约定暂不定。
+- core：`Param`/`TwoWay`/`Event` 与 `param()`/`twoWay()`/`event()`；`ModelShape.Kind` 加 `EVENT`、`Member.port`；`Feed`（`polled`/`opened`、`perTick`）、共享表、时钟端口、`source(feed, key|keyCell)`；`ModelAccess` 扩充；`Compiler.instantiate` 构造与接线子模型、签名核对（`component/signature-mismatch`）、使用处按声明类型检查、`TwoWay` 要求可写路径；`Block.Instance` 释放钩子；`Bindings` poll 与关闭子模型；框架值 `Map<String, Ref>` 入参；数值拓宽；库组件文件可用 `ix-`/`mc-` 前缀、classpath 来源、免链接。
+- mc（两版）：`UiComponents.register(modid, 类, 工厂)`；`$player`，容器界面另有 `$menu`；时钟端口（渲染帧计数、客户端游戏时间）。1.20.1：库组件 `mc-player-inventory`（`params="menu=$menu"`，按 `Slot.container` 为 `Inventory` 与 `getContainerSlot()` 分出背包区与快捷栏）；1.21.1 无 `container`，不带该组件。
+- kit：成员表读端口种类；`@UiTemplate` 指向组件文件的类按 Java 组件检查（签名核对、使用处类型）。
+- sample：character、machine、storage 三处背包改用 `<mc-player-inventory/>`，删去三个 ViewModel 的下标列表与 `ui/common/player-inventory.html`；machine 的 `MachineState` 改由 `Feed.opened` 包住 `Replication.watch` 取得。
+- 验收：core 测试覆盖端口接线与签名错误、`TwoWay` 写回与未传入时的局部状态、子模型随 `<if>`/`<for>` 挂载与离场后关闭、Feed 同周期去重、引用计数释放与按 key 切换、数值拓宽；`-Pplaytest=all` 通过（背包槽位位置与迁移前一致）；两版 lint 零错误；`build`；1.21.1 冒烟。
+- 结果（2026-11-04）：完成。core：`binding` 新增 `Param`、`TwoWay`、`Event`、`Feed`，`ViewModel` 加 `param()`/`twoWay()`/`event()`/`source(feed, key|keyCell)`；`runtime.UiHosting` 携带 Java 组件（按组件名的工厂）、库组件文件与框架值，`UiDocument` 关闭时关闭子模型；新码 `component/signature-mismatch`、`component/param-type`、`component/read-only-two-way`、`component/unbound-port`；`TemplateLoader.Loaded` 多一张组件名到文件的表。mc（两版）：`UiComponents`、`$player`，`HostedDocument` 接 `UiHosting`、加载时装 `Feed.tickClock`、重载与关闭时关闭旧文档；1.20.1 另有 `$menu` 与 `container.PlayerInventoryView`（`@UiTemplate("@ixchel/player-inventory.html")`，模板在类旁）。kit：从 mc 层的 `@UiTemplate("@ixchel/...")` 类读库组件，`$player`/`$menu` 按类型名声明，组件文件不再按页面检查，schema 列出库组件与端口标志。sample：三处背包改为 `<mc-player-inventory/>`，删去 `common/player-inventory.{html,css}` 与三个 ViewModel 的下标列表；`MachineView` 的状态改为静态 `Feed.opened` 包住 `Replication.watch`；playtest 的槽位选择器改为 `mc-slot`。验收：core 288 个测试通过；`build`（含两版 lint 零错误）；`-Pplaytest=all` 14 项 262 断言全过，背包截图与迁移前一致；1.21.1 客户端启动与资源重载无错误。
+  - 与"已定"的出入：
+    - 共享表不是一张全局表，而是挂在每个 `Feed` 上（`perTick()` 返回带独立实例表的副本）；作为静态常量时共享效果相同。
+    - 按帧去重的周期是一次 `Bindings.update()`（core 内计数），mc 只提供 tick 时钟（`Gui#getGuiTicks`），没有渲染帧计数端口。
+    - `binding.compile` 不能依赖 `runtime`（#006），`UiDocument` 把 `UiHosting` 拆成 `Bindings.Hosted` 与 `TemplateLoader.LibraryFile` 传下。
+    - `TwoWay` 的默认值与声明的 `Event<T>` 载荷按可赋值加转换检查（`TwoWay<Float>` 可写整数默认值，`Event<Float>` 接受 `Integer`），传入的路径仍要求类型精确一致。
+    - `Param`/`TwoWay` 只接线一次，直接委托给接入的单元格，不经 `Flat`；`Flat` 只用于按 key 切换的 Feed 引用。
+  - 已知：参数不能命名为 `key`（`<for>` 的属性，报 `template/moved-attribute`）或 `text`（`template/reserved-member-name`）；`disabled` 约定仍未定。
+
+#### TH1 主题机制
+
+- 设计依据：`ref/SD-ixchel-themes-20261104.md` §3、§4（#034）。
+- 先定：主题文档 §9 的 1、2、4（内置特效命名、项目主题能否用项目特效、`.selected` 是否改名）；§4 变量表定稿。
+- 引擎：`<link rel="theme">`（每页至多一个，组件文件链接报错）；主题文件开头的 `@import`（只导入主题，成环报错，其它样式表仍报错），导入链整体进主题层；内置主题改为 `@ixchel/themes/<名>`，删除 `rel="stylesheet" href="@ixchel/<名>.css"`（报错并提示）；内置特效免链接（库组件免链接已在 L4）；`theme.css` 改挂 `.ix-*` 表面类与按角色的变量，框线改为 inset `box-shadow`。
+- 工具：lint 报多个 `rel="theme"`、主题文件外的 `@import`、导入非主题、未知的 `--ix-*` 与 `.ix-*`；schema 列出主题及其变量。
+- sample：所有页面改用 `rel="theme"` 与 `.ix-*`；容器界面与其余界面各写一份宿主主题（基于 `vanilla`、`dark`）供页面链接，示范推荐写法；effects 页去掉内置特效的 link。
+- 验收：`-Pplaytest=all` 截图与迁移前一致（vanilla 框线改画法后的像素差人工核对）；两版 lint 零错误；`build`。
+
+#### TH2 形状与像素化
+
+- 设计依据：主题文档 §5.1、§5.2。
+- 引擎：`corner-shape`（`round | bevel | notch | scoop | square`，可过渡与否随 CSS），沿用圆角 SDF 与遮罩图集，背景、框线、阴影同时生效；继承属性 `shape-rendering: auto | crisp-edges`，`crisp-edges` 时遮罩每 GUI 像素 1 纹素、最近邻采样；GLSL 原语 `ix_snap(p)`。两个 mc 版本。
+- 验收：effects 页加一个标签：五种 `corner-shape`、`crisp-edges` 开关前后的圆角与阴影各一格，像素断言阶梯与切角；1.21.1 冒烟。
+
+#### TH3 文字
+
+- 设计依据：主题文档 §5.3。
+- 引擎：`font-family` 取 MC 字体资源 id 列表（未知 id 开发期报错），测量与绘制按 `Style.withFont`；`text-transform: none | uppercase | lowercase`。两个 mc 版本。
+- 验收：`minecraft:uniform`、`minecraft:alt` 与大写各一行截图；行内排版测量与绘制宽度一致（core 测试覆盖 `text-transform`）。
+
+#### TH4 四套内置主题
+
+- 设计依据：主题文档 §6、§7。
+- 先定：主题文档 §9-3（主题自带进出动画与时长上限）。
+- 内容：`vanilla`、`dark`、`holo`、`cyber` 四套，内置之间共用一份基于变量的规则；内置特效 `chromatic`、`glitch`（layer）。
+- sample：主题陈列页，一份模板列出所有表面类与标准控件的全部状态，四个页面各链接一套主题。
+- 验收：四张陈列页截图；同一陈列页在四套主题下的布局矩形一致（playtest 断言）；全息与赛博常驻动画进 `FrameTimer` 预算；1.21.1 冒烟。
+
 #### REC playtest 动图录制
 
 - 动机：原版只有单张截图，V3、V4 这类动画靠静态截图看不出全程；动图可用于文档、PR 与逐帧检查。
@@ -312,7 +364,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 结果（2026-10-31）：按已定完成。验收探针逐项报出：`template/component-file-content`、`load/library-sheet-not-on-page`、`template/reserved-member-name`、`binding/unknown-name`、`binding/two-way-target`、`binding/value-type`、`binding/unknown-target`；sample 与 testmod `lintUi` 0 错 0 警（所有页面均被注解认领）；`-Pcheck=all` 160 项通过；core 测试断言全部改为"码@位置"，输出格式只由 `DiagnosticsTest` 固定。偏差：
   - 静态入口是 core 的 `UiDocument.check(template, file, files, tags, shape)`，用占位值编译、不写值、不排版；排版期错误（如 `layout/inline-box-property`）不在 lint 范围。
   - 模板 id 匹配放在 `UiTemplate.Ids`（`*` 不跨 `/` 与 `:`）；挂载点经包内 `mc.DeclaredTemplate` 取唯一具体 id，类上只有通配时须显式传 id（`GuideScreen`）。
-  - 没有注解认领的页面不是只做结构检查，而是以空成员表完整检查后去掉 `binding/unknown-name`，另报 `model/unassociated-template`；组件文件按页面链接找出，不单独当页面。孤立（无人链接）的组件文件按页面检查，报 `template/misplaced-element`。
+  - 没有注解认领的页面不是只做结构检查，而是以空成员表完整检查后去掉 `binding/unknown-name`，另报 `model/unassociated-template`；组件文件按页面链接找出，不单独当页面。（L4 起组件文件一律不按页面检查，只经使用处检查。）
   - `<mc-slot>` 的容器限定现由 `ContainerLayout` 类上的 `@NativeElement(containerOnly = true)` 声明（N1），kit 记录哪些标签只属于容器界面。
   - `bind:<参数>` 编译失败时不再连带报 `binding/missing-parameter`（kit 冒烟时暴露的连锁误报）。
   - kit 不用 JavaExec 的 classpath 加载宿主类：ModDevGradle 打过补丁的 Forge jar 保留原签名，JDK 加载器报 SHA-384 digest error；改为 classpath 只放 kit，宿主运行时 classpath 经 `--classpath` 传入自建的不校验签名的加载器（父优先，core 类型不重复）。
@@ -354,7 +406,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 有真实消费方时再排：
 
 - 带 Java 逻辑的组件（语言文档 §3.4）。
-- `@import`（语言文档 §4.4）。
+- 主题文件之外的 `@import`（语言文档 §4.4；主题文件内由 TH1 开放）。
 - 性能，触发条件为 `FrameTimer` 预算超标或大列表（S3、S8）卡顿，按序做：Painter 按视口裁剪 > `contain` 与局部重排 > `Derived` 相等截断的代价。现状为首轮评审时的判断，开工前复核。动画时间域已定为墙钟（V3），不再列入。
 - 游戏 UI 相对 Web 的缺口：`on:keydown` 指向按键绑定（`KeyMapping`，随玩家改键）；声明式世界锚定（现需 Java 侧 `WorldProjection.toGui` 计算后绑定）。
 - 控件与语言：`<textarea>`、IME（中文已可上屏，系统预编辑需平台 API，与零全局副作用冲突）、radio、结构伪类、`+`/`~`、table、横向滚动、`<dialog>`/`<select>` 离场、`drop-if`、`dragenter`/`dragleave`、拖拽边缘自动滚动。

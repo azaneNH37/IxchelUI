@@ -73,7 +73,7 @@ public enum TemplateCode implements DiagCode {
     MISSING_COMPONENT_TEMPLATE("template/missing-component-template", Severity.ERROR,
             "A component file has no <template name=\"…\">."),
     INVALID_COMPONENT_NAME("template/invalid-component-name", Severity.ERROR,
-            "A component name lacks a '-', starts with 'ix-' or 'mc-', or is already a registered tag."),
+            "A component name lacks a '-', starts with 'ix-' or 'mc-' outside the library, or is already a registered tag."),
     INVALID_MEMBER_NAME("template/invalid-member-name", Severity.ERROR,
             "A component parameter or event name is not a letter followed by letters or digits."),
     RESERVED_MEMBER_NAME("template/reserved-member-name", Severity.ERROR,

@@ -1,5 +1,6 @@
 /* Vanilla's slot bevel: dark top and left, white bottom and right, around a 16x16 well. */
-.slot {
+.slot,
+mc-player-inventory mc-slot {
   width: 18px;
   height: 18px;
   background-color: var(--ix-well, #8B8B8B);

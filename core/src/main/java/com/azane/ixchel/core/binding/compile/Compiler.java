@@ -2,7 +2,11 @@ package com.azane.ixchel.core.binding.compile;
 
 import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Cell;
+import com.azane.ixchel.core.binding.Event;
 import com.azane.ixchel.core.binding.EventInfo;
+import com.azane.ixchel.core.binding.ModelShape;
+import com.azane.ixchel.core.binding.Param;
+import com.azane.ixchel.core.binding.TwoWay;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.binding.expr.Expr;
@@ -50,7 +54,10 @@ import static com.azane.ixchel.core.binding.compile.Bindings.MODEL;
 
 /**
  * Resolves a document's directives, blocks and component instances into {@link Part}s. Every block
- * copy and component instance is compiled anew, resolving its names in the {@link Env} it sees.
+ * copy and component instance is compiled anew, resolving its names in the {@link Env} it sees. A
+ * Java component's instance gets a model of its own, built from its factory and wired to what the
+ * instance is given; but a throwaway copy that only reports problems, and all of a lint, compiles
+ * against the model class's {@link ModelShape}, without building anything.
  */
 final class Compiler {
     /**
@@ -60,12 +67,15 @@ final class Compiler {
      * @param owner     a page's view model class or a component's {@code <name>}, for messages
      * @param component whether this is a component's template
      * @param slots     the instance's slot content; {@code null} outside a component's template
+     * @param model     the view model local states here belong to: the page's, or the nearest
+     *                  enclosing Java component's
      */
-    record Env(Map<String, Name> names, Diagnostics diag, String owner, boolean component, Slots slots) {
+    record Env(Map<String, Name> names, Diagnostics diag, String owner, boolean component, Slots slots,
+               ViewModel model) {
         Env with(String name, Name value) {
             Map<String, Name> next = new HashMap<>(names);
             next.put(name, value);
-            return new Env(next, diag, owner, component, slots);
+            return new Env(next, diag, owner, component, slots, model);
         }
     }
 
@@ -73,34 +83,55 @@ final class Compiler {
     record Slots(Map<String, List<Node>> content, Env user) {
     }
 
+    /**
+     * The view model of a Java component instance being compiled.
+     *
+     * @param members its names, as {@link Bindings} resolved them
+     * @param real    whether {@code model} is the instance's own, to wire; otherwise it only owns
+     *                the placeholders in {@code members}
+     */
+    private record Child(ViewModel model, ModelShape shape, Map<String, Name> members, boolean real) {
+    }
+
     /** The implicit document root; unfocused key events target it. */
     private final Element documentRoot;
-    private final ViewModel model;
     private final Bindings.TextConverter text;
     private final TagRegistry tags;
     private final PropertyRegistry properties;
     private final TopLayer topLayer;
     private final Map<String, ComponentDef> components;
+    /** The Java half of the components that have one, by component name. */
+    private final Map<String, Bindings.Hosted.Model> models;
+    /** The framework's {@code $} names, which only parameter defaults see. */
+    private final Map<String, Ref> framework;
     /** Where blocks enter and exit their copies. */
     final Presence presence;
+    /** The live component models, polled each pass after the page's; {@link ChildModel} keeps it. */
+    final List<ViewModel> children = new ArrayList<>();
+    /** While above zero, components use {@link ModelShape}s instead of building models. */
+    private int checking;
     private Env env;
 
     /**
-     * @param model the view model local states belong to
+     * @param model the page's view model
      * @param names the page's names, as {@link Bindings} resolved them from the view model
+     * @param lint  whether this is a lint: nothing runs, so no component model may be built
      */
     Compiler(Element documentRoot, ViewModel model, Map<String, Name> names, String owner,
              Bindings.TextConverter text, TagRegistry tags, PropertyRegistry properties, TopLayer topLayer,
-             Map<String, ComponentDef> components, Presence presence, Diagnostics diag) {
+             Map<String, ComponentDef> components, Map<String, Bindings.Hosted.Model> models,
+             Map<String, Ref> framework, boolean lint, Presence presence, Diagnostics diag) {
         this.documentRoot = documentRoot;
-        this.model = model;
         this.text = text;
         this.tags = tags;
         this.properties = properties;
         this.topLayer = topLayer;
         this.components = components;
+        this.models = models;
+        this.framework = framework;
+        this.checking = lint ? 1 : 0;
         this.presence = presence;
-        this.env = new Env(names, diag, owner, false, null);
+        this.env = new Env(names, diag, owner, false, null, model);
     }
 
     private Diagnostics diag() {
@@ -216,7 +247,7 @@ final class Compiler {
         if (init == null) {
             return;
         }
-        Value<Object> cell = MODEL.state(model);
+        Value<Object> cell = MODEL.state(env.model());
         env = env.with(name, new Ref(cell, init.type(), Ref.Write.VALUE));
         out.parts.add(new StateInit(cell, init.cell(), a, diag()));
     }
@@ -325,7 +356,12 @@ final class Compiler {
 
     /** Compiles a throwaway copy of a block's content, so its problems are reported while it is not mounted. */
     private void check(Element block, Env in) {
-        compileCopy(block, block.children(), in, Anchor.START, new Part.Group(), new ArrayList<>());
+        checking++;
+        try {
+            compileCopy(block, block.children(), in, Anchor.START, new Part.Group(), new ArrayList<>());
+        } finally {
+            checking--;
+        }
     }
 
     private static Directive blockAttribute(Element block, String name) {
@@ -376,12 +412,14 @@ final class Compiler {
     /**
      * {@code <name …>} of a component: the element stays as the instance's shell, its children become
      * slot content, and the component's template is compiled into it with the parameters and events
-     * the shell's attributes give.
+     * the shell's attributes give. A Java component's ports are wired to them, and its template sees
+     * the members of its model, which owns its local states and defaults.
      */
     private void instantiate(Element shell, ComponentDef def, Part.Group out) {
         Env user = env;
         String tag = "<" + def.name() + ">";
         Map<String, Ref> args = new HashMap<>();
+        Map<String, SourcePos> argAt = new HashMap<>();
         Map<String, Directive> listeners = new LinkedHashMap<>();
         // Parameters given with a binding that failed to compile; their problem is already reported.
         Set<String> failed = new HashSet<>();
@@ -393,6 +431,7 @@ final class Compiler {
                 if (ref != null) {
                     boolean writable = parsed instanceof Expr.Path && ref.write() != Ref.Write.NONE;
                     args.put(name.substring("bind:".length()), writable ? ref : new Ref(ref.cell(), ref.type()));
+                    argAt.put(name.substring("bind:".length()), a.valuePos());
                 } else {
                     failed.add(name.substring("bind:".length()));
                 }
@@ -420,6 +459,7 @@ final class Compiler {
                         "parameter '" + p.name() + "' of " + tag + " is given twice");
             } else {
                 args.put(p.name(), new Ref(MODEL.held(literal), String.class));
+                argAt.put(p.name(), shell.pos());
             }
         }
 
@@ -436,21 +476,32 @@ final class Compiler {
         }
 
         Diagnostics inside = user.diag().within(" (in " + tag + " at " + shell.pos() + ")");
+        Bindings.Hosted.Model backing = models.get(def.name());
+        Child child = backing == null ? null : child(backing, def, shell, inside);
+        if (backing != null && child == null) {
+            return;
+        }
         Map<String, Name> names = new HashMap<>();
-        env = new Env(names, inside, tag, true, new Slots(content, user));
+        env = new Env(names, inside, tag, true, new Slots(content, user), child == null ? user.model() : child.model());
         boolean unresolved = false;
         for (ComponentDef.Param p : def.params()) {
             Ref given = args.get(p.name());
             if (given != null) {
-                names.put(p.name(), given);
+                if (child == null) {
+                    names.put(p.name(), given);
+                } else {
+                    unresolved |= !pass(child, p.name(), given, argAt.get(p.name()), user.diag());
+                }
             } else if (p.fallback() != null) {
-                Ref init = expression(p.fallback());
-                if (init != null) {
-                    Value<Object> cell = MODEL.state(model);
+                Ref init = fallback(p);
+                if (init == null) {
+                    unresolved = true;
+                } else if (child == null) {
+                    Value<Object> cell = MODEL.state(env.model());
                     names.put(p.name(), new Ref(cell, init.type(), Ref.Write.VALUE));
                     out.parts.add(new StateInit(cell, init.cell(), p.fallback(), inside));
                 } else {
-                    unresolved = true;
+                    unresolved |= !passDefault(child, p, init, out);
                 }
             } else {
                 if (!failed.contains(p.name())) {
@@ -461,14 +512,30 @@ final class Compiler {
         }
         if (unresolved) {
             // The body would only repeat the missing parameter at each use of it.
-            env = user;
+            abandon(child, user);
             return;
         }
         Map<String, Name.Event> events = new HashMap<>();
         for (String e : def.events()) {
-            Name.Event port = new Name.Event(e);
+            Name.Event port = child == null ? new Name.Event(e) : (Name.Event) child.members().get(e);
+            if (child != null) {
+                wire(child, child.shape().members().get(e), port);
+            }
             events.put(e, port);
             names.put(e, port);
+        }
+        if (child != null) {
+            names.putAll(child.members());
+            if (child.real() && MODEL.unwiredPorts(child.model()) > 0) {
+                inside.report(BindingCode.UNBOUND_PORT, def.pos(), backing.type().getSimpleName()
+                        + " made " + MODEL.unwiredPorts(child.model()) + " port(s) that no port field holds",
+                        "store each param(), twoWay() and event() in a non-private, non-static field declared with its type");
+                abandon(child, user);
+                return;
+            }
+            if (child.real()) {
+                out.parts.add(new ChildModel(child.model(), children, shell.pos(), inside));
+            }
         }
         for (Node n : def.body()) {
             shell.appendChild(n.copyTemplate());
@@ -477,6 +544,150 @@ final class Compiler {
 
         env = user;
         listeners.forEach((event, a) -> listen(events.get(event), a));
+    }
+
+    /** Leaves an instance whose template will not be compiled. */
+    private void abandon(Child child, Env user) {
+        env = user;
+        if (child != null) {
+            child.model().close();
+        }
+    }
+
+    /** The model of an instance of a Java component, or {@code null} after reporting why it has none. */
+    private Child child(Bindings.Hosted.Model backing, ComponentDef def, Element shell, Diagnostics inside) {
+        ModelShape shape = ModelShape.of(backing.type());
+        if (!signature(def, shape, inside)) {
+            return null;
+        }
+        boolean real = checking == 0;
+        ViewModel model;
+        if (real) {
+            try {
+                model = backing.factory().get();
+            } catch (RuntimeException ex) {
+                diag().report(BindingCode.RUNTIME_EXCEPTION, shell.pos(),
+                        "constructing " + backing.type().getSimpleName() + " threw " + ex);
+                return null;
+            }
+        } else {
+            model = new ViewModel() {
+            };
+        }
+        Map<String, Name> members = Bindings.names(shape, model, !real, shell.pos(), inside);
+        for (ModelShape.Member m : shape.members().values()) {
+            if (m.port() && members.get(m.name()) instanceof Name.Unset) {
+                inside.report(BindingCode.UNBOUND_PORT, def.pos(),
+                        "port field '" + m.name() + "' of " + m.owner().getSimpleName() + " is null");
+                model.close();
+                return null;
+            }
+        }
+        return new Child(model, shape, members, real);
+    }
+
+    /** Whether the {@code <template>}'s parameters and events are exactly the ports of {@code shape}; reports each that is not. */
+    private static boolean signature(ComponentDef def, ModelShape shape, Diagnostics diag) {
+        Map<String, ModelShape.Member> members = shape.members();
+        String owner = shape.type().getSimpleName();
+        boolean ok = true;
+        for (ComponentDef.Param p : def.params()) {
+            ModelShape.Member m = members.get(p.name());
+            if (m == null || !m.port() || m.kind() != ModelShape.Kind.CELL) {
+                diag.report(BindingCode.SIGNATURE_MISMATCH, p.pos(), "parameter '" + p.name() + "' has no Param<T> or TwoWay<T> field in " + owner);
+                ok = false;
+            }
+        }
+        for (String e : def.events()) {
+            ModelShape.Member m = members.get(e);
+            if (m == null || !m.port() || m.kind() != ModelShape.Kind.EVENT) {
+                diag.report(BindingCode.SIGNATURE_MISMATCH, def.pos(), "event '" + e + "' has no Event<T> field in " + owner);
+                ok = false;
+            }
+        }
+        for (ModelShape.Member m : members.values()) {
+            if (m.port() && !def.hasParam(m.name()) && !def.events().contains(m.name())) {
+                diag.report(BindingCode.SIGNATURE_MISMATCH, def.pos(), "port field '" + m.name() + "' of "
+                        + m.owner().getSimpleName() + " is not declared by <template name=\"" + def.name() + "\">");
+                ok = false;
+            }
+        }
+        return ok;
+    }
+
+    /** A parameter's default expression: it sees the parameters before it and, alone among expressions, the framework's names. */
+    private Ref fallback(ComponentDef.Param p) {
+        Env saved = env;
+        Map<String, Name> visible = new HashMap<>(saved.names());
+        visible.putAll(framework);
+        env = new Env(visible, saved.diag(), saved.owner(), saved.component(), saved.slots(), saved.model());
+        try {
+            return expression(p.fallback());
+        } finally {
+            env = saved;
+        }
+    }
+
+    /** Passes what the user gave at {@code at} to the port {@code name}; {@code false} after reporting. */
+    private boolean pass(Child child, String name, Ref given, SourcePos at, Diagnostics user) {
+        ModelShape.Member port = child.shape().members().get(name);
+        if (port.writable() && given.write() == Ref.Write.NONE) {
+            user.report(BindingCode.READ_ONLY_TWO_WAY, at, "'" + name + "' of " + env.owner()
+                    + " writes back: it needs a bare path to something writable");
+            return false;
+        }
+        boolean fits = port.writable() ? Types.boxed(given.type()) == Types.boxed(port.type())
+                : Types.assignable(given.type(), port.type());
+        if (!fits) {
+            user.report(BindingCode.PARAM_TYPE, at, "'" + name + "' of " + env.owner() + " is "
+                    + port.type().getTypeName() + ", but the value is " + given.type().getTypeName());
+            return false;
+        }
+        wire(child, port, given);
+        env.names().put(name, child.members().get(name));
+        return true;
+    }
+
+    /** Makes a local state of {@code child}, initialized to {@code init}, the value of {@code p}'s port; {@code false} after reporting. */
+    private boolean passDefault(Child child, ComponentDef.Param p, Ref init, Part.Group out) {
+        ModelShape.Member port = child.shape().members().get(p.name());
+        if (!Types.assignable(init.type(), port.type())) {
+            diag().report(BindingCode.PARAM_TYPE, p.fallback().valuePos(), "'" + p.name() + "' of " + env.owner() + " is "
+                    + port.type().getTypeName() + ", but its default is " + init.type().getTypeName());
+            return false;
+        }
+        Value<Object> cell = MODEL.state(child.model());
+        out.parts.add(new StateInit(cell, converted(init, port.type()), p.fallback(), diag()));
+        wire(child, port, new Ref(cell, port.type(), Ref.Write.VALUE));
+        env.names().put(p.name(), child.members().get(p.name()));
+        return true;
+    }
+
+    /** {@code ref}'s cell, reading as {@code to}: numbers widen, all else reads the same. */
+    private static Cell<?> converted(Ref ref, Type to) {
+        return Types.converts(ref.type(), to)
+                ? MODEL.derived(new Cell<?>[]{ref.cell()}, args -> Types.convert(args[0], to))
+                : ref.cell();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void wire(Child child, ModelShape.Member port, Ref ref) {
+        if (!child.real()) {
+            return;
+        }
+        Object field = MODEL.read(child.model(), port);
+        if (field instanceof TwoWay<?>) {
+            MODEL.wire((TwoWay<Object>) field, (Cell<Object>) ref.cell(), writer(ref));
+        } else {
+            MODEL.wire((Param<Object>) field, (Cell<Object>) converted(ref, port.type()));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void wire(Child child, ModelShape.Member port, Name.Event event) {
+        if (child.real()) {
+            MODEL.wire((Event<Object>) MODEL.read(child.model(), port), event::fire);
+        }
     }
 
     /** {@code on:<event>="statements"} for a component event; {@code $event} is its payload, if it has one. */
@@ -689,6 +900,9 @@ final class Compiler {
         if (ref.write() == Ref.Write.VALUE) {
             return v -> ((Value<Object>) ref.cell()).set(v);
         }
+        if (ref.write() == Ref.Write.PORT) {
+            return v -> ((TwoWay<Object>) ref.cell()).set(v);
+        }
         return v -> {
             Value<Object> inner = (Value<Object>) MODEL.current(ref.cell());
             if (inner != null) {
@@ -836,7 +1050,7 @@ final class Compiler {
         return () -> action.run(Types.convert(cell.get(), param));
     }
 
-    /** A component template raising one of its events; every call of an event must carry the same payload type. */
+    /** A component template raising one of its events; every call must carry the same payload type, or fit the declared one. */
     private Runnable emit(Directive a, Expr.Call c, Name.Event port) {
         Ref arg = c.arg() == null ? null : compile(a, c.arg());
         if (c.arg() != null && arg == null) {
@@ -846,7 +1060,7 @@ final class Compiler {
         if (!port.called) {
             port.called = true;
             port.payload = type;
-        } else if (!Objects.equals(port.payload, type)) {
+        } else if (!accepts(port, type)) {
             diag().report(BindingCode.EVENT_PAYLOAD, at(a, c.at()), "event '" + port.name + "' is raised with "
                     + (type == null ? "no payload" : type.getTypeName()) + " here, but with "
                     + (port.payload == null ? "no payload" : port.payload.getTypeName()) + " elsewhere");
@@ -856,7 +1070,13 @@ final class Compiler {
             return () -> port.fire(null);
         }
         Cell<?> cell = arg.cell();
-        return () -> port.fire(cell.get());
+        Type payload = port.payload;
+        return () -> port.fire(Types.convert(cell.get(), payload));
+    }
+
+    private static boolean accepts(Name.Event port, Type type) {
+        return port.declared && port.payload != null && type != null ? Types.assignable(type, port.payload)
+                : Objects.equals(port.payload, type);
     }
 
     /** {@code path = expression}; {@code null} after reporting. */

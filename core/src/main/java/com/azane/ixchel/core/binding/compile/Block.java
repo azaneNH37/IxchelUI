@@ -63,6 +63,10 @@ abstract class Block implements Part, Anchor {
     /** Every node this block has mounted, in order. */
     abstract void nodes(List<Node> out);
 
+    /** Closes the copies this block still holds, those exiting too. */
+    @Override
+    public abstract void close();
+
     @Override
     public final Node last() {
         Node own = lastOwn();

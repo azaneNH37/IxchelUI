@@ -1,7 +1,6 @@
 <link rel="stylesheet" href="../common/slot.css"/>
 <link rel="stylesheet" href="@ixchel/vanilla.css"/>
 <link rel="stylesheet" href="panel.css"/>
-<link rel="component" href="../common/player-inventory.html"/>
 <div class="panel" state:sidesOpen="false">
   <div class="header">
     <span class="title" t="block.ixchel_sample.powered_stonecutter"></span>
@@ -42,7 +41,7 @@
     <button class="redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></button>
     <button class="sides-toggle" bind:class:selected="sidesOpen" on:click="sidesOpen = !sidesOpen" t="ixchel_sample.machine.sides"></button>
   </div>
-  <player-inventory bind:inventory="inventory" bind:hotbar="hotbar"></player-inventory>
+  <mc-player-inventory></mc-player-inventory>
   <div class="sides" bind:class:open="sidesOpen">
     <for each="sideRows" as="s" key="s.side"><div class="side" on:click="cycleSide(s)">
       <span class="face" bind:text="s.face"></span>

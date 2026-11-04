@@ -64,6 +64,9 @@ import java.util.function.LongSupplier;
  * <p>The effects the template and its components link ({@link Effects}) register their params as
  * typed properties of this document only: its styles, transitions, keyframes and bindings compile
  * against the registry they extend.
+ *
+ * <p>A {@link UiHosting} adds Java components, library components and framework values. Component
+ * instances own view models, which end with their instance or with {@link #close()}.
  */
 public final class UiDocument {
     static final long BLINK_MS = 500;
@@ -130,6 +133,13 @@ public final class UiDocument {
         return load(template, templateFile, files, tags, Translations.NONE, measurer, images, model, text);
     }
 
+    /** Loads a document without anything hosted. */
+    public static UiDocument load(String template, String templateFile, Function<String, String> files,
+                                  TagRegistry tags, Translations translations, TextMeasurer measurer, ImageMeasurer images,
+                                  ViewModel model, Bindings.TextConverter text) {
+        return load(template, templateFile, files, tags, translations, measurer, images, model, text, UiHosting.NONE);
+    }
+
     /**
      * Parses and validates everything up front, with every file the template links directly or
      * through components; stylesheets apply in document order, {@code <link rel="stylesheet">} and
@@ -144,27 +154,40 @@ public final class UiDocument {
      * @param images       natural image sizes, for {@code background-size: auto}
      * @param model        the view model {@code bind:*} attributes refer to, or {@code null}
      * @param text         converts bound values to text (the mc layer keeps a component's styles)
+     * @param hosting      the Java components, library components and framework values it may use
      */
     public static UiDocument load(String template, String templateFile, Function<String, String> files,
                                   TagRegistry tags, Translations translations, TextMeasurer measurer, ImageMeasurer images,
-                                  ViewModel model, Bindings.TextConverter text) {
+                                  ViewModel model, Bindings.TextConverter text, UiHosting hosting) {
         Diagnostics diag = new Diagnostics();
-        Parsed p = parse(template, templateFile, files, tags, translations, diag);
+        Parsed p = parse(template, templateFile, files, tags, translations, hosting, diag);
         Animations animations = new Animations(p.root);
         Transitions transitions = new Transitions(p.effects.registry(), p.root, animations);
         StyleEngine style = p.style(tags, diag, animations, transitions);
         Presence presence = new Presence(e -> animations.finishing(e) || transitions.running(e),
                 style.uses(Presence.STATES));
         TopLayer topLayer = new TopLayer(presence);
-        Bindings bindings = Bindings.compile(p.root, model, p.loaded.components(), text, tags, p.effects.registry(),
-                topLayer, presence, diag);
-        Presence.Unit documentUnit = presence.enterDocument(p.root);
-        style.restyle(p.root);
-        presence.styled();
-        diag.throwIfErrors();
-        LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), p.effects.registry(), diag);
-        return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, images, p.effects, animations,
-                transitions, topLayer, presence, documentUnit);
+        Bindings bindings = Bindings.compile(p.root, model, p.loaded.components(), hosting.forBindings(p.loaded.componentFiles()),
+                text, tags, p.effects.registry(), topLayer, presence, diag);
+        try {
+            Presence.Unit documentUnit = presence.enterDocument(p.root);
+            style.restyle(p.root);
+            presence.styled();
+            diag.throwIfErrors();
+            LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), p.effects.registry(), diag);
+            return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, images, p.effects, animations,
+                    transitions, topLayer, presence, documentUnit);
+        } catch (RuntimeException ex) {
+            bindings.close();
+            throw ex;
+        }
+    }
+
+    /** Lints a document without anything hosted. */
+    public static Diagnostics lint(String template, String templateFile, Function<String, String> files,
+                                   TagRegistry tags, Translations translations, ModelShape shape,
+                                   Set<? extends DiagCode> enabled) {
+        return lint(template, templateFile, files, tags, translations, shape, enabled, UiHosting.NONE);
     }
 
     /**
@@ -175,14 +198,15 @@ public final class UiDocument {
      *
      * @param shape   the view model class's shape, or {@code null} for a document without one
      * @param enabled the {@linkplain DiagCode#optIn() opt-in} checks to run
+     * @param hosting what the document may use; only declarations are read, no factory or value
      */
     public static Diagnostics lint(String template, String templateFile, Function<String, String> files,
                                    TagRegistry tags, Translations translations, ModelShape shape,
-                                   Set<? extends DiagCode> enabled) {
+                                   Set<? extends DiagCode> enabled, UiHosting hosting) {
         Diagnostics diag = new Diagnostics(enabled);
-        Parsed p = parse(template, templateFile, files, tags, translations, diag);
-        Bindings.lint(p.root, shape, p.loaded.components(), Bindings.PLAIN_TEXT, tags, p.effects.registry(),
-                new TopLayer(Presence.instant()), diag);
+        Parsed p = parse(template, templateFile, files, tags, translations, hosting, diag);
+        Bindings.lint(p.root, shape, p.loaded.components(), hosting.forBindings(p.loaded.componentFiles()),
+                Bindings.PLAIN_TEXT, tags, p.effects.registry(), new TopLayer(Presence.instant()), diag);
         Animations animations = new Animations(p.root);
         p.style(tags, diag, animations, new Transitions(p.effects.registry(), p.root, animations)).restyle(p.root);
         return diag;
@@ -205,8 +229,9 @@ public final class UiDocument {
     }
 
     private static Parsed parse(String template, String templateFile, Function<String, String> files,
-                                TagRegistry tags, Translations translations, Diagnostics diag) {
-        TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, tags, translations, diag);
+                                TagRegistry tags, Translations translations, UiHosting hosting, Diagnostics diag) {
+        TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, hosting.libraryFiles(), tags,
+                translations, diag);
         Effects effects = Effects.load(loaded.effects(), CssProperties.REGISTRY, diag);
         List<StyleSheet> components = sheets(loaded.componentSheets(), effects, diag);
         List<StyleSheet> themes = library(loaded.library(), diag);
@@ -369,6 +394,15 @@ public final class UiDocument {
     /** Takes an exiting document back from where its exit got to, or enters an exited one again from {@code :-ix-absent}. */
     public void enter() {
         presence.enterAgain(documentUnit);
+    }
+
+    /**
+     * Ends the document: closes the view model of every component instance, which releases their
+     * feeds. The page's view model stays the host's to close. A host replacing the document on reload
+     * closes the old one. Idempotent.
+     */
+    public void close() {
+        bindings.close();
     }
 
     /** Fonts or glyph widths changed (resource reload, Force Unicode): re-measure all text next frame. */

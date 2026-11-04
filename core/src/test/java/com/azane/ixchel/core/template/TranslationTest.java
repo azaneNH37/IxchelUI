@@ -42,7 +42,7 @@ class TranslationTest {
     }
 
     private static Element parse(String html, Translations translations, Diagnostics diag) {
-        Template t = TemplateParser.parse(html, "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, null, translations, false, diag);
+        Template t = TemplateParser.parse(html, "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, null, translations, TemplateParser.FileKind.PAGE, diag);
         return (Element) t.roots().get(0);
     }
 

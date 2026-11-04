@@ -2,6 +2,7 @@ package com.azane.ixchel.core.binding;
 
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /** The one {@link ModelAccess}, kept here so the members it reaches stay package-private. */
@@ -66,6 +67,31 @@ final class Bridge implements ModelAccess {
     @Override
     public <A> Action<A> idle(ViewModel owner) {
         return new Action<>(owner, a -> { }, null);
+    }
+
+    @Override
+    public <T> void wire(Param<T> port, Cell<? extends T> cell) {
+        port.wire(cell);
+    }
+
+    @Override
+    public <T> void wire(TwoWay<T> port, Cell<T> cell, Consumer<T> writer) {
+        port.wire(cell, writer);
+    }
+
+    @Override
+    public <T> void wire(Event<T> port, Consumer<? super T> listener) {
+        port.wire(listener);
+    }
+
+    @Override
+    public int unwiredPorts(ViewModel model) {
+        return model.unwiredPorts();
+    }
+
+    @Override
+    public void nextPass() {
+        Feed.nextPass();
     }
 
     @Override

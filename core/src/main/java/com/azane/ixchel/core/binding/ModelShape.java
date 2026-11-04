@@ -10,30 +10,40 @@ import java.util.Map;
 
 /**
  * The names a view model class offers its templates, read from the class alone: every non-static,
- * non-private field whose declared type is a {@link Cell} or {@link Action}, a subclass's field
- * hiding a superclass's of the same name. A template loaded at runtime and the offline lint see the
- * same table, so a check passes or fails in both.
+ * non-private field whose declared type is a {@link Cell}, an {@link Action} or an {@link Event}, a
+ * subclass's field hiding a superclass's of the same name. A template loaded at runtime and the
+ * offline lint see the same table, so a check passes or fails in both.
  *
  * <pre>{@code
  * class QuestsView extends ViewModel {
  *     final Value<String> filter = state("");      // CELL, String, writable
  *     final Derived<List<Quest>> shown = derive(filter, ...);   // CELL, List<Quest>, read-only
  *     final Action<Quest> track = action(q -> ...); // ACTION, Quest
+ *     final Param<BlockPos> pos = param();          // CELL, BlockPos, read-only port
+ *     final TwoWay<Boolean> open = twoWay();        // CELL, Boolean, writable port
+ *     final Event<Integer> picked = event();        // EVENT, Integer, port
  * }
  * }</pre>
+ *
+ * A member's kind is how a component's template uses it; {@link Member#port()} marks the component's
+ * signature. A port field must name its type: a raw one is not a member.
  */
 public final class ModelShape {
-    public enum Kind { CELL, ACTION }
+    public enum Kind { CELL, ACTION, EVENT }
 
     /**
      * One name.
      *
-     * @param type     the value type of a cell ({@code Object} when raw), or the argument type of an
-     *                 action ({@code Void} for none, {@code null} when raw)
-     * @param writable whether templates may write the cell: its declared type is {@link Value}
+     * @param type     the value type of a cell ({@code Object} when raw), the argument type of an
+     *                 action ({@code Void} for none, {@code null} when raw), or the payload type of an
+     *                 event ({@code Void} for none)
+     * @param writable whether templates may write the cell: its declared type is {@link Value} or
+     *                 {@link TwoWay}
+     * @param port     whether it belongs to a component's signature: its declared type is
+     *                 {@link Param}, {@link TwoWay} or {@link Event}
      * @param owner    the class declaring the field
      */
-    public record Member(String name, Kind kind, Type type, boolean writable, Class<?> owner) {
+    public record Member(String name, Kind kind, Type type, boolean writable, boolean port, Class<?> owner) {
     }
 
     private static final ClassValue<ModelShape> SHAPES = new ClassValue<>() {
@@ -55,17 +65,24 @@ public final class ModelShape {
         for (Class<?> c = type; c != ViewModel.class; c = c.getSuperclass()) {
             for (Field field : c.getDeclaredFields()) {
                 int mods = field.getModifiers();
-                boolean action = field.getType() == Action.class;
+                Class<?> declared = field.getType();
+                boolean action = declared == Action.class;
+                boolean event = declared == Event.class;
                 if (Modifier.isStatic(mods) || Modifier.isPrivate(mods) || m.containsKey(field.getName())
-                        || !(action || Cell.class.isAssignableFrom(field.getType()))) {
+                        || !(action || event || Cell.class.isAssignableFrom(declared))) {
                     continue;
                 }
                 Type generic = field.getGenericType();
                 Type arg = generic instanceof ParameterizedType p ? p.getActualTypeArguments()[0] : null;
+                boolean port = event || declared == Param.class || declared == TwoWay.class;
+                if (port && arg == null) {
+                    continue;
+                }
                 m.put(field.getName(), action
-                        ? new Member(field.getName(), Kind.ACTION, arg, false, c)
+                        ? new Member(field.getName(), Kind.ACTION, arg, false, false, c)
+                        : event ? new Member(field.getName(), Kind.EVENT, arg, false, true, c)
                         : new Member(field.getName(), Kind.CELL, arg == null ? Object.class : arg,
-                        Value.class.isAssignableFrom(field.getType()), c));
+                        Value.class.isAssignableFrom(declared) || declared == TwoWay.class, port, c));
                 f.put(field.getName(), field);
             }
         }

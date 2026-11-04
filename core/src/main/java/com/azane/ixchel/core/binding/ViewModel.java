@@ -11,7 +11,9 @@ import java.util.function.Supplier;
 /**
  * Base class for the data a template binds to. Declare cells and actions as fields; the field name is
  * the name used in {@code bind:*} and {@code on:*} attributes. Dependencies are fixed when a cell is
- * built and can only point at cells built before it, so the graph cannot have cycles.
+ * built and can only point at cells built before it, so the graph cannot have cycles. A component
+ * with a view model of its own declares its {@code <template>}'s parameters and events as ports:
+ * {@link #param()}, {@link #twoWay()} and {@link #event()} fields named after them.
  *
  * <pre>{@code
  * final class AmmoView extends ViewModel {
@@ -21,9 +23,10 @@ import java.util.function.Supplier;
  * }
  * }</pre>
  *
- * A frame first runs work posted to the {@link #scope()}, then polls sources, then notifies
- * {@linkplain #subscribe subscribers}; bindings read afterwards. The host closes the model with its
- * view. Client thread only, except {@link Scope#post}.
+ * A frame first runs work posted to the {@link #scope()}, then polls sources and {@linkplain Feed
+ * feeds}, then notifies {@linkplain #subscribe subscribers}; bindings read afterwards. The host
+ * closes the model with its view; a component's model closes with its instance. Client thread only,
+ * except {@link Scope#post}.
  */
 public abstract class ViewModel implements AutoCloseable {
     @FunctionalInterface
@@ -33,6 +36,9 @@ public abstract class ViewModel implements AutoCloseable {
 
     private final Scope scope = new Scope();
     private final List<Polled<?>> sources = new ArrayList<>();
+    private final List<Feed.Reference<?, ?>> feeds = new ArrayList<>();
+    /** The ports made here and not wired yet. */
+    private final List<Object> ports = new ArrayList<>();
     private final List<Subscription> subscriptions = new ArrayList<>();
     private boolean stateChanged = true;
 
@@ -40,6 +46,32 @@ public abstract class ViewModel implements AutoCloseable {
         Polled<T> p = new Polled<>(source);
         sources.add(p);
         return p;
+    }
+
+    /**
+     * The value of {@code feed} at {@code key}, shared with every other reference to them. The
+     * reference ends with this model.
+     */
+    protected final <K, T> Cell<T> source(Feed<K, T> feed, K key) {
+        Feed.Reference<K, T> r = reference(feed, new Held<>(null, key));
+        r.key(key);
+        return r.cell();
+    }
+
+    /**
+     * The value of {@code feed} at the current value of {@code key}, which is first read when the
+     * model is polled: a {@link Param} may be the key. When the key changes, the reference moves
+     * from the old instance to the new one.
+     */
+    protected final <K, T> Cell<T> source(Feed<K, T> feed, Cell<? extends K> key) {
+        return reference(feed, key).cell();
+    }
+
+    private <K, T> Feed.Reference<K, T> reference(Feed<K, T> feed, Cell<? extends K> key) {
+        Feed.Reference<K, T> r = feed.reference(key);
+        feeds.add(r);
+        scope.own(r);
+        return r;
     }
 
     protected final <T> Value<T> state(T initial) {
@@ -83,6 +115,27 @@ public abstract class ViewModel implements AutoCloseable {
         return new Action<>(this, null, handler::apply);
     }
 
+    /** A read-only component parameter; see {@link Param}. */
+    protected final <T> Param<T> param() {
+        Param<T> p = new Param<>(this);
+        ports.add(p);
+        return p;
+    }
+
+    /** A two-way component parameter; see {@link TwoWay}. */
+    protected final <T> TwoWay<T> twoWay() {
+        TwoWay<T> p = new TwoWay<>(this);
+        ports.add(p);
+        return p;
+    }
+
+    /** A component event; see {@link Event}. */
+    protected final <T> Event<T> event() {
+        Event<T> p = new Event<>(this);
+        ports.add(p);
+        return p;
+    }
+
     /** The model's lifetime: posting from other threads, owning resources. */
     public final Scope scope() {
         return scope;
@@ -100,7 +153,7 @@ public abstract class ViewModel implements AutoCloseable {
         return handle;
     }
 
-    /** Ends the model's lifetime: subscriptions stop, pending replies are dropped, actions do nothing. */
+    /** Ends the model's lifetime: subscriptions and feed references end, pending replies are dropped, actions do nothing. */
     @Override
     public void close() {
         scope.close();
@@ -110,9 +163,18 @@ public abstract class ViewModel implements AutoCloseable {
         stateChanged = true;
     }
 
+    void wired(Object port) {
+        ports.remove(port);
+    }
+
+    /** How many ports made here are not wired yet. */
+    int unwiredPorts() {
+        return ports.size();
+    }
+
     /**
-     * Runs posted work, polls every source once and notifies subscribers; returns whether any source
-     * or local state changed since the last call.
+     * Runs posted work, polls every source and feed once and notifies subscribers; returns whether
+     * any source, feed or local state changed since the last call.
      */
     boolean poll() {
         scope.drain();
@@ -120,6 +182,9 @@ public abstract class ViewModel implements AutoCloseable {
         stateChanged = false;
         for (int i = 0, n = sources.size(); i < n; i++) {
             changed |= sources.get(i).poll();
+        }
+        for (int i = 0, n = feeds.size(); i < n; i++) {
+            changed |= feeds.get(i).poll();
         }
         if (changed) {
             for (int i = 0; i < subscriptions.size(); i++) {

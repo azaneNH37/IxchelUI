@@ -79,7 +79,7 @@ public final class UiHud {
         if (doc == null) {
             ViewModel m = model.get();
             try {
-                doc = new HostedDocument(template, McElements.TAGS, m, () -> { });
+                doc = new HostedDocument(template, McElements.TAGS, UiComponents.hosting(template.getNamespace()), m, () -> { });
             } catch (UiLoadException e) {
                 if (m != null) {
                     m.close();

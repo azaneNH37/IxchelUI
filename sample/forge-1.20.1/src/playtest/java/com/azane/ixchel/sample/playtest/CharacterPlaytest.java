@@ -32,7 +32,7 @@ public final class CharacterPlaytest {
                 .run(CharacterScreen::open)
                 .waitUntil("panel open, every slot placed without errors", () -> isOpen()
                         && Playtest.document().diagnostics().errorCount() == 0
-                        && Playtest.query(".slot").size() == Playtest.containerScreen().getMenu().slots.size(), Playtest.WAIT)
+                        && Playtest.query("mc-slot").size() == Playtest.containerScreen().getMenu().slots.size(), Playtest.WAIT)
                 .run(() -> {
                     LayoutBox b = Playtest.box(".doll");
                     s.record("doll sized by css (" + b.width() + "x" + b.height() + ")", b.width() == 50 && b.height() == 72);

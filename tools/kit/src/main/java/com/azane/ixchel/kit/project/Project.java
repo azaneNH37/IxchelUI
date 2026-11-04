@@ -29,9 +29,10 @@ import java.util.stream.Stream;
 public final class Project {
     private static final String ASSETS = "assets";
 
-    /** A class of the mc layer: where the library's own declared elements are found on the classpath. */
+    /** A class of the mc layer: where the library's declared elements and components are found on the classpath. */
     private static final String MC_LAYER_CLASS = "com/azane/ixchel/mc/element/McElements.class";
     private static final String MC_LAYER_PACKAGES = "com/azane/ixchel/mc/";
+    private static final String MC_LAYER_PACKAGE_NAME = "com.azane.ixchel.mc.";
 
     private final List<Path> resources;
     private final List<Path> classes;
@@ -172,7 +173,8 @@ public final class Project {
 
     /**
      * Every class under the classes directories carrying {@link UiTemplate}, loaded without
-     * initialization through {@link #loader()}, in class name order.
+     * initialization through {@link #loader()}, in class name order. Classes of the mc layer's
+     * packages are the library's ({@link #libraryAnnotated()}), not the project's.
      *
      * @throws IllegalStateException if such a class cannot be loaded from the classpath
      */
@@ -182,7 +184,8 @@ public final class Project {
         for (Path root : classes) {
             try {
                 ClassFiles.scan(root, "", (name, bytes) -> {
-                    if (ClassFiles.mentions(bytes, UiTemplate.class) && seen.add(name)) {
+                    if (!name.startsWith(MC_LAYER_PACKAGE_NAME) && ClassFiles.mentions(bytes, UiTemplate.class)
+                            && seen.add(name)) {
                         Class<?> type = load(name);
                         UiTemplate t = type.getAnnotation(UiTemplate.class);
                         if (t != null) {
@@ -199,6 +202,37 @@ public final class Project {
     }
 
     /**
+     * Every class of the mc layer on the classpath carrying {@link UiTemplate}: the library's
+     * components, whose ids start with {@code @ixchel/}. Loaded without initialization, in class
+     * name order.
+     *
+     * @throws IllegalStateException if such a class cannot be loaded from the classpath
+     */
+    public List<Annotated> libraryAnnotated() {
+        Set<String> names = new TreeSet<>();
+        try {
+            for (Path root : mcLayerRoots()) {
+                ClassFiles.scan(root, MC_LAYER_PACKAGES, (name, bytes) -> {
+                    if (ClassFiles.mentions(bytes, UiTemplate.class)) {
+                        names.add(name);
+                    }
+                });
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("cannot read classes: " + e.getMessage(), e);
+        }
+        List<Annotated> out = new ArrayList<>();
+        for (String name : names) {
+            Class<?> type = load(name);
+            UiTemplate t = type.getAnnotation(UiTemplate.class);
+            if (t != null) {
+                out.add(new Annotated(type, List.of(t.value())));
+            }
+        }
+        return out;
+    }
+
+    /**
      * Every class carrying {@link NativeElement}: those under the classes directories, then those of
      * the mc layer on the classpath (each copy of it counted once), loaded without initialization, in
      * class name order.
@@ -207,15 +241,16 @@ public final class Project {
      */
     public List<Class<?>> elementClasses() {
         Set<String> names = new TreeSet<>();
-        List<Path> roots = new ArrayList<>(classes);
-        int own = roots.size();
         try {
-            Enumeration<URL> urls = loader.getResources(MC_LAYER_CLASS);
-            while (urls.hasMoreElements()) {
-                roots.add(ClassFiles.root(urls.nextElement(), MC_LAYER_CLASS));
+            for (Path root : classes) {
+                ClassFiles.scan(root, "", (name, bytes) -> {
+                    if (ClassFiles.mentions(bytes, NativeElement.class)) {
+                        names.add(name);
+                    }
+                });
             }
-            for (int i = 0; i < roots.size(); i++) {
-                ClassFiles.scan(roots.get(i), i < own ? "" : MC_LAYER_PACKAGES, (name, bytes) -> {
+            for (Path root : mcLayerRoots()) {
+                ClassFiles.scan(root, MC_LAYER_PACKAGES, (name, bytes) -> {
                     if (ClassFiles.mentions(bytes, NativeElement.class)) {
                         names.add(name);
                     }
@@ -232,6 +267,16 @@ public final class Project {
             }
         }
         return out;
+    }
+
+    /** The roots on the classpath holding the mc layer, each copy once. */
+    private List<Path> mcLayerRoots() throws IOException {
+        List<Path> roots = new ArrayList<>();
+        Enumeration<URL> urls = loader.getResources(MC_LAYER_CLASS);
+        while (urls.hasMoreElements()) {
+            roots.add(ClassFiles.root(urls.nextElement(), MC_LAYER_CLASS));
+        }
+        return roots;
     }
 
     private Class<?> load(String name) {

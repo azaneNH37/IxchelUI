@@ -4,6 +4,7 @@ import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.azane.ixchel.core.runtime.UiHosting;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.core.template.Translations;
 import com.azane.ixchel.mc.paint.McImageMeasurer;
@@ -60,15 +61,17 @@ final class McResources {
      * selected language, a key it lacks into {@code en_us} as the game does; the root's {@code lang} is
      * the language code with {@code -} for {@code _} ({@code zh-cn}).
      *
-     * @param model the view model {@code bind:*} attributes refer to, or {@code null}
+     * @param model   the view model {@code bind:*} attributes refer to, or {@code null}
+     * @param hosting the host's Java components, the library components and framework values it offers
      */
-    public Loaded load(ResourceManager resources, String templatePath, TagRegistry tags, ViewModel model) {
+    public Loaded load(ResourceManager resources, String templatePath, TagRegistry tags, ViewModel model, UiHosting hosting) {
         UiDocument document = UiDocument.load(read(resources, templatePath), name(templatePath), id -> {
             int colon = id.indexOf(':');
             String ns = id.substring(0, colon);
             String path = id.substring(colon + 1);
             return ns.equals(hostModId) ? read(resources, path) : readPacked(resources, ResourceLocation.fromNamespaceAndPath(ns, path));
-        }, tags, translations(), new McTextMeasurer(Minecraft.getInstance().font), new McImageMeasurer(resources), model, TEXT);
+        }, tags, translations(), new McTextMeasurer(Minecraft.getInstance().font), new McImageMeasurer(resources), model, TEXT,
+                hosting);
         String host = name("");
         List<String> files = new ArrayList<>();
         for (String id : document.files()) {

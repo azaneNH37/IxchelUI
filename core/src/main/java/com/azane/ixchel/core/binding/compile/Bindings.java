@@ -4,6 +4,7 @@ import com.azane.ixchel.core.binding.Action;
 import com.azane.ixchel.core.binding.Cell;
 import com.azane.ixchel.core.binding.ModelAccess;
 import com.azane.ixchel.core.binding.ModelShape;
+import com.azane.ixchel.core.binding.TwoWay;
 import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.PropertyRegistry;
@@ -16,8 +17,12 @@ import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.template.ComponentDef;
 import com.azane.ixchel.core.template.TagRegistry;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * The directives, blocks and component instances of one document, resolved against its view model.
@@ -67,9 +72,11 @@ import java.util.Map;
  * }</pre>
  *
  * A page's names are its view model's non-private fields, local states and {@code <for>} rows; a
- * component's template sees only its parameters, events, local states and rows. A two-way binding
- * takes a bare path to something writable: a local state, a {@code Value} field, a row component of
- * type {@code Value<T>} or a parameter given a writable path; so does the left side of an assignment.
+ * component's template sees only its parameters, events, local states and rows, and those of a Java
+ * component also the members of its view model, which lives as long as the instance. A two-way
+ * binding takes a bare path to something writable: a local state, a {@code Value} field, a row
+ * component of type {@code Value<T>} or a parameter given a writable path; so does the left side of
+ * an assignment.
  * Block attributes are read outside the block's content. Every name, record component and type is
  * checked at load, per component instance, and problems point at their column in the value; problems
  * inside a component's template add {@code (in <name> at file:line:col)} for the instance.
@@ -99,15 +106,49 @@ public final class Bindings {
     /** {@code null} is empty, everything else {@link String#valueOf}; nothing is styled. */
     public static final TextConverter PLAIN_TEXT = v -> v == null ? "" : String.valueOf(v);
 
+    /**
+     * What a host adds to a document's template.
+     *
+     * @param models    the view model of each Java component, by component name
+     * @param framework the framework's {@code $} names, {@code $} included
+     */
+    public record Hosted(Map<String, Model> models, Map<String, Framework> framework) {
+        /**
+         * The Java half of a component.
+         *
+         * @param factory builds the model of an instance; not needed for a {@linkplain #lint lint}
+         */
+        public record Model(Class<? extends ViewModel> type, Supplier<? extends ViewModel> factory) {
+        }
+
+        /**
+         * A framework name.
+         *
+         * @param value read each pass; not needed for a {@linkplain #lint lint}
+         */
+        public record Framework(Type type, Supplier<?> value) {
+        }
+    }
+
+    /** A framework name's cell and where it is refreshed from. */
+    private record FrameworkCell(Cell<Object> cell, Supplier<?> value) {
+    }
+
     /** The model internals this package uses; taken once, when the first document compiles. */
     static final ModelAccess MODEL = ModelAccess.claim();
 
     private final ViewModel model;
     private final Part.Group root;
+    /** The live component models; see {@link Compiler#children}. */
+    private final List<ViewModel> children;
+    private final List<FrameworkCell> framework;
+    private boolean closed;
 
-    private Bindings(ViewModel model, Part.Group root) {
+    private Bindings(ViewModel model, Part.Group root, List<ViewModel> children, List<FrameworkCell> framework) {
         this.model = model;
         this.root = root;
+        this.children = children;
+        this.framework = framework;
     }
 
     /**
@@ -117,64 +158,92 @@ public final class Bindings {
      *
      * @param model      the view model, or {@code null}: the document then sees only its local states
      * @param components the components the document's tags name
+     * @param hosted     the Java half of those that have one, and the framework's names
      * @param text       converts bound values for {@code bind:text}, attribute bindings and string concatenation
      * @param properties the properties {@code bind:style:*} may set
      * @param topLayer   where {@code bind:open} opens and closes dialogs
      * @param presence   where blocks enter and exit their copies
      */
-    public static Bindings compile(Element root, ViewModel model, Map<String, ComponentDef> components,
+    public static Bindings compile(Element root, ViewModel model, Map<String, ComponentDef> components, Hosted hosted,
                                    TextConverter text, TagRegistry tags, PropertyRegistry properties,
                                    TopLayer topLayer, Presence presence, Diagnostics diag) {
         ViewModel m = model != null ? model : new ViewModel() {
         };
         String owner = model != null ? model.getClass().getSimpleName() : NO_MODEL;
         Map<String, Name> names = names(ModelShape.of(m.getClass()), m, false, root.pos(), diag);
-        Compiler c = new Compiler(root, m, names, owner, text, tags, properties, topLayer, components, presence, diag);
+        List<FrameworkCell> refreshed = new ArrayList<>();
+        Map<String, Ref> framework = framework(hosted, refreshed);
+        Compiler c = new Compiler(root, m, names, owner, text, tags, properties, topLayer, components, hosted.models(),
+                framework, false, presence, diag);
         Part.Group group = new Part.Group();
-        c.compileRoot(group);
-        Bindings b = new Bindings(m, group);
-        if (!diag.hasErrors()) {
-            // A model reused across reloads may have nothing new to poll; the new DOM still needs its values.
-            MODEL.poll(m);
-            group.update();
+        Bindings b = new Bindings(m, group, c.children, refreshed);
+        try {
+            c.compileRoot(group);
+            if (!diag.hasErrors()) {
+                // A model reused across reloads may have nothing new to poll; the new DOM still needs its values.
+                b.poll();
+                group.update();
+            }
+        } catch (RuntimeException ex) {
+            b.close();
+            throw ex;
         }
         return b;
     }
 
     /**
      * Lints every binding under {@code root} as {@link #compile} does, against a view model class
-     * instead of an instance: each member stands for a value of its declared type. Nothing is read
-     * and no value is written into the DOM, so problems that depend on values are not found.
+     * instead of an instance: each member stands for a value of its declared type, in a Java component
+     * too, whose model is not built. Nothing is read and no value is written into the DOM, so problems
+     * that depend on values are not found.
      *
      * @param shape the view model's shape, or {@code null} for a document without one
      */
-    public static void lint(Element root, ModelShape shape, Map<String, ComponentDef> components,
+    public static void lint(Element root, ModelShape shape, Map<String, ComponentDef> components, Hosted hosted,
                             TextConverter text, TagRegistry tags, PropertyRegistry properties,
                             TopLayer topLayer, Diagnostics diag) {
         ViewModel stub = new ViewModel() {
         };
         String owner = shape != null ? shape.type().getSimpleName() : NO_MODEL;
         Map<String, Name> names = shape != null ? names(shape, stub, true, root.pos(), diag) : Map.of();
-        new Compiler(root, stub, names, owner, text, tags, properties, topLayer, components, Presence.instant(), diag)
-                .compileRoot(new Part.Group());
+        new Compiler(root, stub, names, owner, text, tags, properties, topLayer, components, hosted.models(),
+                framework(hosted, new ArrayList<>()), true, Presence.instant(), diag).compileRoot(new Part.Group());
+    }
+
+    /** A held cell of each framework name; those with a value to follow go to {@code refreshed}. */
+    private static Map<String, Ref> framework(Hosted hosted, List<FrameworkCell> refreshed) {
+        Map<String, Ref> out = new HashMap<>();
+        hosted.framework().forEach((name, f) -> {
+            Cell<Object> cell = MODEL.held(null);
+            out.put(name, new Ref(cell, f.type()));
+            if (f.value() != null) {
+                refreshed.add(new FrameworkCell(cell, f.value()));
+            }
+        });
+        return out;
     }
 
     private static final String NO_MODEL = "the view model (this document has none)";
 
     /**
-     * The names of a page: {@code shape}'s members, holding {@code model}'s field values, or, as
-     * {@code placeholders}, stand-ins owned by {@code model} (a writable state for a {@code Value},
-     * an empty cell for another cell, an idle action). Names starting with {@code $} belong to the
-     * framework.
+     * The names of a page or a Java component: {@code shape}'s members, holding {@code model}'s field
+     * values, or, as {@code placeholders}, stand-ins owned by {@code model} (a writable state for a
+     * {@code Value} or {@code TwoWay}, an empty cell for another cell, an idle action). Names starting
+     * with {@code $} belong to the framework.
      */
     @SuppressWarnings("unchecked")
-    private static Map<String, Name> names(ModelShape shape, ViewModel model, boolean placeholders, SourcePos at,
-                                           Diagnostics diag) {
+    static Map<String, Name> names(ModelShape shape, ViewModel model, boolean placeholders, SourcePos at,
+                                   Diagnostics diag) {
         Map<String, Name> out = new HashMap<>();
         for (ModelShape.Member m : shape.members().values()) {
             if (m.name().startsWith("$")) {
                 diag.report(BindingCode.MODEL_RESERVED_NAME, at, "field '" + m.name() + "' of "
                         + m.owner().getSimpleName() + ": names starting with '$' belong to the framework");
+                continue;
+            }
+            if (m.kind() == ModelShape.Kind.EVENT) {
+                boolean unset = !placeholders && MODEL.read(model, m) == null;
+                out.put(m.name(), unset ? new Name.Unset(m.name()) : new Name.Event(m.name(), m.type()));
                 continue;
             }
             Object value;
@@ -196,7 +265,9 @@ public final class Bindings {
                                     + m.owner().getSimpleName() + " holds a Value but is declared read-only",
                             "declare it as Value<...> to bind it two-way");
                 }
-                name = new Ref((Cell<?>) value, m.type(), m.writable() ? Ref.Write.VALUE : Ref.Write.NONE);
+                Ref.Write write = !m.writable() ? Ref.Write.NONE
+                        : value instanceof TwoWay<?> ? Ref.Write.PORT : Ref.Write.VALUE;
+                name = new Ref((Cell<?>) value, m.type(), write);
             }
             out.put(m.name(), name);
         }
@@ -204,11 +275,36 @@ public final class Bindings {
     }
 
     /**
-     * Runs posted work, polls the model's sources and writes changed values into the DOM, mounting
+     * Runs posted work, polls the models' sources and writes changed values into the DOM, mounting
      * and unmounting block contents. Returns whether the DOM changed; when no source or state changed,
      * no cell is read. Unmounted and exiting contents are not read.
      */
     public boolean update() {
-        return MODEL.poll(model) && root.update();
+        return !closed && poll() && root.update();
+    }
+
+    /** One pass's polling: the framework's names, the page's model, then every component's; whether anything changed. */
+    private boolean poll() {
+        for (int i = 0, n = framework.size(); i < n; i++) {
+            FrameworkCell f = framework.get(i);
+            MODEL.replace(f.cell(), f.value().get());
+        }
+        MODEL.nextPass();
+        boolean changed = MODEL.poll(model);
+        for (int i = 0, n = children.size(); i < n; i++) {
+            changed |= MODEL.poll(children.get(i));
+        }
+        return changed;
+    }
+
+    /**
+     * Closes the component models of every instance, mounted or exiting; the page's model stays the
+     * host's. Later updates do nothing. Idempotent.
+     */
+    public void close() {
+        if (!closed) {
+            closed = true;
+            root.close();
+        }
     }
 }

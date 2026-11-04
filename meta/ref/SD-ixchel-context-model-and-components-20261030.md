@@ -138,11 +138,41 @@ QML 的演进可作旁证：Qt 6 文档承认组件引用外层 id 时 "the engi
 - 模板组件实例只含绑定、DOM 监听器与局部状态，与 `<for>` 行相同（绑定文档 §5：行与 `if` 块没有子 `Scope`）；动作与订阅仍归 ViewModel。因此**模板组件不需要子 `Scope`**。
 - 实例随 `<if>`/`<for>` 挂载创建、卸载丢弃；`<for>` 中按 `key` 保持身份。局部状态与参数默认值在实例化时求值一次；以参数为初值的局部状态（`state:draft="text"`）是快照，参数之后的变化不同步，需要重置时由使用方换 `key`。
 - 引用不悬空：能传给组件的可写路径必须词法可见，词法可见意味着外壳元素在声明该状态的元素子树内（不变式 4），状态卸载时组件一同卸载。对比 C++ 按引用捕获的 lambda 可被带出作用域。
-- 带 Java 逻辑的组件（后续，语言文档 §3.4）每实例一个子 ViewModel 与其 `Scope`；须与模板组件使用处同构：子 ViewModel 以同名字段接收参数，使用方无法区分实现方式（与 #015 "按领域而非实现划分前缀" 一致）。
+- Java 组件（L4，#035）每实例一个子 ViewModel 与其 `Scope`，使用处与模板组件同构，见 §3.7。
 
 #### 3.6 样式
 
 按 #015 不做样式隔离，层叠见语言文档 §4。上下文模型只管名字与数据；页面状态影响组件外观的通道是 CSS 上下文：外壳元素上的 class、`bind:style:*`、继承属性，以及 `var()`（L3 已实现：如 `bind:style:--d` 在外壳元素上，组件 CSS 用 `var(--d)` 计算；绑定值为 String 时按 CSS 文本解析，Number 为纯数字）。
+
+#### 3.7 Java 组件（L4，#035）
+
+模板组件是展示件：输入是值与可写路径，输出是事件。组件需要以下任一项时才写子 ViewModel：读使用方没传入的外部数据（方块实体、Menu、玩家、KeyMapping）、UI 以外的副作用（发包、写配置）、表达式算不出的计算（过滤、排序、查表、格式化、拼 `Component`）、持有要释放的资源。局部 UI 状态、共享值、事件、条件循环算术、插槽都不构成理由。判据 3 随表达式语言能力移动。库的 `ix-*` 不带 ViewModel（库不碰领域数据，#004），`mc-*` 可以。
+
+```html
+<template name="tech-energy" params="pos unit='FE'" events="picked">…</template>
+```
+
+```java
+@UiTemplate("techmod:ui/common/energy.html")
+final class EnergyView extends ViewModel {
+    final Param<BlockPos> pos = param();                  // 只读参数
+    final Param<String> unit = param();                   // 未传入时取模板默认值
+    final TwoWay<Boolean> open = twoWay();                // 双向：写回使用方路径；未传入时为本实例局部状态
+    final Event<Integer> picked = event();                // emit；Event<Void> 无载荷
+    final Cell<MachineState> machine = source(MACHINE, pos);   // 非端口成员，只有组件体可见
+}
+// 宿主：UiComponents.register(modid, EnergyView.class, EnergyView::new);
+```
+
+- 关联与登记：组件文件被某个类的 `@UiTemplate` 指向、且该类已按 modid 登记无参工厂，即为 Java 组件；按模板 namespace 合并，同 #030。库组件（如 `mc-player-inventory`）由库自己登记、免链接。kit 不看登记，`@UiTemplate` 指向组件文件的类即按 Java 组件检查。
+- 签名：仍写在 `<template params events>`（默认值仍是模板表达式，可引用前面的参数与框架值），类中端口字段按名双向一一对应，不符报 `component/signature-mismatch`。端口字段的声明类型必须是 `Param`/`TwoWay`/`Event` 且带泛型实参：`Cell` 已被 `source` 字段使用，kit 只读声明。使用处按声明类型 `T` 检查；`TwoWay` 收到不可写表达式在使用处报错（模板组件由组件体内的赋值推出，Java 中的 `set` 推不出，故需声明）。
+- 成员表：`ModelShape.Kind` 为 `CELL`、`ACTION`、`EVENT`，按组件体内用法分（`Param`、`TwoWay` 在体内就是只读或可写的值）；`Member.port` 标出对外签名，只有签名核对与使用处检查看它。页面 ViewModel 没有端口成员。
+- 实例化：工厂构造 → 按字段名接线（未传入的接默认值单元格）→ 查未接线的端口对象（`param()` 的结果没存进可见字段）→ 以子模型成员表编译组件体，体内 `state:` 归子模型 → 登记到 `Bindings` 每帧在页面之后 poll。构造器里 `Param.get()` 抛异常；在 `derive` 与 supplier 中读没有时序问题；按参数打开资源用 `source(feed, keyCell)`（绑定文档 §10）。
+- 生命周期：随外壳元素挂载；`:-ix-exiting` 期间保留、绑定停止，真正移除或文档关闭时 `close()`；热重载重建（同局部状态）。子模型只经 `Event` 与使用方通信，拿不到使用方 ViewModel。
+- 框架值：`$menu`（`AbstractContainerMenu`，仅容器界面）、`$player`，由 mc 层按显示宿主传入编译；只能作参数默认值（`params="menu=$menu"`），组件体不隐式读取。
+- 端口限制：字面量属性一律是 `String`（`max="100"` 不能给 `Param<Integer>`，写 `bind:max="100"`）；数值按拓宽规则赋值（`Integer` → `Long`/`Float`/`Double`，`Double` → `Float`，对页面绑定与模板组件同样生效）；动作不能作参数传入，向外调用一律用事件；传入可变对象时只感知换了对象，对象内部变化要靠值语义的轮询。
+- 对子模型的要求：无参构造；数据以轮询为主入口，组件要用的状态在客户端须有按参数可寻址的落点（Menu、客户端方块实体、缓存），网络方案不限；直接推进打开的 Screen 的同步方式要先改为写入这些落点；轮询值须值语义或自带快照比较；数据须能缺席（区块卸载、Menu 更换时返回缺席值）。
+- 分层用法（科技 mod）：页面 → 宿主 Java 组件（按 `pos` 读一种能力、发对应意图）→ 库展示组件（`ix-bar`、`ix-cycle`）。方块实体或菜单实现共同能力接口，组件写一次用于所有机器。多组件读同一数据：默认由上层一个 ViewModel 取数往下传值；需要组件单独按 `pos` 使用时用 `Feed` 共享。
 
 ### 4. 待定与暂不做
 
@@ -154,7 +184,9 @@ QML 的演进可作旁证：Qt 6 文档承认组件引用外层 id 时 "the engi
 | 可写参数被组件写入时自动派发 `on:<名>change`（QML 每属性自动生成 `<名>Changed`） | 可选，首版不做 |
 | 行内嵌动作（`entry.reset`） | 不做：`derive` 重建行时动作状态丢失，且破坏 record 相等截断 |
 | `null` 显式化（`?.`/`??`） | 另议；有默认值的参数已避免"未传入即 `null`" |
-| 可选的结构声明 | 待第一次真实需要 |
+| 可选的结构声明 | 待第一次真实需要（Java 组件的参数类型来自 Java 声明，不属于此项） |
+| Java 组件的 `disabled` 约定（统一参数，或外壳元素上的普通 `disabled`） | 待定，触发条件为第一个需要页面禁用的 Java 组件 |
+| 组件与元素的端口差异（组件事件不接受过滤器、内容进插槽、主题挂点为内部类名） | 待定：统一端口或放弃"实现可互换"；`ix-bar` 与 `<progress>` 的取舍依赖它（U4 §5-2） |
 | 组件签名推导（对每个参数用到的路径、运算与写入，行多态式），用于错误信息、文档与资源包覆盖前后的签名差异 | 暂不做，触发条件为 Doc 阶段生成组件参考或资源包覆盖工具 |
 | 按（组件，参数类型）缓存编译结果 | 暂不做：现有编译与实例化一体，每个块实例都重新解析名字，没有可缓存的编译结果；触发条件为 `FrameTimer` 显示实例化超预算 |
 | 组件给自己的外壳元素加指令（`:host` 等价物） | 暂不做，触发条件为第一处组件需要按参数改变外壳元素的 class 或布局；候选：`<template>` 上的指令作用于外壳元素，在组件环境求值，与使用方写同一目标时报错 |

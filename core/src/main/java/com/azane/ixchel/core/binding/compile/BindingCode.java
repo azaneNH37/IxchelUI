@@ -61,7 +61,7 @@ public enum BindingCode implements DiagCode {
     ARGUMENT_TYPE("binding/argument-type", Severity.ERROR,
             "An action's argument has a type the action does not take."),
     EVENT_PAYLOAD("binding/event-payload", Severity.ERROR,
-            "A component raises one of its events with different payload types in different places."),
+            "A component raises one of its events with different payload types in different places, or with one its Event field does not declare."),
     NOT_ASSIGNABLE("binding/not-assignable", Severity.ERROR,
             "An assignment's target is not writable."),
     ASSIGNMENT_TYPE("binding/assignment-type", Severity.ERROR,
@@ -74,8 +74,16 @@ public enum BindingCode implements DiagCode {
             "Content of a component instance goes to a slot the component does not have."),
     MISSING_PARAMETER("binding/missing-parameter", Severity.ERROR,
             "A component instance omits a parameter that has no default."),
+    SIGNATURE_MISMATCH("component/signature-mismatch", Severity.ERROR,
+            "The parameters and events of a Java component's <template> are not exactly the ports of its view model."),
+    PARAM_TYPE("component/param-type", Severity.ERROR,
+            "A value given to a Java component's port does not fit the port's declared type."),
+    READ_ONLY_TWO_WAY("component/read-only-two-way", Severity.ERROR,
+            "A Java component's TwoWay port is given something that is not a writable path."),
+    UNBOUND_PORT("component/unbound-port", Severity.ERROR,
+            "A Java component's model made a port that no visible port field holds."),
     RUNTIME_EXCEPTION("binding/runtime-exception", Severity.ERROR,
-            "Evaluating a bound expression or running a handler threw an exception.");
+            "Evaluating a bound expression, running a handler, or building or closing a component's model threw an exception.");
 
     private final String id;
     private final Severity severity;

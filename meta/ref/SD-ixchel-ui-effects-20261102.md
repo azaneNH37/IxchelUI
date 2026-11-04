@@ -2,7 +2,7 @@
 tags: [survey, design]
 date: 2026-11-02
 origin: 想把流光、镭射、溶解、电子屏/黑白/胶片等常见 UI 特效纳入独立 UI 引擎，需要确认 MC 下的可行性、与光影的兼容性，以及特效的定义与使用形态
-related: [DECISIONS.md#001, DECISIONS.md#002, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#018, DECISIONS.md#023, DECISIONS.md#028, ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md, ref/D-ixchel-roadmap-20261029.md, ref/SD-ixchel-sample-scenarios-20261028.md]
+related: [DECISIONS.md#001, DECISIONS.md#002, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#023, DECISIONS.md#028, DECISIONS.md#034, ref/SD-ixchel-ui-positioning-and-adapter-design-20261025.md, ref/D-ixchel-roadmap-20261029.md, ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-themes-20261104.md]
 ---
 
 # Ixchel UI 特效
@@ -173,7 +173,7 @@ vec4 effect(IxLayer l) {
 ```
 
 - `<link rel="effect">` 与 `<link rel="component">` 同规则：写在第一个元素之前，作用域为当前文档，没有全局注册表（#015）。
-- 参数是自定义属性 `--<特效名>-<参数名>`，前缀避免同一元素上两个特效的参数撞名。参数因此走层叠、`var()`（主题变量 #018）、伪类，以及 Java 侧的 `bind:style:--x`；`param` 即一次按文档的 `@property` 注册，可以 `transition`。未设置的参数取 `initial-value`；`inherits: false` 的参数不从父元素继承。
+- 参数是自定义属性 `--<特效名>-<参数名>`，前缀避免同一元素上两个特效的参数撞名。参数因此走层叠、`var()`（主题变量 #034）、伪类，以及 Java 侧的 `bind:style:--x`；`param` 即一次按文档的 `@property` 注册，可以 `transition`。未设置的参数取 `initial-value`；`inherits: false` 的参数不从父元素继承。
 - `box` 类出现在 `background-image` 的图层列表中，可与图片、其它 `paint()` 叠用，铺满背景区、按圆角裁剪；`layer` 类出现在 `filter` 链中，与标准 filter 函数按书写顺序串联；`backdrop` 类出现在 `backdrop-filter` 中。
 - 开发期检查（#003、#023，码前缀 `effect/`）：未引入的特效名、`kind` 与所在属性不符、未声明的参数、参数值不合类型。CSS 一侧由 `ixchelLint` 报出（行内 `style` 不查），另逐个检查项目内 `.ixeffect` 的头部，未被引入的也查；GLSL 只能在游戏内编译，编译错误在加载期报出，行号映射回 `.ixeffect` 文件。改动 `.ixeffect` 后资源重载即生效。
 

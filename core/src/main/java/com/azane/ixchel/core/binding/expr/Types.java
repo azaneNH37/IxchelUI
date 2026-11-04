@@ -86,14 +86,25 @@ public final class Types {
         }
     }
 
-    /** Whether a value of type {@code from} can be stored as {@code to}, widening numbers as Java does. */
+    /**
+     * Whether a value of type {@code from} can be stored as {@code to}, widening numbers as Java does
+     * and, as bound values often come from a {@code Double} literal, taking a {@code Double} as a
+     * {@code Float}.
+     */
     public static boolean assignable(Type from, Type to) {
         if (boxed(to).isAssignableFrom(boxed(from))) {
             return true;
         }
         Num f = Num.of(from);
         Num t = Num.of(to);
-        return f != null && t != null && f.compareTo(t) < 0;
+        return f != null && t != null && (f.compareTo(t) < 0 || f == Num.DOUBLE && t == Num.FLOAT);
+    }
+
+    /** Whether {@link #convert} changes the class of a {@code from} value stored as {@code to}. */
+    public static boolean converts(Type from, Type to) {
+        Num f = Num.of(from);
+        Num t = Num.of(to);
+        return f != null && t != null && f != t;
     }
 
     /** {@code value} as {@code to}, after {@link #assignable} said yes. */

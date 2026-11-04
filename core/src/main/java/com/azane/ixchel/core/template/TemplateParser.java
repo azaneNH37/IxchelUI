@@ -51,10 +51,22 @@ public final class TemplateParser {
     /** The attributes {@code t:<attribute>} translates, besides a component's parameters. */
     private static final Set<String> TRANSLATABLE = Set.of("title", "placeholder");
 
-    /** Loads the component of a {@code <link rel="component">}. */
+    /** What kind of file a source is. */
+    enum FileKind {
+        PAGE,
+        /** {@code <link>}s and one {@code <template>}. */
+        COMPONENT,
+        /** A component file of the library, which may declare names of the reserved prefixes. */
+        LIBRARY_COMPONENT
+    }
+
+    /** Loads the components a file names. */
     interface Linker {
-        /** The component of the file {@code href} names, or {@code null} once the failure is reported. */
+        /** The component of the file a {@code <link rel="component">} names, or {@code null} once the failure is reported. */
         ComponentDef link(String href, SourcePos at);
+
+        /** The library component {@code tag} names, or {@code null} if there is none or after reporting why it failed to load. */
+        ComponentDef library(String tag, SourcePos at);
     }
 
     private final String src;
@@ -95,15 +107,15 @@ public final class TemplateParser {
 
     /** Parses a page that links no components and translates nothing. */
     public static Template parse(String source, String file, TagRegistry tags, Diagnostics diag) {
-        return parse(source, file, tags, null, Translations.NONE, false, diag);
+        return parse(source, file, tags, null, Translations.NONE, FileKind.PAGE, diag);
     }
 
     /**
-     * @param linker        loads linked components; {@code null} when the source may not link any
-     * @param componentFile the source is a component file: {@code <link>}s and one {@code <template>}
+     * @param linker loads linked and library components; {@code null} when the source may not use any
      */
     static Template parse(String source, String file, TagRegistry tags, Linker linker, Translations translations,
-                          boolean componentFile, Diagnostics diag) {
+                          FileKind kind, Diagnostics diag) {
+        boolean componentFile = kind != FileKind.PAGE;
         TemplateParser p = new TemplateParser(source, file, tags, linker, translations, diag);
         List<Node> roots = new ArrayList<>();
         while (true) {
@@ -132,7 +144,7 @@ public final class TemplateParser {
             diag.report(TemplateCode.MISSING_COMPONENT_TEMPLATE, new SourcePos(file, 1, 1), "a component file needs a <template name=\"…\">");
             return new Template(List.of(), p.styles, p.effects, null);
         }
-        return new Template(List.of(), p.styles, p.effects, p.define(template));
+        return new Template(List.of(), p.styles, p.effects, p.define(template, kind == FileKind.LIBRARY_COMPONENT));
     }
 
     /** Parses nodes into {@code out} until EOF or a closing tag, which is left unconsumed. */
@@ -192,6 +204,12 @@ public final class TemplateParser {
         i++;
         String tag = readName(false);
         ComponentDef component = components.get(tag);
+        if (component == null && linker != null && !tags.isKnownTag(tag)) {
+            component = linker.library(tag, openPos);
+            if (component != null) {
+                components.put(tag, component);
+            }
+        }
         boolean block = tag.equals("for") || tag.equals("if");
         boolean reserved = block || tag.equals("slot") || tag.equals("template");
         boolean isStyle = tag.equals("style");
@@ -558,8 +576,8 @@ public final class TemplateParser {
         return s.codePoints().anyMatch(Character::isLetter);
     }
 
-    /** Checks a component file's {@code <template>} and describes its component. */
-    private ComponentDef define(Element template) {
+    /** Checks a component file's {@code <template>} and describes its component; only the {@code library} may use the reserved prefixes. */
+    private ComponentDef define(Element template, boolean library) {
         String name = "";
         Directive params = null;
         Directive events = null;
@@ -572,9 +590,10 @@ public final class TemplateParser {
                 }
             }
         }
-        if (!name.contains("-") || name.startsWith("ix-") || name.startsWith("mc-") || !isTagName(name)) {
+        boolean reserved = !library && (name.startsWith("ix-") || name.startsWith("mc-"));
+        if (!name.contains("-") || reserved || !isTagName(name)) {
             diag.report(TemplateCode.INVALID_COMPONENT_NAME, template.pos(), "component name '" + name
-                    + "' must be a tag name with a '-' that does not start with 'ix-' or 'mc-'");
+                    + "' must be a tag name with a '-'" + (library ? "" : " that does not start with 'ix-' or 'mc-'"));
         } else if (tags.isKnownTag(name)) {
             diag.report(TemplateCode.INVALID_COMPONENT_NAME, template.pos(), "component name '" + name + "' is a registered tag");
         }

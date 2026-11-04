@@ -90,9 +90,8 @@ button {
   overflow: auto;
 }
 
-.grid {
-  flex-direction: row;
-  flex-wrap: wrap;
-  width: 162px;
+/* No gap above the hotbar: four even rows to scroll through. */
+.inventory mc-player-inventory > .hotbar {
+  margin-top: 0px;
 }
 

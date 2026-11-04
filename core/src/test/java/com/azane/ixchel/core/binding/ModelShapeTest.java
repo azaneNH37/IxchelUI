@@ -57,4 +57,26 @@ class ModelShapeTest {
         assertEquals(ModelShape.Kind.ACTION, track.kind());
         assertEquals(Quest.class, track.type());
     }
+
+    static final class Component extends ViewModel {
+        final Param<Integer> pos = param();
+        final TwoWay<Boolean> open = twoWay();
+        final Event<Quest> picked = event();
+        final Event<Void> done = event();
+        final Cell<String> machine = state("m");
+        @SuppressWarnings("rawtypes")
+        final Param raw = param();
+        private final Param<String> hidden = param();
+    }
+
+    @Test
+    void portsAreMembersByKindOfUseMarkedByTheirDeclaredType() {
+        Map<String, ModelShape.Member> members = ModelShape.of(Component.class).members();
+        assertEquals(new ModelShape.Member("pos", ModelShape.Kind.CELL, Integer.class, false, true, Component.class), members.get("pos"));
+        assertEquals(new ModelShape.Member("open", ModelShape.Kind.CELL, Boolean.class, true, true, Component.class), members.get("open"));
+        assertEquals(new ModelShape.Member("picked", ModelShape.Kind.EVENT, Quest.class, false, true, Component.class), members.get("picked"));
+        assertEquals(Void.class, members.get("done").type());
+        assertFalse(members.get("machine").port());
+        assertEquals(Set.of("pos", "open", "picked", "done", "machine"), members.keySet(), "a raw or private port is not a member");
+    }
 }

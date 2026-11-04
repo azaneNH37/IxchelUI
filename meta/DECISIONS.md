@@ -107,12 +107,6 @@
 - **decision**: 模型内部经 `binding.ModelAccess` 交给 `binding.compile`：实例由 `ModelAccess.claim()` 只发一次（`Bindings` 加载时领取），实现类 `Bridge` 与它触及的成员保持包内可见，依赖方向为 compile → binding；以后别的包需要模型内部时同样扩充这个接口，不公开成员
 - **rejected**: 公开成员并标 `@ApiStatus.Internal`、以 ArchUnit 限制调用方——宿主仍可绕过脏标记、改写 `Action` 的 pending；由 binding 调用 compile 的 `install`——两包循环依赖，违反 #006；保持单包——模型 API、表达式语言、模板绑定三份契约混在 25 个类中
 
-## #018 库内主题 = 共用规则 + 配色变量
-- **decided**: 2026-10-30
-- **context**: sample 的两族外观（原版灰、暗色浮层）结构相同、配色不同；库内样式表不开放 `@import`（语言文档 §4.4），两份主题若各写一套完整规则会逐字重复
-- **decision**: 主题由共用规则 `themes/theme.css`（值全部为 `var(--ix-*)`）加只在 `:root` 上设 `--ix-*` 的配色表组成，`LibrarySheets` 按名字展开为这两份，共用规则只进一次；`--ix-*` 是对页面与组件公开的接口；`:root` 匹配模板的顶层元素；替换后无效的普通属性按 unset 处理并报告一次，无效的自定义属性视为未定义
-- **rejected**: 每份主题各写完整规则——结构逐字重复；开放 `@import` 组合——与 §4.4 的暂缓冲突；`:root` 选中隐式根节点——给它加底色、边框会影响布局与绘制
-
 ## #019 富文本：`Component` 拆为样式片段，进入 core 行内排版
 - **decided**: 2026-10-31
 - **context**: S8 正文要跨 `span` 续排并保留 `Component` 的颜色与格式；原定方向是把 `Component` 作为不透明宿主文本对象，由 mc 层 `StringSplitter` 测量与换行
@@ -170,7 +164,7 @@
 ## #028 UI 特效 = 资源文件定义的具名效果，经 CSS 引用
 - **decided**: 2026-11-02
 - **context**: 流光、溶解、CRT 等效果没有 Web 标准写法，库以 shade 分发、不带固定 namespace 的 assets、不用 mixin，而 MC 的 shader 程序按名字全局缓存
-- **decision**: 特效为 `.ixeffect` 文件（`kind box|layer|backdrop` + `param 名 { syntax; inherits; initial-value }`（照搬 `@property`，`inherits` 必填）+ GLSL `effect()`，用库内原语库组合），由 `<link rel="effect">` 按资源路径引入；`box` 写 `background-image: paint(名)`，`layer` 写 `filter: -ix-paint(名)`，`backdrop` 写在 `backdrop-filter` 中；参数为自定义属性 `--名-参数`，按声明类型校验、可过渡；程序名为 `<宿主modid>_ixchel_fx<n>`（每次构造取新名，避开全局表复用旧编译结果），文档加载时按特效 id 编译、文本不变则复用，新程序编译成功后才关闭旧实例（库自带 shader 见 #033）；内置特效同格式，从 `@ixchel/effects/…` 引入。标准 CSS 能表达的效果走标准属性。细节见 `ref/SD-ixchel-ui-effects-20261102.md`
+- **decision**: 特效为 `.ixeffect` 文件（`kind box|layer|backdrop` + `param 名 { syntax; inherits; initial-value }`（照搬 `@property`，`inherits` 必填）+ GLSL `effect()`，用库内原语库组合），由 `<link rel="effect">` 按资源路径引入；`box` 写 `background-image: paint(名)`，`layer` 写 `filter: -ix-paint(名)`，`backdrop` 写在 `backdrop-filter` 中；参数为自定义属性 `--名-参数`，按声明类型校验、可过渡；程序名为 `<宿主modid>_ixchel_fx<n>`（每次构造取新名，避开全局表复用旧编译结果），文档加载时按特效 id 编译、文本不变则复用，新程序编译成功后才关闭旧实例（库自带 shader 见 #033）；内置特效同格式，现从 `@ixchel/effects/…` 引入，TH1 起改为免链接（#034）。标准 CSS 能表达的效果走标准属性。细节见 `ref/SD-ixchel-ui-effects-20261102.md`
 - **rejected**: 位置参数 `paint(名, 参数…)`——不能单独覆盖或过渡；包裹元素 `<ix-effect>`——特效属于样式，包裹会改结构且不能与标准 filter 串链；运行时节点图或万能 shader——调试与缓存成本高、无需求；全局特效注册表——多宿主下撞名（同 #015）；`PostChain`——只读固定资源路径
 
 ## #029 圆角、阴影、渐变走路径 C，圆角只做外观
@@ -202,3 +196,21 @@
 - **context**: FX1 原定固定 shader 经加载器 `RegisterShadersEvent` 注册、随资源重载重建；FX2 的滤镜、合成与背景 shader 不是资源包内容
 - **decision**: mc 层首次使用时用 classpath `ResourceProvider` 构造 `ShaderInstance`，程序名 `<modid>_ixchel_<名>`，加载器层不参与。`GameRenderer.reloadShaders` 只关闭它自己 `shaders` 表里的实例，不碰这些程序，F3+T 后照常工作（effects playtest 重载复查）。shader JSON 不写 blend 节点，绘制顺序为 `FilterShaders.apply` → 设混合状态 → 建网格 → `FilterShaders.draw`：`apply()` 会按默认不透明 `BlendMode` 关掉 blending
 - **rejected**: `RegisterShadersEvent` 注册——每次资源重载重编译不变的库 shader，还要加载器胶水层转交实例；在 shader JSON 写 blend 节点——合成的混合方式随 `mix-blend-mode` 变化，一份 JSON 只能固定一种
+
+## #034 主题 = 页面显式选择的外观包
+- **decided**: 2026-11-04
+- **context**: 拟定四套内置主题时，原 #018（共用规则 + `:root` 配色）只能换颜色、带不了规则与特效，挂在通用类名 `.panel`、`.title` 上，且每页要链接主题与库资源；原版、全息、赛博需要各自的装饰、动画与特效
+- **decision**: 主题 = `--ix-*` 变量（按角色命名的公开接口）+ 给库词汇（标准元素、`ix-*` 组件、`.ix-*` 表面类）穿外观的规则 + 自带的 `@keyframes` 与内置特效，主题文件开头至多一个 `@import` 基底主题（`@import` 只在主题文件开放）。页面用至多一个 `<link rel="theme" href>` 显式选择，内置为 `@ixchel/themes/<名>`（classpath），项目主题按普通路径（资源包可覆盖）；推荐宿主写一份自己的主题供页面链接，资源包覆盖它即可换皮；mod 级默认主题留给以后的宿主配置文件，页面选择永远优先，没选则只有 UA 样式。组件不能链接主题，经变量跟随页面。主题不改盒子尺寸，框线用 inset `box-shadow` 与背景层画。内置特效与 `ix-*` 组件免链接，项目资源仍显式链接。内置主题之间仍共用一份基于变量的规则以免重复。`:root` 匹配模板顶层元素；替换后无效的普通属性按 unset 处理并报告一次，无效的自定义属性视为未定义（沿用原 #018）。细节见 `ref/SD-ixchel-themes-20261104.md`
+- **rejected**: 只用 mod 级默认主题——页面不能自我说明，lint 与编辑器要额外解析配置；每个主题只换配色——全息、赛博的装饰与动画无处安放；表面做成 `<ix-panel>` 元素——不能与作者类叠用，每种底板都要新元素；子树换主题——要求主题规则只经变量，与自带规则冲突
+
+## #035 组件可带每实例的子 ViewModel
+- **decided**: 2026-11-04
+- **context**: 带数据的复用件（玩家背包、按方块读能量与红石的面板控件）只能让每个页面 ViewModel 各自取数再传入，sample 已有三份背包下标列表；语言文档 §3.4 原草图要每个界面以 `Components.of` 登记工厂
+- **decision**: 组件分模板组件与 Java 组件，使用处同构。Java 组件 = 组件文件 + `@UiTemplate` 指向它的 ViewModel 类 + `UiComponents.register(modid, 类, 无参工厂)`；签名仍写在 `<template params events>`，类以 `Param<T>`（只读）、`TwoWay<T>`（双向，写回使用方路径，未传入时为本实例局部状态）、`Event<T>`（`emit`）字段按名一一对应，不符报 `component/signature-mismatch`；`ModelShape.Kind` 为 `CELL`/`ACTION`/`EVENT`（按组件体内用法），`Member.port` 标出对外签名；子模型随外壳元素挂载、真正移除（离场结束）时关闭，热重载重建；组件只经事件与使用方通信；框架值 `$menu`/`$player` 由 mc 层提供，只作参数默认值。写 ViewModel 的判据：要读未传入的外部数据、有 UI 外副作用、表达式算不出的计算或持有资源，否则写模板组件；库的 `ix-*` 不带 ViewModel。数值拓宽（`Integer` → `Long`/`Float`/`Double`，`Double` → `Float`）对所有绑定生效，字面量属性仍为 `String`。库组件文件可用 `ix-`/`mc-` 前缀、从 classpath 读取、免链接。细节见 `ref/SD-ixchel-context-model-and-components-20261030.md` §3.7
+- **rejected**: ViewModel 作参数（使用方须知实现方式，`<for>` 行与 Java 列表的身份须人工对齐）；每屏 `Components.of` 登记（每个用到的界面重复登记）；参数以 `Cell` 声明（与 `source` 字段不可区分，kit 无法静态读取）；签名只写在 Java 类（组件文件自身说明不了接口，默认值无处写表达式）；工厂带构造参数（依赖只应来自端口、框架值与客户端全局状态）
+
+## #036 来源可脱离 ViewModel 按 key 共享（Feed）
+- **decided**: 2026-11-04
+- **context**: 一个界面里多个组件按同一方块各自轮询，读取贵或 `<for>` 实例多时重复；Java 组件构造时还读不到参数，按参数打开的资源（watch、订阅）无处挂
+- **decision**: 来源拆为静态定义 `Feed<K,T>`（`polled` 只依赖 key；`opened` 第一个引用时打开资源、最后一个释放时关闭；默认每周期读一次，`perTick()` 按客户端 tick）与按 key 共享的实例；实例表挂在各 `Feed` 上，`Feed` 作为静态常量即每份库副本一张，引用经 `Scope` 计数。周期为一次 `Bindings.update()`（core 内计数，同一帧两个文档各算一次），tick 由 mc 层经 `Feed.tickClock` 提供（`Gui#getGuiTicks`，无世界时也计数）。ViewModel 以 `source(feed, key)`/`source(feed, keyCell)` 持引用，key 变化时释放旧实例、取得新实例。只读；不做共享可写状态与共享派生。细节见 `ref/SD-ixchel-viewmodel-and-binding-20261026.md` §10
+- **rejected**: 每文档一张表（页面 ViewModel 先于文档构造，构造时接不通）；共享可写状态（破坏 `Value` 只属于一个 ViewModel 的语义）；共享派生族（派生惰性且廉价，无观察到的需要）；由上层统一取数往下传值作为唯一方式（仍是默认做法，但组件不能单独按 `pos` 使用）
