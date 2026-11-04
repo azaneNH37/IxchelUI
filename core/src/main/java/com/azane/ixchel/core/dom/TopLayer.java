@@ -123,6 +123,11 @@ public final class TopLayer {
         return m;
     }
 
+    /** Whether {@code e} is drawn in the top layer: an entry or at the pointer, exiting or not. */
+    public boolean shows(Element e) {
+        return e == atPointer || units.containsKey(e);
+    }
+
     /** Whether {@code e} is an entry and not exiting. */
     public boolean isOpen(Element e) {
         return entries.contains(e) && !isExiting(e);

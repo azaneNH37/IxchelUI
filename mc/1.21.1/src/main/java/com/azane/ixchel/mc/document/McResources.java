@@ -62,7 +62,7 @@ final class McResources {
      * the language code with {@code -} for {@code _} ({@code zh-cn}).
      *
      * @param model   the view model {@code bind:*} attributes refer to, or {@code null}
-     * @param hosting the host's Java components, the library components and framework values it offers
+     * @param hosting the library and the host's Java components
      */
     public Loaded load(ResourceManager resources, String templatePath, TagRegistry tags, ViewModel model, UiHosting hosting) {
         UiDocument document = UiDocument.load(read(resources, templatePath), name(templatePath), id -> {

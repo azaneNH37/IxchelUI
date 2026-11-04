@@ -118,8 +118,8 @@ class UiDocumentEffectTest {
                 """, "t.html", files::get, HtmlElements.TAGS, Translations.NONE, null, Set.of()));
         assertEquals(List.of(
                 "template/link-after-element@t.html:7:1",
+                "load/file-not-found@t.html:5:1",
                 "effect/duplicate-effect@t.html:4:1",
-                "effect/unknown-library-effect@t.html:5:1",
                 "effect/unknown-effect@t.css:1:24",
                 "effect/wrong-kind@t.css:2:24",
                 "effect/wrong-kind@t.css:3:14",

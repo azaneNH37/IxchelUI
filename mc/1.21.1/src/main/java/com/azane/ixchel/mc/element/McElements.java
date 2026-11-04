@@ -12,8 +12,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * The native elements of the mc layer and of each host. Every one is a class with its
- * {@link NativeElement} declaration: the painter of a drawn element, the filler of a lines element.
- * The built-in and the host's own go the same way, and the kit reads the same declarations.
+ * {@link NativeElement} declaration, the painter of a drawn element. The built-in and the host's own
+ * go the same way, and the kit reads the same declarations.
  */
 public final class McElements {
     private static final List<NativePainter<?>> PAINTERS = List.of(new ItemElement());
@@ -22,11 +22,9 @@ public final class McElements {
      * The HTML vocabulary plus the mc layer's elements:
      * <ul>
      * <li>{@code <mc-item bind:item="...">}: {@link ItemElement}.</li>
-     * <li>{@code <mc-tooltip-lines bind:item="...">}: the lines of the item's vanilla tooltip as a
-     * column of text, filled by {@link TooltipLines}; in an {@code <ix-tooltip>}, only while it shows.</li>
      * </ul>
      */
-    public static final TagRegistry TAGS = declare(com.azane.ixchel.core.html.HtmlElements.TAGS.extend(), PAINTERS).add(com.azane.ixchel.core.html.NativeElements.declare(TooltipLines.class)).build();
+    public static final TagRegistry TAGS = declare(com.azane.ixchel.core.html.HtmlElements.TAGS.extend(), PAINTERS).build();
 
     /** Registered during mod setup, which runs on worker threads. */
     private static final Map<String, List<NativePainter<?>>> HOST_PAINTERS = new ConcurrentHashMap<>();

@@ -136,9 +136,9 @@ public record Schema(List<Tag> tags, List<LibrarySheet> librarySheets, List<Prop
             }
         }
         List<Component> components = new ArrayList<>();
-        Components scanned = Components.scan(project, registry);
-        for (Components.Library l : scanned.library()) {
-            components.add(component(l.def(), l.hosted().id()));
+        Components scanned = Components.scan(project, project.library(), registry);
+        for (Components.LibraryComponent l : scanned.library()) {
+            components.add(component(l.def(), l.id()));
         }
         for (ComponentDef def : scanned.defs()) {
             components.add(component(def, def.pos().file()));

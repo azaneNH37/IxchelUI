@@ -2,11 +2,14 @@ package com.azane.ixchel.kit.project;
 
 import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.effect.Effect;
+import com.azane.ixchel.core.library.Library;
 import com.azane.ixchel.core.template.NativeElement;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -33,6 +36,8 @@ public final class Project {
     private static final String MC_LAYER_CLASS = "com/azane/ixchel/mc/element/McElements.class";
     private static final String MC_LAYER_PACKAGES = "com/azane/ixchel/mc/";
     private static final String MC_LAYER_PACKAGE_NAME = "com.azane.ixchel.mc.";
+    /** The field naming a layer's library in its holder class. */
+    private static final String LIBRARY_FIELD = "LIBRARY";
 
     private final List<Path> resources;
     private final List<Path> classes;
@@ -174,7 +179,7 @@ public final class Project {
     /**
      * Every class under the classes directories carrying {@link UiTemplate}, loaded without
      * initialization through {@link #loader()}, in class name order. Classes of the mc layer's
-     * packages are the library's ({@link #libraryAnnotated()}), not the project's.
+     * packages are the library's ({@link #library()}), not the project's.
      *
      * @throws IllegalStateException if such a class cannot be loaded from the classpath
      */
@@ -202,18 +207,17 @@ public final class Project {
     }
 
     /**
-     * Every class of the mc layer on the classpath carrying {@link UiTemplate}: the library's
-     * components, whose ids start with {@code @ixchel/}. Loaded without initialization, in class
-     * name order.
+     * The library documents of the project get: the mc layer's {@code public static final Library
+     * LIBRARY} on the classpath, its holder initialized; {@link Library#CORE} without an mc layer.
      *
-     * @throws IllegalStateException if such a class cannot be loaded from the classpath
+     * @throws IllegalStateException if the holder cannot be loaded, or the mc layer has more than one
      */
-    public List<Annotated> libraryAnnotated() {
+    public Library library() {
         Set<String> names = new TreeSet<>();
         try {
             for (Path root : mcLayerRoots()) {
                 ClassFiles.scan(root, MC_LAYER_PACKAGES, (name, bytes) -> {
-                    if (ClassFiles.mentions(bytes, UiTemplate.class)) {
+                    if (ClassFiles.mentions(bytes, Library.class)) {
                         names.add(name);
                     }
                 });
@@ -221,15 +225,29 @@ public final class Project {
         } catch (IOException e) {
             throw new UncheckedIOException("cannot read classes: " + e.getMessage(), e);
         }
-        List<Annotated> out = new ArrayList<>();
+        Library found = null;
+        String holder = null;
         for (String name : names) {
-            Class<?> type = load(name);
-            UiTemplate t = type.getAnnotation(UiTemplate.class);
-            if (t != null) {
-                out.add(new Annotated(type, List.of(t.value())));
+            Field f;
+            try {
+                f = load(name).getDeclaredField(LIBRARY_FIELD);
+            } catch (NoSuchFieldException e) {
+                continue;
             }
+            if (f.getType() != Library.class || !Modifier.isStatic(f.getModifiers()) || !Modifier.isPublic(f.getModifiers())) {
+                continue;
+            }
+            if (holder != null) {
+                throw new IllegalStateException("the mc layer has two libraries: " + holder + " and " + name);
+            }
+            try {
+                found = (Library) f.get(null);
+            } catch (IllegalAccessException | LinkageError e) {
+                throw new IllegalStateException("cannot read " + name + "." + LIBRARY_FIELD + " (" + e + ")", e);
+            }
+            holder = name;
         }
-        return out;
+        return found != null ? found : Library.CORE;
     }
 
     /**

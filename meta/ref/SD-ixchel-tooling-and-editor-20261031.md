@@ -82,7 +82,7 @@ record 成员本来就按声明的组件类型解析（`Compiler.java:912-943`�
 
 - 自绘元素：实现类声明 `@NativeElement(tag = "mc-item", payload = "item")`，实现 `NativePainter<ItemStack>`；绘制与 tooltip 同属该类。
 - 原版槽位：`ContainerLayout` 声明 `@NativeElement(tag = "mc-slot", attributes = "index", containerOnly = true)`，不伪造绘制载荷。
-- 文本行：实现类声明 `lines = true` 并实现 `NativePayload<ItemStack>`，由宿主把行填进子树，core 按普通文本绘制。
+- 文本行：不是原生元素。`<mc-tooltip-lines>` 为 mc 层库 Java 组件（#038），kit 经库的预引入表认识它。
 
 载荷类型只写在泛型参数里；绑定接受 `T` 或 `Supplier<T>`。`containerOnly` 供 kit 限制适用界面；宿主注册仍按 modid 分开。声明格式不再要求作者维护资源文件，也不维护 kit 专用副本。内部布局与交互切面暂不向宿主开放。
 

@@ -1,13 +1,11 @@
 package com.azane.ixchel.core.layout;
 
-import com.azane.ixchel.core.css.property.CssImage;
 import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Length;
 import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.css.property.PropertyRegistry;
-import com.azane.ixchel.core.css.property.Transform;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
@@ -40,7 +38,6 @@ import dev.vfyjxf.taffy.util.MeasureFunc;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -237,8 +234,7 @@ public final class LayoutEngine {
     private final TaffyTree tree = new TaffyTree();
     private final TextShaper shaper;
     private final int[] layoutIds;
-    private final Diagnostics diag;
-    private final Set<String> reported = new HashSet<>();
+    private final Formatting formatting;
     private final Map<Node, Slot> slots = new IdentityHashMap<>();
     private final Map<TextNode, List<TextFragment>> fragments = new IdentityHashMap<>();
     private int generation;
@@ -251,11 +247,11 @@ public final class LayoutEngine {
     private final Map<Element, NodeId> layers = new IdentityHashMap<>();
     private final Map<Element, List<NodeId>> layerChildren = new IdentityHashMap<>();
 
-    /** {@code diag} takes the inline content errors. */
+    /** {@code diag} takes the inline content errors ({@link Formatting}). */
     public LayoutEngine(TextShaper shaper, PropertyRegistry registry, Diagnostics diag) {
         this.shaper = shaper;
         this.layoutIds = registry.layoutAffectingIds();
-        this.diag = diag;
+        this.formatting = new Formatting(diag);
         tree.enableRounding();
     }
 
@@ -500,7 +496,8 @@ public final class LayoutEngine {
                 }
             }
         }
-        if (!behavior.layoutChildren()) {
+        Formatting.Mode mode = Formatting.mode(e, isRoot);
+        if (mode == Formatting.Mode.LEAF) {
             if (e.hasTreeChange()) {
                 String key = behavior.measureKey(e);
                 if (!key.equals(slot.labels)) {
@@ -512,8 +509,8 @@ public final class LayoutEngine {
             clearTreeChanges(e);
             return slot.id;
         }
-        boolean flow = !isRoot && isBlockContainer(e) && hasBlockLevelChild(e);
-        boolean block = !isRoot && isBlockContainer(e) && !flow;
+        boolean flow = mode == Formatting.Mode.FLOW;
+        boolean block = mode == Formatting.Mode.PARAGRAPH;
         if (block != (slot.para != null)) {
             tree.setMeasureFunc(slot.id, block ? paragraphMeasure(slot) : null);
             if (block) {
@@ -591,11 +588,12 @@ public final class LayoutEngine {
             if (c == null) {
                 continue;
             }
-            if (c instanceof Element d && (d.rendersInTopLayer() || d.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE)) {
-                syncFlexItem(d, ids);
-                continue;
-            }
-            if (c instanceof Element d && isFlowChild(d)) {
+            if (Formatting.flowChild(c) == Formatting.FlowChild.BOX) {
+                Element d = (Element) c;
+                if (d.rendersInTopLayer() || d.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE) {
+                    syncFlexItem(d, ids);
+                    continue;
+                }
                 boolean outOfFlow = d.computed().get(CssProperties.POSITION) == Keywords.Position.ABSOLUTE;
                 if (!outOfFlow && run != null) {
                     anon = flushRun(e, slot, run, anon, ids, absolute);
@@ -652,36 +650,6 @@ public final class LayoutEngine {
         }
     }
 
-    /** A box a block container lays out as a child of its own rather than in a line: block-level or absolutely positioned. */
-    private static boolean isFlowChild(Element e) {
-        ComputedStyle cs = e.computed();
-        Keywords.Display d = cs.get(CssProperties.DISPLAY);
-        return d == Keywords.Display.BLOCK || d == Keywords.Display.FLEX || d == Keywords.Display.GRID
-                || d != Keywords.Display.NONE && cs.get(CssProperties.POSITION) == Keywords.Position.ABSOLUTE;
-    }
-
-    private static boolean hasBlockLevelChild(Element e) {
-        if (e.before() != null && isFlowChild(e.before()) || e.after() != null && isFlowChild(e.after())) {
-            return true;
-        }
-        for (Node c : e.children()) {
-            if (c instanceof Element d && !d.rendersInTopLayer() && isFlowChild(d)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean isReplaced(Element e) {
-        return e.type().facet(LayoutFacet.KEY).atomic();
-    }
-
-    /** An element whose content is a paragraph, where flex or grid layout or an inline formatting context lays out the element itself. */
-    private boolean isBlockContainer(Element e) {
-        Keywords.Display d = e.computed().get(CssProperties.DISPLAY);
-        return d != Keywords.Display.FLEX && d != Keywords.Display.GRID && d != Keywords.Display.NONE && !isReplaced(e);
-    }
-
     /** Clears the tree-change marks of a subtree layout skips, so later changes inside it are seen again. */
     private static void clearTreeChanges(Element e) {
         e.clearTreeChange();
@@ -733,32 +701,18 @@ public final class LayoutEngine {
     }
 
     private void collect(Para p, Element parent, Node c) {
-        if (c instanceof TextNode t) {
-            addText(p, t, parent.computed());
-            return;
+        switch (formatting.inlineChild(parent, c)) {
+            case TEXT -> addText(p, (TextNode) c, parent.computed());
+            case SKIPPED -> clearTreeChanges((Element) c);
+            case INLINE_BOX -> {
+                Element e = (Element) c;
+                int start = p.items.size();
+                collect(p, e);
+                p.inlines.add(new InlineRange(e, start, p.items.size()));
+                e.clearTreeChange();
+            }
+            case ATOM -> p.addBox(atom((Element) c), (Element) c);
         }
-        Element e = (Element) c;
-        ComputedStyle cs = e.computed();
-        Keywords.Display d = cs.get(CssProperties.DISPLAY);
-        if (e.rendersInTopLayer() || d == Keywords.Display.NONE) {
-            clearTreeChanges(e);
-            return;
-        }
-        if (d == Keywords.Display.INLINE && !isReplaced(e)) {
-            checkInlineBox(e, cs);
-            int start = p.items.size();
-            collect(p, e);
-            p.inlines.add(new InlineRange(e, start, p.items.size()));
-            e.clearTreeChange();
-            return;
-        }
-        if (d == Keywords.Display.FLEX || d == Keywords.Display.GRID || d == Keywords.Display.BLOCK) {
-            report(e, LayoutCode.BLOCK_IN_INLINE, "<" + e.tag() + "> has display: " + d.name().toLowerCase() + " inside <" + parent.tag() + ">, which is display: inline;"
-                    + " an inline element holds only text and inline content, so use display: inline-block");
-        } else if (cs.get(CssProperties.POSITION) == Keywords.Position.ABSOLUTE) {
-            report(e, LayoutCode.ABSOLUTE_IN_INLINE, "<" + e.tag() + "> is absolutely positioned inside <" + parent.tag() + ">, which is display: inline and cannot contain it");
-        }
-        p.addBox(atom(e), e);
     }
 
     private void addText(Para p, TextNode t, ComputedStyle cs) {
@@ -775,55 +729,6 @@ public final class LayoutEngine {
         for (int k = 0; k < spans.size(); k++) {
             StyledText.Span s = spans.get(k);
             p.addRun(s.text(), size, bold || (s.flags() & StyledText.BOLD) != 0, nowrap, lh, new Source(t, k));
-        }
-    }
-
-    /** An inline element's box is cut across lines, which CSS paints per fragment; not supported (see {@code inline-block}). */
-    private void checkInlineBox(Element e, ComputedStyle cs) {
-        String found = null;
-        if (cs.get(CssProperties.BACKGROUND_COLOR) >>> 24 != 0
-                || cs.get(CssProperties.BACKGROUND_IMAGE).stream().anyMatch(i -> i != CssImage.NONE)) {
-            found = "background";
-        } else if (!cs.get(CssProperties.BOX_SHADOW).isEmpty()) {
-            found = "box-shadow";
-        } else if (cs.get(CssProperties.BORDER_TOP_STYLE) != Keywords.BorderStyle.NONE
-                || cs.get(CssProperties.BORDER_RIGHT_STYLE) != Keywords.BorderStyle.NONE
-                || cs.get(CssProperties.BORDER_BOTTOM_STYLE) != Keywords.BorderStyle.NONE
-                || cs.get(CssProperties.BORDER_LEFT_STYLE) != Keywords.BorderStyle.NONE) {
-            found = "border";
-        } else if (nonZero(cs, CssProperties.PADDING_TOP, CssProperties.PADDING_RIGHT, CssProperties.PADDING_BOTTOM, CssProperties.PADDING_LEFT)) {
-            found = "padding";
-        } else if (nonZero(cs, CssProperties.MARGIN_TOP, CssProperties.MARGIN_RIGHT, CssProperties.MARGIN_BOTTOM, CssProperties.MARGIN_LEFT)) {
-            found = "margin";
-        } else if (cs.get(CssProperties.WIDTH).unit() != Length.Unit.AUTO || cs.get(CssProperties.HEIGHT).unit() != Length.Unit.AUTO
-                || cs.get(CssProperties.MIN_WIDTH).unit() != Length.Unit.AUTO || cs.get(CssProperties.MIN_HEIGHT).unit() != Length.Unit.AUTO
-                || cs.get(CssProperties.MAX_WIDTH).unit() != Length.Unit.AUTO || cs.get(CssProperties.MAX_HEIGHT).unit() != Length.Unit.AUTO) {
-            found = "a size";
-        } else if (cs.get(CssProperties.POSITION) != Keywords.Position.RELATIVE) {
-            found = "position";
-        } else if (cs.get(CssProperties.TRANSFORM) != Transform.NONE) {
-            found = "transform";
-        }
-        if (found != null) {
-            report(e, LayoutCode.INLINE_BOX_PROPERTY, "<" + e.tag() + "> is display: inline and has " + found
-                    + ", which inline elements do not support; use display: inline-block");
-        }
-    }
-
-    @SafeVarargs
-    private static boolean nonZero(ComputedStyle cs, PropertyDef<Length>... sides) {
-        for (PropertyDef<Length> side : sides) {
-            Length l = cs.get(side);
-            if (l.unit() != Length.Unit.PX || l.value() != 0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void report(Element e, LayoutCode code, String message) {
-        if (reported.add(e.pos() + ": " + message)) {
-            diag.report(code, e.pos(), message);
         }
     }
 
@@ -997,7 +902,7 @@ public final class LayoutEngine {
                 if (c == null || c instanceof Element skipped && (skipped.rendersInTopLayer() || !e.type().facet(LayoutFacet.KEY).layoutChildren())) {
                     continue; // top-layer content: placed by placeLayer, and no part of this scroll range
                 }
-                if (slot.anons != null && !(c instanceof Element ce && (isFlowChild(ce) || ce.computed().get(CssProperties.DISPLAY) == Keywords.Display.NONE))) {
+                if (slot.anons != null && Formatting.flowChild(c) != Formatting.FlowChild.BOX) {
                     continue; // in an anonymous block, placed with its lines
                 }
                 Slot cs = slots.get(c);

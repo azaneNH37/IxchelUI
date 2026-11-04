@@ -145,7 +145,7 @@ class UiDocumentBindingTest {
 
     @Test
     void aNativeElementPaintsItsBoundPayloadAndOnlyABindingCanSetIt() {
-        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", null, false)).build();
+        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", null)).build();
         Held m = new Held();
         UiDocument doc = UiDocument.load(GoldenTest.linked("<item class=\"i\" bind:item=\"stack\"></item>"), "t.html",
                 GoldenTest.sheet(".i { width: 16px; height: 16px }"), tags,
@@ -160,7 +160,7 @@ class UiDocumentBindingTest {
 
     @Test
     void aNativeElementsPayloadIsNotAnAttribute() {
-        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", null, false)).build();
+        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", null)).build();
         UiLoadException e = assertThrows(UiLoadException.class, () -> UiDocument.load(
                 "<item item=\"sword\"></item>", "t.html", GoldenTest.NO_SHEETS, tags, GoldenTest.MONO, GoldenTest.NO_IMAGES));
         assertEquals(List.of("template/unknown-attribute@t.html:1:7"), DiagCodes.of(e));
@@ -593,7 +593,7 @@ class UiDocumentBindingTest {
     }
 
     private static final TagRegistry STRING_ITEM = com.azane.ixchel.core.html.HtmlElements.TAGS.extend()
-            .add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", String.class, false)).build();
+            .add(com.azane.ixchel.core.html.NativeElements.type("item", Set.of(), "item", String.class)).build();
 
     private static UiDocument loadItem(TagRegistry tags, ViewModel model) {
         return UiDocument.load(GoldenTest.linked("<item bind:item=\"p\"></item>"), "t.html", GoldenTest.sheet(""), tags,

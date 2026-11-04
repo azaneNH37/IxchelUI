@@ -22,6 +22,8 @@ import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.Presence;
 import com.azane.ixchel.core.dom.TopLayer;
+import com.azane.ixchel.core.library.Library;
+import com.azane.ixchel.core.layout.Formatting;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.ImageMeasurer;
@@ -65,7 +67,7 @@ import java.util.function.LongSupplier;
  * typed properties of this document only: its styles, transitions, keyframes and bindings compile
  * against the registry they extend.
  *
- * <p>A {@link UiHosting} adds Java components, library components and framework values. Component
+ * <p>A {@link UiHosting} adds the library and the host's Java components. Component
  * instances own view models, which end with their instance or with {@link #close()}.
  */
 public final class UiDocument {
@@ -154,7 +156,7 @@ public final class UiDocument {
      * @param images       natural image sizes, for {@code background-size: auto}
      * @param model        the view model {@code bind:*} attributes refer to, or {@code null}
      * @param text         converts bound values to text (the mc layer keeps a component's styles)
-     * @param hosting      the Java components, library components and framework values it may use
+     * @param hosting      the library and the host's Java components it may use
      */
     public static UiDocument load(String template, String templateFile, Function<String, String> files,
                                   TagRegistry tags, Translations translations, TextMeasurer measurer, ImageMeasurer images,
@@ -193,8 +195,9 @@ public final class UiDocument {
     /**
      * Lints a template as {@link #load} would load it, without a view model instance and without
      * laying it out: the template, every linked file, every binding against {@code shape}'s declared
-     * types, and the cascade. Never throws for problems; they are all in the result. Problems that
-     * need values or a viewport are not found.
+     * types, the cascade, and the inline content rules layout checks ({@link Formatting}). Never
+     * throws for problems; they are all in the result. Problems that need values or a viewport are
+     * not found, nor those in block content or closed top layer elements, which only values show.
      *
      * @param shape   the view model class's shape, or {@code null} for a document without one
      * @param enabled the {@linkplain DiagCode#optIn() opt-in} checks to run
@@ -209,6 +212,7 @@ public final class UiDocument {
                 Bindings.PLAIN_TEXT, tags, p.effects.registry(), new TopLayer(Presence.instant()), diag);
         Animations animations = new Animations(p.root);
         p.style(tags, diag, animations, new Transitions(p.effects.registry(), p.root, animations)).restyle(p.root);
+        new Formatting(diag).check(p.root);
         return diag;
     }
 
@@ -230,7 +234,7 @@ public final class UiDocument {
 
     private static Parsed parse(String template, String templateFile, Function<String, String> files,
                                 TagRegistry tags, Translations translations, UiHosting hosting, Diagnostics diag) {
-        TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, hosting.libraryFiles(), tags,
+        TemplateLoader.Loaded loaded = TemplateLoader.load(template, templateFile, files, hosting.library(), tags,
                 translations, diag);
         Effects effects = Effects.load(loaded.effects(), CssProperties.REGISTRY, diag);
         List<StyleSheet> components = sheets(loaded.componentSheets(), effects, diag);
@@ -258,12 +262,12 @@ public final class UiDocument {
     }
 
     /** The library stylesheets' files in cascade order, each once; an unknown name is reported at its link. */
-    private static List<StyleSheet> library(List<TemplateLoader.Library> links, Diagnostics diag) {
+    private static List<StyleSheet> library(List<TemplateLoader.Theme> links, Diagnostics diag) {
         Set<String> files = new LinkedHashSet<>();
-        for (TemplateLoader.Library l : links) {
+        for (TemplateLoader.Theme l : links) {
             List<String> f = LibrarySheets.files(l.name());
             if (f == null) {
-                diag.report(TemplateCode.UNKNOWN_LIBRARY_SHEET, l.pos(), "no library stylesheet '" + TemplateLoader.LIBRARY + l.name() + "'; there are "
+                diag.report(TemplateCode.UNKNOWN_LIBRARY_SHEET, l.pos(), "no library stylesheet '" + Library.PREFIX + l.name() + "'; there are "
                         + String.join(", ", LibrarySheets.names()));
             } else {
                 files.addAll(f);

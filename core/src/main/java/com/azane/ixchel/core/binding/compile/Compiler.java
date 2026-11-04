@@ -102,12 +102,10 @@ final class Compiler {
     private final Map<String, ComponentDef> components;
     /** The Java half of the components that have one, by component name. */
     private final Map<String, Bindings.Hosted.Model> models;
-    /** The framework's {@code $} names, which only parameter defaults see. */
-    private final Map<String, Ref> framework;
     /** Where blocks enter and exit their copies. */
     final Presence presence;
-    /** The live component models, polled each pass after the page's; {@link ChildModel} keeps it. */
-    final List<ViewModel> children = new ArrayList<>();
+    /** The live component models, polled each pass after the page's; each {@link ChildModel} joins and leaves it. */
+    final List<ChildModel> children = new ArrayList<>();
     /** While above zero, components use {@link ModelShape}s instead of building models. */
     private int checking;
     private Env env;
@@ -120,7 +118,7 @@ final class Compiler {
     Compiler(Element documentRoot, ViewModel model, Map<String, Name> names, String owner,
              Bindings.TextConverter text, TagRegistry tags, PropertyRegistry properties, TopLayer topLayer,
              Map<String, ComponentDef> components, Map<String, Bindings.Hosted.Model> models,
-             Map<String, Ref> framework, boolean lint, Presence presence, Diagnostics diag) {
+             boolean lint, Presence presence, Diagnostics diag) {
         this.documentRoot = documentRoot;
         this.text = text;
         this.tags = tags;
@@ -128,7 +126,6 @@ final class Compiler {
         this.topLayer = topLayer;
         this.components = components;
         this.models = models;
-        this.framework = framework;
         this.checking = lint ? 1 : 0;
         this.presence = presence;
         this.env = new Env(names, diag, owner, false, null, model);
@@ -493,7 +490,8 @@ final class Compiler {
                     unresolved |= !pass(child, p.name(), given, argAt.get(p.name()), user.diag());
                 }
             } else if (p.fallback() != null) {
-                Ref init = fallback(p);
+                // A default sees the parameters before it.
+                Ref init = expression(p.fallback());
                 if (init == null) {
                     unresolved = true;
                 } else if (child == null) {
@@ -533,14 +531,17 @@ final class Compiler {
                 abandon(child, user);
                 return;
             }
-            if (child.real()) {
-                out.parts.add(new ChildModel(child.model(), children, shell.pos(), inside));
-            }
         }
         for (Node n : def.body()) {
             shell.appendChild(n.copyTemplate());
         }
-        items(shell, List.copyOf(shell.children()), true, Anchor.START, out, null);
+        if (child != null && child.real()) {
+            Part.Group body = new Part.Group();
+            items(shell, List.copyOf(shell.children()), true, Anchor.START, body, null);
+            out.parts.add(new ChildModel(child.model(), shell, topLayer, body, children, inside));
+        } else {
+            items(shell, List.copyOf(shell.children()), true, Anchor.START, out, null);
+        }
 
         env = user;
         listeners.forEach((event, a) -> listen(events.get(event), a));
@@ -613,19 +614,6 @@ final class Compiler {
             }
         }
         return ok;
-    }
-
-    /** A parameter's default expression: it sees the parameters before it and, alone among expressions, the framework's names. */
-    private Ref fallback(ComponentDef.Param p) {
-        Env saved = env;
-        Map<String, Name> visible = new HashMap<>(saved.names());
-        visible.putAll(framework);
-        env = new Env(visible, saved.diag(), saved.owner(), saved.component(), saved.slots(), saved.model());
-        try {
-            return expression(p.fallback());
-        } finally {
-            env = saved;
-        }
     }
 
     /** Passes what the user gave at {@code at} to the port {@code name}; {@code false} after reporting. */

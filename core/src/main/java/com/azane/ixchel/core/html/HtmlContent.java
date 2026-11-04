@@ -27,15 +27,6 @@ final class HtmlContent {
         }
     }
     static final ContentModel NATIVE = new Replaced();
-    static final ContentModel LINES = new Replaced() {
-        @Override public boolean children(Element e, List<Node> children, Diagnostics d) {
-            for (Node n : children) if (!blank(n)) {
-                d.report(TemplateCode.INVALID_CHILDREN, e.pos(), e.type() + " must not have children: its lines are filled in");
-                return false;
-            }
-            return true;
-        }
-    };
     static ContentModel pointer(String description) {
         return new ContentModel() {
             @Override public boolean pointerBoundary() { return true; }

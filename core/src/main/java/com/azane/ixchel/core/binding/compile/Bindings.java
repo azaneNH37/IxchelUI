@@ -17,8 +17,6 @@ import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.template.ComponentDef;
 import com.azane.ixchel.core.template.TagRegistry;
 
-import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,10 +107,9 @@ public final class Bindings {
     /**
      * What a host adds to a document's template.
      *
-     * @param models    the view model of each Java component, by component name
-     * @param framework the framework's {@code $} names, {@code $} included
+     * @param models the view model of each Java component, by component name
      */
-    public record Hosted(Map<String, Model> models, Map<String, Framework> framework) {
+    public record Hosted(Map<String, Model> models) {
         /**
          * The Java half of a component.
          *
@@ -120,18 +117,6 @@ public final class Bindings {
          */
         public record Model(Class<? extends ViewModel> type, Supplier<? extends ViewModel> factory) {
         }
-
-        /**
-         * A framework name.
-         *
-         * @param value read each pass; not needed for a {@linkplain #lint lint}
-         */
-        public record Framework(Type type, Supplier<?> value) {
-        }
-    }
-
-    /** A framework name's cell and where it is refreshed from. */
-    private record FrameworkCell(Cell<Object> cell, Supplier<?> value) {
     }
 
     /** The model internals this package uses; taken once, when the first document compiles. */
@@ -140,15 +125,13 @@ public final class Bindings {
     private final ViewModel model;
     private final Part.Group root;
     /** The live component models; see {@link Compiler#children}. */
-    private final List<ViewModel> children;
-    private final List<FrameworkCell> framework;
+    private final List<ChildModel> children;
     private boolean closed;
 
-    private Bindings(ViewModel model, Part.Group root, List<ViewModel> children, List<FrameworkCell> framework) {
+    private Bindings(ViewModel model, Part.Group root, List<ChildModel> children) {
         this.model = model;
         this.root = root;
         this.children = children;
-        this.framework = framework;
     }
 
     /**
@@ -158,7 +141,7 @@ public final class Bindings {
      *
      * @param model      the view model, or {@code null}: the document then sees only its local states
      * @param components the components the document's tags name
-     * @param hosted     the Java half of those that have one, and the framework's names
+     * @param hosted     the Java half of those that have one
      * @param text       converts bound values for {@code bind:text}, attribute bindings and string concatenation
      * @param properties the properties {@code bind:style:*} may set
      * @param topLayer   where {@code bind:open} opens and closes dialogs
@@ -171,12 +154,10 @@ public final class Bindings {
         };
         String owner = model != null ? model.getClass().getSimpleName() : NO_MODEL;
         Map<String, Name> names = names(ModelShape.of(m.getClass()), m, false, root.pos(), diag);
-        List<FrameworkCell> refreshed = new ArrayList<>();
-        Map<String, Ref> framework = framework(hosted, refreshed);
         Compiler c = new Compiler(root, m, names, owner, text, tags, properties, topLayer, components, hosted.models(),
-                framework, false, presence, diag);
+                false, presence, diag);
         Part.Group group = new Part.Group();
-        Bindings b = new Bindings(m, group, c.children, refreshed);
+        Bindings b = new Bindings(m, group, c.children);
         try {
             c.compileRoot(group);
             if (!diag.hasErrors()) {
@@ -207,20 +188,7 @@ public final class Bindings {
         String owner = shape != null ? shape.type().getSimpleName() : NO_MODEL;
         Map<String, Name> names = shape != null ? names(shape, stub, true, root.pos(), diag) : Map.of();
         new Compiler(root, stub, names, owner, text, tags, properties, topLayer, components, hosted.models(),
-                framework(hosted, new ArrayList<>()), true, Presence.instant(), diag).compileRoot(new Part.Group());
-    }
-
-    /** A held cell of each framework name; those with a value to follow go to {@code refreshed}. */
-    private static Map<String, Ref> framework(Hosted hosted, List<FrameworkCell> refreshed) {
-        Map<String, Ref> out = new HashMap<>();
-        hosted.framework().forEach((name, f) -> {
-            Cell<Object> cell = MODEL.held(null);
-            out.put(name, new Ref(cell, f.type()));
-            if (f.value() != null) {
-                refreshed.add(new FrameworkCell(cell, f.value()));
-            }
-        });
-        return out;
+                true, Presence.instant(), diag).compileRoot(new Part.Group());
     }
 
     private static final String NO_MODEL = "the view model (this document has none)";
@@ -283,16 +251,15 @@ public final class Bindings {
         return !closed && poll() && root.update();
     }
 
-    /** One pass's polling: the framework's names, the page's model, then every component's; whether anything changed. */
+    /**
+     * One pass's polling: the page's model, then every component's not dormant ({@link ChildModel});
+     * whether anything changed.
+     */
     private boolean poll() {
-        for (int i = 0, n = framework.size(); i < n; i++) {
-            FrameworkCell f = framework.get(i);
-            MODEL.replace(f.cell(), f.value().get());
-        }
         MODEL.nextPass();
         boolean changed = MODEL.poll(model);
         for (int i = 0, n = children.size(); i < n; i++) {
-            changed |= MODEL.poll(children.get(i));
+            changed |= children.get(i).poll();
         }
         return changed;
     }

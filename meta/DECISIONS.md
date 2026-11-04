@@ -206,11 +206,23 @@
 ## #035 组件可带每实例的子 ViewModel
 - **decided**: 2026-11-04
 - **context**: 带数据的复用件（玩家背包、按方块读能量与红石的面板控件）只能让每个页面 ViewModel 各自取数再传入，sample 已有三份背包下标列表；语言文档 §3.4 原草图要每个界面以 `Components.of` 登记工厂
-- **decision**: 组件分模板组件与 Java 组件，使用处同构。Java 组件 = 组件文件 + `@UiTemplate` 指向它的 ViewModel 类 + `UiComponents.register(modid, 类, 无参工厂)`；签名仍写在 `<template params events>`，类以 `Param<T>`（只读）、`TwoWay<T>`（双向，写回使用方路径，未传入时为本实例局部状态）、`Event<T>`（`emit`）字段按名一一对应，不符报 `component/signature-mismatch`；`ModelShape.Kind` 为 `CELL`/`ACTION`/`EVENT`（按组件体内用法），`Member.port` 标出对外签名；子模型随外壳元素挂载、真正移除（离场结束）时关闭，热重载重建；组件只经事件与使用方通信；框架值 `$menu`/`$player` 由 mc 层提供，只作参数默认值。写 ViewModel 的判据：要读未传入的外部数据、有 UI 外副作用、表达式算不出的计算或持有资源，否则写模板组件；库的 `ix-*` 不带 ViewModel。数值拓宽（`Integer` → `Long`/`Float`/`Double`，`Double` → `Float`）对所有绑定生效，字面量属性仍为 `String`。库组件文件可用 `ix-`/`mc-` 前缀、从 classpath 读取、免链接。细节见 `ref/SD-ixchel-context-model-and-components-20261030.md` §3.7
-- **rejected**: ViewModel 作参数（使用方须知实现方式，`<for>` 行与 Java 列表的身份须人工对齐）；每屏 `Components.of` 登记（每个用到的界面重复登记）；参数以 `Cell` 声明（与 `source` 字段不可区分，kit 无法静态读取）；签名只写在 Java 类（组件文件自身说明不了接口，默认值无处写表达式）；工厂带构造参数（依赖只应来自端口、框架值与客户端全局状态）
+- **decision**: 组件分模板组件与 Java 组件，使用处同构。Java 组件 = 组件文件 + `@UiTemplate` 指向它的 ViewModel 类 + `UiComponents.register(modid, 类, 无参工厂)`；签名仍写在 `<template params events>`，类以 `Param<T>`（只读）、`TwoWay<T>`（双向，写回使用方路径，未传入时为本实例局部状态）、`Event<T>`（`emit`）字段按名一一对应，不符报 `component/signature-mismatch`；`ModelShape.Kind` 为 `CELL`/`ACTION`/`EVENT`（按组件体内用法），`Member.port` 标出对外签名；子模型随外壳元素挂载、真正移除（离场结束）时关闭，热重载重建；组件只经事件与使用方通信。数据入口只有 ViewModel：组件的输入只有参数，宿主与客户端状态由组件 ViewModel 的来源读取，不设框架值（`$` 只留给 `$event`）；容器界面的菜单即 `player.containerMenu`（原版点击要求它与界面菜单一致）。写 ViewModel 的判据：要读未传入的外部数据、有 UI 外副作用、表达式算不出的计算或持有资源，否则写模板组件；库的 `ix-*` 不带 ViewModel。数值拓宽（`Integer` → `Long`/`Float`/`Double`，`Double` → `Float`）对所有绑定生效，字面量属性仍为 `String`。库组件的来源与登记见 #037。细节见 `ref/SD-ixchel-context-model-and-components-20261030.md` §3.7
+- **rejected**: ViewModel 作参数（使用方须知实现方式，`<for>` 行与 Java 列表的身份须人工对齐）；每屏 `Components.of` 登记（每个用到的界面重复登记）；参数以 `Cell` 声明（与 `source` 字段不可区分，kit 无法静态读取）；签名只写在 Java 类（组件文件自身说明不了接口，默认值无处写表达式）；工厂带构造参数（依赖只应来自端口与客户端状态）；宿主注入的 `$` 框架值作参数默认值（L4-L5 曾有 `$menu`/`$player`）——绕过 ViewModel 的第二个数据入口，存在性随界面种类而定，模板与 kit 都看不到
 
 ## #036 来源可脱离 ViewModel 按 key 共享（Feed）
 - **decided**: 2026-11-04
 - **context**: 一个界面里多个组件按同一方块各自轮询，读取贵或 `<for>` 实例多时重复；Java 组件构造时还读不到参数，按参数打开的资源（watch、订阅）无处挂
 - **decision**: 来源拆为静态定义 `Feed<K,T>`（`polled` 只依赖 key；`opened` 第一个引用时打开资源、最后一个释放时关闭；默认每周期读一次，`perTick()` 按客户端 tick）与按 key 共享的实例；实例表挂在各 `Feed` 上，`Feed` 作为静态常量即每份库副本一张，引用经 `Scope` 计数。周期为一次 `Bindings.update()`（core 内计数，同一帧两个文档各算一次），tick 由 mc 层经 `Feed.tickClock` 提供（`Gui#getGuiTicks`，无世界时也计数）。ViewModel 以 `source(feed, key)`/`source(feed, keyCell)` 持引用，key 变化时释放旧实例、取得新实例。只读；不做共享可写状态与共享派生。细节见 `ref/SD-ixchel-viewmodel-and-binding-20261026.md` §10
 - **rejected**: 每文档一张表（页面 ViewModel 先于文档构造，构造时接不通）；共享可写状态（破坏 `Value` 只属于一个 ViewModel 的语义）；共享派生族（派生惰性且廉价，无观察到的需要）；由上层统一取数往下传值作为唯一方式（仍是默认做法，但组件不能单独按 `pos` 使用）
+
+## #037 库资源统一按 `@ixchel/` 路径解析，库词汇为每层一张预引入表
+- **decided**: 2026-11-04
+- **context**: L4 后 `@ixchel/` 背后有三套实现（`LibrarySheets` 名字表、`LibraryEffects` 名字列表、`UiHosting.LibraryComponent` 每组件一个读取函数），Java 组件分宿主与库两张表；库组件不能 link 自己的样式表，只能内联；库组件只在容器界面传入，其它界面报未知标签；core 将来自带的 `ix-*` 组件无处放，TH1 的 `@ixchel/themes/` 会是第四套
+- **decision**: `@ixchel/<路径>` 是与 `ns:path` 并列的文件命名空间：同一套 `resolve`（库文件内的相对路径在 `@ixchel/` 下解析，`..` 不越出）与读取，读取按前缀分派——`@ixchel/` 读库（classpath，按层的锚点类相对读取，随 relocate 移动），其余经宿主；库文件不进热重载文件表，资源包不能覆盖。库 = 文件根 + 预引入表（标签 → `@ixchel/` 组件文件）+ 库 Java 组件，core 一份、mc 层 `extend` 一份，与 `TagRegistry` 同形；内容在代码中声明，不枚举 classpath。预引入表中的标签在每个文档都已知、首次使用时加载，显式 link 同一文件等价；只有 `@ixchel/` 文件可声明 `ix-`/`mc-` 名。Java 组件只有一张表，按文件 id，宿主条目与库条目同表。主题与特效经同一读取器；页面 link 的库主题仍进主题层（TH1 改为 `rel="theme"`）。只能用于容器界面的库组件在其它界面报错位置在使用处。宿主扩展（原生元素、Java 组件）仍按 modid 登记，不进库
+- **rejected**: 保持各资源种类各一套（新增种类各加一套）；库文件放 `assets/<固定 namespace>/` 让资源包覆盖（违反 #001）；枚举 classpath 目录得出库内容（jar 内不可靠）；库组件只许内联样式（与项目组件写法分叉）
+
+## #038 不在顶层显示的子树内，组件实例暂停轮询
+- **decided**: 2026-11-04
+- **context**: `<mc-tooltip-lines>` 为"隐藏 tooltip 不取行"专设了原生内容种类 `content=lines` 与 mc 层每帧找元素、填行的循环（E2）。L4 后它可写成 Java 组件，但组件实例每帧 poll，存储终端每格一个 tooltip 时回到 E2 要避免的开销
+- **decision**: 组件子模型的外壳元素位于一个顶层种类元素（带 `LayerFacet`：`<ix-tooltip>`、`<ix-drag-preview>`、`<dialog>`）之内、而该元素当前不在顶层时，跳过它的 poll（首次 poll 同样推迟）；元素进入顶层的那一帧在样式与布局之前 poll，同帧显示新值。只看顶层状态，不看 `display: none`（计算值晚于绑定一帧，会先显示旧值）。`<mc-tooltip-lines>` 改为 mc 层库 Java 组件（`params="item"`，每行一个元素，空行保留行高），删除 `NativeElement.lines`、`TagRegistry.hasLineContent` 与 `TooltipLines`
+- **rejected**: 保留原生元素（为一个元素设一种内容种类，宿主写不出同类控件）；按 `display: none` 暂停（晚一帧）；由组件自己判断可见性（子模型拿不到文档，#035 只经端口通信）

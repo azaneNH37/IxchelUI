@@ -21,8 +21,6 @@ public enum EffectCode implements DiagCode {
             "An effect declares two params of the same name."),
     DUPLICATE_EFFECT("effect/duplicate-effect", Severity.ERROR,
             "A document links two effect files of the same name; their paint() names and params would clash."),
-    UNKNOWN_LIBRARY_EFFECT("effect/unknown-library-effect", Severity.ERROR,
-            "An @ixchel/effects/ link names no effect of the library."),
     UNKNOWN_EFFECT("effect/unknown-effect", Severity.ERROR,
             "paint() or -ix-paint() names an effect the document does not link."),
     WRONG_KIND("effect/wrong-kind", Severity.ERROR,

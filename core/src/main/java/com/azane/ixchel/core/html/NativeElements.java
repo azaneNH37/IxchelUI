@@ -51,24 +51,23 @@ public final class NativeElements {
         String where = declaring.getName() + " declaring <" + d.tag() + ">: ";
         ElementType type;
         if (d.payload().isEmpty()) {
-            if (d.lines()) throw new IllegalArgumentException(where + "lines needs a payload");
             if (payloadType != null) throw new IllegalArgumentException(where + "implements NativePayload but declares no payload");
             type = ElementType.builder(d.tag(), d.attributes()).facet(PaintFacet.KEY, PAINT).build();
         } else {
             if (payloadType == null) throw new IllegalArgumentException(where + "declares a payload but does not implement NativePayload");
-            type = type(d.tag(), Set.of(d.attributes()), d.payload(), rawClass(payloadType), d.lines());
+            type = type(d.tag(), Set.of(d.attributes()), d.payload(), rawClass(payloadType));
         }
         // Both entry points enforce the same metadata rules, even before a document is constructed.
         TagRegistry.builder().add(type);
         return type;
     }
 
-    public static ElementType type(String tag, Set<String> attributes, String payload, Class<?> payloadType, boolean lines) {
-        ElementType.Builder b = ElementType.builder(tag, attributes.toArray(String[]::new)).payload(payload, payloadType)
-                .facet(ContentModel.KEY, lines ? HtmlContent.LINES : HtmlContent.NATIVE)
-                .facet(StyleFacet.KEY, new StyleFacet(lines ? "display: flex; flex-direction: column" : "display: inline"));
-        if (!lines) b.facet(LayoutFacet.KEY, LAYOUT).facet(PaintFacet.KEY, PAINT);
-        return b.build();
+    public static ElementType type(String tag, Set<String> attributes, String payload, Class<?> payloadType) {
+        return ElementType.builder(tag, attributes.toArray(String[]::new)).payload(payload, payloadType)
+                .facet(ContentModel.KEY, HtmlContent.NATIVE)
+                .facet(StyleFacet.KEY, new StyleFacet("display: inline"))
+                .facet(LayoutFacet.KEY, LAYOUT).facet(PaintFacet.KEY, PAINT)
+                .build();
     }
 
     private static Type payloadTypeOf(Type type, Map<TypeVariable<?>, Type> vars) {

@@ -164,12 +164,13 @@ final class EnergyView extends ViewModel {
 // 宿主：UiComponents.register(modid, EnergyView.class, EnergyView::new);
 ```
 
-- 关联与登记：组件文件被某个类的 `@UiTemplate` 指向、且该类已按 modid 登记无参工厂，即为 Java 组件；按模板 namespace 合并，同 #030。库组件（如 `mc-player-inventory`）由库自己登记、免链接。kit 不看登记，`@UiTemplate` 指向组件文件的类即按 Java 组件检查。
-- 签名：仍写在 `<template params events>`（默认值仍是模板表达式，可引用前面的参数与框架值），类中端口字段按名双向一一对应，不符报 `component/signature-mismatch`。端口字段的声明类型必须是 `Param`/`TwoWay`/`Event` 且带泛型实参：`Cell` 已被 `source` 字段使用，kit 只读声明。使用处按声明类型 `T` 检查；`TwoWay` 收到不可写表达式在使用处报错（模板组件由组件体内的赋值推出，Java 中的 `set` 推不出，故需声明）。
+- 关联与登记：组件文件被某个类的 `@UiTemplate` 指向、且该类已按 modid 登记无参工厂，即为 Java 组件；按模板 namespace 合并，同 #030。库组件（如 `mc-player-inventory`、`mc-tooltip-lines`）在库的预引入表中声明文件与类，免链接；宿主与库的 Java 组件同在一张按文件 id 的表（#037）。kit 不看登记，`@UiTemplate` 指向组件文件的类即按 Java 组件检查，库组件读库的声明。
+- 轮询暂停：外壳元素位于当前不在顶层的顶层种类元素（未显示的 `<ix-tooltip>`、未打开的 `<dialog>`）之内时，子模型不 poll，进入顶层的那一帧在布局前 poll（#038）。
+- 签名：仍写在 `<template params events>`（默认值仍是模板表达式，可引用前面的参数），类中端口字段按名双向一一对应，不符报 `component/signature-mismatch`。端口字段的声明类型必须是 `Param`/`TwoWay`/`Event` 且带泛型实参：`Cell` 已被 `source` 字段使用，kit 只读声明。使用处按声明类型 `T` 检查；`TwoWay` 收到不可写表达式在使用处报错（模板组件由组件体内的赋值推出，Java 中的 `set` 推不出，故需声明）。
 - 成员表：`ModelShape.Kind` 为 `CELL`、`ACTION`、`EVENT`，按组件体内用法分（`Param`、`TwoWay` 在体内就是只读或可写的值）；`Member.port` 标出对外签名，只有签名核对与使用处检查看它。页面 ViewModel 没有端口成员。
 - 实例化：工厂构造 → 按字段名接线（未传入的接默认值单元格）→ 查未接线的端口对象（`param()` 的结果没存进可见字段）→ 以子模型成员表编译组件体，体内 `state:` 归子模型 → 登记到 `Bindings` 每帧在页面之后 poll。构造器里 `Param.get()` 抛异常；在 `derive` 与 supplier 中读没有时序问题；按参数打开资源用 `source(feed, keyCell)`（绑定文档 §10）。
 - 生命周期：随外壳元素挂载；`:-ix-exiting` 期间保留、绑定停止，真正移除或文档关闭时 `close()`；热重载重建（同局部状态）。子模型只经 `Event` 与使用方通信，拿不到使用方 ViewModel。
-- 框架值：`$menu`（`AbstractContainerMenu`，仅容器界面）、`$player`，由 mc 层按显示宿主传入编译；只能作参数默认值（`params="menu=$menu"`），组件体不隐式读取。
+- 不设框架值（#035）：数据入口只有 ViewModel。宿主与客户端状态由组件自己的来源读取。背包的内容属于玩家（全局，可在任何文档读），槽位属于当前菜单；原版的当前菜单即 `player.containerMenu`：玩家构造与 `closeContainer` 时为 `inventoryMenu`（E 键界面就用它），`MenuScreens` 打开容器时设为新菜单，`MultiPlayerGameMode.handleInventoryMouseClick` 拒绝与它不一致的点击。故 `<mc-player-inventory>` 无参，读 `ClientSources.player(p -> p.containerMenu)`。容器界面在构造函数中加载文档，早于 `MenuScreens` 设置 `containerMenu`，首次 poll 读到旧菜单，首帧开头的 poll 纠正，代价是 `<for>` 行重建一次。
 - 端口限制：字面量属性一律是 `String`（`max="100"` 不能给 `Param<Integer>`，写 `bind:max="100"`）；数值按拓宽规则赋值（`Integer` → `Long`/`Float`/`Double`，`Double` → `Float`，对页面绑定与模板组件同样生效）；动作不能作参数传入，向外调用一律用事件；传入可变对象时只感知换了对象，对象内部变化要靠值语义的轮询。
 - 对子模型的要求：无参构造；数据以轮询为主入口，组件要用的状态在客户端须有按参数可寻址的落点（Menu、客户端方块实体、缓存），网络方案不限；直接推进打开的 Screen 的同步方式要先改为写入这些落点；轮询值须值语义或自带快照比较；数据须能缺席（区块卸载、Menu 更换时返回缺席值）。
 - 分层用法（科技 mod）：页面 → 宿主 Java 组件（按 `pos` 读一种能力、发对应意图）→ 库展示组件（`ix-bar`、`ix-cycle`）。方块实体或菜单实现共同能力接口，组件写一次用于所有机器。多组件读同一数据：默认由上层一个 ViewModel 取数往下传值；需要组件单独按 `pos` 使用时用 `Feed` 共享。

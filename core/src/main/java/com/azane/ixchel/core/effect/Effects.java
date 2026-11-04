@@ -38,27 +38,16 @@ public final class Effects {
 
     /**
      * Parses the linked files and registers their params over {@code base}. A file that cannot be
-     * used, an unknown library effect and a second effect of the same name are reported and left out.
+     * used and a second effect of the same name are reported and left out.
      */
     public static Effects load(List<TemplateLoader.EffectFile> files, PropertyRegistry base, Diagnostics diag) {
         Map<String, Effect> byName = new LinkedHashMap<>();
         Map<Effect, PropertyDef<?>[]> params = new IdentityHashMap<>();
         PropertyRegistry registry = base.extend();
         for (TemplateLoader.EffectFile f : files) {
-            Effect e;
-            if (f.text() == null) {
-                String name = f.id().startsWith(LibraryEffects.PREFIX) ? f.id().substring(LibraryEffects.PREFIX.length()) : f.id();
-                e = LibraryEffects.effect(name);
-                if (e == null) {
-                    diag.report(EffectCode.UNKNOWN_LIBRARY_EFFECT, f.link(), "no library effect '" + f.id() + "'; there are "
-                            + String.join(", ", LibraryEffects.names().stream().map(n -> LibraryEffects.PREFIX + n).toList()));
-                    continue;
-                }
-            } else {
-                e = EffectParser.parse(f.text(), f.id(), diag);
-                if (e == null) {
-                    continue;
-                }
+            Effect e = EffectParser.parse(f.text(), f.id(), diag);
+            if (e == null) {
+                continue;
             }
             Effect other = byName.get(e.name());
             if (other != null) {

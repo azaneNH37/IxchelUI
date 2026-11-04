@@ -2,7 +2,6 @@ package com.azane.ixchel.sample.playtest;
 
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
-import com.azane.ixchel.core.dom.TextNode;
 import com.azane.ixchel.mc.playtest.Playtests;
 import com.azane.ixchel.mc.playtest.Playtest;
 import com.azane.ixchel.sample.tooltips.TooltipsScreen;
@@ -126,9 +125,9 @@ public final class TooltipsPlaytest {
         return tip != null && tip.parent() == Playtest.query(selector).get(0);
     }
 
-    /** The lines in the {@code <mc-tooltip-lines>} of the page. */
+    /** The lines in the {@code <mc-tooltip-lines>} of the page, one element each. */
     private static List<String> lines() {
         return Playtest.query("mc-tooltip-lines").get(0).children().stream()
-                .map(n -> ((TextNode) n).text()).toList();
+                .filter(n -> n instanceof Element).map(n -> ((Element) n).textContent()).toList();
     }
 }

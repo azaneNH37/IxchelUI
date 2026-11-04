@@ -8,6 +8,7 @@ import com.azane.ixchel.core.style.StyleFacet;
 import com.azane.ixchel.core.style.Declarations;
 import com.azane.ixchel.core.style.StyleSheet;
 import com.azane.ixchel.core.template.TagRegistry;
+import com.azane.ixchel.core.library.Library;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,23 +24,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * The stylesheets shipped in the library, read from the classpath next to this class (so they
- * survive relocation) and compiled once; a problem in one is a bug in the library. They do not
- * follow resource reloads.
+ * The stylesheets shipped in the library, compiled once; a problem in one is a bug in the library.
+ * They do not follow resource reloads.
  *
- * <p>The user-agent sheet holds the defaults of the inline elements, the form controls,
- * {@code <dialog>} and {@code <ix-tooltip>}; {@link #nativeElements} adds the display of a registry's native elements.
- * A theme is
- * {@code themes/theme.css}, the rules every theme shares, written against custom properties, then
- * the theme's own sheet, which sets those properties on {@code :root}.
+ * <p>The user-agent sheet, next to this class, holds the defaults of the inline elements, the form
+ * controls, {@code <dialog>} and {@code <ix-tooltip>}; {@link #nativeElements} adds the display of a
+ * registry's native elements. A theme is {@code @ixchel/themes/theme.css}, the rules every theme
+ * shares, written against custom properties, then the theme's own sheet, which sets those properties
+ * on {@code :root}; both are read through {@link Library#CORE}.
  */
 public final class LibrarySheets {
-    static final StyleSheet USER_AGENT = compile("user-agent.css");
+    static final StyleSheet USER_AGENT = compile("user-agent.css", read("user-agent.css"));
 
     /** Library stylesheet name, as linked after {@code @ixchel/}, to its files in cascade order. */
     private static final Map<String, List<String>> THEMES = Map.of(
-            "vanilla.css", List.of("themes/theme.css", "themes/vanilla.css"),
-            "dark.css", List.of("themes/theme.css", "themes/dark.css"));
+            "vanilla.css", List.of(Library.PREFIX + "themes/theme.css", Library.PREFIX + "themes/vanilla.css"),
+            "dark.css", List.of(Library.PREFIX + "themes/theme.css", Library.PREFIX + "themes/dark.css"));
 
     private static final Map<String, StyleSheet> COMPILED = new ConcurrentHashMap<>();
 
@@ -89,8 +89,8 @@ public final class LibrarySheets {
                 && c.stateMask() == 0 && c.logical().isEmpty();
     }
 
-    static StyleSheet sheet(String file) {
-        return COMPILED.computeIfAbsent(file, LibrarySheets::compile);
+    static StyleSheet sheet(String id) {
+        return COMPILED.computeIfAbsent(id, f -> compile(f, Library.CORE.read(f)));
     }
 
     /**
@@ -117,21 +117,23 @@ public final class LibrarySheets {
         }));
     }
 
-
-    private static StyleSheet compile(String file) {
+    private static String read(String file) {
         try (InputStream in = LibrarySheets.class.getResourceAsStream(file)) {
-            if (in == null) {
-                throw new IllegalStateException("missing " + file);
-            }
-            Diagnostics diag = new Diagnostics();
-            String css = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(css, file, diag), CssProperties.REGISTRY, diag);
-            if (diag.hasErrors()) {
-                throw new IllegalStateException("invalid " + file + ": " + diag.entries());
-            }
-            return sheet;
+            return in == null ? null : new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);
         }
+    }
+
+    private static StyleSheet compile(String file, String css) {
+        if (css == null) {
+            throw new IllegalStateException("missing " + file);
+        }
+        Diagnostics diag = new Diagnostics();
+        StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(css, file, diag), CssProperties.REGISTRY, diag);
+        if (diag.hasErrors()) {
+            throw new IllegalStateException("invalid " + file + ": " + diag.entries());
+        }
+        return sheet;
     }
 }

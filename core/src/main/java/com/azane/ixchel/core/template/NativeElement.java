@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 
 /**
  * Declares an element the host layer adds to the templates, on the class that implements it: the
- * adapter's painter of a native element, the filler of a lines element, or the owner of a plain one.
+ * adapter's painter of a native element, or the owner of a plain one.
  * The runtime and kit read this declaration without initializing the class, so the tag, attributes
  * and payload type are written once. Layout and interaction facets are library-internal contracts.
  *
@@ -32,9 +32,6 @@ public @interface NativeElement {
 
     /** Extra plain attributes. */
     String[] attributes() default {};
-
-    /** Whether the host fills the element with one child per line instead of drawing it; needs a payload. */
-    boolean lines() default false;
 
     /** Whether only container screens accept the element; read by tools, not by the runtime. */
     boolean containerOnly() default false;

@@ -1,0 +1,5 @@
+/* One row per line, as vanilla stacks them. */
+mc-tooltip-lines {
+    display: flex;
+    flex-direction: column;
+}

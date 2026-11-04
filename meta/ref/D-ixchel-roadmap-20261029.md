@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），以及 L4（Java 组件、共享来源 Feed、库组件加载，#035、#036）；接下来是 TH1–TH4（主题机制、形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`），再 U4（组件库）；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），以及 L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则）；接下来是 TH1–TH4（主题机制、形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`），再 U4（组件库）；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -35,6 +35,10 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | L2 | 完成 | — | 组件、组件层、CSS 嵌套 |
 | L3 | 完成 | — | 主题层与主题、`var()` |
 | L4 | 完成 | character、machine、storage 的背包 | Java 组件（每实例子 ViewModel、`Param`/`TwoWay`/`Event` 端口）、共享来源 `Feed`、数值拓宽、库组件文件免链接（#035、#036） |
+| L5 | 完成 | character、machine、storage 的背包 | 库资源统一：`@ixchel/` 与 `ns:path` 同一套解析与读取，按层的库（文件根、预引入表、库 Java 组件），Java 组件单表（#037） |
+| L6 | 完成 | S9 的物品行 tooltip | 顶层外的组件实例暂停轮询；`<mc-tooltip-lines>` 改为库 Java 组件，删除 `content=lines`（#038） |
+| L7 | 完成 | character、machine、storage 的背包 | 删除框架值，数据入口只有 ViewModel；`<mc-player-inventory>` 读 `player.containerMenu`（#035 修订） |
+| L8 | 完成 | 全部页面的 lint | lint 复用 core：组件文件判定由 core 公开，行内内容规则拆为 `layout.Formatting`，load 与 lint 同用；kit 不再自建探针页或判定 |
 | E1 | 完成 | S8 | 文字排版补完：行内流式排版、CJK 断行、`Component` 富文本、行内链接 |
 | E2 | 完成 | S9；S1、S6、S7 的 tooltip | 文档内富 tooltip `<ix-tooltip>`，兼容原版物品 tooltip |
 | I | 完成 | 全部场景的界面文本 | i18n：`t` 语言键与参数 |
@@ -59,7 +63,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | FX3 | 完成 | — | `.ixeffect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028），结果见下文 |
 | REC | 待做 | — | playtest 动图录制：连续截帧合成 GIF/MP4；排期未定，只依赖 T2 |
 
-依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1，TH2、TH3 彼此独立，TH1–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → U4，L4 与 TH 互不依赖。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
+依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1，TH2、TH3 彼此独立，TH1–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → L5 → L6，L5 → TH1（`@ixchel/themes/` 走统一解析），L5 → U4（`ix-*` 组件进 core 的库）。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
 #### D0 改名与清理
 
@@ -308,6 +312,47 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
     - `Param`/`TwoWay` 只接线一次，直接委托给接入的单元格，不经 `Flat`；`Flat` 只用于按 key 切换的 Feed 引用。
   - 已知：参数不能命名为 `key`（`<for>` 的属性，报 `template/moved-attribute`）或 `text`（`template/reserved-member-name`）；`disabled` 约定仍未定。
 
+#### L5 库资源统一
+
+- 设计依据：#037；语言文档 §3.3、§4.3。
+- core：新包 `library`（只依赖 `binding`）的 `Library`：文件根（锚点类，按其相对路径读 classpath，读结果缓存）、预引入表（标签 → `@ixchel/` 文件 id）、库 Java 组件（文件 id → 类与工厂）、按层 `extend`；core 的库 `Library.CORE` 持主题与特效文件（移到 `library/` 资源目录）。`TemplateLoader.resolve` 把 `@ixchel/` 当命名空间根，读取按前缀分派，库文件不进 `files`；预引入表取代 `LibraryFile` 与 `Linker.library` 的独立来源，`ix-`/`mc-` 名按文件 id 前缀放行；`LibraryEffects`、`LibrarySheets` 的读取改经 `Library`（主题的组合表保留到 TH1）。`UiHosting` 改为（`Library`、按文件 id 的 Java 组件表、框架值），删除 `LibraryComponent`；库的 Java 组件并入同一张表。
+- mc（两版）：`McLibrary`（`Library.CORE.extend()`，1.20.1 声明 `mc-player-inventory`，L6 起两版声明 `mc-tooltip-lines`）；所有宿主（`UiScreen`、`UiContainerScreen`、`UiHud`）传同一个库；`$menu` 仅容器界面，非容器界面使用 `<mc-player-inventory>` 在使用处报错。`player-inventory.html` link 旁边的 `player-inventory.css`，组件自设槽位尺寸，内部类名加组件名前缀，`<mc-slot>` 带 `.ix-well`。
+- kit：从 `McLibrary` 读预引入表与库 Java 组件，不再扫描 `com.azane.ixchel.mc.*` 的注解；schema 的库组件、主题、特效出自同一个 `Library`。
+- sample：`slot.css` 只保留斜面外观（选中 `.ix-well` 或 `mc-player-inventory mc-slot`），`terminal.css` 的覆盖改用新类名。
+- 验收：core 测试覆盖 `@ixchel/` 相对解析与 `..` 不越出、宿主文件 link 库文件、库组件 link 自身样式表、预引入与显式 link 同一文件只加载一次、项目组件用 `ix-`/`mc-` 名报错；`-Pplaytest=all` 通过且背包截图不变；两版 lint 零错误；`build`；1.21.1 冒烟。
+- 结果（2026-11-04）：完成。core：`library.Library`（`CORE` 持 `library/themes/`、`library/effects/`）与 `JavaComponent`；`TemplateLoader` 以 `Library` 取代 `LibraryFile` 表，`@ixchel/` 文件经库读取，`effect/unknown-library-effect` 删除（库特效缺失报 `load/file-not-found`）；`UiHosting(Library, 组件表, 框架值)`。mc（两版）：根包 `McLibrary`，所有宿主经 `UiComponents.hosting` 共用；`player-inventory.{html,css}` 在 `mc/container/` 资源下。kit：`Project.library()` 取 mc 层唯一的 `public static final Library LIBRARY`，`Components` 按预引入表声明库组件。验收：core 与 kit 测试、两版 lint 零错误、`build`、`-Pplaytest=all` 14 项 262 断言全过，背包截图不变；1.21.1 冒烟（随 L6 一并）。
+  - 与"已定"的出入：`McLibrary` 放在 mc 根包而非 `element`——它要声明 `container.PlayerInventoryView`，`element` 引用 `container` 会反转包依赖；`PlayerInventoryView` 因此改为 `public`。kit 不按类名找 `McLibrary`，而是扫描 mc 层中唯一的 `LIBRARY` 字段，测试替身无需与真实类同名。
+  - `effect/unknown-library-effect` 的删除经确认保留：库特效与其它库文件同走 `load/file-not-found`，原设计为库特效单设错误码是多余的。
+
+#### L6 顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化
+
+- 设计依据：#038。
+- core：组件子模型记住外壳元素；`Bindings` poll 前跳过外壳位于"带 `LayerFacet` 且不在 `TopLayer` 中"的元素之内的子模型，首次 poll 同样推迟；`UiDocument.setTooltip` 先于 `frame` 的 `bindings.update()`，故 tooltip 显示的那一帧即取值。删除 `NativeElement.lines`、`TagRegistry.hasLineContent` 及 UA 的行列规则。
+- mc（两版）：`mc-tooltip-lines` 为库 Java 组件（`params="item"`，`Screen.getTooltipFromItem` 轮询，行列表按 `Component` 结构比较，空行保留行高），删除 `TooltipLines` 与 `HostedDocument` 的找元素、填行循环。
+- kit：随 `lines` 内容种类删除相关检查；组件不带默认 `<slot>`，写子元素按已有规则报错。
+- sample：S9 页面写法不变；`TooltipsPlaytest` 的取行改为读组件内的行元素，"隐藏 tooltip 不取行"断言保留。
+- 验收：core 测试覆盖未显示 tooltip 与未打开 dialog 内子模型不 poll、显示当帧取到新值；`-Pplaytest=all` 通过（S9 物品行与截图不变）；两版 lint 零错误；`build`；1.21.1 冒烟。
+- 结果（2026-11-04）：完成。core：`ChildModel` 持有外壳、`TopLayer` 与组件体的绑定组，休眠时既不 poll 也不更新组件体；休眠中跳过过的实例醒来时 `poll()` 返回"已变化"，驱动当次 `root.update()`；`bind:open` 在同一次更新中打开 dialog 时，组件体更新前补一次 poll。`TopLayer.shows(e)`（条目或指针元素，含退场中）。删除 `NativeElement.lines`、`HtmlContent.LINES`，`NativeElements.type` 去掉 `lines` 参数（`TagRegistry.hasLineContent` 已不存在）。mc（两版）：`element.TooltipLinesView`（`Source.polled(getTooltipFromItem)`，行为 `record Line(index, text)`，以下标为 key，空行替换为不换行空格）、`tooltip-lines.{html,css}`；删除 `TooltipLines`、`HostedDocument` 的找元素与填行循环。kit：无改动（没有 `lines` 相关检查）。sample：`TooltipsPlaytest` 读组件内行元素的 `textContent`。验收：core 两项新测试（未显示 tooltip、未打开 dialog），去掉休眠判断时两项均失败；`build` 与两版 lint 零错误；`-Pplaytest=all` 中 env 帧时一次 p95 6021 us 超 6000 预算，单独重跑 env 与 tooltips 全过（p95 3559–5530 us），物品行截图正确；1.21.1 客户端启动、资源重载与 HUD 加载无错误，未进界面。
+
+#### L7 删除框架值
+
+- 设计依据：#035（修订）。
+- core：删除 `UiHosting.FrameworkValue` 与 `UiHosting.framework`、`Bindings.Hosted.Framework` 与每帧刷新的框架单元格、`Compiler` 的框架名表；参数默认值只见前面的参数。`$` 仍保留给框架（`$event`）。
+- mc（两版）：`UiComponents.hosting` 不再带 `$player`，`UiContainerScreen` 不再带 `$menu`。1.20.1：`<mc-player-inventory>` 无参，`PlayerInventoryView` 以 `ClientSources.player(p -> p.containerMenu, null)` 取菜单。
+- kit：删除框架值声明。
+- sample：页面写法不变。
+- 验收：core 与 kit 测试；两版 lint 零错误；`build`；`-Pplaytest=all` 通过且背包截图不变。
+- 结果（2026-11-04）：完成，按上列实施。`PlayerInventoryView` 的菜单字段为 `private`，模板只见 `main`/`hotbar`；删除 core 中两项框架值测试。验收：core 与 kit 测试、`build`、两版 lint 零错误；`-Pplaytest=all` 14 项 262 断言全过，存储终端截图中背包槽位位置不变。
+
+#### L8 lint 复用 core
+
+- 动机：kit 自行拼探针页判定组件文件、lint 不检查行内内容规则（`layout/block-in-inline`、`absolute-in-inline`、`inline-box-property` 只在布局时报出），两处与运行时分叉。
+- core：`TemplateLoader.declared(id, read, library, tags)` 返回文件顶层 `<template>` 声明的组件或 `null`，kit 的 `Components` 改用它。新类 `layout.Formatting` 按计算样式与树结构判定每个盒子的角色（`Mode`：叶子、弹性/网格项、块级流、段落；`FlowChild`：自成盒、行内；`InlineChild`：跳过、文本、行内盒、原子盒）并报行内内容错误；`LayoutEngine` 的 sync/collect 按它分支，`UiDocument.lint` 在 restyle 后调用 `Formatting.check`。lint 不跑布局、不编造视口或字体度量。
+- 不覆盖：`<if>`/`<for>` 块内容、未打开的顶层元素（与绑定检查同一边界）；依赖尺寸的检查（容器槽位过小等）仍只在运行时。
+- 待定：页面如何声明文档种类（普通/容器），使 lint 能检查 `<mc-slot>`、`containerOnly`；单独一阶段。
+- 验收：core 与 kit 测试；`build` 两版 lint 零错误；`-Pplaytest=all` 通过。
+- 结果（2026-11-04）：完成，按上列实施；sample 页面无新报错。`UiDocumentTest` 原先固定"lint 不报行内规则"的用例改为断言报出。验收：core 与 kit 测试、`build`、两版 lint 零错误；`-Pplaytest=all` 260/262，失败两项为 env 帧时间（未改动时同样超标）与 effects 的 glint 移动检查（单跑与重跑均通过，检查对相位敏感，暂不修，归 REC 一并处理）。
+
 #### TH1 主题机制
 
 - 设计依据：`ref/SD-ixchel-themes-20261104.md` §3、§4（#034）。
@@ -345,6 +390,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 范围：仅 1.20.1 的 playtest 框架（1.21.1 无此框架）；默认不录，用参数开启；合成不进 `build`，CI 不依赖 ffmpeg。
 - 先定：步骤名与开启参数；`UiDocument.clock` 是否放开给 mc 层（现由 core 测试使用）；合成由 Gradle 任务还是手动命令完成；输出格式。
 - 已知限制：固定时钟只管文档，背后的游戏世界仍是实时的，人物走动等与动画不同步。
+- 顺带修复：effects playtest 的 glint 移动检查对相位敏感（L8 结果）。检查只取按钮上沿一行、相隔 10 tick 采样两次，glint 脉冲占周长 15% 且按墙钟 `ix_time` 移动，两次都落在上沿外即误判为未动。改为在固定时钟下按已知 `ix_time` 采样（或沿整圈边缘取样）；在此之前该项失败不视为回归。
 - 验收：一段进出动画录成动图，帧数与设定一致、逐帧位置符合缓动曲线；不开参数时 playtest 行为与耗时不变。
 
 #### Doc 用户文档

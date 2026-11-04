@@ -7,7 +7,6 @@ import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
-import com.azane.ixchel.core.runtime.UiHosting;
 import com.azane.ixchel.core.template.NativeElement;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.mc.element.McElements;
@@ -41,12 +40,6 @@ public final class ContainerLayout {
      * quick moves there. Use {@code bind:index} for slots from an {@code each} row.
      */
     public static final TagRegistry TAGS = McElements.TAGS.extend().add(com.azane.ixchel.core.html.NativeElements.declare(ContainerLayout.class)).build();
-
-    /**
-     * The library components container documents may use without a link: {@code <mc-player-inventory>},
-     * the player's main inventory and hotbar slots of {@code $menu} as two 9-wide grids of {@code <mc-slot>}.
-     */
-    public static final List<UiHosting.LibraryComponent> LIBRARY = List.of(PlayerInventoryView.COMPONENT);
 
     static final int ITEM_SIZE = 16;
 

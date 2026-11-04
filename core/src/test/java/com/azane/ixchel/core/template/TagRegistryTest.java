@@ -19,10 +19,6 @@ class TagRegistryTest {
     static final class Item implements Painter<String> {
     }
 
-    @NativeElement(tag = "x-lines", payload = "item", lines = true)
-    static final class Lines implements NativePayload<Integer> {
-    }
-
     @NativeElement(tag = "x-slot", attributes = "index")
     static final class Slot {
     }
@@ -38,13 +34,12 @@ class TagRegistryTest {
     @Test
     void declareReadsTheTagAttributesAndPayloadTypeThroughAnAdapterInterface() {
         TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend()
-                .add(NativeElements.declare(Item.class)).add(NativeElements.declare(Lines.class))
+                .add(NativeElements.declare(Item.class))
                 .add(NativeElements.declare(Slot.class)).build();
         ElementType item = tags.type("x-item");
         assertEquals("item", item.payload());
         assertEquals(String.class, item.payloadType());
         assertEquals(Set.of("count"), item.attributes());
-        assertEquals(Integer.class, tags.type("x-lines").payloadType());
         ElementType slot = tags.type("x-slot");
         assertNull(slot.payload());
         assertEquals(Set.of("index"), slot.attributes());

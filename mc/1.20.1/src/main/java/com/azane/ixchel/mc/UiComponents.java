@@ -2,12 +2,9 @@ package com.azane.ixchel.mc;
 
 import com.azane.ixchel.core.binding.UiTemplate;
 import com.azane.ixchel.core.binding.ViewModel;
+import com.azane.ixchel.core.library.JavaComponent;
 import com.azane.ixchel.core.runtime.UiHosting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -25,7 +22,7 @@ import java.util.function.Supplier;
  */
 public final class UiComponents {
     /** Registered during mod setup, which runs on worker threads. */
-    private static final Map<String, Map<String, UiHosting.JavaComponent>> HOSTS = new ConcurrentHashMap<>();
+    private static final Map<String, Map<String, JavaComponent>> HOSTS = new ConcurrentHashMap<>();
 
     private UiComponents() {
     }
@@ -40,26 +37,15 @@ public final class UiComponents {
      */
     public static void register(String hostModId, Class<? extends ViewModel> type, Supplier<? extends ViewModel> factory) {
         String id = UiTemplate.Ids.single(type);
-        UiHosting.JavaComponent previous = HOSTS.computeIfAbsent(hostModId, k -> new ConcurrentHashMap<>())
-                .putIfAbsent(id, new UiHosting.JavaComponent(type, factory));
+        JavaComponent previous = HOSTS.computeIfAbsent(hostModId, k -> new ConcurrentHashMap<>())
+                .putIfAbsent(id, new JavaComponent(type, factory));
         if (previous != null) {
             throw new IllegalArgumentException(id + " is already registered with " + previous.type().getName());
         }
     }
 
-    /** What a document of {@code hostModId} gets on a host without library components or framework values of its own. */
+    /** What a document of {@code hostModId} gets: {@link McLibrary#LIBRARY} and the Java components the host registered. */
     static UiHosting hosting(String hostModId) {
-        return hosting(hostModId, List.of(), Map.of());
-    }
-
-    /**
-     * What a document of {@code hostModId} gets: the Java components the host registered, {@code library}
-     * and the framework values {@code framework} plus {@code $player}, the client player or {@code null}.
-     */
-    static UiHosting hosting(String hostModId, List<UiHosting.LibraryComponent> library,
-                             Map<String, UiHosting.FrameworkValue<?>> framework) {
-        Map<String, UiHosting.FrameworkValue<?>> values = new HashMap<>(framework);
-        values.put("$player", new UiHosting.FrameworkValue<LocalPlayer>(LocalPlayer.class, () -> Minecraft.getInstance().player));
-        return new UiHosting(Map.copyOf(HOSTS.getOrDefault(hostModId, Map.of())), library, Map.copyOf(values));
+        return new UiHosting(McLibrary.LIBRARY, Map.copyOf(HOSTS.getOrDefault(hostModId, Map.of())));
     }
 }

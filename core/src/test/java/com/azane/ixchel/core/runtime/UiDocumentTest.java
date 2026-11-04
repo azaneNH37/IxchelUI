@@ -213,8 +213,9 @@ class UiDocumentTest {
     }
 
     @Test
-    void lintDoesNoLayoutSoAnInlineBoxPropertyIsNotReported() {
-        assertEquals(List.of(), lint("<div>a <span class=\"p\">b</span></div>", "div { display: block } .p { padding: 2px }",
-                null));
+    void lintReportsInlineContentErrorsWithoutLayingOut() {
+        assertEquals(List.of("layout/inline-box-property@t.html:2:8", "layout/block-in-inline@t.html:2:25"),
+                lint("<div>a <span class=\"p\">b<span class=\"x\">c</span></span></div>",
+                        "div, .x { display: block } .p { padding: 2px }", null));
     }
 }

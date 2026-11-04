@@ -35,7 +35,7 @@ flowchart LR
 | `css.syntax` | CSS Syntax L3 分词、组件值 | diag |
 | `css.selector` | 选择器解析、优先级、匹配 | css.syntax, dom |
 | `css.property` | 属性注册表：名称、语法、初值、是否继承、是否影响布局、是否可过渡 | css.syntax |
-| `dom` / `template` | `Element` 树、类名与状态位；顶层 `TopLayer` 与进出单元 `Presence`（#032，块副本、整页、顶层条目共用；经 `Presence.Motion` 端口询问运动状态，不依赖 `anim`）；严格模板解析器；`TemplateLoader`（链接图：相对路径、递归加载、去重、环检测、热重载文件表，mc 层只按 id 读取文本）与 `ComponentDef`；翻译端口 `Translations` 与解析期译文展开（#027） | diag, css.property（计算值）, css.syntax（`style` 属性的声明）, text（强制换行字符） |
+| `dom` / `template` | `Element` 树、类名与状态位；顶层 `TopLayer` 与进出单元 `Presence`（#032，块副本、整页、顶层条目共用；经 `Presence.Motion` 端口询问运动状态，不依赖 `anim`）；严格模板解析器；`TemplateLoader`（链接图：相对路径、`@ixchel/` 库命名空间、预引入表、递归加载、去重、环检测、热重载文件表，mc 层只按 id 读取宿主文本）与 `ComponentDef`；翻译端口 `Translations` 与解析期译文展开（#027） | diag, css.property（计算值）, css.syntax（`style` 属性的声明）, text（强制换行字符）, library（template） |
 | `style` | 规则索引、匹配、层叠、`var()`、计算值 | dom, css.* |
 | `anim` | transition、`@keyframes` | style |
 | `text` | 文本测量接口与结果缓存、换行 | — |
@@ -43,6 +43,7 @@ flowchart LR
 | `paint` | DisplayList 生成、裁剪栈 | dom, css.property, layout, text |
 | `event` | 命中测试、三阶段派发、焦点、hover/active/focus 状态位、`Keys` 键名表与剪贴板端口；通过 `InteractionFacet` 调用元素默认行为，只把所需操作交给内部 `Actions`；`UiEvent` 与监听器存放在 `dom` | dom, layout, css.property |
 | `binding` | ViewModel 作者 API：ViewModel / Cell / Value / Derived / Source / Action / Scope / EventInfo；包内 Polled / Held / Flat；`ModelAccess` 是只发给 `binding.compile` 的内部接缝（#017） | — |
+| `library` | 库的 `@ixchel/` 文件命名空间：按层的文件根（锚点类相对读取 classpath）、预引入表（标签 → 组件文件 id）、库 Java 组件；core 的库 `Library.CORE`，mc 层 `extend`（#037） | binding |
 | `binding.expr` | 表达式语言：`Expr` 语法树、`Parser`、`Expressions`（类型检查与编译为输入加求值函数）、`Types` 类型规则 | binding |
 | `binding.compile` | 模板绑定：`Bindings` 入口、`Compiler`（按名字表解析）、`Name`/`Ref`/`Part`/`Anchor`、`Block`/`IfBlock`/`EachBlock`、`Binding`/`StyleBinding`；双向 `bind:value`、`bind:scrolltop`；`on:keydown.<key>` 过滤查 `event.Keys`，鼠标与修饰键过滤（`.left`/`.right`/`.shift`…）精确匹配（#012）；块副本作为 `dom.Presence` 单元进出 | binding, binding.expr, dom, template, event |
 | `html` | 内置元素定义的装配与各元素专有行为；原生元素声明转为同一种切面组合。切面接口归各消费阶段，阶段不反向依赖内置定义。选择组合而非元素继承，避免 DOM 反向依赖流水线；interaction/layout 暂不作为宿主扩展契约（#031） | dom, template, layout, paint, event, style |

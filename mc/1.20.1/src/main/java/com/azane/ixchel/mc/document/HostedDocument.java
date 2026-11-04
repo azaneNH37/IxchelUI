@@ -14,7 +14,6 @@ import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.runtime.UiHosting;
 import com.azane.ixchel.core.template.TagRegistry;
 import com.azane.ixchel.mc.element.McElements;
-import com.azane.ixchel.mc.element.TooltipLines;
 import com.azane.ixchel.mc.element.Tooltips;
 import com.azane.ixchel.mc.paint.McPainter;
 import com.azane.ixchel.mc.paint.NativePainter;
@@ -69,12 +68,9 @@ public final class HostedDocument implements AutoCloseable {
     private final McPainter painter;
     /** Draws the {@code <ix-tooltip>} above the document, after the host's own drawing. */
     private final McPainter tooltipPainter;
-    private final TooltipLines lines = new TooltipLines(McResources.TEXT::styled);
     private UiDocument document;
     private List<String> files;
     private DisplayList displayList;
-    /** The {@link DisplayList#version()} the line elements were last looked for at. */
-    private long linesVersion = -1;
     /** The element whose tooltip shows, picked by the last {@link #frame}; {@code null} for none. */
     private Element tooltipTarget;
     private List<Diagnostic> loadErrors = List.of();
@@ -93,7 +89,7 @@ public final class HostedDocument implements AutoCloseable {
      * @param template the template; its namespace is the host mod id, its stylesheets are {@code <link>}ed
      * @param tags     the elements the template may use, such as {@link McElements#TAGS}; the host's
      *                 own, {@linkplain McElements#register registered} under its mod id, are added to them
-     * @param hosting  the host mod's Java components, the library components and framework values of the host
+     * @param hosting  the library and the host mod's Java components
      * @param model    the view model the template binds to, or {@code null}; closed by {@link #close}
      * @param onReload runs after a later load replaced the document
      * @throws UiLoadException outside development when the document has errors
@@ -157,7 +153,6 @@ public final class HostedDocument implements AutoCloseable {
             document.events().setClickSound(CLICK_SOUND);
             files = loaded.files();
             displayList = null;
-            linesVersion = -1;
             tooltipTarget = null;
             loadErrors = List.of();
             logged = 0;
@@ -191,7 +186,7 @@ public final class HostedDocument implements AutoCloseable {
     /**
      * Brings the document up to date for a screen of the given size and the pointer, NaN in a HUD, and
      * logs new diagnostics; {@code null} without a document. Picks the tooltip of what is under the
-     * pointer: an {@code <ix-tooltip>} is laid out in this frame.
+     * pointer before the frame, so the frame it shows in reads its bindings and lays it out.
      */
     public DisplayList frame(int width, int height, float pointerX, float pointerY) {
         if (document == null) {
@@ -201,15 +196,7 @@ public final class HostedDocument implements AutoCloseable {
         tooltipTarget = Float.isNaN(pointerX) || document.events().dragSource() != null ? null
                 : Tooltips.target(document.events().hitTest(pointerX, pointerY), painters);
         document.setTooltip(tooltipTarget == null ? null : Tooltips.tooltipOf(tooltipTarget), pointerX, pointerY);
-        lines.update(document);
         displayList = document.frame(width, height);
-        if (displayList.version() != linesVersion) {
-            // The tree may have changed: line elements a binding just added are filled before they show.
-            if (lines.discover(document) && lines.update(document)) {
-                displayList = document.frame(width, height);
-            }
-            linesVersion = displayList.version();
-        }
         List<Diagnostic> entries = document.diagnostics().entries();
         for (; logged < entries.size(); logged++) {
             LOG.warn("Ixchel UI: {}", entries.get(logged));

@@ -9,6 +9,8 @@ import com.azane.ixchel.core.diag.Diagnostic;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.effect.EffectParser;
+import com.azane.ixchel.core.library.JavaComponent;
+import com.azane.ixchel.core.library.Library;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.core.runtime.UiHosting;
 import com.azane.ixchel.core.template.TagRegistry;
@@ -40,14 +42,9 @@ import java.util.Set;
  * Component files are checked through the pages that use them, and a problem found through several
  * pages is reported once. A component file a view model's {@link UiTemplate} names is that
  * component's Java half, checked against its {@link ModelShape} at each use. Pages may use the
- * library's components and the framework's values as a host offers them.
+ * library's components as a host offers them.
  */
 public final class Lint {
-    /** The framework's values with the names of their declared types; a type missing from the classpath is left out. */
-    private static final Map<String, String> FRAMEWORK = Map.of(
-            "$player", "net.minecraft.client.player.LocalPlayer",
-            "$menu", "net.minecraft.world.inventory.AbstractContainerMenu");
-
     private Lint() {
     }
 
@@ -65,9 +62,10 @@ public final class Lint {
     public static List<Diagnostic> run(Project project, TagRegistry tags, Translations translations,
                                        Set<? extends DiagCode> enabled) {
         List<String> templates = project.templates();
-        Components components = Components.scan(project, tags);
+        Library library = project.library();
+        Components components = Components.scan(project, library, tags);
         Set<String> componentFiles = components.files();
-        Map<String, UiHosting.JavaComponent> javaComponents = new HashMap<>();
+        Map<String, JavaComponent> javaComponents = new HashMap<>();
         List<Claim> pages = new ArrayList<>();
         Set<String> claimed = new LinkedHashSet<>();
         Set<Diagnostic> out = new LinkedHashSet<>();
@@ -108,13 +106,12 @@ public final class Lint {
                     if (!componentFiles.contains(id)) {
                         pages.add(new Claim(id, shape));
                     } else if (!wildcard) {
-                        javaComponents.put(id, new UiHosting.JavaComponent(type, null));
+                        javaComponents.put(id, new JavaComponent(type, null));
                     }
                 }
             }
         }
-        UiHosting hosting = new UiHosting(javaComponents,
-                components.library().stream().map(Components.Library::hosted).toList(), framework(project));
+        UiHosting hosting = new UiHosting(library, javaComponents);
         for (Claim page : pages) {
             out.addAll(lint(project, tags, translations, enabled, hosting, page.id(), page.shape()).entries());
         }
@@ -141,19 +138,6 @@ public final class Lint {
                 .thenComparingInt(d -> d.pos().line())
                 .thenComparingInt(d -> d.pos().column()));
         return sorted;
-    }
-
-    /** The framework's values whose types {@code project}'s classpath has, without values. */
-    private static Map<String, UiHosting.FrameworkValue<?>> framework(Project project) {
-        Map<String, UiHosting.FrameworkValue<?>> out = new HashMap<>();
-        FRAMEWORK.forEach((name, type) -> {
-            try {
-                out.put(name, new UiHosting.FrameworkValue<>(Class.forName(type, false, project.loader()), null));
-            } catch (ClassNotFoundException | LinkageError e) {
-                // Without the game on the classpath no template can use it either.
-            }
-        });
-        return out;
     }
 
     private static Diagnostics lint(Project project, TagRegistry tags, Translations translations,
