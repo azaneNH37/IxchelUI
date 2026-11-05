@@ -22,16 +22,6 @@
   margin-bottom: 4px;
 }
 
-.tabs {
-  flex-direction: row;
-  gap: 2px;
-}
-
-.tab.ix-selected {
-  background-color: var(--ix-selected);
-  color: var(--ix-selected-text);
-}
-
 .hint {
   color: var(--ix-text-dim);
   margin-bottom: 4px;

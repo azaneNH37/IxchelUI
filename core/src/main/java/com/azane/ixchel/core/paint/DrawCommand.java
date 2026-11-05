@@ -4,6 +4,7 @@ import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.css.property.Filter;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.dom.StyledText;
+import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.effect.Effect;
 
 import java.util.List;
@@ -103,8 +104,10 @@ public sealed interface DrawCommand
     /**
      * A drawn element ({@link com.azane.ixchel.core.view.UiElement}) for the
      * host to draw in its border box. {@code kind} is the tag; the core never looks inside {@code payload}.
+     * {@code element} is the drawn element, for its attributes and states at draw time.
      */
-    record Custom(String kind, Object payload, float x, float y, float width, float height) implements DrawCommand {
+    record Custom(String kind, Object payload, float x, float y, float width, float height, Element element)
+            implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitCustom(this);

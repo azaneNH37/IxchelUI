@@ -99,31 +99,33 @@ abstract class Binding implements Part {
         }
     }
 
-    /** {@code bind:disabled}: the boolean attribute is present while the value is true. */
-    static final class Disabled extends Binding {
+    /** {@code bind:disabled}, or {@code bind:open} on a details: the boolean attribute is present while the value is true. */
+    static final class BooleanAttribute extends Binding {
         private final Element element;
+        private final String name;
 
-        Disabled(Cell<?> cell, Directive a, Diagnostics diag, Element element) {
+        BooleanAttribute(Cell<?> cell, Directive a, Diagnostics diag, Element element, String name) {
             super(cell, a, diag);
             this.element = element;
+            this.name = name;
         }
 
         @Override
         boolean write(Object value) {
             boolean on = Boolean.TRUE.equals(value);
-            if (on == (element.attribute("disabled") != null)) {
+            if (on == (element.attribute(name) != null)) {
                 return false;
             }
             if (on) {
-                element.setAttribute("disabled", "");
+                element.setAttribute(name, "");
             } else {
-                element.removeAttribute("disabled");
+                element.removeAttribute(name);
             }
             return true;
         }
     }
 
-    /** {@code bind:value}: the control shows the cell; user edits write it back through an input listener. */
+    /** {@code bind:value}: the control shows the cell (a String, or a number as text); user edits write it back through an input listener. */
     static final class ControlValue extends Binding {
         private final Element element;
 
@@ -135,12 +137,12 @@ abstract class Binding implements Part {
         /** Repaint-only, or a restyle of a select's options: the control marks what it needs itself. */
         @Override
         boolean write(Object value) {
-            element.control().setValue(value == null ? "" : (String) value);
+            element.control().setValue(value == null ? "" : value.toString());
             return false;
         }
     }
 
-    /** {@code bind:checked}: the checkbox follows the cell; toggles write it back through an input listener. */
+    /** {@code bind:checked}: the checkbox follows the cell; toggles write it back through an input listener. Also a radio's group test. */
     static final class Checked extends Binding {
         private final Element element;
 

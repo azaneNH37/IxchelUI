@@ -41,7 +41,7 @@ public final class DeclaredElements {
         @Override public void paint(Element e, float y, DisplayList out, Context context) {
             if (e.payload() == null) return;
             LayoutBox b = e.box();
-            out.add(new DrawCommand.Custom(e.tag(), e.payload(), b.x(), y, b.width(), b.height()));
+            out.add(new DrawCommand.Custom(e.tag(), e.payload(), b.x(), y, b.width(), b.height(), e));
         }
     };
 
@@ -59,14 +59,15 @@ public final class DeclaredElements {
             type = ElementType.builder(d.tag(), d.attributes()).facet(PaintFacet.KEY, PAINT).build();
         } else {
             if (payloadType == null) throw new IllegalArgumentException(where + "declares a payload but does not implement ElementPayload");
-            type = type(d.tag(), Set.of(d.attributes()), d.payload(), rawClass(payloadType));
+            boolean checkable = payloadType instanceof Class<?> || payloadType instanceof ParameterizedType;
+            type = type(d.tag(), Set.of(d.attributes()), d.payload(), checkable ? payloadType : Object.class);
         }
         // Both entry points enforce the same metadata rules, even before a document is constructed.
         TagRegistry.builder().add(type);
         return type;
     }
 
-    public static ElementType type(String tag, Set<String> attributes, String payload, Class<?> payloadType) {
+    public static ElementType type(String tag, Set<String> attributes, String payload, Type payloadType) {
         return ElementType.builder(tag, attributes.toArray(String[]::new)).payload(payload, payloadType)
                 .facet(ContentModel.KEY, HtmlContent.NATIVE)
                 .facet(StyleFacet.KEY, new StyleFacet("display: inline"))
@@ -95,10 +96,5 @@ public final class DeclaredElements {
             if (found != null) return found;
         }
         return null;
-    }
-    private static Class<?> rawClass(Type t) {
-        if (t instanceof Class<?> c) return c;
-        if (t instanceof ParameterizedType p) return (Class<?>) p.getRawType();
-        return Object.class;
     }
 }

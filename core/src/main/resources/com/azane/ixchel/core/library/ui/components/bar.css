@@ -1,0 +1,31 @@
+@stylesheet;
+
+/* The fills stay inside the 1px frame the themes draw on the bar; a page whose bar has no such frame
+   sets --ix-bar-inset to 0px. Only rectangles can clip, so the fills take the bar's corners instead:
+   full, they match its shape; part full, the far end is cut the same way. */
+ix-bar {
+  --ix-bar-inset: 1px;
+}
+
+.ix-bar-track {
+  position: absolute;
+  left: var(--ix-bar-inset);
+  top: var(--ix-bar-inset);
+  right: var(--ix-bar-inset);
+  bottom: var(--ix-bar-inset);
+  border-radius: inherit;
+  corner-shape: inherit;
+}
+
+.ix-bar-fill,
+.ix-bar-trail {
+  flex-grow: 0;
+  flex-shrink: 0;
+  border-radius: inherit;
+  corner-shape: inherit;
+}
+
+.ix-bar-trail {
+  display: none;
+  transition: flex-basis 400ms ease-in 300ms;
+}

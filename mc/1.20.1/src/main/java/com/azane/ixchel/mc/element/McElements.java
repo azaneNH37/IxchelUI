@@ -8,11 +8,12 @@ public final class McElements {
     }
 
     /**
-     * Adds {@code <mc-item bind:item>}, {@code <mc-entity bind:entity>} and {@code <mc-tooltip-lines>} to
+     * Adds {@code <mc-item bind:item>}, {@code <mc-item-cycle bind:items>}, {@code <mc-entity bind:entity>} and {@code <mc-tooltip-lines>} to
      * {@code mc}, the mc layer's registry.
      */
     public static UiRegistry into(UiRegistry mc) {
         return mc.element(new ItemElement())
+                .element(new ItemCycleElement())
                 .element(new EntityElement())
                 .component(TooltipLinesModel.class, TooltipLinesModel::new);
     }

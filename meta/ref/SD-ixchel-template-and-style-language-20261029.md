@@ -304,6 +304,7 @@ final class WaypointsView extends ViewModel {
 #### 3.6 表达式与语句
 
 ```
+pipe    := expr ('|' 名字 ('(' expr (',' expr)* ')')?)*    属性值与括号内的顶层；U4（#044）
 expr    := or ('?' expr ':' expr)?
 or      := and ('||' and)*
 and     := eq ('&&' eq)*
@@ -312,7 +313,7 @@ rel     := add (('<' | '<=' | '>' | '>=') add)?      比较不连写
 add     := mul (('+' | '-') mul)*
 mul     := unary (('*' | '/' | '%') unary)*
 unary   := ('!' | '-') unary | primary
-primary := 数字 | '单引号字符串' | true | false | 路径 | '(' expr ')'
+primary := 数字 | '单引号字符串' | true | false | 路径 | '(' pipe ')'
 路径    := 名字 ('.' 名字)*
 stmts   := stmt (';' stmt)* ';'?                     只在 on: 值中
 stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
@@ -430,7 +431,7 @@ stmt    := 路径 '=' expr | 动作名 ('(' expr ')')?
 ### 6. 待定
 
 1. ~~库内样式表 href 的保留写法~~ 已定（L3）：`@ixchel/<名>.css`，只能由页面链接；首批 `vanilla.css`、`dark.css`。
-2. ~~格式化：内置函数还是一律写 `Derived`。~~ 已定（L1）：不提供内置函数。sample 中只做格式化的 `Derived` 绝大多数是拼接与算术；需要函数的只有 `EnvView` 的血量取整与宽度上限，`MachineView` 等引用 Java 常量（容量）的也不能搬进模板。格式化函数等出现第二处真实需要再加。
+2. ~~格式化：内置函数还是一律写 `Derived`。~~ 已定（L1）：不提供内置函数。sample 中只做格式化的 `Derived` 绝大多数是拼接与算术；需要函数的只有 `EnvView` 的血量取整与宽度上限，`MachineView` 等引用 Java 常量（容量）的也不能搬进模板。2026-11-05 修订（#044）：U4 的大数字、时长、百分比是第二处需要，表达式加内置管道 `compact`、`duration`、`percent`，见 U4 文档 §3.2。
 3. ~~插槽的后备内容~~ 已定：支持，`<slot>` 的子元素即后备内容（上下文模型文档 §3.1）。
 4. ~~热重载时局部状态是否保留。~~ 已定（L1）：不保留，重载后按初值重建。模板结构可变，没有可靠的身份去匹配旧状态；需要跨重载保留的状态放在 ViewModel（它跨重载保留）。
 5. ~~组件实例的子 Scope~~ 已定：模板组件实例不需要子 Scope，带 Java 逻辑的组件每实例一个（上下文模型文档 §3.5）。

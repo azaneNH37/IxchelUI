@@ -1,0 +1,5 @@
+<!-- One panel of the <ix-tabs> around it: mounted while the tabs' value is its own, so local state in
+     it restarts on each switch. A page that keeps that state shows and hides its own elements. -->
+<component name="ix-tab-panel" params="value" uses="tabs">
+  <if test="tabs == value"><slot></slot></if>
+</component>

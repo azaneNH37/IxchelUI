@@ -497,6 +497,18 @@ class UiDocumentBindingTest {
                 "binding/two-way-target@t.html:8:20"), DiagCodes.of(e));
     }
 
+    @Test
+    void loadReportsPipeErrorsAtThePipeNameAndAPipedValueCannotBindTwoWay() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
+                <div bind:text="row.count | nope"></div>
+                <div bind:text="row.name | compact"></div>
+                <input bind:value="row.count | compact"/>
+                <div on:click="selected = row.count | percent | duration"></div>
+                """, "", new Picker()));
+        assertEquals(List.of("binding/unknown-pipe@t.html:2:29", "binding/pipe-type@t.html:3:28",
+                "binding/two-way-target@t.html:4:20", "binding/pipe-type@t.html:5:49"), DiagCodes.of(e));
+    }
+
     static final class Bars extends ViewModel {
         final Value<Object> width = state("40%");
         final Value<Integer> left = state(5);
@@ -614,6 +626,24 @@ class UiDocumentBindingTest {
             final Value<String> p = state("s");
         });
         assertEquals(List.of(), DiagCodes.of(doc.diagnostics()));
+    }
+
+    @com.azane.ixchel.core.view.UiElement(tag = "item", payload = "item")
+    static final class Strings implements com.azane.ixchel.core.view.ElementPayload<List<String>> {
+    }
+
+    // Fails if a list payload accepts a list of another element type, which then fails at paint.
+    @Test
+    void aListPayloadChecksItsElementType() {
+        TagRegistry tags = com.azane.ixchel.core.html.HtmlElements.TAGS.extend()
+                .add(com.azane.ixchel.core.html.DeclaredElements.declare(Strings.class)).build();
+        UiLoadException e = assertThrows(UiLoadException.class, () -> loadItem(tags, new ViewModel() {
+            final Value<List<Integer>> p = state(List.of(1));
+        }));
+        assertEquals(List.of("binding/payload-type@t.html:2:18"), DiagCodes.of(e));
+        assertEquals(List.of(), DiagCodes.of(loadItem(tags, new ViewModel() {
+            final Value<List<String>> p = state(List.of("s"));
+        }).diagnostics()));
     }
 
     @Test

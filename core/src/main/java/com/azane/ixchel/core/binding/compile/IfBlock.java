@@ -8,13 +8,17 @@ import com.azane.ixchel.core.dom.Presence;
 
 import java.util.List;
 
+import static com.azane.ixchel.core.binding.compile.Bindings.MODEL;
+
 /**
  * {@code <if test="…">}: mounted while the Boolean is true; recreated on each false-to-true change.
  * The copy is a {@link Presence} unit: a true-to-false change makes it exit first, and turning true
- * again while it exits takes the same copy back.
+ * again while it exits takes the same copy back. An {@code <else>} or {@code <empty>} is one too,
+ * testing that its partner shows nothing.
  */
 final class IfBlock extends Block {
     private final Cell<?> test;
+    /** The {@code test} directive, where a throwing test is reported; {@code null} when its partner reports it. */
     private final Directive attribute;
     private Instance instance;
     private Presence.Unit unit;
@@ -25,6 +29,11 @@ final class IfBlock extends Block {
         super(compiler, env, content, parent, prev);
         this.test = test;
         this.attribute = attribute;
+    }
+
+    /** True exactly while this block's test is not: the test of its {@code <else>}. */
+    Cell<Boolean> otherwise() {
+        return MODEL.derived(new Cell<?>[]{test}, args -> !Boolean.TRUE.equals(args[0]));
     }
 
     @Override
@@ -56,8 +65,10 @@ final class IfBlock extends Block {
         } catch (RuntimeException ex) {
             if (!failing) {
                 failing = true;
-                env.diag().report(BindingCode.RUNTIME_EXCEPTION, attribute.valuePos(),
-                        "'" + attribute.value() + "' threw " + ex);
+                if (attribute != null) {
+                    env.diag().report(BindingCode.RUNTIME_EXCEPTION, attribute.valuePos(),
+                            "'" + attribute.value() + "' threw " + ex);
+                }
             }
             on = instance != null && !exiting;
         }

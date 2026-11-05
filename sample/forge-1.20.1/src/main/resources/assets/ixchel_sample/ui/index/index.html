@@ -5,7 +5,7 @@
       <span class="ix-title" t="ixchel_sample.index.title"></span>
       <span class="hint" t="ixchel_sample.index.hint"></span>
       <div class="list">
-        <for each="rows" as="r" key="r.id"><div class="row" tabindex="0" on:click="open(r)" bind:class:on="r.on">
+        <for each="rows" as="r" key="r.id"><div class="row ix-row" tabindex="0" on:click="open(r)" bind:class:on="r.on">
           <mc-item class="icon" bind:item="r.icon"></mc-item>
           <div class="text">
             <span class="name" bind:text="r.title"></span>

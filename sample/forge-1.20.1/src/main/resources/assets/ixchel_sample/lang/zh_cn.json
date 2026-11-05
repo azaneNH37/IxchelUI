@@ -58,6 +58,15 @@
   "ixchel_sample.index.themes.title": "主题",
   "ixchel_sample.index.themes.description": "四套内置主题（原版、暗色、全息、赛博）作用于同一张陈列页，列出所有表面与控件的各个状态；用标签页切换主题，盒子位置保持不变。",
 
+  "ixchel_sample.showcase.search": "搜索",
+  "ixchel_sample.showcase.folder": "文件夹",
+  "ixchel_sample.showcase.item": "物品",
+  "ixchel_sample.showcase.row": "行",
+  "ixchel_sample.showcase.selected": "已选中",
+  "ixchel_sample.showcase.closed": "收起",
+  "ixchel_sample.showcase.open": "展开",
+  "ixchel_sample.showcase.inside": "内容",
+
   "ixchel_sample.loot.title": "附近的掉落物",
   "ixchel_sample.loot.count": "%s / %s 个掉落物",
   "ixchel_sample.loot.empty": "附近没有掉落物。",

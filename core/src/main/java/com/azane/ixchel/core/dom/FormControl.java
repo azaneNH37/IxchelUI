@@ -7,13 +7,13 @@ import java.util.List;
 /**
  * The state of a form control ({@link Element#control()}): an {@code <input>} of one of the
  * {@link Kind}s, or a {@code <select>}. Text and number fields keep their text in a {@link TextField};
- * a checkbox its checkedness; a range and a select a value string. As in the DOM a value is a string;
+ * a checkbox or radio its checkedness; a range and a select a value string. As in the DOM a value is a string;
  * setting one from code fires no event. Editing is the event dispatcher's default action.
  */
 public final class FormControl {
     /** {@code <input type>} values, plus {@link #SELECT} for {@code <select>}. */
     public enum Kind {
-        TEXT, NUMBER, CHECKBOX, RANGE, SELECT;
+        TEXT, NUMBER, CHECKBOX, RADIO, RANGE, SELECT;
 
         /** The kind of {@code <input type="…">}, or {@code null} for an unsupported type. */
         public static Kind ofInputType(String type) {
@@ -21,6 +21,7 @@ public final class FormControl {
                 case "text" -> TEXT;
                 case "number" -> NUMBER;
                 case "checkbox" -> CHECKBOX;
+                case "radio" -> RADIO;
                 case "range" -> RANGE;
                 default -> null;
             };
@@ -66,12 +67,17 @@ public final class FormControl {
     /**
      * The value as the DOM's {@code value}: a field's text; a range's number clamped to its range and
      * snapped to its step (the midpoint when never set); a select's selected option's value, or
-     * {@code ""} when none is selected; {@code "on"} for a checkbox.
+     * {@code ""} when none is selected; {@code "on"} for a checkbox; a radio's {@code value} attribute,
+     * else {@code "on"}.
      */
     public String value() {
         return switch (kind) {
             case TEXT, NUMBER -> text.value();
             case CHECKBOX -> "on";
+            case RADIO -> {
+                String v = owner.attribute("value");
+                yield v == null ? "on" : v;
+            }
             case RANGE -> format(number());
             case SELECT -> {
                 Element o = selectedOption();
@@ -88,7 +94,7 @@ public final class FormControl {
     public void setValue(String value) {
         switch (kind) {
             case TEXT, NUMBER -> text.setValue(value);
-            case CHECKBOX -> {
+            case CHECKBOX, RADIO -> {
             }
             case RANGE, SELECT -> {
                 if (!value.equals(this.value)) {
@@ -106,7 +112,7 @@ public final class FormControl {
         return checked;
     }
 
-    /** Sets a checkbox's checkedness ({@code :checked}). */
+    /** Sets a checkbox's or radio's checkedness ({@code :checked}). */
     public void setChecked(boolean checked) {
         if (checked != this.checked) {
             this.checked = checked;

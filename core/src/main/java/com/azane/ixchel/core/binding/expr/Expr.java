@@ -8,6 +8,7 @@ import java.util.List;
  * node's first character (of the operator for unary and binary nodes) in the directive value.
  *
  * <pre>
+ * pipe    := expr ('|' name ('(' expr (',' expr)* ')')?)*
  * expr    := or ('?' expr ':' expr)?
  * or      := and ('||' and)*
  * and     := eq ('&amp;&amp;' eq)*
@@ -16,11 +17,12 @@ import java.util.List;
  * add     := mul (('+' | '-') mul)*
  * mul     := unary (('*' | '/' | '%') unary)*
  * unary   := ('!' | '-') unary | primary
- * primary := number | 'string' | true | false | path | '(' expr ')'
+ * primary := number | 'string' | true | false | path | '(' pipe ')'
  * path    := name ('.' name)*
  * stmts   := stmt (';' stmt)* ';'?
- * stmt    := path '=' expr | name ('(' expr ')')?
+ * stmt    := path '=' pipe | name ('(' pipe ')')?
  * </pre>
+ * An expression value is a {@code pipe}; pipe names resolve only among the built-in pipes.
  */
 public sealed interface Expr {
     int at();
@@ -50,6 +52,10 @@ public sealed interface Expr {
     record Conditional(Expr test, Expr then, Expr otherwise, int at) implements Expr {
     }
 
+    /** {@code input | name(args)}; {@code at} is the offset of the pipe's name. */
+    record Pipe(Expr input, String name, List<Expr> args, int at) implements Expr {
+    }
+
     /** A statement of an {@code on:} value. */
     sealed interface Stmt {
         int at();
@@ -74,7 +80,7 @@ public sealed interface Expr {
 
     static Expr parseExpression(String src) throws SyntaxError {
         Parser p = new Parser(src);
-        Expr e = p.expr();
+        Expr e = p.pipe();
         p.expectEnd();
         return e;
     }

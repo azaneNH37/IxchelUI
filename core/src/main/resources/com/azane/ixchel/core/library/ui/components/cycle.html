@@ -1,0 +1,10 @@
+<!-- Vanilla's cycle button: shows options[value]; a left click moves to the next option, a right
+     click to the one before, both wrapping round. -->
+<link href="cycle.css"/>
+<component name="ix-cycle" params="value options">
+  <button class="ix-cycle-button" part="button"
+          on:click="value = value + 1 >= options.size ? 0 : value + 1"
+          on:click.right="value = value <= 0 ? options.size - 1 : value - 1">
+    <for each="options" as="o" key="o" index="i"><if test="i == value"><span bind:text="o"></span></if></for>
+  </button>
+</component>

@@ -1,0 +1,18 @@
+@stylesheet;
+
+ix-pager {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.ix-pager-label {
+  flex-grow: 1;
+  text-align: center;
+}
+
+.ix-pager-prev,
+.ix-pager-next {
+  width: 12px;
+  padding: 0;
+}

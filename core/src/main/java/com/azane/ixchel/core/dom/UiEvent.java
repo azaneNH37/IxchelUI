@@ -10,8 +10,9 @@ public final class UiEvent {
     /**
      * {@code INPUT}: the value of a form control changed by the user (typing, deleting, pasting, a
      * toggle, a pick, each step of a range), dispatched like the others. {@code CHANGE}: the user
-     * committed a value: a checkbox toggled, an option picked, a range released or stepped by a key,
-     * a text field left or Enter pressed in it after its value changed. {@code CLOSE}: a
+     * committed a value: a checkbox toggled, a radio checked, an option picked, a range released or stepped by a key,
+     * a text field left or Enter pressed in it after its value changed, a {@code <details>} opened or closed
+     * by its summary. {@code CLOSE}: a
      * {@code <dialog>} closed by Escape. {@code SCROLL}: an element's {@link Element#scrollTop()}
      * changed; as in the DOM it runs the target's listeners only and does not bubble. {@code MOUSE_MOVE}:
      * the pointer moved; while a button is held it goes to the element that button pressed, wherever the

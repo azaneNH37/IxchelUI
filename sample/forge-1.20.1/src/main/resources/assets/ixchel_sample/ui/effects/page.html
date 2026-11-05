@@ -1,16 +1,18 @@
 <link href="page.css"/>
+<link href="@ixchel/components/tabs.html"/>
+<link href="@ixchel/components/tab.html"/>
 <page>
   <div class="screen">
     <div class="ix-panel">
       <div class="header">
         <span class="ix-title" t="ixchel_sample.index.effects.title"></span>
-        <div class="tabs">
-          <button class="tab opacity-tab" bind:class:ix-selected="tab == 'opacity'" on:click="tab = 'opacity'" t="ixchel_sample.effects.opacity"></button>
-          <button class="tab filters-tab" bind:class:ix-selected="tab == 'filters'" on:click="tab = 'filters'" t="ixchel_sample.effects.filters"></button>
-          <button class="tab blend-tab" bind:class:ix-selected="tab == 'blend'" on:click="tab = 'blend'" t="ixchel_sample.effects.blend"></button>
-          <button class="tab shaders-tab" bind:class:ix-selected="tab == 'shaders'" on:click="tab = 'shaders'" t="ixchel_sample.effects.shaders"></button>
-          <button class="tab shapes-tab" bind:class:ix-selected="tab == 'shapes'" on:click="tab = 'shapes'" t="ixchel_sample.effects.shapes"></button>
-        </div>
+        <ix-tabs bind:value="tab">
+          <ix-tab class="opacity-tab" value="opacity" t:label="ixchel_sample.effects.opacity"></ix-tab>
+          <ix-tab class="filters-tab" value="filters" t:label="ixchel_sample.effects.filters"></ix-tab>
+          <ix-tab class="blend-tab" value="blend" t:label="ixchel_sample.effects.blend"></ix-tab>
+          <ix-tab class="shaders-tab" value="shaders" t:label="ixchel_sample.effects.shaders"></ix-tab>
+          <ix-tab class="shapes-tab" value="shapes" t:label="ixchel_sample.effects.shapes"></ix-tab>
+        </ix-tabs>
       </div>
 
       <div class="page" bind:class:shown="tab == 'opacity'">

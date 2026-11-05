@@ -1,0 +1,7 @@
+@stylesheet;
+
+ix-tabs {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 2px;
+}

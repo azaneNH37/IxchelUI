@@ -44,7 +44,7 @@ public final class CharacterPlaytest {
                 .run(() -> Playtest.clickSlot(HELMET))
                 .waitUntilServer("helmet equipped by two clicks", p -> p.getInventory().getArmor(3).is(Items.DIAMOND_HELMET)
                         && p.getInventory().getItem(0).isEmpty(), Playtest.WAIT)
-                .clickNth(".tab", 1)
+                .clickNth(".ix-tab-button", 1)
                 .waitUntil("attributes tab: seven rows, armor slots hidden", () -> Playtest.query(".attribute").size() == 7
                         && isHidden(HELMET) && !isHidden(FIRST_HOTBAR), Playtest.WAIT)
                 // Fails if slots on a hidden page are reported as too small (their box is 0x0).
@@ -61,7 +61,7 @@ public final class CharacterPlaytest {
                     p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 1200, 1));
                     p.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 150, 0));
                 })
-                .clickNth(".tab", 2)
+                .clickNth(".ix-tab-button", 2)
                 .waitUntil("effects tab: two rows, night vision ending", () -> Playtest.query(".effect").size() == 2
                         && Playtest.query(".effect.ending").size() == 1, Playtest.WAIT)
                 // The ending row dims for half a second, then lights up again.
@@ -69,12 +69,12 @@ public final class CharacterPlaytest {
                 .shot("character-effects")
                 .waitUntil("and lights up again", () -> Playtest.query(".effect.dim").isEmpty(), Playtest.WAIT)
                 .run(() -> stat[0] = value(".stat", "Time played"))
-                .clickNth(".tab", 3)
+                .clickNth(".ix-tab-button", 3)
                 // Fails if the stats request is not sent: the client counter stays as it was.
                 .waitUntil("stats tab: play time arrives from the server",
                         () -> !value(".stat", "Time played").equals(stat[0]), 60)
                 .shot("character-stats")
-                .clickNth(".tab", 0)
+                .clickNth(".ix-tab-button", 0)
                 .waitUntil("equipment tab shows the armor slots again", () -> !isHidden(HELMET), Playtest.WAIT)
                 .run(() -> Minecraft.getInstance().setScreen(null))
                 // Fails if a closed container screen drops its document at once; the shot shows its slot items following it.

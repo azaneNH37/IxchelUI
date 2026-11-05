@@ -10,7 +10,7 @@
     <div class="tools">
       <input class="search" bind:value="query" t:placeholder="ixchel_sample.storage.search" maxlength="50"/>
       <button class="sort" t:title="ixchel_sample.storage.sort_by" on:click="cycleSort"><span bind:text="sortLabel"></span></button>
-      <button class="direction" on:click="descending = !descending"><if test="descending"><span t="ixchel_sample.storage.descending"></span></if><if test="!descending"><span t="ixchel_sample.storage.ascending"></span></if></button>
+      <button class="direction" on:click="descending = !descending"><if test="descending"><span t="ixchel_sample.storage.descending"></span></if><else><span t="ixchel_sample.storage.ascending"></span></else></button>
     </div>
     <!-- Clicks on the grid store the carried stack (right: one of it); on a cell they take when nothing is carried. -->
     <div class="view" bind:scrolltop="scroll" on:click="store" on:click.right="storeOne">

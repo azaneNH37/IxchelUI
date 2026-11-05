@@ -30,34 +30,38 @@
   margin-bottom: 4px;
 }
 
-/* Vertical gauges: the fill stands on the bottom and grows with the value. */
+/* Vertical gauges: the fill stands on the bottom and grows with the value. Flat, without the theme's
+   well bevel and notched corners. */
 .bar {
   height: 56px;
   margin-right: 3px;
-  justify-content: flex-end;
   background-color: #373737;
   border: 1px solid #1E1E1E;
+  border-radius: 0;
+  box-shadow: none;
+  --ix-bar-inset: 0px;
 }
 
 .energy {
   width: 12px;
 }
 
-.energy-fill {
+ix-bar.energy::part(fill) {
   background-color: #D03030;
-  transition: height 150ms;
+  transition: flex-basis 150ms;
 }
 
 .tank {
   width: 18px;
 }
 
-/* The water sprite from the block atlas, tinted with the biome's water color. */
-.water-fill {
+/* The water sprite from the block atlas, tinted with the biome's water color (set on the tank). */
+ix-bar.tank::part(fill) {
+  background-color: var(--water-tint, #3F76E4);
   background-image: url("sprite:minecraft:block/water_still");
   background-size: 16px 16px;
   background-blend-mode: multiply;
-  transition: height 150ms;
+  transition: flex-basis 150ms;
 }
 
 .feed {

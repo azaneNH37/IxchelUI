@@ -2,6 +2,7 @@ package com.azane.ixchel.sample.playtest;
 
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
+import com.azane.ixchel.core.runtime.UiDocument;
 import com.azane.ixchel.mc.FrameTimer;
 import com.azane.ixchel.mc.playtest.Playtest;
 import com.azane.ixchel.mc.playtest.Playtests;
@@ -10,10 +11,10 @@ import com.azane.ixchel.sample.showcase.ShowcaseScreen;
 import java.util.List;
 
 /**
- * {@code -Pplaytest=themes}: the showcase opens in each built-in theme through its tabs without
- * errors, shows a tooltip on the overlay surface, keeps every box where the first theme put it, and
- * holo and cyber, whose animations and effects run every frame, draw within the showcase's budget.
- * One screenshot per theme.
+ * {@code -Pplaytest=themes}: the showcase opens in each built-in theme through its {@code ix-tab}s
+ * without errors, shows a tooltip on the overlay surface, keeps every box (the library components'
+ * parts included) where the first theme put it, and holo and cyber, whose animations and effects run
+ * every frame, draw within the showcase's budget. One screenshot per theme.
  */
 public final class ThemesPlaytest {
     private static final List<String> THEMES = List.of("vanilla", "dark", "holo", "cyber");
@@ -21,6 +22,8 @@ public final class ThemesPlaytest {
     private static final double BUDGET_US = 12000;
     /** The boxes under the first theme, kept between steps. */
     private static final String[] first = {null};
+    /** The document open before a tab is clicked, kept between steps. */
+    private static final UiDocument[] before = {null};
 
     private ThemesPlaytest() {
     }
@@ -30,11 +33,16 @@ public final class ThemesPlaytest {
             s.run(ShowcaseScreen::open);
             for (String theme : THEMES) {
                 if (!theme.equals("vanilla")) {
+                    s.run(() -> before[0] = Playtest.document());
                     s.click(".tab-" + theme);
+                    // Fails if a tab's pick does not reach the page: the tab would select itself on the
+                    // page already open.
+                    s.waitUntil("clicking the " + theme + " tab opens another page", () -> Playtest.isOpen()
+                            && Playtest.document() != before[0], Playtest.WAIT);
                 }
                 // Fails if a tab does not open its theme's page.
                 s.waitUntil("the " + theme + " page opens", () -> Playtest.isOpen()
-                        && Playtest.query(".tab-" + theme + ".ix-selected").size() == 1, Playtest.WAIT);
+                        && Playtest.query(".tab-" + theme + " .ix-tab-button.ix-selected").size() == 1, Playtest.WAIT);
                 s.expect(theme + " reports no errors", () -> Playtest.document().diagnostics().errorCount() == 0);
                 s.pause(10);
                 // Fails if a theme sets a size, margin, padding or border width: the boxes would move.
@@ -58,7 +66,10 @@ public final class ThemesPlaytest {
                 s.pause(10);
                 s.shot("themes-" + theme);
             }
-            s.run(() -> first[0] = null);
+            s.run(() -> {
+                first[0] = null;
+                before[0] = null;
+            });
         });
     }
 

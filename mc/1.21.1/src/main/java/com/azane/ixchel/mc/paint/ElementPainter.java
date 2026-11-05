@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.paint;
 
+import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.view.ElementPayload;
 import net.minecraft.client.gui.Font;
@@ -37,5 +38,15 @@ public interface ElementPainter<T> extends ElementPayload<T> {
 
     /** Draws the tooltip {@link #hasTooltip} promised, at the pointer in the current pose. */
     default void renderTooltip(GuiGraphics g, Font font, T value, int mouseX, int mouseY) {
+    }
+
+    /** {@link #hasTooltip(Object)} for drawn element {@code e}, for a painter whose tooltip depends on the element. */
+    default boolean hasTooltip(Element e, T value) {
+        return hasTooltip(value);
+    }
+
+    /** {@link #renderTooltip(GuiGraphics, Font, Object, int, int)} for drawn element {@code e}. */
+    default void renderTooltip(GuiGraphics g, Font font, Element e, T value, int mouseX, int mouseY) {
+        renderTooltip(g, font, value, mouseX, mouseY);
     }
 }

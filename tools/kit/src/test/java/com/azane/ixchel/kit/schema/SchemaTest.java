@@ -31,9 +31,9 @@ class SchemaTest {
         assertEquals("java.lang.Integer", item.payloadType());
         assertTrue(tag(schema, "mc-slot").attributes().contains("index"));
 
-        assertEquals(List.of("kit-gauge", "kit-meter", "kit-part"),
-                schema.components().stream().map(Schema.Component::name).toList());
-        assertEquals("kitfixture:ui/part.html", schema.components().get(2).file());
+        List<Schema.Component> own = schema.components().stream().filter(c -> !c.file().startsWith("@ixchel/")).toList();
+        assertEquals(List.of("kit-gauge", "kit-meter", "kit-part"), own.stream().map(Schema.Component::name).toList());
+        assertEquals("kitfixture:ui/part.html", own.get(2).file());
 
         Schema.Model claimed = schema.models().stream()
                 .filter(m -> m.type().endsWith("ClaimedModel")).findFirst().orElseThrow();
@@ -53,8 +53,25 @@ class SchemaTest {
             Project project = new Project(List.of(), List.of(), loader);
             Schema schema = Schema.of(project, ElementDeclarations.load(project));
             assertEquals(List.of(new Schema.Component("mc-kit-gauge", "@ixchel/kitfixture/kit-gauge.html",
-                    List.of("level"), List.of("level"), List.of(), List.of())), schema.components());
+                    List.of("level"), List.of("level"), List.of(), List.of(), List.of(), List.of())),
+                    schema.components().stream().filter(c -> c.file().startsWith("@ixchel/kitfixture/")).toList());
         }
+    }
+
+    /** Fails if a library view component, what it uses or its parts go unlisted, or its part classes and the pipes do. */
+    @Test
+    void listsTheLibrarysViewComponentsWithUsesPartsAndClasses() throws URISyntaxException {
+        Path resources = Path.of(SchemaTest.class.getResource("/fixture").toURI());
+        Project project = new Project(List.of(resources), List.of(ClassFiles.root(SchemaTest.class)),
+                SchemaTest.class.getClassLoader());
+        Schema schema = Schema.of(project, ElementDeclarations.load(project));
+        Schema.Component bar = schema.components().stream().filter(c -> c.name().equals("ix-bar")).findFirst().orElseThrow();
+        assertEquals("@ixchel/components/bar.html", bar.file());
+        assertEquals(List.of("fill", "trail"), bar.parts());
+        Schema.Component tab = schema.components().stream().filter(c -> c.name().equals("ix-tab")).findFirst().orElseThrow();
+        assertEquals(List.of("tabs"), tab.uses());
+        assertTrue(schema.classes().containsAll(List.of("ix-bar-fill", "ix-tab-button", "ix-switch", "ix-row")));
+        assertTrue(schema.pipes().stream().anyMatch(p -> p.contains("compact")));
     }
 
     /** Fails if the library's or the project's effects go missing, or a param's property or initial value is written wrong. */

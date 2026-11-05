@@ -88,19 +88,19 @@
   width: 182px;
   height: 5px;
   margin-top: 2px;
+  --ix-bar-inset: 0px;
   background-image: url("minecraft:textures/gui/icons.png");
   background-size: 256px 256px;
   background-position: 0 -64px;
   background-repeat: no-repeat;
 }
 
-.xp-fill {
-  height: 5px;
+ix-bar.xp::part(fill) {
   background-image: url("minecraft:textures/gui/icons.png");
   background-size: 256px 256px;
   background-position: 0 -69px;
   background-repeat: no-repeat;
-  transition: width 300ms;
+  transition: flex-basis 300ms;
 }
 
 .level {
@@ -259,11 +259,11 @@
   width: 60px;
   height: 3px;
   margin-right: 4px;
+  --ix-bar-inset: 0px;
   background-color: #550000;
 }
 
-.health-fill {
-  height: 3px;
+ix-bar.health-bar::part(fill) {
   background-color: #FF3333;
 }
 

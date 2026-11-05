@@ -8,18 +8,20 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A component parsed from its file's {@code <component name params events>} root; checked for structure
- * only, its names and types are checked per instance by the binding layer.
+ * A component parsed from its file's {@code <component name params events uses>} root; checked for
+ * structure only, its names and types are checked per instance by the binding layer.
  *
  * @param pos    the {@code <component>} tag
+ * @param uses   the names its body takes from the nearest {@code provide:<name>} above each instance
  * @param body   the view's content, never mounted itself: each instance copies it
  * @param slots  the names of its {@code <slot>} elements, {@code ""} for the default slot
  */
-public record ComponentDef(String name, SourcePos pos, List<Param> params, List<String> events, List<Node> body,
-                           Set<String> slots) {
+public record ComponentDef(String name, SourcePos pos, List<Param> params, List<String> events, List<String> uses,
+                           List<Node> body, Set<String> slots) {
     public ComponentDef {
         params = List.copyOf(params);
         events = List.copyOf(events);
+        uses = List.copyOf(uses);
         body = List.copyOf(body);
         slots = Set.copyOf(slots);
     }

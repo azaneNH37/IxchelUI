@@ -6,6 +6,7 @@ import com.azane.ixchel.core.binding.expr.Expr.Call;
 import com.azane.ixchel.core.binding.expr.Expr.Conditional;
 import com.azane.ixchel.core.binding.expr.Expr.Literal;
 import com.azane.ixchel.core.binding.expr.Expr.Path;
+import com.azane.ixchel.core.binding.expr.Expr.Pipe;
 import com.azane.ixchel.core.binding.expr.Expr.Stmt;
 import com.azane.ixchel.core.binding.expr.Expr.SyntaxError;
 import com.azane.ixchel.core.binding.expr.Expr.Unary;
@@ -13,16 +14,36 @@ import com.azane.ixchel.core.binding.expr.Expr.Unary;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Recursive descent over a hand-rolled scanner; whitespace separates tokens. */
+/** Recursive descent over a hand-rolled scanner; whitespace separates tokens. Grammar: see {@link Expr}. */
 final class Parser {
     private static final String[] OPERATORS = {
-            "==", "!=", "<=", ">=", "&&", "||", "<", ">", "+", "-", "*", "/", "%", "!", "?", ":", "(", ")", ".", ";", "="};
+            "==", "!=", "<=", ">=", "&&", "||", "<", ">", "+", "-", "*", "/", "%", "!", "?", ":", "(", ")", ".", ";", "=",
+            "|", ","};
 
     private final String src;
     private int i;
 
     Parser(String src) {
         this.src = src;
+    }
+
+    /** The top of an expression value: an expression piped through zero or more named pipes. */
+    Expr pipe() throws SyntaxError {
+        Expr e = expr();
+        while (accept("|")) {
+            skip();
+            int at = i;
+            String name = name();
+            List<Expr> args = new ArrayList<>();
+            if (accept("(")) {
+                do {
+                    args.add(expr());
+                } while (accept(","));
+                expect(")");
+            }
+            e = new Pipe(e, name, List.copyOf(args), at);
+        }
+        return e;
     }
 
     Expr expr() throws SyntaxError {
@@ -81,7 +102,7 @@ final class Parser {
         char c = src.charAt(i);
         if (c == '(') {
             i++;
-            Expr e = expr();
+            Expr e = pipe();
             expect(")");
             return e;
         }
@@ -179,7 +200,7 @@ final class Parser {
         Path target = path();
         if (peekOperator("=")) {
             i++;
-            return new Assign(target, expr(), at);
+            return new Assign(target, pipe(), at);
         }
         if (target.names().size() > 1) {
             throw new SyntaxError(i, "expected '=' after '" + target.text() + "'");
@@ -190,7 +211,7 @@ final class Parser {
             if (i < src.length() && src.charAt(i) == ')') {
                 throw new SyntaxError(i, "an action without an argument takes no parentheses");
             }
-            arg = expr();
+            arg = pipe();
             expect(")");
         }
         return new Call(target.names().get(0), arg, at);

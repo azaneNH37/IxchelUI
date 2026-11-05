@@ -9,12 +9,12 @@
       </div>
       <span class="hint" t="ixchel_sample.waypoints.hint"></span>
       <div class="list">
-        <if test="rows.size == 0"><span class="empty" t="ixchel_sample.waypoints.empty"></span></if>
-        <for each="rows" as="r" key="r.id"><div class="row" tabindex="0" on:click="select(r)" bind:class:ix-selected="r.id == selectedId">
+        <for each="rows" as="r" key="r.id"><div class="row ix-row" tabindex="0" on:click="select(r)" bind:class:ix-selected="r.id == selectedId">
           <span class="name" bind:text="r.name"></span>
           <span class="coords" bind:text="r.x + ', ' + r.y + ', ' + r.z"></span>
           <span class="distance" bind:text="r.distance + ' m'"></span>
         </div></for>
+        <empty><span class="empty" t="ixchel_sample.waypoints.empty"></span></empty>
       </div>
       <div class="buttons">
         <button t:title="ixchel_sample.waypoints.add_title" on:click="add" t="ixchel_sample.waypoints.add"></button>

@@ -30,7 +30,7 @@ public final class TagRegistry {
         public Builder add(ElementType type) {
             String tag = type.tag();
             if (!isName(tag, false)) throw new IllegalArgumentException("malformed tag name '" + tag + "'");
-            if (Set.of("link", "for", "if", "slot", "page", "component").contains(tag)) {
+            if (Set.of("link", "for", "if", "else", "empty", "slot", "page", "component").contains(tag)) {
                 throw new IllegalArgumentException("<" + tag + "> is view syntax, not an element");
             }
             if (types.containsKey(tag)) throw new IllegalArgumentException(type + " is already registered");

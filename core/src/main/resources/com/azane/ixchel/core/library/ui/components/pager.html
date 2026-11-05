@@ -1,0 +1,7 @@
+<!-- Previous page, "page / count" and next page; page counts from 0, the label from 1. -->
+<link href="pager.css"/>
+<component name="ix-pager" params="page count">
+  <button class="ix-pager-prev" part="prev" translate="no" bind:disabled="page <= 0" on:click="page = page - 1">&lt;</button>
+  <span class="ix-pager-label" part="label" bind:text="(page + 1) + ' / ' + count"></span>
+  <button class="ix-pager-next" part="next" translate="no" bind:disabled="page >= count - 1" on:click="page = page + 1">&gt;</button>
+</component>

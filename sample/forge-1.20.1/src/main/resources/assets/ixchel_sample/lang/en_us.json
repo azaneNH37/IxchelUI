@@ -58,6 +58,15 @@
   "ixchel_sample.index.themes.title": "Themes",
   "ixchel_sample.index.themes.description": "The four built-in themes, vanilla, dark, holo and cyber, on one showcase of every surface and control in each state; the tabs switch themes and the boxes stay where they are.",
 
+  "ixchel_sample.showcase.search": "Search",
+  "ixchel_sample.showcase.folder": "Folder",
+  "ixchel_sample.showcase.item": "Item",
+  "ixchel_sample.showcase.row": "Row",
+  "ixchel_sample.showcase.selected": "Selected",
+  "ixchel_sample.showcase.closed": "Closed",
+  "ixchel_sample.showcase.open": "Open",
+  "ixchel_sample.showcase.inside": "Inside",
+
   "ixchel_sample.loot.title": "Nearby drops",
   "ixchel_sample.loot.count": "%s of %s drops",
   "ixchel_sample.loot.empty": "Nothing dropped nearby.",

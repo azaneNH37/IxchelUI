@@ -88,8 +88,8 @@ final class CharacterModel extends ViewModel {
     final Cell<List<EffectRow>> effects = source(ClientSources.player(CharacterModel::effects, List.of()));
     final Cell<List<StatRow>> stats = source(ClientSources.player(CharacterModel::stats, List.of()));
 
+    /** Raised by a tab after it has written {@link #tab}: opening statistics asks the server for them. */
     final Action<Tab> select = action(t -> {
-        tab.set(t.id());
         if (t.id().equals("stats")) {
             ClientPacketListener c = Minecraft.getInstance().getConnection();
             if (c != null) {

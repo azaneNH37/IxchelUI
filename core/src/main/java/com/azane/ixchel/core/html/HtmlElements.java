@@ -14,7 +14,7 @@ public final class HtmlElements {
     public static final List<ElementType> ALL = List.of(
             ElementType.plain("div"), ElementType.plain("span"), ElementType.plain("a"),
             ImageElement.TYPE, ButtonElement.TYPE, InputElement.TYPE, SelectElement.TYPE, SelectElement.OPTION,
-            DialogElement.TYPE,
+            DialogElement.TYPE, DetailsElement.TYPE, DetailsElement.SUMMARY,
             pointer("ix-tooltip", "the tooltip", LayerFacet.Placement.POINTER_OFFSET, LayerFacet.Pointer.TOOLTIP),
             pointer("ix-drag-preview", "the drag preview", LayerFacet.Placement.POINTER_CENTER, LayerFacet.Pointer.DRAG_PREVIEW));
 

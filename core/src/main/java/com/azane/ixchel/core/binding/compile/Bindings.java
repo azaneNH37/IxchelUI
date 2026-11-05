@@ -37,6 +37,8 @@ import java.util.function.Supplier;
  * <span bind:text="selected.name"></span>   <!-- path: record components, read when the record changes -->
  * <span bind:text="rows.size + ' rows'"></span> <!-- expression: literals, paths, ! - + * / %, comparisons,
  *                                                && ||, ?: (see Expr); one Derived over its paths -->
+ * <span bind:text="(energy | compact(2)) + ' FE'"></span> <!-- pipes, lowest precedence: compact, duration,
+ *                                                percent; String results -->
  * <div bind:class:busy="reload.pending"></div>  <!-- an action's pending / error -->
  * <div on:click="reload"></div>             <!-- runs an action; the event counts as handled -->
  * <div on:click="select(row)"></div>        <!-- with the value of an expression as its argument -->
@@ -54,6 +56,9 @@ import java.util.function.Supplier;
  *                                                number and range inputs and on <select> -->
  * <input type="checkbox" bind:checked="on"/> <!-- two-way: a Value<Boolean> -->
  * <dialog bind:open="confirming">…</dialog> <!-- two-way: open while true; Escape closes it and writes false -->
+ * <details bind:open="expanded"><summary>…</summary>…</details> <!-- two-way: its summary toggles it -->
+ * <input type="radio" bind:group="mode" bind:value="m.id"/> <!-- checked while mode == m.id (or value="…");
+ *                                                checking writes the value to the bare writable path -->
  * <input bind:value="r.text"/>              <!-- inside <for>: a row component of type Value<T> made with
  *                                                state(...) is two-way too; any row component that is a
  *                                                Cell is read through and followed -->

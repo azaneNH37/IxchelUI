@@ -29,11 +29,6 @@
   align-items: center;
   padding: 2px;
   margin-bottom: 1px;
-  transition: background-color 120ms;
-}
-
-.row:hover {
-  background-color: var(--ix-hover);
 }
 
 .icon {

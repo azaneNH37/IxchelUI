@@ -185,17 +185,27 @@ TH1 的基底只给 L3 已有的词汇穿外观（`.ix-panel`、`.ix-title`、`b
 | 部件 | 默认 | 悬停 | 焦点 | 按下 | 选中 | 禁用 | 错误 | 等待 | 成功 |
 |---|---|---|---|---|---|---|---|---|---|
 | `.ix-panel` | `panel-*`、`text` | | | | | | | | |
-| `.ix-well`、`mc-slot` | `well-*` | | | | | | | | |
+| `.ix-well` | `well-*` | | | | | | | | |
+| `mc-slot`（不用写类） | `well-bg`、`well-image`、`slot-shadow`；直角，无 `backdrop`（成片时每格模糊一次世界） | | | | | | | | |
 | `button` | `control-*`、`text` | `hover` 叠色 | 边框 `focus` + `hover` | `active` 叠色；主题：斜面翻转、反色 | `selected`、`selected-text` | `disabled-text`，去叠色 | 边框 `negative` | `text-muted`；主题：条纹、闪烁 | 边框 `positive` |
-| `input`、`select` | `well-*`、边框 `well-border` | | 边框 `focus` | | | `disabled-text` | 边框 `negative` | 同 `button` | 边框 `positive` |
+| `input`、`select` | `well-*`（不含 `well-shadow`：框只由边框画，否则成双层）、边框 `well-border` | | 边框 `focus` | | | `disabled-text` | 边框 `negative` | 同 `button` | 边框 `positive` |
 | 下拉列表（`select:open`） | `overlay-*` | 选项 `hover` | | | 选项 `selected` | | | | |
 | 复选框、滑条 | `accent-color: accent` | | 边框 `focus` | | | `disabled-text` | | | |
 | `dialog`、`ix-tooltip` | `overlay-*`、`overlay-text` | | | | | | | | |
 | 滚动条 | 滑块 `text-dim`，轨道 `well-bg` | | | | | | | | |
 | `.ix-title` | `title`、`title-font`、`text-shadow` | | | | | | | | |
 | `.ix-muted`、`.ix-divider` | `text-muted`；`text-dim` | | | | | | | | |
+| radio | 同复选框（圆点） | | 边框 `focus` | | | `disabled-text` | | | |
+| `summary::before`（U4） | 边框 `text-muted` | | | | 展开时填 `text-muted` | | | | |
+| `.ix-row`（U4） | 无 | `hover` 叠色（叠在选中上） | | | 同 `.ix-selected` | `disabled-text` | | | |
+| `.ix-switch`（U4） | 轨道同复选框，滑块 `text` | | 边框 `focus` | | 轨道 `accent` | 滑块 `disabled-text` | | | |
+| `.ix-badge`（U4） | 底 `accent`、字 `on-accent` | | | | | | | | |
+| `.ix-key`（U4） | `control-bg`、边框 `control-border`、`text` | | | | | | | | |
+| `ix-bar`（U4） | 外壳 `well-*`；`fill` 为 `accent`；`trail` 为 `text` | | | | | | | | |
+| `ix-tab`、`ix-stepper`、`ix-cycle`、`ix-pager`、`ix-search`（U4） | 部件是 `button`，同 `button` 行；`ix-pager` 的 `label` 为 `text` | | | | 标签选中同 `.ix-selected` | | | | |
+| `ix-tree-row`（U4） | `arrow` 为 `text-muted` | | | | | | | | |
 
-全部过渡用 `--ix-duration`、`--ix-easing`。进场（`:-ix-entering`）不进 `base`，只有 `holo` 写。
+全部过渡用 `--ix-duration`、`--ix-easing`。进场（`:-ix-entering`）不进 `base`，只有 `holo` 写。U4 各行由 `base` 接到已有变量，四个主题文件不改（`BuiltInThemesTest` 覆盖）；表面类的尺寸（`.ix-switch`、`.ix-badge`、`.ix-key`）在 UA 样式表，`base` 只管外观。
 
 #### 6.2 四套主题设计稿（2026-11-05 定稿，实现见路线图 TH4 结果）
 

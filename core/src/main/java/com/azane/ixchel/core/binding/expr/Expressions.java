@@ -14,7 +14,8 @@ import java.util.function.Function;
 /**
  * Type-checks a parsed {@link Expr} and compiles it into a function of the distinct paths it reads.
  * Arithmetic follows Java's numeric promotion; {@code null} (a path through a {@code null} record) makes
- * arithmetic {@code null}, order comparisons and boolean operands false.
+ * arithmetic and pipes {@code null}, order comparisons and boolean operands false. Pipes are the built-in
+ * {@code compact(digits = 1)}, {@code duration} and {@code percent}, each giving a {@code String}.
  */
 public final class Expressions {
     /** A resolved path: the cell to read and its declared type. */
@@ -44,6 +45,11 @@ public final class Expressions {
 
     private record Node(Type type, Eval eval) {
     }
+
+    /** The built-in pipes as a view writes them, their input before the bar; nothing else resolves after a {@code |}. */
+    public static final List<String> PIPE_SIGNATURES = List.of(
+            "Number | compact(digits = 1)", "Integer | duration", "Number | percent");
+    private static final List<String> PIPES = List.of("compact", "duration", "percent");
 
     private final Paths paths;
     private final Function<Object, String> textOf;
@@ -85,6 +91,9 @@ public final class Expressions {
         }
         if (e instanceof Expr.Binary b) {
             return binary(b);
+        }
+        if (e instanceof Expr.Pipe p) {
+            return pipe(p);
         }
         return conditional((Expr.Conditional) e);
     }
@@ -234,6 +243,65 @@ public final class Expressions {
             });
         }
         return new Node(type, in -> truth(t.eval(in)) ? a.eval(in) : b.eval(in));
+    }
+
+    private Node pipe(Expr.Pipe p) {
+        Node input = node(p.input());
+        List<Node> args = new ArrayList<>();
+        boolean ok = input != null;
+        for (Expr a : p.args()) {
+            Node n = node(a);
+            ok &= n != null;
+            args.add(n);
+        }
+        String name = p.name();
+        if (!PIPES.contains(name)) {
+            errors.report(ExprCode.UNKNOWN_PIPE, p.at(), "no built-in pipe '" + name + "'; the pipes are " + PIPES);
+            return null;
+        }
+        if (!ok) {
+            return null;
+        }
+        Eval x = input.eval;
+        Num num = Num.of(input.type);
+        switch (name) {
+            case "compact" -> {
+                if (num == null || args.size() > 1 || args.size() == 1 && Num.of(args.get(0).type) != Num.INT) {
+                    return pipeType(p, input, "a number and at most one Integer argument");
+                }
+                Eval digits = args.isEmpty() ? in -> 1 : args.get(0).eval;
+                return new Node(String.class, in -> {
+                    Object v = x.eval(in);
+                    Object d = digits.eval(in);
+                    return v == null || d == null ? null : Pipes.compact((Number) v, (Integer) d);
+                });
+            }
+            case "duration" -> {
+                if (num != Num.INT && num != Num.LONG || !args.isEmpty()) {
+                    return pipeType(p, input, "an Integer or Long tick count and no arguments");
+                }
+                return new Node(String.class, in -> {
+                    Object v = x.eval(in);
+                    return v == null ? null : Pipes.duration((Number) v);
+                });
+            }
+            case "percent" -> {
+                if (num == null || !args.isEmpty()) {
+                    return pipeType(p, input, "a number and no arguments");
+                }
+                return new Node(String.class, in -> {
+                    Object v = x.eval(in);
+                    return v == null ? null : Pipes.percent((Number) v);
+                });
+            }
+            default -> throw new IllegalStateException(name);
+        }
+    }
+
+    private Node pipeType(Expr.Pipe p, Node input, String wants) {
+        errors.report(ExprCode.PIPE_TYPE, p.at(), "'" + p.name() + "' takes " + wants + ", got "
+                + input.type.getTypeName() + " with " + p.args().size() + " argument(s)");
+        return null;
     }
 
     /** The type both branches fit: the same, the promoted number, or the wider of two related types. */

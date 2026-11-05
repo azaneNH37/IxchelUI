@@ -1,0 +1,10 @@
+<!-- One row of a tree the view model flattens: indented by depth, with an arrow that raises toggle
+     unless the row is a leaf; the row's content goes in the default slot. -->
+<link href="tree-row.css"/>
+<component name="ix-tree-row" params="depth expanded leaf" events="toggle">
+  <div class="ix-tree-row-indent" bind:style:width="depth * 8"></div>
+  <if test="leaf"><span class="ix-tree-row-arrow" part="arrow"></span></if>
+  <else><span class="ix-tree-row-arrow" part="arrow" translate="no" bind:text="expanded ? '-' : '+'"
+        on:click="toggle"></span></else>
+  <div class="ix-tree-row-label" part="label"><slot></slot></div>
+</component>

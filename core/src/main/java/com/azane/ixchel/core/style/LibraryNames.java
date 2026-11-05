@@ -51,6 +51,11 @@ public final class LibraryNames {
         return names;
     }
 
+    /** The {@code ix-*} class names, without the dot, sorted. */
+    public List<String> classes() {
+        return classes.stream().sorted().toList();
+    }
+
     private void classes(List<ComponentValue> prelude) {
         for (int i = 0; i < prelude.size(); i++) {
             String c = className(prelude, i);

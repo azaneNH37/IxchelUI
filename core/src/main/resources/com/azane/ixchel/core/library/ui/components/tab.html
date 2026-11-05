@@ -1,0 +1,7 @@
+<!-- One tab of the <ix-tabs> around it: selected while the tabs' value is its own; a click selects it
+     and raises pick for whatever else the page does then. -->
+<link href="tab.css"/>
+<component name="ix-tab" params="value label" uses="tabs" events="pick">
+  <button class="ix-tab-button" part="button" bind:class:ix-selected="tabs == value"
+          on:click="tabs = value; pick" bind:text="label"></button>
+</component>

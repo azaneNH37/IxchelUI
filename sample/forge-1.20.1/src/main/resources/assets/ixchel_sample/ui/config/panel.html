@@ -14,7 +14,6 @@
           </div></for>
         </div>
         <div class="entries">
-          <if test="rows.size == 0"><span class="none" t="ixchel_sample.config.no_match"></span></if>
           <for each="rows" as="r" key="r.id"><div class="entry"
                bind:class:modified="r.modified" bind:class:invalid="r.invalid">
             <ix-tooltip class="entry-tip">
@@ -50,6 +49,7 @@
             </div>
             <if test="r.invalid"><span class="error" bind:text="r.error"></span></if>
           </div></for>
+          <empty><span class="none" t="ixchel_sample.config.no_match"></span></empty>
         </div>
       </div>
       <div class="footer">

@@ -60,6 +60,11 @@ final class EachBlock extends Block {
         this.keyAttribute = keyAttribute;
     }
 
+    /** True exactly while the list is null or empty: the test of its {@code <empty>}. */
+    Cell<Boolean> empty() {
+        return MODEL.derived(new Cell<?>[]{list}, args -> args[0] == null || ((List<?>) args[0]).isEmpty());
+    }
+
     @Override
     Node lastOwn() {
         Node last = null;

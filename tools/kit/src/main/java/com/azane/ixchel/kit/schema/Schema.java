@@ -19,6 +19,10 @@ import com.azane.ixchel.core.style.StyleSheet;
 import com.azane.ixchel.core.view.ComponentDef;
 import com.azane.ixchel.core.link.Linker;
 import com.azane.ixchel.core.view.TagRegistry;
+import com.azane.ixchel.core.binding.expr.Expressions;
+import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.Node;
+import com.azane.ixchel.core.style.LibraryNames;
 import com.azane.ixchel.kit.project.Components;
 import com.azane.ixchel.kit.project.ElementDeclarations;
 import com.azane.ixchel.kit.project.LibraryFiles;
@@ -36,12 +40,13 @@ import java.util.TreeSet;
 /**
  * What a view author can write in a project: tags and their attributes, the themes a stylesheet can
  * link with their variables, the supported CSS properties and shorthands, the effects a stylesheet can
- * link with their params, the library's and the project's components and its view models' members. Value syntax is not described: the property registry does not expose a
- * description of it.
+ * link with their params, the library's and the project's components and its view models' members,
+ * the library's {@code .ix-*} classes and the built-in expression pipes. Value syntax is not described:
+ * the property registry does not expose a description of it.
  */
 public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properties,
                      List<Shorthand> shorthands, List<Effect> effects,
-                     List<Component> components, List<Model> models) {
+                     List<Component> components, List<Model> models, List<String> classes, List<String> pipes) {
     /**
      * @param attributes  the plain attributes the tag accepts, global ones included
      * @param payload     the attribute a drawn element's payload is bound to, or {@code null}
@@ -85,10 +90,12 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
     /**
      * @param file      the id of the file declaring it; a library component's starts with {@code @ixchel/}
      * @param params    parameter names; {@code required} lists those without a default
+     * @param uses      the names it takes from a {@code provide:} above it
      * @param slots     slot names, {@code ""} for the default slot
+     * @param parts     the {@code part} names of its view's elements, which {@code ::part()} selects, sorted
      */
     public record Component(String name, String file, List<String> params, List<String> required,
-                            List<String> events, List<String> slots) {
+                            List<String> events, List<String> uses, List<String> slots, List<String> parts) {
     }
 
     /** A view model class with its {@code @UiView} ids or patterns and its members. */
@@ -113,7 +120,7 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
             Set<String> attributes = new TreeSet<>(type.attributes());
             attributes.addAll(TagRegistry.GLOBAL_ATTRIBUTES);
             tags.add(new Tag(name, List.copyOf(attributes), type.payload(),
-                    type.payloadType() == null ? null : type.payloadType().getName()));
+                    type.payloadType() == null ? null : type.payloadType().getTypeName()));
         }
         com.azane.ixchel.core.view.ViewParser.RESOURCE_TAGS.forEach((name, attrs) ->
                 tags.add(new Tag(name, attrs.stream().sorted().toList(), null, null)));
@@ -171,7 +178,8 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
             }
             models.add(new Model(a.type().getName(), a.patterns(), members));
         }
-        return new Schema(tags, themes, properties, shorthands, effects, components, models);
+        return new Schema(tags, themes, properties, shorthands, effects, components, models,
+                LibraryNames.of(library, LibraryFiles.list(library, ".css")).classes(), Expressions.PIPE_SIGNATURES);
     }
 
     /** The schema as JSON-ready maps, lists, strings and booleans. */
@@ -192,13 +200,15 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
                         "inherits", p.inherits(), "initial", p.initial())).toList())).toList());
         out.put("components", components.stream().map(c -> object(
                 "name", c.name(), "file", c.file(), "params", c.params(), "required", c.required(),
-                "events", c.events(), "slots", c.slots())).toList());
+                "events", c.events(), "uses", c.uses(), "slots", c.slots(), "parts", c.parts())).toList());
         out.put("models", models.stream().map(m -> object(
                 "class", m.type(), "views", m.views(),
                 "members", m.members().stream().map(x -> object(
                         "name", x.name(), "kind", x.kind(), "type", x.type(), "writable", x.writable(),
                         "port", x.port())).toList()))
                 .toList());
+        out.put("classes", classes);
+        out.put("pipes", pipes);
         return out;
     }
 
@@ -256,8 +266,14 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
             sb.append("  <").append(c.name()).append("> ").append(c.file()).append('\n');
             sb.append("    params: ").append(params(c)).append('\n');
             sb.append("    events: ").append(c.events().isEmpty() ? "none" : String.join(" ", c.events())).append('\n');
+            if (!c.uses().isEmpty()) {
+                sb.append("    uses: ").append(String.join(" ", c.uses())).append('\n');
+            }
             sb.append("    slots: ").append(c.slots().isEmpty() ? "none"
                     : String.join(" ", c.slots().stream().map(s -> s.isEmpty() ? "(default)" : s).toList())).append('\n');
+            if (!c.parts().isEmpty()) {
+                sb.append("    parts: ").append(String.join(" ", c.parts())).append('\n');
+            }
         }
         sb.append("view models:\n");
         for (Model m : models) {
@@ -273,6 +289,11 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
                 }
                 sb.append('\n');
             }
+        }
+        sb.append("classes: ").append(classes.stream().map(c -> "." + c).collect(java.util.stream.Collectors.joining(" "))).append('\n');
+        sb.append("pipes:\n");
+        for (String p : pipes) {
+            sb.append("  ").append(p).append('\n');
         }
         return sb.toString();
     }
@@ -315,7 +336,26 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
                 required.add(p.name());
             }
         }
-        return new Component(def.name(), file, params, required, def.events(), List.copyOf(new TreeSet<>(def.slots())));
+        Set<String> parts = new TreeSet<>();
+        parts(def.body(), parts);
+        return new Component(def.name(), file, params, required, def.events(), def.uses(),
+                List.copyOf(new TreeSet<>(def.slots())), List.copyOf(parts));
+    }
+
+    private static void parts(List<Node> nodes, Set<String> out) {
+        for (Node n : nodes) {
+            if (n instanceof Element e) {
+                String part = e.attribute("part");
+                if (part != null) {
+                    for (String p : part.trim().split("\\s+")) {
+                        if (!p.isEmpty()) {
+                            out.add(p);
+                        }
+                    }
+                }
+                parts(e.children(), out);
+            }
+        }
     }
 
     private static String params(Component c) {

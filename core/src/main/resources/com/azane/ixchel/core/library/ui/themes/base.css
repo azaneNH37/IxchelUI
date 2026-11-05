@@ -21,6 +21,8 @@
     --ix-well-shadow: none;
     --ix-well-backdrop: none;
     --ix-well-border: #A0A0A0;
+    /* One line between neighbours: top and left inside, right and bottom on the next slot's first pixel. */
+    --ix-slot-shadow: inset 1px 1px 0 var(--ix-well-border), 1px 1px 0 var(--ix-well-border);
     --ix-overlay-bg: #100010F0;
     --ix-overlay-image: none;
     --ix-overlay-shadow: none;
@@ -80,6 +82,14 @@
     backdrop-filter: var(--ix-well-backdrop);
     border-radius: var(--ix-radius);
     corner-shape: var(--ix-corner);
+}
+
+/* A slot is a well without a class. Slots stand in grids edge to edge, so they stay square and draw
+   their own grid line, and have no backdrop: a grid would blur the world once per slot. */
+mc-slot {
+    background-color: var(--ix-well-bg);
+    background-image: var(--ix-well-image);
+    box-shadow: var(--ix-slot-shadow);
 }
 
 dialog:open, ix-tooltip:open {
@@ -145,12 +155,11 @@ button:disabled {
     color: var(--ix-disabled-text);
 }
 
-/* Fields are wells. */
+/* Fields are wells, framed by their border alone: the well's shadow would draw a second frame inside it. */
 input, select {
     border-color: var(--ix-well-border);
     background-color: var(--ix-well-bg);
     background-image: var(--ix-well-image);
-    box-shadow: var(--ix-well-shadow);
     border-radius: var(--ix-radius);
     corner-shape: var(--ix-corner);
     color: var(--ix-text);
@@ -170,7 +179,6 @@ input:disabled, select:disabled {
 input[type=range] {
     background-color: transparent;
     background-image: none;
-    box-shadow: none;
 }
 
 input[type=range]:focus {
@@ -191,6 +199,78 @@ select:open > option:hover {
 select:open > option:checked {
     background-color: var(--ix-selected);
     color: var(--ix-selected-text);
+}
+
+/* Disclosure: the summary's marker in the muted text color, filled while open. */
+summary::before {
+    border-color: var(--ix-text-muted);
+}
+
+details:open > summary::before {
+    background-color: var(--ix-text-muted);
+}
+
+/* Surface classes. A row is lit on hover, over its selected fill too. */
+.ix-row:hover {
+    background-image: linear-gradient(var(--ix-hover), var(--ix-hover));
+}
+
+.ix-row:disabled {
+    color: var(--ix-disabled-text);
+}
+
+/* A switch's track is the field's well; checked, the accent fills it under the knob. */
+input.ix-switch::before {
+    background-color: var(--ix-text);
+    border-radius: var(--ix-radius);
+    corner-shape: var(--ix-corner);
+    transition: left var(--ix-duration) var(--ix-easing);
+}
+
+input.ix-switch:disabled::before {
+    background-color: var(--ix-disabled-text);
+}
+
+.ix-badge {
+    background-color: var(--ix-accent);
+    border-radius: var(--ix-radius);
+    corner-shape: var(--ix-corner);
+    color: var(--ix-on-accent);
+}
+
+.ix-key {
+    border-color: var(--ix-control-border);
+    background-color: var(--ix-control-bg);
+    border-radius: var(--ix-radius);
+    corner-shape: var(--ix-corner);
+    color: var(--ix-text);
+}
+
+/* Components. Their buttons and fields are buttons and fields; only what is new here. A bar is a well
+   the accent fills; its trail, when shown, lags behind in the text color. */
+ix-bar {
+    background-color: var(--ix-well-bg);
+    background-image: var(--ix-well-image);
+    box-shadow: var(--ix-well-shadow);
+    border-radius: var(--ix-radius);
+    corner-shape: var(--ix-corner);
+}
+
+.ix-bar-fill {
+    background-color: var(--ix-accent);
+    transition: flex-basis var(--ix-duration) var(--ix-easing);
+}
+
+.ix-bar-trail {
+    background-color: var(--ix-text);
+}
+
+.ix-pager-label {
+    color: var(--ix-text);
+}
+
+.ix-tree-row-arrow {
+    color: var(--ix-text-muted);
 }
 
 /* States the view model sets. Over focus: an error stays visible while the field is edited. */

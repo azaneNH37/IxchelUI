@@ -1,4 +1,5 @@
 <link href="hud.css"/>
+<link href="@ixchel/components/bar.html"/>
 <page>
   <div class="env">
     <div class="vitals">
@@ -21,9 +22,7 @@
           </div></for>
         </div>
       </div>
-      <div class="xp">
-        <div class="xp-fill" bind:style:width="progress * 100 + '%'"></div>
-      </div>
+      <ix-bar class="xp" bind:value="progress" bind:max="1"></ix-bar>
       <span class="level" bind:text="level"></span>
     </div>
     <div class="top">
@@ -58,9 +57,7 @@
         <if test="hasEntity"><div class="entity">
           <span class="name" bind:text="entity.name"></span>
           <if test="entity.living"><div class="health">
-            <div class="health-bar">
-              <div class="health-fill" bind:style:width="entityHealthWidth"></div>
-            </div>
+            <ix-bar class="health-bar" bind:value="entity.health" bind:max="entity.maxHealth"></ix-bar>
             <span class="health-text" bind:text="entityHealth"></span>
           </div></if>
           <if test="entity.armor > 0"><span class="armor-text" bind:text="entity.armor + ' armor'"></span></if>

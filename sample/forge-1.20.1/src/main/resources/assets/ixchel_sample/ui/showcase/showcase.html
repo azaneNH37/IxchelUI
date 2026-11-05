@@ -1,14 +1,22 @@
-<!-- The theme showcase: every surface class and standard control in each state a page can set,
-     the same in every theme. The tabs ask the page to show another theme; each page links one. -->
+<!-- The theme showcase: every surface class, standard control and library component in each state a
+     page can set, the same in every theme. The tabs ask the page to show another theme; each page links one. -->
 <link href="showcase.css"/>
-<component name="theme-showcase" params="theme field checked level choice dialog" events="pick">
-  <div class="ix-panel sheet">
-    <div class="tabs">
-      <button class="tab tab-vanilla" bind:class:ix-selected="theme == 'vanilla'" on:click="pick('vanilla')">vanilla</button>
-      <button class="tab tab-dark" bind:class:ix-selected="theme == 'dark'" on:click="pick('dark')">dark</button>
-      <button class="tab tab-holo" bind:class:ix-selected="theme == 'holo'" on:click="pick('holo')">holo</button>
-      <button class="tab tab-cyber" bind:class:ix-selected="theme == 'cyber'" on:click="pick('cyber')">cyber</button>
-    </div>
+<link href="@ixchel/components/tabs.html"/>
+<link href="@ixchel/components/tab.html"/>
+<link href="@ixchel/components/bar.html"/>
+<link href="@ixchel/components/stepper.html"/>
+<link href="@ixchel/components/cycle.html"/>
+<link href="@ixchel/components/pager.html"/>
+<link href="@ixchel/components/tree-row.html"/>
+<link href="@ixchel/components/search.html"/>
+<component name="theme-showcase" params="theme field checked level choice dialog speeds stack stacks" events="pick">
+  <div class="ix-panel sheet" state:power="14">
+    <ix-tabs class="tabs" bind:value="theme">
+      <ix-tab class="tab tab-vanilla" value="vanilla" label="vanilla" on:pick="pick('vanilla')"></ix-tab>
+      <ix-tab class="tab tab-dark" value="dark" label="dark" on:pick="pick('dark')"></ix-tab>
+      <ix-tab class="tab tab-holo" value="holo" label="holo" on:pick="pick('holo')"></ix-tab>
+      <ix-tab class="tab tab-cyber" value="cyber" label="cyber" on:pick="pick('cyber')"></ix-tab>
+    </ix-tabs>
     <span class="ix-title heading">Theme showcase</span>
     <span class="ix-muted">Surfaces and controls in every state</span>
     <div class="ix-divider rule"></div>
@@ -20,12 +28,13 @@
       <button class="ix-busy">Busy</button>
       <button class="ix-done">Done</button>
     </div>
-    <div class="row">
+    <div class="row" state:query="''">
       <input class="field" placeholder="Type here" bind:value="field"/>
       <input class="field ix-invalid" placeholder="Invalid"/>
       <input class="field" placeholder="Disabled" disabled=""/>
+      <ix-search class="search" bind:value="query" t:placeholder="ixchel_sample.showcase.search"></ix-search>
     </div>
-    <div class="row">
+    <div class="row" state:lit="true" state:unlit="false" state:side="'a'">
       <input type="checkbox" class="check" bind:checked="checked"/>
       <input type="range" class="slider" min="0" max="10" step="1" bind:value="level"/>
       <select class="choice" bind:value="choice">
@@ -33,10 +42,16 @@
         <option value="b">Option B</option>
         <option value="c">Option C</option>
       </select>
+      <input type="checkbox" class="ix-switch" bind:checked="lit"/>
+      <input type="checkbox" class="ix-switch" bind:checked="unlit"/>
+      <input type="radio" bind:group="side" value="a"/>
+      <input type="radio" bind:group="side" value="b"/>
     </div>
     <div class="row">
-      <div class="ix-well slot"></div>
-      <div class="ix-well slot"></div>
+      <div class="slots">
+        <mc-slot class="slot"></mc-slot><mc-slot class="slot"></mc-slot>
+        <mc-slot class="slot"></mc-slot><mc-slot class="slot"></mc-slot>
+      </div>
       <div class="ix-well slot cooldown"></div>
       <div class="ix-well list">
         <div class="lines">
@@ -44,10 +59,48 @@
           <span>Line five</span><span>Line six</span><span>Line seven</span><span>Line eight</span>
         </div>
       </div>
+      <div class="ix-well slot"><mc-item class="item" bind:item="stack" bind:count="12500 | compact"></mc-item></div>
+      <div class="ix-well slot"><mc-item-cycle class="item" bind:items="stacks" interval="1000"></mc-item-cycle></div>
+      <div class="bars">
+        <div class="across">
+          <ix-bar class="bar" bind:value="power" bind:max="20"></ix-bar>
+          <ix-bar class="bar trailing" bind:value="power" bind:max="20"></ix-bar>
+        </div>
+        <ix-bar class="bar-up" bind:value="power" bind:max="20" dir="up"></ix-bar>
+      </div>
     </div>
-    <div class="row">
+    <div class="row" state:speed="0" state:page="1">
       <button class="tipped">Tooltip<ix-tooltip><span>On the overlay surface</span></ix-tooltip></button>
       <button class="opener" on:click="dialog = true">Dialog</button>
+      <ix-stepper class="stepper" bind:value="power" bind:min="0" bind:max="20"></ix-stepper>
+      <ix-cycle class="cycle" bind:value="speed" bind:options="speeds"></ix-cycle>
+      <ix-pager class="pager" bind:page="page" bind:count="5"></ix-pager>
+    </div>
+    <div class="row">
+      <div class="tree" state:open="true">
+        <ix-tree-row class="node" bind:depth="0" bind:expanded="open" bind:leaf="false" on:toggle="open = !open">
+          <span t="ixchel_sample.showcase.folder"></span>
+        </ix-tree-row>
+        <if test="open">
+          <ix-tree-row class="node" bind:depth="1" bind:expanded="false" bind:leaf="true">
+            <span t="ixchel_sample.showcase.item"></span>
+          </ix-tree-row>
+        </if>
+      </div>
+      <div class="lines-group">
+        <div class="ix-row line"><span t="ixchel_sample.showcase.row"></span></div>
+        <div class="ix-row ix-selected line"><span t="ixchel_sample.showcase.selected"></span></div>
+      </div>
+      <details class="fold" state:shut="false" bind:open="shut">
+        <summary t="ixchel_sample.showcase.closed"></summary>
+        <span t="ixchel_sample.showcase.inside"></span>
+      </details>
+      <details class="fold" state:shown="true" bind:open="shown">
+        <summary t="ixchel_sample.showcase.open"></summary>
+        <span t="ixchel_sample.showcase.inside"></span>
+      </details>
+      <span class="ix-badge" translate="no">3</span>
+      <span class="ix-key" translate="no">R</span>
     </div>
   </div>
   <dialog class="box" bind:open="dialog" on:keydown.escape="dialog = false">

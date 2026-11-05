@@ -1,0 +1,6 @@
+<!-- A row of tabs: provides its value to the <ix-tab>s written inside it, which select themselves by
+     writing it. Panels are the user's own: <if test="tab == 'a'"> or bind:class on their elements. -->
+<link href="tabs.css"/>
+<component name="ix-tabs" params="value">
+  <slot provide:tabs="value"></slot>
+</component>

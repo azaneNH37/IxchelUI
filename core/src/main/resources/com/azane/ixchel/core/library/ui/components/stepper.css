@@ -1,0 +1,18 @@
+@stylesheet;
+
+ix-stepper {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 1px;
+}
+
+.ix-stepper-input {
+  flex-grow: 1;
+  width: 0;
+}
+
+.ix-stepper-dec,
+.ix-stepper-inc {
+  width: 12px;
+  padding: 0;
+}

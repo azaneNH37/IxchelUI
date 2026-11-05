@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.dom;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -13,7 +15,7 @@ public final class ElementType {
     private final String tag;
     private final Set<String> attributes;
     private final String payload;
-    private final Class<?> payloadType;
+    private final Type payloadType;
     private final Map<Facet<?>, Object> facets;
 
     private ElementType(Builder b) {
@@ -35,7 +37,12 @@ public final class ElementType {
     public String tag() { return tag; }
     public Set<String> attributes() { return attributes; }
     public String payload() { return payload; }
-    public Class<?> payloadType() { return payloadType; }
+    /** The payload's declared type, with its type arguments ({@code List<ItemStack>}); {@code null} if unchecked. */
+    public Type payloadType() { return payloadType; }
+    /** The raw class of {@link #payloadType}, what a value can be checked against at run time. */
+    public Class<?> payloadClass() {
+        return payloadType instanceof ParameterizedType p ? (Class<?>) p.getRawType() : (Class<?>) payloadType;
+    }
 
     @SuppressWarnings("unchecked")
     public <F> F facet(Facet<F> key) {
@@ -51,14 +58,14 @@ public final class ElementType {
         private final Set<String> attributes;
         private final Map<Facet<?>, Object> facets = new IdentityHashMap<>();
         private String payload;
-        private Class<?> payloadType;
+        private Type payloadType;
 
         private Builder(String tag, Set<String> attributes) {
             this.tag = tag;
             this.attributes = attributes;
         }
 
-        public Builder payload(String name, Class<?> type) {
+        public Builder payload(String name, Type type) {
             payload = name;
             payloadType = type;
             return this;

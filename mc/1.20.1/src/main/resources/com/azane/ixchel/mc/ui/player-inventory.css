@@ -1,4 +1,4 @@
-/* Layout only: slot surfaces come from the theme's .ix-well. */
+/* Layout only: slot surfaces come from the theme's mc-slot. */
 @stylesheet;
 mc-player-inventory .mc-player-inventory-main,
 mc-player-inventory .mc-player-inventory-hotbar {

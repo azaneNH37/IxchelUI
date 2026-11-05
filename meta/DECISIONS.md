@@ -234,10 +234,10 @@
 - **rejected**: 库资源免链接（预引入表，L5 曾实现）——见 context；包（TH1 曾实现）——多一种文件，包内容按界面种类拆分，页面依赖不再一眼可见；库 href 省略扩展名——引用方要按引用种类补，文件种类改由引用方决定
 
 ## #040 组件外观挂点为公开的部件类，组件与元素不求可互换
-- **decided**: 2026-11-04
-- **context**: U4 的 `ix-*` 组件由主题穿外观，而组件不做样式隔离（#015），主题与资源包选中的组件内部类名事实上就是公开 API；`ix-bar` 与 `<progress>` 的取舍取决于组件与元素端口是否统一
-- **decision**: 组件内部要被主题选中的元素带 `.ix-<组件>-<部件>` 类（`.ix-bar-fill`），列入 schema，改名即破坏性变更；不做 `::part()`。放弃"组件与元素实现可互换"：进度条做 `ix-bar` 组件，不做 `<progress>`。组件的禁用写外壳元素上的普通 `disabled`，子树随之禁用、可用 `:disabled` 选中（同 `<fieldset>`），不设统一参数
-- **rejected**: `::part()`——要新的引擎机制，无样式隔离时没有收益；端口统一——要给元素加插槽、给组件事件加过滤器，代价大于一处进度条；`disabled` 作组件参数——每个组件各写一遍，外壳上的 `disabled` 本已是全局属性
+- **decided**: 2026-11-04（2026-11-05 修订：部件同时带 `part`，按 TH4 的 `::part()`）
+- **context**: U4 的 `ix-*` 组件由主题穿外观，主题是全局 partial，页面经 TH4 的样式作用域只能用 `::part()` 进入组件内部；主题与页面选中的组件内部名字事实上就是公开 API；`ix-bar` 与 `<progress>` 的取舍取决于组件与元素端口是否统一
+- **decision**: 组件内部要被选中的元素写 `class="ix-<组件>-<部件>" part="<部件>"`（`<div class="ix-bar-fill" part="fill">`）：类给主题，带组件名避免全局撞名；`part` 给页面（`ix-bar.energy::part(fill)`），只在该外壳下查找，用短名；两者列入 schema，改名即破坏性变更。放弃"组件与元素实现可互换"：进度条做 `ix-bar` 组件，不做 `<progress>`。组件的禁用写外壳元素上的普通 `disabled`，子树随之禁用、可用 `:disabled` 选中（同 `<fieldset>`），不设统一参数
+- **rejected**: 类名不带组件名（`class="ix-tab" part="tab"`，TH4 曾写为示例）——partial 全局，`.ix-fill`、`.ix-row` 在组件之间、组件与表面类之间撞名；端口统一——要给元素加插槽、给组件事件加过滤器，代价大于一处进度条；`disabled` 作组件参数——每个组件各写一遍，外壳上的 `disabled` 本已是全局属性
 
 ## #041 资源规范：文件自我声明种类，统一 link 与登记
 - **decided**: 2026-11-05
@@ -250,3 +250,15 @@
 - **context**: `<mc-slot index>` 以下标指向隐式的"当前界面菜单"，元素以 `@UiElement(containerOnly)` 声明自己只属于容器界面，core 因此带上 MC 的界面概念、`UiHosting` 维护两张标签表，kit 不知道页面在哪种界面打开而无法检查；`<mc-player-inventory>` 读 `player.containerMenu` 猜菜单
 - **decision**: 环境需求只在"缺了环境对象就没有意义"的词汇上成立，且方向是界面依赖页面而非页面依赖环境。`<mc-slot>` 为与环境无关的占位元素，载荷 `bind:menuslot` 为菜单的 `Slot` 对象（显式数据，同 `<mc-item bind:item>`），所有界面可用；`UiContainerScreen` 的 `ContainerLayout` 是唯一接收方，按对象身份把占位匹配到 `menu.slots`、写回坐标与命中过滤，不属于本菜单报 `container/foreign-slot`，未绑定报 `container/missing-slot`。菜单由宿主构造 ViewModel 时传入，`<mc-player-inventory>` 以参数 `menu` 接收。删除 `UiElement.containerOnly`、`UiHosting.tags(boolean)`、页面环境声明的设想与"文档种类由 Java 侧推出"（roadmap L8）。非容器界面中的占位没有接收方，只是一块按 CSS 定尺寸的空盒子，不报错
 - **rejected**: 元素声明适用界面（`containerOnly`）——core 带上 MC 概念、方向反了；环境层加页面声明 `<page env>`——给反向依赖补表达，没消除它；文档种类由 ViewModel 类型推出——只覆盖被 `@UiView` 认领的页面，且仍是页面依赖环境；保留 `index="N"` 简写——两种写法，且正是隐式上下文引用；载荷名 `slot`——与具名插槽的 `slot` 属性冲突
+
+## #043 共享上下文 `provide:`/`uses` 可转交写权限
+- **decided**: 2026-11-05
+- **context**: 复合组件（`ix-tabs` 与 `ix-tab`）的内层项写在使用方文本里，要读外层持有的值并在点击时写回；组件体 `<for>` 内不能放 `<slot>`，组件事件不冒泡，原设计的 `provide:` 只读
+- **decision**: `provide:<名>="<表达式>"` 对子树中签名声明 `uses="<名>"` 的组件实例可见；加载期按实例外壳在展开后元素树中的位置解析到最近的提供者，没有提供者报 `component/missing-provider`、不设默认值；表达式是提供者手上的可写路径时使用者可写，写入落到该路径，否则只读、写入在加载期报错。细节见 `ref/SD-ixchel-u4-components-20261104.md` §3.1
+- **rejected**: 只读 `provide:`——内层只能发事件，而事件不冒泡，使用方要在每项上各接一次；组件事件冒泡到提供者——改事件模型；tabs 只做表面类或由 Java 传标签列表——每项重复写选中与赋值，或标签文字离开模板
+
+## #044 格式化用内置表达式管道
+- **decided**: 2026-11-05
+- **context**: U4 的大数字、时长、百分比要在模板中格式化；表达式原本没有函数调用，L1 定的"不提供内置函数"已到第二处真实需要
+- **decision**: 表达式加管道 `expr | 名字(参数…)`，优先级最低（低于 `?:`），参数用括号；管道名只在 `|` 右侧解析，与模板中的其它名字互不冲突；首版只有内置的纯函数 `compact`、`duration`、`percent`，`Locale.ROOT`，宿主不能注册；单位不做管道。细节见 `ref/SD-ixchel-u4-components-20261104.md` §3.2
+- **rejected**: `$compact(x)` 函数调用——同样要新语法，需 `$` 前缀避开成员名，链式要嵌套；`|` 比 `+` 绑得紧——`a + b | compact` 与各家先例相反；冒号传参（Angular）——与 `?:` 冲突；宿主注册管道——没有三个真实场景

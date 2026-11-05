@@ -8,6 +8,7 @@ import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.event.EventDispatcher;
 import com.azane.ixchel.core.event.Keys;
+import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.view.TagRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -263,5 +265,87 @@ class UiDocumentFormTest {
         click(ev, 5, 5);
         ev.keyPressed(ENTER, 0);
         assertEquals(5, played[0], "Enter on the focused button");
+    }
+
+    static final class Disclosure extends ViewModel {
+        final Value<Boolean> expanded = state(false);
+    }
+
+    @Test
+    void aSummaryTogglesItsDetailsByClickOnItsLabelOrByEnterAndWritesBindOpen() {
+        Disclosure m = new Disclosure();
+        UiDocument doc = load("""
+                <details class="d" bind:open="expanded"><summary class="s"><span class="l"></span></summary><div class="body"></div></details>
+                """, ".s { height: 10px } .l { width: 10px; height: 10px } .body { height: 20px; flex-shrink: 0 }", m);
+        doc.frame(100, 100);
+        Element details = one(doc, ".d");
+        EventDispatcher ev = doc.events();
+        click(ev, 12, 5);
+        doc.frame(100, 100);
+        assertTrue(m.expanded.get(), "a click on the summary's label opens the details and writes back");
+        assertTrue(details.hasState(Element.OPEN), ":open");
+        assertEquals(30, details.box().height(), "the content is laid out while open");
+
+        ev.keyPressed(ENTER, 0);
+        doc.frame(100, 100);
+        assertFalse(m.expanded.get(), "Enter on the focused summary closes it");
+        assertFalse(details.hasState(Element.OPEN));
+
+        m.expanded.set(true);
+        doc.frame(100, 100);
+        assertTrue(details.hasState(Element.OPEN), "the model opens it");
+    }
+
+    @Test
+    void aClosedDetailsLaysOutOnlyItsSummaryWhateverTheAuthorDisplay() {
+        UiDocument doc = load("""
+                <details class="d"><summary class="s"></summary><div class="body"></div></details>
+                """, ".s { height: 10px } .body { display: flex; height: 20px; flex-shrink: 0 }", new Clicker());
+        doc.frame(100, 100);
+        assertEquals(10, one(doc, ".d").box().height());
+    }
+
+    @Test
+    void aDetailsThatDoesNotStartWithASummaryIsReported() {
+        UiLoadException e = assertThrows(UiLoadException.class,
+                () -> load("<details><div></div><summary></summary></details>\n", "", new Clicker()));
+        assertEquals(List.of("view/details-without-summary@t.html:2:10"), DiagCodes.of(e));
+    }
+
+    record Mode(int id) {
+    }
+
+    static final class Modes extends ViewModel {
+        final Value<List<Mode>> modes = state(List.of(new Mode(1), new Mode(2), new Mode(3)));
+        final Value<Long> mode = state(2L);
+    }
+
+    @Test
+    void radiosInAForSharingAGroupWriteTheirValueAndCheckedMovesWithIt() {
+        Modes m = new Modes();
+        UiDocument doc = load("""
+                <for each="modes" as="m" key="m.id"><input type="radio" class="r" bind:group="mode" bind:value="m.id"/></for>
+                """, "", m);
+        doc.frame(100, 100);
+        List<Element> radios = doc.querySelectorAll(".r");
+        assertTrue(radios.get(1).hasState(Element.CHECKED), "the Long group equals the int value 2");
+        EventDispatcher ev = doc.events();
+        click(ev, 5, 5);
+        doc.frame(100, 100);
+        assertEquals(1L, m.mode.get(), "the click wrote the radio's value");
+        assertEquals(List.of(radios.get(0)), doc.querySelectorAll(".r:checked"), ":checked moved to the clicked radio");
+
+        ev.keyPressed(TAB, 0);
+        ev.keyPressed(Keys.code("space"), 0);
+        doc.frame(100, 100);
+        assertEquals(2L, m.mode.get(), "Space checks the focused radio");
+        assertEquals(List.of(radios.get(1)), doc.querySelectorAll(".r:checked"));
+    }
+
+    @Test
+    void aRadioValueTheGroupCannotHoldIsReported() {
+        UiLoadException e = assertThrows(UiLoadException.class,
+                () -> load("<input type=\"radio\" bind:group=\"mode\" bind:value=\"'x'\"/>\n", "", new Modes()));
+        assertEquals(List.of("binding/value-type@t.html:2:51"), DiagCodes.of(e));
     }
 }

@@ -27,16 +27,18 @@ import java.util.Set;
  * reported to {@link Diagnostics}; parsing continues past errors so one load reports as many as it can.
  *
  * <p>A view file is {@code <link href="…"/>}s (self-closing, nothing but {@code href}), then one root
- * element, {@code <page>} or {@code <component name params events>}, which declares its kind; only
+ * element, {@code <page>} or {@code <component name params events uses>}, which declares its kind; only
  * comments and whitespace may be between them and after the root. The links name what the view uses:
  * one {@code .css} file, its stylesheet ({@link ParsedView#stylesheet()}), and any number of component
  * files, whose components become usable as tags. The root is a definition, not part of the tree: a
  * page's children are its top-level elements, a component's children its body. What other files a view
  * names and whether a linked file is of the kind its extension says are the {@link Links}' to check.
  *
- * <p>The reserved tags {@code <for each as key>}, {@code <if test>}, {@code <slot name>} and the root
- * keep their attributes as {@linkplain Element#directives() directives}; the binding layer interprets
- * the blocks.
+ * <p>The reserved tags {@code <for each as key>}, {@code <if test>}, {@code <else>}, {@code <empty>},
+ * {@code <slot name>} and the root keep their attributes as {@linkplain Element#directives() directives};
+ * the binding layer interprets the blocks. An {@code <else>} directly follows an {@code <if>}, an
+ * {@code <empty>} a {@code <for>}, with only whitespace between: the pair is one block for slots and
+ * translations, and an orphan is dropped.
  *
  * <p>Translations are resolved here, so the binding layer compiles the translated tree: {@code t="key"}
  * replaces an element's children with its translation, laying out the argument children and copies of
@@ -217,7 +219,7 @@ public final class ViewParser {
         String tag = readName(false);
         ComponentDef component = components.get(tag);
         boolean root = isRoot(tag);
-        boolean block = tag.equals("for") || tag.equals("if");
+        boolean block = isBlock(tag);
         boolean reserved = block || root || tag.equals("slot");
         boolean isLink = tag.equals("link");
         boolean topLevel = level == Level.PAGE;
@@ -336,6 +338,7 @@ public final class ViewParser {
                             + "> opened at " + openPos);
                 }
             }
+            checkPartners(children);
             if (content.children(element, children, diag)) {
                 checkSlotPlacement(children, component);
                 for (Node child : children) {
@@ -385,6 +388,38 @@ public final class ViewParser {
         return n instanceof TextNode t && t.text().isBlank();
     }
 
+    /** Whether {@code tag} is a block: {@code <for>}, {@code <if>} or their {@code <empty>} and {@code <else>}. */
+    public static boolean isBlock(String tag) {
+        return tag.equals("for") || tag.equals("if") || tag.equals("else") || tag.equals("empty");
+    }
+
+    /** The block an {@code <else>} or {@code <empty>} follows, or {@code null} for any other tag. */
+    public static String partnerOf(String tag) {
+        return switch (tag) {
+            case "else" -> "if";
+            case "empty" -> "for";
+            default -> null;
+        };
+    }
+
+    /** Drops each {@code <else>} or {@code <empty>} that does not directly follow its partner, reporting it. */
+    private void checkPartners(List<Node> children) {
+        String before = null;
+        for (int k = 0; k < children.size(); k++) {
+            Node n = children.get(k);
+            if (isBlank(n)) {
+                continue;
+            }
+            String tag = n instanceof Element e ? e.tag() : null;
+            String partner = tag == null ? null : partnerOf(tag);
+            if (partner != null && !partner.equals(before)) {
+                diag.report(ViewCode.ORPHAN_ELSE, n.pos(), "<" + tag + "> must directly follow a <" + partner
+                        + ">, with only whitespace between");
+                children.remove(k--);
+            }
+            before = tag;
+        }
+    }
 
     /** {@code slot=} only goes on a direct child, element or block, of a component's element. */
     private void checkSlotPlacement(List<Node> children, ComponentDef parent) {
@@ -398,7 +433,7 @@ public final class ViewParser {
         }
     }
 
-    /** The {@code slot} an element or block fills, or {@code null}. */
+    /** The {@code slot} an element or block fills, or {@code null}; always for an {@code <else>} or {@code <empty>}, which fills its partner's. */
     public static String slotOf(Element e) {
         if (e.tag().equals("for") || e.tag().equals("if")) {
             for (Directive d : e.directives()) {
@@ -416,20 +451,21 @@ public final class ViewParser {
             case "for" -> List.of("each", "as", "key", "index", "slot");
             case "if" -> List.of("test", "slot");
             case "slot" -> List.of("name");
-            case "page" -> List.of();
-            default -> List.of("name", "params", "events");
+            case "page", "else", "empty" -> List.of();
+            default -> List.of("name", "params", "events", "uses");
         };
         List<String> required = switch (e.tag()) {
             case "for" -> List.of("each", "as", "key");
             case "if" -> List.of("test");
-            case "slot", "page" -> List.of();
+            case "slot", "page", "else", "empty" -> List.of();
             default -> List.of("name");
         };
         Set<String> present = new HashSet<>();
         for (Directive d : e.directives()) {
             present.add(d.name());
-            if (!allowed.contains(d.name())) {
-                diag.report(ViewCode.UNKNOWN_BLOCK_ATTRIBUTE, d.namePos(), "<" + e.tag() + "> takes only " + String.join(", ", allowed));
+            if (!allowed.contains(d.name()) && !(e.tag().equals("slot") && d.name().startsWith("provide:"))) {
+                diag.report(ViewCode.UNKNOWN_BLOCK_ATTRIBUTE, d.namePos(), allowed.isEmpty() ? "<" + e.tag() + "> takes no attributes"
+                        : "<" + e.tag() + "> takes only " + String.join(", ", allowed));
             }
         }
         for (String r : required) {
@@ -505,7 +541,7 @@ public final class ViewParser {
             String mark = c.attribute("mark");
             if (c.type().facet(com.azane.ixchel.core.dom.LayerFacet.KEY).pointer() == com.azane.ixchel.core.dom.LayerFacet.Pointer.TOOLTIP) {
                 tooltips.add(c);
-            } else if (c.tag().equals("for") || c.tag().equals("if") || c.tag().equals("slot")) {
+            } else if (isBlock(c.tag()) || c.tag().equals("slot")) {
                 diag.report(ViewCode.INVALID_MESSAGE_CHILD, c.pos(), "<" + c.tag() + "> makes a varying number of elements;"
                         + " wrap it in one element to use it as an argument or mark");
                 valid = false;
@@ -584,11 +620,13 @@ public final class ViewParser {
         String name = "";
         Directive params = null;
         Directive events = null;
+        Directive uses = null;
         for (Directive d : view.directives()) {
             switch (d.name()) {
                 case "name" -> name = d.value();
                 case "params" -> params = d;
                 case "events" -> events = d;
+                case "uses" -> uses = d;
                 default -> {
                 }
             }
@@ -625,9 +663,17 @@ public final class ViewParser {
                 }
             }
         }
+        List<String> usesList = new ArrayList<>();
+        if (uses != null) {
+            for (Word w : words(uses)) {
+                if (checkMemberName(w.text, w.pos, "used", names)) {
+                    usesList.add(w.text);
+                }
+            }
+        }
         Set<String> slots = new LinkedHashSet<>();
         collectSlots(view.children(), slots);
-        return new ComponentDef(name, view.pos(), paramList, eventList, view.children(), slots);
+        return new ComponentDef(name, view.pos(), paramList, eventList, usesList, view.children(), slots);
     }
 
     private void collectSlots(List<Node> nodes, Set<String> slots) {
@@ -795,9 +841,10 @@ public final class ViewParser {
         }
     }
 
-    /** Attributes interpreted by the binding layer: {@code bind:*}, {@code on:*}, {@code state:*}. */
+    /** Attributes interpreted by the binding layer: {@code bind:*}, {@code on:*}, {@code state:*}, {@code provide:*}. */
     static boolean isDirective(String attribute) {
-        return attribute.startsWith("bind:") || attribute.startsWith("on:") || attribute.startsWith("state:");
+        return attribute.startsWith("bind:") || attribute.startsWith("on:") || attribute.startsWith("state:")
+                || attribute.startsWith("provide:");
     }
 
     /** {@code t} and {@code t:<attribute>}: the parser translates them, so no element may register them. */

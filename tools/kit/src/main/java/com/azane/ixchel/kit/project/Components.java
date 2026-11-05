@@ -25,7 +25,8 @@ import java.util.TreeSet;
  * the pages that use it. A project theme is a {@code @partial;} css file some page's stylesheet links,
  * directly or through other partials.
  *
- * <p>The library's components are its Java components, each declared by its {@value Library#PREFIX} file.
+ * <p>The library's components are its {@value Library#PREFIX} files whose root is {@code <component>}:
+ * view components and the files of its Java components.
  */
 public final class Components {
     private final Set<String> files;
@@ -58,15 +59,16 @@ public final class Components {
     public static Components scan(Project project, UiHosting hosting, TagRegistry tags) {
         Library lib = hosting.library();
         Map<String, ComponentDef> libraryDefs = new TreeMap<>();
-        for (String id : hosting.components().keySet()) {
-            if (!Library.isLibrary(id)) {
-                continue;
-            }
+        for (String id : LibraryFiles.list(lib, ".html")) {
             ComponentDef def = Linker.declared(id, project::read, lib, tags);
-            if (def == null) {
+            if (def != null) {
+                libraryDefs.put(id, def);
+            }
+        }
+        for (String id : hosting.components().keySet()) {
+            if (Library.isLibrary(id) && !libraryDefs.containsKey(id)) {
                 throw new IllegalStateException("library file " + id + " of a Java component is missing or declares no component");
             }
-            libraryDefs.putIfAbsent(id, def);
         }
         List<LibraryComponent> library = new ArrayList<>();
         libraryDefs.forEach((id, def) -> library.add(new LibraryComponent(id, def)));

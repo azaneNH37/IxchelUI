@@ -1,6 +1,6 @@
 /*
  * User-agent defaults, below every author rule (see StyleEngine): the inline elements, the form
- * controls, <dialog>, <ix-tooltip> and <ix-drag-preview>. Native elements get their display from a rule UiDocument adds
+ * controls, <dialog>, <details>, <ix-tooltip> and <ix-drag-preview>. Native elements get their display from a rule UiDocument adds
  * per tag registry. Vanilla-like: black fields with a gray border that turns white on focus, gray
  * buttons, vanilla's purple-framed tooltips.
  */
@@ -38,6 +38,14 @@ input[type=checkbox] {
     width: 10px;
     height: 10px;
     padding: 1px;
+}
+
+/* The checked dot is painted round in the content box, in accent-color. */
+input[type=radio] {
+    width: 10px;
+    height: 10px;
+    padding: 2px;
+    border-radius: 50%;
 }
 
 input[type=range] {
@@ -106,6 +114,30 @@ dialog:open {
     background-color: #202020;
 }
 
+/* A closed details shows only its summary, whatever an author's display says. */
+details:not(:open) > :not(summary, ix-tooltip, ix-drag-preview) {
+    display: none !important;
+}
+
+summary {
+    flex-direction: row;
+    align-items: center;
+}
+
+/* The marker: a small box, hollow while closed and filled while open; themes restyle summary::before. */
+summary::before {
+    content: "";
+    flex-shrink: 0;
+    width: 5px;
+    height: 5px;
+    margin-right: 3px;
+    border: 1px solid #a0a0a0;
+}
+
+details:open > summary::before {
+    background-color: #a0a0a0;
+}
+
 ix-tooltip {
     display: none;
 }
@@ -131,4 +163,34 @@ ix-drag-preview {
 
 ix-drag-preview:open {
     display: flex;
+}
+
+/* The library's surface classes: their sizes here, their looks in the themes. A switch is a checkbox
+   whose checked fill is the track and whose knob, the size of the content box's height, slides over it. */
+input[type=checkbox].ix-switch {
+    width: 18px;
+    height: 10px;
+}
+
+input[type=checkbox].ix-switch::before {
+    content: "";
+    position: absolute;
+    left: 1px;
+    top: 1px;
+    width: 6px;
+    height: 6px;
+    background-color: #e0e0e0;
+}
+
+input[type=checkbox].ix-switch:checked::before {
+    left: 9px;
+}
+
+.ix-badge {
+    padding: 0 2px;
+}
+
+.ix-key {
+    padding: 0 2px;
+    border: 1px solid #a0a0a0;
 }

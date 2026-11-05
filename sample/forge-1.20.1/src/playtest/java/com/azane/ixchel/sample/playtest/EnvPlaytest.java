@@ -98,7 +98,7 @@ public final class EnvPlaytest {
             s.server(p -> pig[0].setHealth(4));
             // Fails if the bar does not follow the entity's health.
             s.waitUntil("pig at 4 health: bar 40% full", () -> Playtest.text(hud, ".health-text").equals("4 / 10")
-                    && Math.abs(width(hud, ".health-fill") - width(hud, ".health-bar") * 0.4f) < 0.5f, Playtest.WAIT);
+                    && Math.abs(width(hud, ".health-bar .ix-bar-fill") - width(hud, ".health-bar") * 0.4f) < 0.5f, Playtest.WAIT);
             s.shot("env-entity");
             s.server(p -> {
                 pig[0].discard();

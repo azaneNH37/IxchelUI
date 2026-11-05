@@ -19,7 +19,7 @@ public interface ElementPayload<T> {
      */
     static Object valueOf(Object payload, ElementType type) {
         Object v = payload instanceof Supplier<?> s ? s.get() : payload;
-        Class<?> expected = type.payloadType();
+        Class<?> expected = type.payloadClass();
         if (v != null && expected != null && !expected.isInstance(v)) {
             throw new IllegalStateException(type + " needs a " + expected.getName() + " or a Supplier of one, got "
                     + (payload instanceof Supplier<?> ? "a Supplier of " : "") + v.getClass().getName());

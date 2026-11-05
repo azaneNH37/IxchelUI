@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 
 /**
  * What a name in a view stands for. A page sees its view model's non-private fields; a
- * component's view sees its parameters and events, and those of a Java component also the other
+ * component's view sees its parameters, events and used names, and those of a Java component also the other
  * members of its view model; all see their local states, {@code as} rows and, in handlers,
  * {@code $event}.
  */

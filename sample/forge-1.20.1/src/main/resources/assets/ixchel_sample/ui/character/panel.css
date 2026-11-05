@@ -17,28 +17,12 @@
 }
 
 .tabs {
-  flex-direction: row;
   margin-bottom: 4px;
 }
 
-.tab {
-  padding: 2px 4px;
-  margin-right: 2px;
-  background-color: var(--ix-control-bg);
-  border-bottom: 1px solid #555555;
-  color: var(--ix-text);
-  transition: background-color 120ms;
-}
-
-.tab:hover {
-  background-color: var(--ix-control-bg);
-  background-image: linear-gradient(var(--ix-hover), var(--ix-hover));
-}
-
-.tab.ix-selected {
-  background-color: var(--ix-selected);
-  border-bottom-color: var(--ix-selected);
-  color: var(--ix-selected-text);
+/* With the button's 1px border all round, the tab heads keep their box: 8px wider and 5px taller than their label. */
+ix-tab::part(button) {
+  padding: 1px 3px 2px;
 }
 
 .page {

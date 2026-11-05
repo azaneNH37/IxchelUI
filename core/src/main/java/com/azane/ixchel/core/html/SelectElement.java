@@ -19,6 +19,7 @@ import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.view.ContentModel;
 import com.azane.ixchel.core.view.ViewCode;
+import com.azane.ixchel.core.view.ViewParser;
 import com.azane.ixchel.core.text.TextShaper;
 import java.util.List;
 
@@ -29,7 +30,7 @@ final class SelectElement {
         @Override public boolean ownsText() { return false; }
         @Override public boolean children(Element e, List<Node> children, Diagnostics d) {
             if (onlyOptions(children, true)) return true;
-            d.report(ViewCode.INVALID_CHILDREN, e.pos(), "<select> may only contain <option> elements, directly or in <for> and <if>, and an <ix-tooltip>");
+            d.report(ViewCode.INVALID_CHILDREN, e.pos(), "<select> may only contain <option> elements, directly or in blocks, and an <ix-tooltip>");
             return false;
         }
     };
@@ -48,7 +49,7 @@ final class SelectElement {
         for (Node n : children) {
             if (blank(n)) continue;
             if (!(n instanceof Element e) || !(e.type().facet(FormFacet.KEY).option() || direct && tooltip(e)
-                    || (e.tag().equals("for") || e.tag().equals("if")) && onlyOptions(e.children(), false))) return false;
+                    || ViewParser.isBlock(e.tag()) && onlyOptions(e.children(), false))) return false;
         }
         return true;
     }

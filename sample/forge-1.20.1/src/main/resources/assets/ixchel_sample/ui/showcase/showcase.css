@@ -1,5 +1,6 @@
 /* The showcase's layout only: sizes and gaps, the same under every theme. The title has a fixed width
-   so an upper-case or wider title font leaves the boxes where they are. */
+   so an upper-case or wider title font leaves the boxes where they are; the library components and
+   the groups of surface classes have fixed sizes too. */
 @stylesheet;
 @link "@ixchel/effects/cooldown.ixeffect";
 
@@ -39,6 +40,10 @@ theme-showcase {
   width: 80px;
 }
 
+.search {
+  width: 60px;
+}
+
 .slider {
   width: 80px;
 }
@@ -47,9 +52,23 @@ theme-showcase {
   width: 70px;
 }
 
+/* Slots edge to edge, as a page lays them out. */
+.slots {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 36px;
+}
+
 .slot {
   width: 18px;
   height: 18px;
+  justify-content: center;
+  align-items: center;
+}
+
+.item {
+  width: 16px;
+  height: 16px;
 }
 
 /* A cooldown sweeping round, over and over. */
@@ -74,6 +93,66 @@ theme-showcase {
 .list .lines {
   flex-grow: 1;
   overflow: auto;
+}
+
+/* Bars on the stepper's value: two across, the second showing the trail that lags behind when the
+   value drops, and one standing up. */
+.bars {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.across {
+  gap: 4px;
+}
+
+.bar {
+  width: 60px;
+  height: 6px;
+}
+
+ix-bar.trailing::part(trail) {
+  display: flex;
+}
+
+.bar-up {
+  width: 6px;
+  height: 30px;
+}
+
+.stepper {
+  width: 50px;
+}
+
+.cycle {
+  width: 40px;
+}
+
+.pager {
+  width: 60px;
+}
+
+.tree,
+.lines-group {
+  width: 70px;
+  height: 20px;
+}
+
+.node,
+.line {
+  height: 10px;
+}
+
+.line {
+  flex-direction: row;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.fold {
+  width: 50px;
+  height: 20px;
 }
 
 .box {

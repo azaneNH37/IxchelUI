@@ -1,6 +1,7 @@
 <link href="panel.css"/>
 <link href="@ixchel/mc/player-inventory.html"/>
 <link href="@ixchel/mc/tooltip-lines.html"/>
+<link href="@ixchel/components/bar.html"/>
 <page>
   <div class="ix-panel" state:sidesOpen="false">
     <div class="header">
@@ -8,12 +9,9 @@
       <span class="status" bind:class:bad="statusBad" bind:text="statusText"></span>
     </div>
     <div class="body">
-      <div class="bar energy" bind:title="energyText">
-        <div class="energy-fill" bind:style:height="energyHeight"></div>
-      </div>
-      <div class="bar tank" bind:title="waterText">
-        <div class="water-fill" bind:style:height="waterHeight" bind:style:background-color="waterColor"></div>
-      </div>
+      <ix-bar class="bar energy" bind:value="machine.energy" bind:max="energyCapacity" dir="up" bind:title="energyText"></ix-bar>
+      <ix-bar class="bar tank" bind:value="machine.water" bind:max="waterCapacity" dir="up" bind:title="waterText"
+              bind:style:--water-tint="waterColor"></ix-bar>
       <div class="feed">
         <mc-slot class="slot" bind:menuslot="waterSlot" t:title="ixchel_sample.machine.water_slot"></mc-slot>
         <div class="flame">
@@ -30,11 +28,10 @@
           <mc-slot class="slot output" bind:menuslot="outputSlot"></mc-slot>
         </div>
         <div class="recipes">
-          <if test="recipes.size == 0"><span class="hint" t="ixchel_sample.machine.no_recipes"></span></if>
           <for each="recipes" as="r" key="r.index"><div class="recipe" bind:class:ix-selected="r.selected" bind:title="r.name"
                on:click="pick(r)">
             <mc-item class="icon" bind:item="r.icon"></mc-item>
-          </div></for>
+          </div></for><empty><span class="hint" t="ixchel_sample.machine.no_recipes"></span></empty>
         </div>
       </div>
     </div>

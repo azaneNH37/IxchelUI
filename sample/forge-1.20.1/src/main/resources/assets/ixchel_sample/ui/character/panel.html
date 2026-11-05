@@ -1,13 +1,13 @@
 <link href="panel.css"/>
 <link href="@ixchel/mc/player-inventory.html"/>
 <link href="@ixchel/mc/tooltip-lines.html"/>
+<link href="@ixchel/components/tabs.html"/>
+<link href="@ixchel/components/tab.html"/>
 <page>
   <div class="ix-panel">
-    <div class="tabs">
-      <for each="tabs" as="t" key="t.id"><div class="tab" bind:class:ix-selected="t.id == tab" on:click="select(t)">
-        <span bind:text="t.label"></span>
-      </div></for>
-    </div>
+    <ix-tabs class="tabs" bind:value="tab">
+      <for each="tabs" as="t" key="t.id"><ix-tab bind:value="t.id" bind:label="t.label" on:pick="select(t)"></ix-tab></for>
+    </ix-tabs>
     <div class="page equipment" bind:class:shown="tab == 'equipment'">
       <div class="column">
         <for each="armor" as="s" key="s"><mc-slot class="slot" bind:menuslot="s"></mc-slot></for>
@@ -35,12 +35,12 @@
       </div></for>
     </div>
     <div class="page list" bind:class:shown="tab == 'effects'">
-      <if test="effects.size == 0"><span class="empty" t="ixchel_sample.character.no_effects"></span></if>
       <for each="effects" as="e" key="e.id"><div class="row effect" bind:class:ending="e.ending" bind:class:dim="e.dim">
         <img class="effect-icon" bind:src="e.icon"/>
         <span class="name" bind:text="e.name"></span>
         <span class="value" bind:text="e.time"></span>
       </div></for>
+      <empty><span class="empty" t="ixchel_sample.character.no_effects"></span></empty>
     </div>
     <div class="page list" bind:class:shown="tab == 'stats'">
       <for each="stats" as="s" key="s.name"><div class="row stat">

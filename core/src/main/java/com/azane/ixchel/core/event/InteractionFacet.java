@@ -11,6 +11,8 @@ public interface InteractionFacet {
     default boolean hitChildren() { return true; }
     default boolean dragSourceAllowed() { return true; }
     default boolean clickSoundBefore() { return false; }
+    /** A left click on a descendant runs this element's {@link #click} when nothing focusable lies between (a summary's label). */
+    default boolean activatedByDescendants() { return false; }
     default boolean capturesKeys(Element e) { return false; }
     default void beforePress(Element e, float x, int modifiers, Actions a) {}
     /** True requests pointer capture for this default action, until release. */

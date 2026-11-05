@@ -2,6 +2,7 @@ package com.azane.ixchel.core.html;
 
 import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
+import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.ElementType;
@@ -15,6 +16,7 @@ import com.azane.ixchel.core.layout.LayoutFacet;
 import com.azane.ixchel.core.paint.PaintFacet;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.core.paint.RoundRect;
 import com.azane.ixchel.core.view.ContentModel;
 import com.azane.ixchel.core.view.ViewCode;
 
@@ -24,9 +26,18 @@ final class InputElement {
     private static final int TRACK_COLOR_RANGE = 0xFF505050;
     static final ContentModel CONTENT = new HtmlContent.TooltipOnly() {
         @Override public void attributes(Element e, Diagnostics d) {
-            if (FormControl.Kind.ofInputType(e.attribute("type")) == null) {
+            FormControl.Kind kind = FormControl.Kind.ofInputType(e.attribute("type"));
+            if (kind == null) {
                 d.report(ViewCode.UNSUPPORTED_INPUT_TYPE, e.pos(), "unsupported <input type=\"" + e.attribute("type")
-                        + "\">; supported: text, number, checkbox, range");
+                        + "\">; supported: text, number, checkbox, radio, range");
+            } else if (kind == FormControl.Kind.RADIO) {
+                if (e.directives().stream().noneMatch(a -> a.name().equals("bind:group"))) {
+                    d.report(ViewCode.RADIO_WITHOUT_GROUP, e.pos(), "a radio needs bind:group=\"path\": the path its group writes",
+                            "give every radio of the group the same path and its own value=\"…\" or bind:value");
+                }
+            } else if (e.attribute("value") != null) {
+                d.report(ViewCode.UNKNOWN_ATTRIBUTE, e.pos(), "value=\"…\" is a radio's; bind the value of <input type=\""
+                        + (e.attribute("type") == null ? "text" : e.attribute("type")) + "\"> with bind:value instead");
             }
         }
     };
@@ -42,6 +53,7 @@ final class InputElement {
             switch (e.control().kind()) {
                 case TEXT, NUMBER -> paintInput(e, e.computed(), e.box(), y, out, context);
                 case CHECKBOX -> paintCheckbox(e, e.computed(), e.box(), y, out, context);
+                case RADIO -> paintRadio(e, e.computed(), e.box(), y, out);
                 case RANGE -> paintRange(e.control(), e.computed(), e.box(), y, out, context);
                 default -> throw new IllegalStateException("not an input control");
             }
@@ -74,15 +86,20 @@ final class InputElement {
             if (e.textField() != null && e.control().commitEdit()) a.change(e);
         }
         @Override public void click(Element e, Actions a) {
-            if (e.control().kind() == FormControl.Kind.CHECKBOX) toggle(e, a);
+            switch (e.control().kind()) {
+                case CHECKBOX -> toggle(e, a);
+                case RADIO -> check(e, a);
+                default -> {
+                }
+            }
         }
         @Override public boolean key(Element e, int key, int mods, Actions a) {
             FormControl c = e.control();
             return switch (c.kind()) {
                 case TEXT, NUMBER -> textKey(e, key, mods, a);
-                case CHECKBOX -> {
+                case CHECKBOX, RADIO -> {
                     if (key != FormEditing.KEY_SPACE) yield false;
-                    toggle(e, a);
+                    if (c.kind() == FormControl.Kind.CHECKBOX) toggle(e, a); else check(e, a);
                     yield true;
                 }
                 case RANGE -> {
@@ -151,6 +168,19 @@ final class InputElement {
         }
     }
 
+    /** A checked radio fills its content box as a round dot; the ring is the element's own border. */
+    private static void paintRadio(Element e, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
+        float w = b.contentWidth();
+        float h = b.contentHeight();
+        if (!e.control().checked() || w <= 0 || h <= 0) return;
+        float rx = w / 2;
+        float ry = h / 2;
+        RoundRect dot = new RoundRect(b.x() + b.borderLeft() + b.paddingLeft(), y + b.borderTop() + b.paddingTop(), w, h,
+                new RoundRect.Radii(rx, ry, rx, ry, rx, ry, rx, ry, RoundRect.Corners.ROUND));
+        out.add(new DrawCommand.Fill(dot, dot.x(), dot.y(), w, h, cs.get(CssProperties.ACCENT_COLOR), null,
+                cs.get(CssProperties.SHAPE_RENDERING) == Keywords.ShapeRendering.CRISP_EDGES));
+    }
+
     private static void paintRange(FormControl c, ComputedStyle cs, LayoutBox b, float y, DisplayList out, PaintFacet.Context context) {
         float cx = b.x() + b.borderLeft() + b.paddingLeft();
         float cy = y + b.borderTop() + b.paddingTop();
@@ -169,6 +199,14 @@ final class InputElement {
 
     private static void toggle(Element e, InteractionFacet.Actions a) {
         FormEditing.toggle(e.control());
+        a.clickSound(e);
+        a.commit(e);
+    }
+
+    /** Checks a radio that is not checked yet; its group binding writes its value back on the input event. */
+    private static void check(Element e, InteractionFacet.Actions a) {
+        if (e.control().checked()) return;
+        e.control().setChecked(true);
         a.clickSound(e);
         a.commit(e);
     }
@@ -212,14 +250,16 @@ final class InputElement {
         }
         field.select(extend ? field.anchor() : best, best);
     }
-    static final ElementType TYPE = ElementType.builder("input", "type", "placeholder", "maxlength", "min", "max", "step")
+    static final ElementType TYPE = ElementType.builder("input", "type", "placeholder", "maxlength", "min", "max", "step", "value")
             .facet(ContentModel.KEY, CONTENT).facet(LayoutFacet.KEY, LAYOUT)
             .facet(PaintFacet.KEY, PAINT).facet(InteractionFacet.KEY, INTERACTION)
             .facet(FormFacet.KEY, new FormFacet() {
                 @Override public FormControl.Kind kind(Element e) { return FormControl.Kind.ofInputType(e.attribute("type")); }
+                /** A radio's bind:group and bind:value are compiled together by the binding compiler, not as a two-way property. */
                 @Override public boolean binds(Element e, String property) {
                     FormControl.Kind kind = kind(e);
-                    return kind != null && (kind == FormControl.Kind.CHECKBOX ? property.equals("checked") : property.equals("value"));
+                    return kind != null && kind != FormControl.Kind.RADIO
+                            && (kind == FormControl.Kind.CHECKBOX ? property.equals("checked") : property.equals("value"));
                 }
             }).build();
 }

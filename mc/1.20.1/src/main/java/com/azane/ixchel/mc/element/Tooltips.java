@@ -80,7 +80,7 @@ public final class Tooltips {
         Object value = nativeTooltip(target, painters);
         if (value != null) {
             PoseStack ps = raise(g, z);
-            ((ElementPainter<Object>) painters.get(target.tag())).renderTooltip(g, font, value, mouseX, mouseY);
+            ((ElementPainter<Object>) painters.get(target.tag())).renderTooltip(g, font, target, value, mouseX, mouseY);
             ps.popPose();
             return;
         }
@@ -105,7 +105,7 @@ public final class Tooltips {
         }
         ElementPainter<Object> p = (ElementPainter<Object>) painters.get(e.tag());
         Object value = ElementPayload.valueOf(e.payload(), e.type());
-        return p != null && value != null && p.hasTooltip(value) ? value : null;
+        return p != null && value != null && p.hasTooltip(e, value) ? value : null;
     }
 
     private static PoseStack raise(GuiGraphics g, float z) {

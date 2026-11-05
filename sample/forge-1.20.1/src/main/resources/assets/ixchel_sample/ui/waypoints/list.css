@@ -59,10 +59,6 @@
   transition: background-color 120ms;
 }
 
-.row:hover {
-  background-color: var(--ix-hover);
-}
-
 .row:focus {
   background-color: #FFFFFF30;
 }

@@ -95,10 +95,8 @@ final class EnvModel extends ViewModel {
     final Derived<Boolean> hasBlock = derive(block, b -> !b.equals(BlockInfo.NONE));
     final Derived<ItemStack> blockIcon = derive(block, b -> new ItemStack(b.item()));
     final Derived<Boolean> hasEntity = derive(entity, e -> !e.equals(EntityInfo.NONE));
-    /** Rounded like the vanilla health display; the bar never overfills. */
+    /** Rounded like the vanilla health display. */
     final Derived<String> entityHealth = derive(entity, e -> Math.round(e.health()) + " / " + Math.round(e.maxHealth()));
-    final Derived<String> entityHealthWidth = derive(entity,
-            e -> e.maxHealth() <= 0 ? "0%" : Math.min(100, e.health() / e.maxHealth() * 100) + "%");
 
     final Derived<List<Icon>> hearts = derive(health, maxHealth, (h, max) -> icons(Math.round(h), (int) Math.ceil(max)));
     final Derived<List<Icon>> armorIcons = derive(armor, a -> icons(a, 20));

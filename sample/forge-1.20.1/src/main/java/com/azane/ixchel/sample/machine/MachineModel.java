@@ -23,7 +23,6 @@ import net.minecraft.world.item.crafting.StonecutterRecipe;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * The machine screen. It reads the machine's replicated {@link MachineState} through {@link #STATE}
@@ -59,13 +58,14 @@ final class MachineModel extends ViewModel {
     final Cell<MachineState> machine;
     final Cell<Item> input;
     final Cell<String> waterColor;
+    /** The bars' maxima. */
+    final Cell<Integer> energyCapacity = state(MachineBlockEntity.ENERGY_CAPACITY);
+    final Cell<Integer> waterCapacity = state(MachineBlockEntity.WATER_CAPACITY);
 
     final Derived<Component> statusText;
     final Derived<Boolean> statusBad;
     final Derived<String> energyText;
-    final Derived<String> energyHeight;
     final Derived<String> waterText;
-    final Derived<String> waterHeight;
     final Derived<Integer> arrowWidth;
     final Derived<Integer> flameHeight;
     final Derived<Integer> flameY;
@@ -95,9 +95,7 @@ final class MachineModel extends ViewModel {
         statusText = derive(machine, m -> m.status().label());
         statusBad = derive(machine, m -> m.status().bad);
         energyText = derive(machine, m -> m.energy() + " / " + MachineBlockEntity.ENERGY_CAPACITY + " FE");
-        energyHeight = derive(machine, m -> percent(m.energy(), MachineBlockEntity.ENERGY_CAPACITY));
         waterText = derive(machine, m -> m.water() + " / " + MachineBlockEntity.WATER_CAPACITY + " mB");
-        waterHeight = derive(machine, m -> percent(m.water(), MachineBlockEntity.WATER_CAPACITY));
         arrowWidth = derive(machine, m -> m.progress() * ARROW_WIDTH / MachineBlockEntity.CUT_TICKS);
         flameHeight = derive(machine, m -> m.burnTotal() <= 0 ? 0 : (m.burn() * FLAME_HEIGHT + m.burnTotal() - 1) / m.burnTotal());
         // The fill stands on the flame's bottom, so it shows the bottom rows of the lit flame.
@@ -118,10 +116,6 @@ final class MachineModel extends ViewModel {
 
     private void cycleSide(SideRow s) {
         Network.sendToServer(new SetSidePacket(pos, s.side(), machine.get().sides().get(s.side().get3DDataValue()).next()));
-    }
-
-    private static String percent(int value, int max) {
-        return String.format(Locale.ROOT, "%.1f%%", max <= 0 ? 0 : 100f * value / max);
     }
 
     private static List<RecipeRow> recipes(Item item, int selected) {

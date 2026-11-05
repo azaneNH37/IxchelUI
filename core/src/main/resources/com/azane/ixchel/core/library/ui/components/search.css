@@ -1,0 +1,17 @@
+@stylesheet;
+
+ix-search {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 1px;
+}
+
+.ix-search-input {
+  flex-grow: 1;
+  width: 0;
+}
+
+.ix-search-clear {
+  width: 12px;
+  padding: 0;
+}

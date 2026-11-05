@@ -1,0 +1,6 @@
+<!-- A text field with a button that clears it. -->
+<link href="search.css"/>
+<component name="ix-search" params="value placeholder=''">
+  <input class="ix-search-input" part="input" bind:value="value" bind:placeholder="placeholder"/>
+  <button class="ix-search-clear" part="clear" translate="no" bind:disabled="value == ''" on:click="value = ''">x</button>
+</component>

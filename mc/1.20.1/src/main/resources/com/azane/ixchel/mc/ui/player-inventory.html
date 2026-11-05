@@ -1,5 +1,5 @@
 <link href="player-inventory.css"/>
 <component name="mc-player-inventory" params="menu">
-    <div class="mc-player-inventory-main" part="main"><for each="main" as="s" key="s"><mc-slot class="ix-well" bind:menuslot="s"></mc-slot></for></div>
-    <div class="mc-player-inventory-hotbar" part="hotbar"><for each="hotbar" as="s" key="s"><mc-slot class="ix-well" bind:menuslot="s"></mc-slot></for></div>
+    <div class="mc-player-inventory-main" part="main"><for each="main" as="s" key="s"><mc-slot bind:menuslot="s"></mc-slot></for></div>
+    <div class="mc-player-inventory-hotbar" part="hotbar"><for each="hotbar" as="s" key="s"><mc-slot bind:menuslot="s"></mc-slot></for></div>
 </component>

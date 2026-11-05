@@ -12,7 +12,6 @@
         </div></for>
       </div>
       <div class="list">
-        <if test="rows.size == 0"><span class="empty" t="ixchel_sample.loot.empty"></span></if>
         <for each="rows" as="r" key="r.id" index="i"><div class="row" bind:class:odd="i % 2 == 1">
           <div class="arrow" bind:style:transform="'rotate(' + (r.heading - 45) + 'deg)'"></div>
           <mc-item class="icon" bind:item="r.icon"></mc-item>
@@ -20,7 +19,7 @@
           <span class="amount" bind:text="r.count"></span>
           <span class="distance" bind:text="r.distance"></span>
           <div class="pick" bind:disabled="!r.inRange" t:title="ixchel_sample.loot.pick_range" on:click="pickUp(r)"><span t="ixchel_sample.loot.pick"></span></div>
-        </div></for>
+        </div></for><empty><span class="empty" t="ixchel_sample.loot.empty"></span></empty>
       </div>
     </div>
   </div>

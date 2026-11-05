@@ -1,0 +1,13 @@
+<!-- A number between a step down and a step up, ten steps with Shift, held within min and max; the
+     field between them takes a typed number too. -->
+<link href="stepper.css"/>
+<component name="ix-stepper" params="value min max step=1">
+  <button class="ix-stepper-dec" part="dec" translate="no" bind:disabled="value <= min"
+          on:click.left="value = value - step < min ? min : value - step"
+          on:click.left.shift="value = value - step * 10 < min ? min : value - step * 10">-</button>
+  <input type="number" class="ix-stepper-input" part="input" bind:value="value"
+         bind:min="min" bind:max="max" bind:step="step"/>
+  <button class="ix-stepper-inc" part="inc" translate="no" bind:disabled="value >= max"
+          on:click.left="value = value + step > max ? max : value + step"
+          on:click.left.shift="value = value + step * 10 > max ? max : value + step * 10">+</button>
+</component>

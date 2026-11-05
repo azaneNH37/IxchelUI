@@ -40,14 +40,21 @@ public final class Element extends Node {
     public static final int HOVER = 1;
     public static final int ACTIVE = 1 << 1;
     public static final int FOCUS = 1 << 2;
-    /** Set while the element has a {@code disabled} attribute; {@code :disabled}. */
+    /**
+     * Set while this element or an ancestor has a {@code disabled} attribute, as under a {@code <fieldset>};
+     * {@code :disabled}. A change restyles the whole subtree, and an element moved under another
+     * parent is restyled, so the walk up happens only where the state is asked for.
+     */
     public static final int DISABLED = 1 << 3;
     /**
      * A checked checkbox ({@link FormControl#setChecked}); {@code :checked}. An {@code <option>}
      * matches it while it is its select's {@linkplain FormControl#selectedOption() selected option}.
      */
     public static final int CHECKED = 1 << 4;
-    /** A {@code <select>} or {@code <dialog>} in the {@link TopLayer}, or its shown tooltip or drag preview; {@code :open}. */
+    /**
+     * A {@code <select>} or {@code <dialog>} in the {@link TopLayer}, or its shown tooltip or drag preview;
+     * a {@code <details>} while it has an {@code open} attribute; {@code :open}.
+     */
     public static final int OPEN = 1 << 5;
     /** The root of a {@link Presence} unit in its first frame of entering, or while exiting; {@code :-ix-absent}. */
     public static final int ABSENT = 1 << 6;
@@ -80,6 +87,7 @@ public final class Element extends Node {
     private ComputedStyle computed;
     private List<Rule.Declaration> inlineStyle = List.of();
     private Object payload;
+    private Object hostState;
     private float scrollTop;
     private float maxScrollTop;
     /** A {@link #requestScrollTop} the next layout applies, or -1. */
@@ -375,6 +383,16 @@ public final class Element extends Node {
         this.payload = payload;
     }
 
+    /** State the element's painter keeps per element; {@code null} until set. The core never reads it. */
+    public Object hostState() {
+        return hostState;
+    }
+
+    /** Sets {@link #hostState}; marks nothing dirty. */
+    public void setHostState(Object state) {
+        this.hostState = state;
+    }
+
     /** Adds a listener; {@code capture} listeners run on the way down, the others while bubbling up. */
     public void addEventListener(UiEvent.Type type, boolean capture, UiEvent.Listener listener) {
         if (listeners == null) {
@@ -403,6 +421,17 @@ public final class Element extends Node {
     public boolean hasState(int bit) {
         if ((stateBits & bit) != 0) {
             return true;
+        }
+        if (bit == DISABLED) {
+            for (Element a = parent; a != null; a = a.parent) {
+                if ((a.stateBits & DISABLED) != 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (bit == OPEN) {
+            return type.facet(FormFacet.KEY).openByAttribute() && attributes.containsKey("open");
         }
         return bit == CHECKED && type.facet(FormFacet.KEY).checked(this);
     }

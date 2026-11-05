@@ -86,6 +86,25 @@ public final class Types {
         }
     }
 
+    /** Whether {@code t} is one of the numeric types of expressions. */
+    public static boolean isNumber(Type t) {
+        return Num.of(t) != null;
+    }
+
+    /** {@code text} as a number of type {@code to} (a numeric type), or {@code null} if it is not one. */
+    public static Number parseNumber(String text, Type to) {
+        try {
+            return switch (Num.of(to)) {
+                case INT -> Integer.valueOf(text.trim());
+                case LONG -> Long.valueOf(text.trim());
+                case FLOAT -> Float.valueOf(text.trim());
+                case DOUBLE -> Double.valueOf(text.trim());
+            };
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     /**
      * Whether a value of type {@code from} can be stored as {@code to}, widening numbers as Java does
      * and, as bound values often come from a {@code Double} literal, taking a {@code Double} as a
@@ -116,22 +135,33 @@ public final class Types {
     /**
      * Whether a value of type {@code t} can be a drawn element's payload of type {@code payload}:
      * a {@code payload} or a {@code Supplier} of one. True when {@code payload} is {@code null} or
-     * {@code Object}, and when {@code t} (or its type argument) is {@code Object} or unknown, since
-     * nothing can be checked then.
+     * {@code Object}, and when {@code t} (or a type argument of either) is {@code Object} or unknown,
+     * since nothing can be checked then.
      */
-    public static boolean acceptsPayload(Type t, Class<?> payload) {
+    public static boolean acceptsPayload(Type t, Type payload) {
         Class<?> raw = boxed(t);
-        if (payload == null || payload == Object.class || raw == Object.class || payload.isAssignableFrom(raw)) {
+        if (payload == null || raw == Object.class || fits(t, payload)) {
             return true;
         }
         if (!Supplier.class.isAssignableFrom(raw)) {
             return false;
         }
-        Type arg = typeArgument(t);
-        if (arg instanceof WildcardType w) {
-            arg = w.getUpperBounds()[0];
+        Type arg = bound(typeArgument(t));
+        return arg == null || rawClass(arg) == Object.class || fits(arg, payload);
+    }
+
+    /** Whether a {@code t} is a {@code payload}, comparing the first type argument when both have one. */
+    private static boolean fits(Type t, Type payload) {
+        if (!rawClass(payload).isAssignableFrom(boxed(t))) {
+            return false;
         }
-        Class<?> argRaw = arg == null ? Object.class : rawClass(arg);
-        return argRaw == Object.class || payload.isAssignableFrom(argRaw);
+        Type want = bound(typeArgument(payload));
+        Type got = bound(typeArgument(t));
+        return want == null || got == null || rawClass(got) == Object.class
+                || rawClass(want).isAssignableFrom(rawClass(got));
+    }
+
+    private static Type bound(Type t) {
+        return t instanceof WildcardType w ? w.getUpperBounds()[0] : t;
     }
 }

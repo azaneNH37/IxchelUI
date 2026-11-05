@@ -20,6 +20,7 @@ import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.diag.SourcePos;
 import com.azane.ixchel.core.dom.Directive;
 import com.azane.ixchel.core.dom.Element;
+import com.azane.ixchel.core.dom.FormControl;
 import com.azane.ixchel.core.dom.FormFacet;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.dom.Presence;
@@ -73,13 +74,26 @@ final class Compiler {
      * @param slots     the instance's slot content; {@code null} outside a component's view
      * @param model     the view model local states here belong to: the page's, or the nearest
      *                  enclosing Java component's
+     * @param provided  the nearest {@code provide:<name>} above this place in the expanded tree, by
+     *                  name; {@code null} for one whose expression failed, already reported
      */
     record Env(Map<String, Name> names, Diagnostics diag, String owner, boolean component, Slots slots,
-               ViewModel model) {
+               ViewModel model, Map<String, Ref> provided) {
         Env with(String name, Name value) {
             Map<String, Name> next = new HashMap<>(names);
             next.put(name, value);
-            return new Env(next, diag, owner, component, slots, model);
+            return new Env(next, diag, owner, component, slots, model, provided);
+        }
+
+        Env provide(String name, Ref value) {
+            Map<String, Ref> next = new HashMap<>(provided);
+            next.put(name, value);
+            return new Env(names, diag, owner, component, slots, model, next);
+        }
+
+        /** This scope's names, placed where {@code provided} is what is provided. */
+        Env at(Map<String, Ref> provided) {
+            return new Env(names, diag, owner, component, slots, model, provided);
         }
     }
 
@@ -137,7 +151,7 @@ final class Compiler {
         this.models = models;
         this.checking = lint ? 1 : 0;
         this.presence = presence;
-        this.env = new Env(names, diag, owner, false, null, model);
+        this.env = new Env(names, diag, owner, false, null, model, Map.of());
     }
 
     private Diagnostics diag() {
@@ -172,12 +186,24 @@ final class Compiler {
     private Anchor items(Element parent, List<Node> nodes, boolean attached, Anchor head, Part.Group out,
                                List<Object> items) {
         Anchor prev = head;
+        // The <if> or <for> just compiled, which an <else> or <empty> may follow; null once it failed.
+        String partnerTag = null;
+        Block partner = null;
         for (Node n : nodes) {
-            if (n instanceof Element e && (e.tag().equals("for") || e.tag().equals("if"))) {
+            if (n instanceof Element e && ViewParser.isBlock(e.tag())) {
                 if (attached) {
                     parent.removeChild(e);
                 }
-                Block b = e.tag().equals("for") ? eachBlock(e, parent, prev) : ifBlock(e, parent, prev);
+                String follows = ViewParser.partnerOf(e.tag());
+                Block b;
+                if (follows != null) {
+                    // The parser drops an orphan; a partner that failed is reported already.
+                    b = follows.equals(partnerTag) && partner != null ? otherwise(e, partner, parent, prev) : null;
+                } else {
+                    b = e.tag().equals("for") ? eachBlock(e, parent, prev) : ifBlock(e, parent, prev);
+                }
+                partnerTag = follows == null ? e.tag() : null;
+                partner = follows == null ? b : null;
                 if (b != null) {
                     out.parts.add(b);
                     prev = b;
@@ -186,6 +212,10 @@ final class Compiler {
                     }
                 }
                 continue;
+            }
+            if (!(n instanceof TextNode t && t.text().isBlank())) {
+                partnerTag = null;
+                partner = null;
             }
             if (n instanceof Element e && e.tag().equals("slot")) {
                 prev = slot(e, parent, attached, prev, out, items);
@@ -202,7 +232,11 @@ final class Compiler {
         return prev;
     }
 
-    /** Compiles {@code e}'s own directives and its subtree, or the component it instantiates, into {@code out}. */
+    /**
+     * Compiles {@code e}'s own directives and its subtree, or the component it instantiates, into
+     * {@code out}. Its {@code provide:} directives reach its subtree, a component's view included,
+     * but not the component it instantiates.
+     */
     private void collect(Element e, Part.Group out) {
         Env saved = env;
         try {
@@ -211,9 +245,15 @@ final class Compiler {
                     state(a, out);
                 }
             }
+            Map<String, Ref> above = env.provided();
+            for (Directive a : e.directives()) {
+                if (a.name().startsWith("provide:")) {
+                    provide(a);
+                }
+            }
             ComponentDef def = components.get(e.tag());
             if (def != null) {
-                instantiate(e, def, out);
+                instantiate(e, def, above, out);
                 return;
             }
             for (Directive a : e.directives()) {
@@ -226,7 +266,7 @@ final class Compiler {
     }
 
     private void directive(Element e, Directive a, Part.Group out) {
-        if (a.name().startsWith("state:")) {
+        if (a.name().startsWith("state:") || a.name().startsWith("provide:")) {
             return;
         }
         if (a.name().startsWith("on:")) {
@@ -258,6 +298,22 @@ final class Compiler {
         out.parts.add(new StateInit(cell, init.cell(), a, diag()));
     }
 
+    /**
+     * {@code provide:name="expression"}: the value {@code uses="name"} components below take; they
+     * may write it when it is a bare writable path here.
+     */
+    private void provide(Directive a) {
+        String name = a.name().substring("provide:".length());
+        if (!isIdentifier(name) || name.startsWith("$")) {
+            diag().report(BindingCode.INVALID_NAME, a.namePos(), "'" + name + "' is not a valid name to provide");
+            return;
+        }
+        Expr parsed = parse(a);
+        Ref ref = parsed == null ? null : compile(a, parsed);
+        boolean writable = ref != null && parsed instanceof Expr.Path && ref.write() != Ref.Write.NONE;
+        env = env.provide(name, ref == null || writable ? ref : new Ref(ref.cell(), ref.type()));
+    }
+
     /** Reports and returns true if a new {@code name} would hide a visible one. */
     private boolean hides(String name, SourcePos at, String what) {
         Name old = env.names().get(name);
@@ -272,7 +328,7 @@ final class Compiler {
         if (n instanceof Name.Event) {
             return "an event of " + env.owner();
         }
-        return env.component() ? "a parameter, row or state of " + env.owner()
+        return env.component() ? "a parameter, used name, row or state of " + env.owner()
                 : "a field, row or state of " + env.owner();
     }
 
@@ -360,6 +416,13 @@ final class Compiler {
                 keyInput, keyRef.cell(), each, key);
     }
 
+    /** {@code <else>} or {@code <empty>}: mounted exactly while its {@code partner} shows nothing. */
+    private Block otherwise(Element block, Block partner, Element parent, Anchor prev) {
+        Cell<?> test = partner instanceof IfBlock i ? i.otherwise() : ((EachBlock) partner).empty();
+        check(block, env);
+        return new IfBlock(this, env, block.children(), parent, prev, test, null);
+    }
+
     /** Compiles a throwaway copy of a block's content, so its problems are reported while it is not mounted. */
     private void check(Element block, Env in) {
         checking++;
@@ -379,12 +442,21 @@ final class Compiler {
         return null;
     }
 
-    /** A {@code <slot>} in a component's view: replaced by what the user gave, or by its own fallback content. */
+    /**
+     * A {@code <slot>} in a component's view: replaced by what the user gave, or by its own fallback
+     * content. Given content sees the user's names and what is provided here, its place in the
+     * expanded tree, including the slot's own {@code provide:}: a component provides to what it is
+     * given without a wrapping element.
+     */
     private Anchor slot(Element slot, Element parent, boolean attached, Anchor prev, Part.Group out,
                               List<Object> items) {
         String name = "";
+        Env saved = env;
         for (Directive d : slot.directives()) {
             name = d.name().equals("name") ? d.value() : name;
+            if (d.name().startsWith("provide:")) {
+                provide(d);
+            }
         }
         Slots slots = env.slots();
         List<Node> given = slots.content().get(name);
@@ -394,7 +466,7 @@ final class Compiler {
             for (Node n : given) {
                 content.add(n.copyTemplate());
             }
-            in = slots.user();
+            in = slots.user().at(env.provided());
         } else {
             content.addAll(slot.children());
             in = env;
@@ -406,7 +478,6 @@ final class Compiler {
                 parent.insertChild(index++, n);
             }
         }
-        Env saved = env;
         env = in;
         try {
             return items(parent, content, attached, prev, out, items);
@@ -418,10 +489,11 @@ final class Compiler {
     /**
      * {@code <name …>} of a component: the element stays as the instance's shell, its children become
      * slot content, and the component's view is compiled into it with the parameters and events
-     * the shell's attributes give. A Java component's ports are wired to them, and its view sees
-     * the members of its model, which owns its local states and defaults.
+     * the shell's attributes give, and the names it uses as {@code above} provides them. A Java
+     * component's ports are wired to them, and its view sees the members of its model, which owns
+     * its local states and defaults.
      */
-    private void instantiate(Element shell, ComponentDef def, Part.Group out) {
+    private void instantiate(Element shell, ComponentDef def, Map<String, Ref> above, Part.Group out) {
         Env user = env;
         String tag = "<" + def.name() + ">";
         Map<String, Ref> args = new HashMap<>();
@@ -470,8 +542,17 @@ final class Compiler {
         }
 
         Map<String, List<Node>> content = new HashMap<>();
+        // The slot of the <if> or <for> just placed: its <else> or <empty> goes with it.
+        String pairSlot = null;
         for (Node n : List.copyOf(shell.children())) {
-            String slot = n instanceof Element e && ViewParser.slotOf(e) != null ? ViewParser.slotOf(e) : "";
+            String slot = "";
+            if (n instanceof Element e) {
+                String own = ViewParser.slotOf(e);
+                slot = ViewParser.partnerOf(e.tag()) != null && pairSlot != null ? pairSlot : own != null ? own : "";
+                pairSlot = e.tag().equals("if") || e.tag().equals("for") ? slot : null;
+            } else if (!(n instanceof TextNode t && t.text().isBlank())) {
+                pairSlot = null;
+            }
             if (!def.slots().contains(slot) && !content.containsKey(slot)) {
                 diag().report(BindingCode.UNKNOWN_SLOT, n.pos(), slot.isEmpty()
                         ? tag + " has no default <slot>; this content would be dropped"
@@ -488,8 +569,20 @@ final class Compiler {
             return;
         }
         Map<String, Name> names = new HashMap<>();
-        env = new Env(names, inside, tag, true, new Slots(content, user), child == null ? user.model() : child.model());
+        env = new Env(names, inside, tag, true, new Slots(content, user), child == null ? user.model() : child.model(),
+                user.provided());
         boolean unresolved = false;
+        for (String u : def.uses()) {
+            if (!above.containsKey(u)) {
+                user.diag().report(BindingCode.MISSING_PROVIDER, shell.pos(), tag + " uses '" + u
+                        + "', but no element above it provides it", "write provide:" + u + "=\"…\" on an element around it");
+                unresolved = true;
+            } else if (above.get(u) == null) {
+                unresolved = true;
+            } else {
+                names.put(u, above.get(u));
+            }
+        }
         for (ComponentDef.Param p : def.params()) {
             Ref given = args.get(p.name());
             if (given != null) {
@@ -596,11 +689,18 @@ final class Compiler {
         return new Child(model, shape, members, real);
     }
 
-    /** Whether the {@code <component>}'s parameters and events are exactly the ports of {@code shape}; reports each that is not. */
+    /**
+     * Whether the {@code <component>}'s parameters and events are exactly the ports of {@code shape}
+     * and it uses nothing; reports each that is not.
+     */
     private static boolean signature(ComponentDef def, ModelShape shape, Diagnostics diag) {
         Map<String, ModelShape.Member> members = shape.members();
         String owner = shape.type().getSimpleName();
-        boolean ok = true;
+        boolean ok = def.uses().isEmpty();
+        if (!ok) {
+            diag.report(BindingCode.SIGNATURE_MISMATCH, def.pos(), "<component name=\"" + def.name() + "\"> declares uses, but "
+                    + owner + " makes it a Java component, which takes nothing provided");
+        }
         for (ComponentDef.Param p : def.params()) {
             ModelShape.Member m = members.get(p.name());
             if (m == null || !m.port() || m.kind() != ModelShape.Kind.CELL) {
@@ -737,6 +837,10 @@ final class Compiler {
     private Binding binding(Element e, Directive a) {
         String target = a.name().substring("bind:".length());
         boolean shell = components.containsKey(e.tag());
+        boolean radio = !shell && e.control() != null && e.control().kind() == FormControl.Kind.RADIO;
+        if (radio && target.equals("value")) {
+            return null; // compiled with the radio's bind:group
+        }
         Expr parsed = parse(a);
         if (parsed == null) {
             return null;
@@ -744,6 +848,9 @@ final class Compiler {
         Ref ref = compile(a, parsed);
         if (ref == null) {
             return null;
+        }
+        if (radio && target.equals("group")) {
+            return radioGroup(e, a, parsed, ref);
         }
         boolean twoWay = target.equals("scrolltop") || !shell && e.type().facet(FormFacet.KEY).binds(e, target);
         if (twoWay) {
@@ -771,10 +878,10 @@ final class Compiler {
             return new Binding.Text(ref.cell(), a, diag(), text, node);
         }
         if (!shell && target.equals(e.type().payload())) {
-            Class<?> accepted = e.type().payloadType();
+            java.lang.reflect.Type accepted = e.type().payloadType();
             if (!Types.acceptsPayload(ref.type(), accepted)) {
                 diag().report(BindingCode.PAYLOAD_TYPE, a.valuePos(), "<" + e.tag() + "> takes "
-                        + accepted.getName() + " or a Supplier of one, but '" + a.value().trim() + "' is " + ref.type().getTypeName());
+                        + accepted.getTypeName() + " or a Supplier of one, but '" + a.value().trim() + "' is " + ref.type().getTypeName());
                 return null;
             }
             return new Binding.Payload(ref.cell(), a, diag(), e);
@@ -788,7 +895,7 @@ final class Compiler {
             return new Binding.ClassToggle(ref.cell(), a, diag(), e, cls);
         }
         if (target.equals("disabled")) {
-            return new Binding.Disabled(ref.cell(), a, diag(), e);
+            return new Binding.BooleanAttribute(ref.cell(), a, diag(), e, "disabled");
         }
         if (target.startsWith("style:")) {
             return styleBinding(e, a, ref);
@@ -801,8 +908,9 @@ final class Compiler {
             case "type" -> diag().report(BindingCode.UNKNOWN_TARGET, a.namePos(),
                     "an <input>'s type is fixed by the view", "write type=\"…\"");
             default -> {
+                // An <input>'s value attribute is a radio's, bound with its group.
                 boolean allowed = shell ? TagRegistry.GLOBAL_ATTRIBUTES.contains(target)
-                        : tags.isAllowedAttribute(e.tag(), target);
+                        : tags.isAllowedAttribute(e.tag(), target) && !(e.control() != null && target.equals("value"));
                 if (target.indexOf(':') >= 0 || !allowed) {
                     diag().report(BindingCode.UNKNOWN_TARGET, a.namePos(),
                             "unknown binding target '" + a.name() + "' on <" + e.tag() + ">");
@@ -868,13 +976,18 @@ final class Compiler {
     }
 
     /**
-     * {@code bind:value} on a form control (a String), {@code bind:checked} on a checkbox and
-     * {@code bind:open} on a dialog (a Boolean), {@code bind:scrolltop} (an Integer): the view follows
-     * the cell and writes its own changes back to it, so the value must be a bare writable path.
+     * {@code bind:value} on a form control (a String; a number on a number or range input), {@code bind:checked}
+     * on a checkbox and {@code bind:open} on a dialog or details (a Boolean), {@code bind:scrolltop} (an Integer):
+     * the view follows the cell and writes its own changes back to it, so the value must be a bare writable path.
+     * A details writes back on the {@code change} its summary dispatches at it; a number input writes back only
+     * text that parses as the path's type, so a half-typed {@code -} leaves the value as it was.
      */
     private Binding twoWay(Element e, Directive a, Expr parsed, Ref ref, String target) {
+        boolean numeric = target.equals("value") && e.control() != null
+                && (e.control().kind() == FormControl.Kind.NUMBER || e.control().kind() == FormControl.Kind.RANGE)
+                && Types.isNumber(ref.type());
         Class<?> want = switch (target) {
-            case "value" -> String.class;
+            case "value" -> numeric ? Types.boxed(ref.type()) : String.class;
             case "scrolltop" -> Integer.class;
             default -> Boolean.class;
         };
@@ -888,7 +1001,16 @@ final class Compiler {
         Consumer<Object> writeBack = writer(ref);
         switch (target) {
             case "value" -> {
-                e.addEventListener(UiEvent.Type.INPUT, false, ev -> writeBack.accept(e.control().value()));
+                e.addEventListener(UiEvent.Type.INPUT, false, ev -> {
+                    if (!numeric) {
+                        writeBack.accept(e.control().value());
+                        return;
+                    }
+                    Number n = Types.parseNumber(e.control().value(), ref.type());
+                    if (n != null) {
+                        writeBack.accept(n);
+                    }
+                });
                 return new Binding.ControlValue(ref.cell(), a, diag(), e);
             }
             case "checked" -> {
@@ -896,6 +1018,14 @@ final class Compiler {
                 return new Binding.Checked(ref.cell(), a, diag(), e);
             }
             case "open" -> {
+                if (e.type().facet(FormFacet.KEY).openByAttribute()) {
+                    e.addEventListener(UiEvent.Type.CHANGE, false, ev -> {
+                        if (ev.target() == e) {
+                            writeBack.accept(e.attribute("open") != null);
+                        }
+                    });
+                    return new Binding.BooleanAttribute(ref.cell(), a, diag(), e, "open");
+                }
                 e.addEventListener(UiEvent.Type.CLOSE, false, ev -> writeBack.accept(false));
                 return new Binding.Open(ref.cell(), a, diag(), e, topLayer);
             }
@@ -904,6 +1034,55 @@ final class Compiler {
                 return new Binding.Scroll(ref.cell(), a, diag(), e);
             }
         }
+    }
+
+    /**
+     * {@code bind:group="path"} on a radio: checked while the path equals the radio's value, its
+     * {@code bind:value} or else its {@code value="…"} (else {@code "on"}), taken as the path's type so
+     * numbers compare as {@code ==} does; checking it writes that value to the path, so the path must be
+     * a bare writable one the value is assignable to.
+     */
+    private Binding radioGroup(Element e, Directive a, Expr parsed, Ref group) {
+        if (!(parsed instanceof Expr.Path) || group.write() == Ref.Write.NONE) {
+            diag().report(BindingCode.TWO_WAY_TARGET, a.valuePos(), "'" + a.name() + "' writes back: it needs a state Value "
+                    + "(a Value field, a local state, a row component or a parameter passed writable), but '"
+                    + a.value().trim() + "' is not one");
+            return null;
+        }
+        Directive bound = null;
+        for (Directive d : e.directives()) {
+            if (d.name().equals("bind:value")) {
+                bound = d;
+            }
+        }
+        Ref value;
+        if (bound != null) {
+            Expr p = parse(bound);
+            value = p == null ? null : compile(bound, p);
+            if (value == null) {
+                return null;
+            }
+        } else {
+            String literal = e.attribute("value");
+            value = new Ref(MODEL.held(literal == null ? "on" : literal), String.class);
+        }
+        Type type = group.type();
+        if (!Types.assignable(value.type(), type)) {
+            diag().report(BindingCode.VALUE_TYPE, bound != null ? bound.valuePos() : a.valuePos(), "the radio's value is "
+                    + value.type().getTypeName() + ", but its group '" + a.value().trim() + "' is " + type.getTypeName(),
+                    bound != null ? null : "value=\"…\" is a String; bind other types with bind:value");
+            return null;
+        }
+        Cell<?> valueCell = value.cell();
+        Consumer<Object> writeBack = writer(group);
+        e.addEventListener(UiEvent.Type.INPUT, false, ev -> {
+            if (e.control().checked()) {
+                writeBack.accept(Types.convert(valueCell.get(), type));
+            }
+        });
+        Cell<Boolean> checked = MODEL.derived(new Cell<?>[]{group.cell(), valueCell},
+                args -> Objects.equals(args[0], Types.convert(args[1], type)));
+        return new Binding.Checked(checked, a, diag(), e);
     }
 
     /** Sets a writable {@code ref}; a row whose component is null ignores the write. */

@@ -459,7 +459,8 @@ public final class EventDispatcher {
                 dispatch(click);
                 consumed |= click.isConsumed();
                 if (button == 0 && !click.isConsumed()) {
-                    interaction(clicked).click(clicked, actions);
+                    Element activated = activated(clicked);
+                    interaction(activated).click(activated, actions);
                 }
             }
         }
@@ -473,6 +474,19 @@ public final class EventDispatcher {
         if (control.computed().get(CssProperties.CLICK_SOUND) == Keywords.ClickSound.AUTO) {
             clickSound.play();
         }
+    }
+
+    /** {@code clicked}, or the nearest ancestor {@linkplain InteractionFacet#activatedByDescendants() activated} by it with nothing focusable between. */
+    private Element activated(Element clicked) {
+        for (Element a = clicked; a != null && a != root; a = a.parent()) {
+            if (a != clicked && interaction(a).activatedByDescendants()) {
+                return a;
+            }
+            if (isFocusable(a)) {
+                break;
+            }
+        }
+        return clicked;
     }
 
     /** The nearest {@code <button>} at or above {@code e}, or {@code null}. */
@@ -838,14 +852,9 @@ public final class EventDispatcher {
         return root;
     }
 
-    /** Whether {@code e} or an ancestor has a {@code disabled} attribute. */
+    /** Whether {@code e} or an ancestor has a {@code disabled} attribute: {@link Element#DISABLED}. */
     private static boolean inDisabled(Element e) {
-        for (Element a = e; a != null; a = a.parent()) {
-            if (a.hasState(Element.DISABLED)) {
-                return true;
-            }
-        }
-        return false;
+        return e != null && e.hasState(Element.DISABLED);
     }
 
     /** Whether {@code e} or an ancestor is {@linkplain Element#isInert() inert}. */
