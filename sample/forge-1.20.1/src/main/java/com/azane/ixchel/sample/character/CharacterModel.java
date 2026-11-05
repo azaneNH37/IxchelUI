@@ -76,11 +76,11 @@ final class CharacterModel extends ViewModel {
     final Value<String> tab = state("equipment");
     final Value<List<Tab>> tabs = state(tabs());
 
-    final Value<AbstractContainerMenu> menu;
-    final Value<List<Slot>> armor;
-    final Value<Slot> offhand;
-    final Value<List<Slot>> crafting;
-    final Value<Slot> craftResult;
+    final Cell<AbstractContainerMenu> menu;
+    final Cell<List<Slot>> armor;
+    final Cell<Slot> offhand;
+    final Cell<List<Slot>> crafting;
+    final Cell<Slot> craftResult;
 
     /** A stable handle: the painter reads the player at paint time, so the binding never changes. */
     final Value<Supplier<LivingEntity>> doll = state(() -> Minecraft.getInstance().player);

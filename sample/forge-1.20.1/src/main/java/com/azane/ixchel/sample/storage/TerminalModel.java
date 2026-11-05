@@ -44,9 +44,9 @@ final class TerminalModel extends ViewModel {
     record Tile(int id, StoredItem item, ItemStack stack, String count) {
     }
 
-    private final TerminalMenu menu;
+    private final int containerId;
 
-    final Value<AbstractContainerMenu> container;
+    final Cell<AbstractContainerMenu> menu;
 
     final Value<String> query = state("");
     final Value<SortKey> sortKey = state(SortKey.NAME);
@@ -69,8 +69,8 @@ final class TerminalModel extends ViewModel {
     final Action<Void> storeOne = action(() -> store(true));
 
     TerminalModel(TerminalMenu menu) {
-        this.menu = menu;
-        container = state(menu);
+        containerId = menu.containerId;
+        this.menu = state(menu);
         Replica<List<Entry<StoredItem, Long>>> replica = Replication.watch(Network.STORAGE, menu.containerId);
         scope().own(replica);
         contents = source(Source.polled(() -> replica.get() == null ? List.of() : replica.get()));
@@ -87,13 +87,13 @@ final class TerminalModel extends ViewModel {
     private void take(Tile c, TakePacket.Mode mode) {
         // With a stack on the cursor the click stores it instead; see store.
         if (!carrying.get()) {
-            Network.sendToServer(new TakePacket(menu.containerId, c.item(), mode));
+            Network.sendToServer(new TakePacket(containerId, c.item(), mode));
         }
     }
 
     private void store(boolean one) {
         if (carrying.get()) {
-            Network.sendToServer(new StorePacket(menu.containerId, one));
+            Network.sendToServer(new StorePacket(containerId, one));
         }
     }
 

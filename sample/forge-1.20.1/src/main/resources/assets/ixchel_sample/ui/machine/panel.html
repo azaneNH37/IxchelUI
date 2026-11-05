@@ -42,7 +42,7 @@
       <button class="redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></button>
       <button class="sides-toggle" bind:class:ix-selected="sidesOpen" on:click="sidesOpen = !sidesOpen" t="ixchel_sample.machine.sides"></button>
     </div>
-    <mc-player-inventory bind:menu="container"></mc-player-inventory>
+    <mc-player-inventory bind:menu="menu"></mc-player-inventory>
     <div class="sides" bind:class:open="sidesOpen">
       <for each="sideRows" as="s" key="s.side"><div class="side" on:click="cycleSide(s)">
         <span class="face" bind:text="s.face"></span>

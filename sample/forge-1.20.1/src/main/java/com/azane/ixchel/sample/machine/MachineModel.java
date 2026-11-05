@@ -6,7 +6,6 @@ import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Feed;
 import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.UiView;
-import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.sample.network.Network;
 import com.azane.ixchel.sample.network.Replication;
@@ -49,13 +48,13 @@ final class MachineModel extends ViewModel {
     private static final int ARROW_WIDTH = 24;
     private static final int FLAME_HEIGHT = 14;
 
-    private final MachineMenu menu;
+    private final BlockPos pos;
 
-    final Value<AbstractContainerMenu> container;
-    final Value<Slot> fuelSlot;
-    final Value<Slot> waterSlot;
-    final Value<Slot> inputSlot;
-    final Value<Slot> outputSlot;
+    final Cell<AbstractContainerMenu> menu;
+    final Cell<Slot> fuelSlot;
+    final Cell<Slot> waterSlot;
+    final Cell<Slot> inputSlot;
+    final Cell<Slot> outputSlot;
 
     final Cell<MachineState> machine;
     final Cell<Item> input;
@@ -79,8 +78,8 @@ final class MachineModel extends ViewModel {
     final Action<SideRow> cycleSide = action(this::cycleSide);
 
     MachineModel(MachineMenu menu) {
-        this.menu = menu;
-        container = state(menu);
+        pos = menu.pos;
+        this.menu = state(menu);
         fuelSlot = state(menu.getSlot(MachineMenu.FUEL));
         waterSlot = state(menu.getSlot(MachineMenu.WATER_SLOT));
         inputSlot = state(menu.getSlot(MachineMenu.INPUT));
@@ -110,15 +109,15 @@ final class MachineModel extends ViewModel {
     }
 
     private void pick(RecipeRow r) {
-        Network.sendToServer(new PickRecipePacket(menu.pos, r.index()));
+        Network.sendToServer(new PickRecipePacket(pos, r.index()));
     }
 
     private void cycleRedstone() {
-        Network.sendToServer(new SetRedstonePacket(menu.pos, machine.get().redstone().next()));
+        Network.sendToServer(new SetRedstonePacket(pos, machine.get().redstone().next()));
     }
 
     private void cycleSide(SideRow s) {
-        Network.sendToServer(new SetSidePacket(menu.pos, s.side(), machine.get().sides().get(s.side().get3DDataValue()).next()));
+        Network.sendToServer(new SetSidePacket(pos, s.side(), machine.get().sides().get(s.side().get3DDataValue()).next()));
     }
 
     private static String percent(int value, int max) {
