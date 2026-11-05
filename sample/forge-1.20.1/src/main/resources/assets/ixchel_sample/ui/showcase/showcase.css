@@ -63,10 +63,16 @@ theme-showcase {
   to { --Cooldown-progress: 0; }
 }
 
+/* The well keeps the theme's corners; the lines scroll inside its padding, where a rectangular clip
+   stays within the curve. */
 .list {
   width: 100px;
   height: 30px;
   padding: 2px;
+}
+
+.list .lines {
+  flex-grow: 1;
   overflow: auto;
 }
 
