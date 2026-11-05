@@ -206,6 +206,13 @@ public final class EffectsPlaytest {
                     Playtest.document().diagnostics().entries().stream().noneMatch(d -> d.code().id().equals("layout/unknown-font")));
             // Fails if a § is read as a formatting code when measuring: the line would take no room.
             s.expect("a § is text, measured as drawn", () -> width(".font.codes") > 0);
+            // Fails if small text is measured at the size written rather than drawn at a crisp one: its
+            // box would not match its glyphs, or strokes would come out of uneven thickness.
+            s.expect("6px text takes its crisp size's width", () -> {
+                double gui = Minecraft.getInstance().getWindow().getGuiScale();
+                float crisp = com.azane.ixchel.mc.paint.McTextMeasurer.crispSize(6, gui);
+                return Math.abs(width(".font.small") - width(".font.plain") * crisp / 9) < 0.01f;
+            });
             // F3+T: vanilla's reload deletes the shader objects in its program table, ours included.
             // Fails if a layer, blend mode, backdrop or effect draws wrong with the programs built before it.
             s.run(() -> {

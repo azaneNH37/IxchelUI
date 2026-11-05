@@ -59,6 +59,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | TH2 | 完成 | effects 页 Shapes 标签 | 形状与像素化：`corner-shape`、`shape-rendering: crisp-edges`、GLSL `ix_snap`；结果见下文 |
 | TH3 | 完成 | effects 页 Shapes 标签 | 文字：`font-family`（MC 字体 id）、`text-transform`；不做 `letter-spacing`；结果见下文 |
 | TH4 | 完成 | themes | 四套内置主题 `vanilla`、`dark`、`holo`、`cyber`，内置特效 `chromatic`、`glitch`、`cooldown`、`stripes`，主题陈列页；结果见下文 |
+| TX | 完成 | effects 页 Shapes, text 标签 | 文字清晰字号：`font-size` 向下取整到每字形像素占整数个物理像素（主题文档 §5.3）；`McTextMeasurer.crispSize`，测量与绘制同一字号，起点对齐物理像素；单测 `CrispSizeTest`，playtest 断言 6px 文字宽度 |
 | U4 | 待做 | — | `ix-` 组件库与内置元素补齐，讨论中（`ref/SD-ixchel-u4-components-20261104.md`） |
 | FX1 | 完成 | — | 私有图层；`opacity` 整组语义（shader 构造并入 FX2） |
 | FX2 | 完成 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |

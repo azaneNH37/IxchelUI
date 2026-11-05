@@ -306,15 +306,19 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         if ((c.color() & 0xFC000000) == 0) {
             return null;
         }
-        float scale = c.size() / VANILLA_SIZE;
+        // At the size it was measured at, from a screen pixel's corner: each glyph pixel covers whole screen pixels.
+        double gui = Minecraft.getInstance().getWindow().getGuiScale();
+        float scale = McTextMeasurer.crispSize(c.size(), gui) / VANILLA_SIZE;
+        float x = (float) (Math.round(c.x() * gui) / gui);
+        float y = (float) (Math.round(c.y() * gui) / gui);
         FormattedCharSequence text = McTextMeasurer.sequence(c.text(), style(c));
         float z = 0;
         // Measuring is only needed once something is raised.
         if (!layers.isEmpty()) {
-            z = level(c.x(), c.y(), c.x() + font.width(text) * scale, c.y() + c.size());
+            z = level(x, y, x + font.width(text) * scale, y + scale * VANILLA_SIZE);
         }
         begin(Batch.TEXT, null);
-        textMatrix.set(pose).translate(c.x(), c.y(), z).scale(scale, scale, 1);
+        textMatrix.set(pose).translate(x, y, z).scale(scale, scale, 1);
         font.drawInBatch(text, 0, 0, c.color(), false, textMatrix, graphics.bufferSource(),
                 Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
         return null;

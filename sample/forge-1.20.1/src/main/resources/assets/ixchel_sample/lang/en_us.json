@@ -299,6 +299,6 @@
   "ixchel_sample.effects.corner_shapes": "corner-shape: round, bevel, notch, scoop, square, then a shadow",
   "ixchel_sample.effects.shape_auto": "shape-rendering: auto",
   "ixchel_sample.effects.shape_crisp": "shape-rendering: crisp-edges",
-  "ixchel_sample.effects.fonts": "font-family and text-transform: default, minecraft:uniform, minecraft:alt, uppercase",
+  "ixchel_sample.effects.fonts": "font-family, text-transform and font-size: default, minecraft:uniform, minecraft:alt, uppercase, a § kept as text, 6px at its crisp size",
   "ixchel_sample.effects.font_sample": "The quick brown fox"
 }

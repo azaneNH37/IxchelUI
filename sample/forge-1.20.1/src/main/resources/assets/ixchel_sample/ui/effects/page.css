@@ -341,3 +341,8 @@ button {
 .font.upper {
   text-transform: uppercase;
 }
+
+/* Drawn at the largest size up to 6px where each glyph pixel covers whole screen pixels. */
+.font.small {
+  font-size: 6px;
+}

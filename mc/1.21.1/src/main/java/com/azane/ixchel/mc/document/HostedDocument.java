@@ -195,7 +195,7 @@ public final class HostedDocument implements AutoCloseable {
         tooltipTarget = Float.isNaN(pointerX) || document.events().dragSource() != null ? null
                 : Tooltips.target(document.events().hitTest(pointerX, pointerY), painters);
         document.setTooltip(tooltipTarget == null ? null : Tooltips.tooltipOf(tooltipTarget), pointerX, pointerY);
-        // Under ModernUI text is laid out at the GUI scale, so its widths change with it.
+        // Text is measured at its crisp size for the GUI scale (and laid out at that scale under ModernUI).
         double scale = Minecraft.getInstance().getWindow().getGuiScale();
         if (scale != guiScale) {
             if (!Double.isNaN(guiScale)) {

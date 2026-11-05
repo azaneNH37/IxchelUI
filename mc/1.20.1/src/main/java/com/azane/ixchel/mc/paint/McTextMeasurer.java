@@ -1,6 +1,7 @@
 package com.azane.ixchel.mc.paint;
 
 import com.azane.ixchel.core.text.TextMeasurer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
@@ -12,7 +13,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Vanilla font metrics: CSS {@code 9px} is the font at scale 1 (line height 9, baseline 7). Bold glyphs
+ * Vanilla font metrics: CSS {@code 9px} is the font at scale 1 (line height 9, baseline 7). Text is
+ * measured and drawn at its {@linkplain #crispSize crisp size}, so each pixel of a bitmap glyph covers
+ * whole screen pixels and no stroke comes out thicker than another. Bold glyphs
  * are one pixel wider. A font id is measured through {@link Style#withFont}; the host has it when a
  * resource pack defines {@code assets/<namespace>/font/<path>.json}. One per document, so a resource
  * reload, which loads the document again, sees the new packs. Widths are the font's fractional
@@ -30,6 +33,23 @@ public final class McTextMeasurer implements TextMeasurer {
     private final Map<String, Style[]> styles = new HashMap<>();
     private final Map<String, Boolean> fonts = new HashMap<>();
 
+    /**
+     * The size text of {@code size} is drawn at under {@code guiScale}: the largest at which a glyph
+     * pixel covers a whole number of screen pixels, at least one, so never larger than {@code size}
+     * unless even one screen pixel per glyph pixel is: {@code 9px} at GUI scale 1, {@code 6px} at 3, but
+     * {@code 7px} is {@code 4.5px} at 2. Under ModernUI fonts are TrueType and any size is smooth; sizes
+     * step all the same, so a page lays out alike with and without it.
+     */
+    public static float crispSize(float size, double guiScale) {
+        // The epsilon keeps a size that is exactly a step, 6px at scale 3, from rounding down a step.
+        int pixels = Math.max(1, (int) Math.floor(size * guiScale / VANILLA_SIZE + 1e-4));
+        return (float) (pixels * VANILLA_SIZE / guiScale);
+    }
+
+    private static float crispSize(float size) {
+        return crispSize(size, Minecraft.getInstance().getWindow().getGuiScale());
+    }
+
     public McTextMeasurer(Font font, ResourceManager resources) {
         this.font = font;
         this.resources = resources;
@@ -39,7 +59,7 @@ public final class McTextMeasurer implements TextMeasurer {
     public float width(String text, float size, boolean bold, String fontId) {
         Style style = fontId == null ? bold ? BOLD : Style.EMPTY
                 : styles.computeIfAbsent(fontId, McTextMeasurer::styles)[bold ? 1 : 0];
-        return font.getSplitter().stringWidth(sequence(text, style)) * size / VANILLA_SIZE;
+        return font.getSplitter().stringWidth(sequence(text, style)) * crispSize(size) / VANILLA_SIZE;
     }
 
     /**
@@ -66,11 +86,11 @@ public final class McTextMeasurer implements TextMeasurer {
 
     @Override
     public float lineHeight(float size) {
-        return font.lineHeight * size / VANILLA_SIZE;
+        return font.lineHeight * crispSize(size) / VANILLA_SIZE;
     }
 
     @Override
     public float baseline(float size) {
-        return VANILLA_BASELINE * size / VANILLA_SIZE;
+        return VANILLA_BASELINE * crispSize(size) / VANILLA_SIZE;
     }
 }
