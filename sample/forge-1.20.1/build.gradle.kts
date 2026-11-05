@@ -55,3 +55,16 @@ if (slotCompat.isPresent) {
         }
     }
 }
+
+// ModernUI's text engine (TrueType default font, its own layout): `-Pmui` loads it, to look at text
+// and themes under it by hand.
+if (providers.gradleProperty("mui").isPresent) {
+    repositories {
+        maven("https://api.modrinth.com/maven") {
+            content { includeGroup("maven.modrinth") }
+        }
+    }
+    dependencies {
+        "modRuntimeOnly"("maven.modrinth:modern-ui:3.12.0.1")
+    }
+}
