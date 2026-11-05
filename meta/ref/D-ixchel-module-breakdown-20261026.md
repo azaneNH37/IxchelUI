@@ -88,7 +88,7 @@ M1 已知限制（均为开发期可见行为，后续按场景放开）：
 | `mc`（根） | 宿主 API：把原版的屏幕、容器屏幕、HUD 帧与输入交给文档；宿主的元素与 Java 组件登记、本层的库；宿主 `render` 的帧计时 | `UiScreen`、`UiContainerScreen`、`UiHud`、`UiRegistries`（`MC`、`register`、`hosting`）、`FrameTimer` |
 | `mc.document` | 文档生命周期，所有宿主共用：从宿主资源加载（`<link>` 解析）、开发期热重载与保留上一版、错误叠加层、逐帧绘制与 tooltip；view model 跨重载保留；已关屏幕的文档画到离场结束（V4，加载器层转发绘制事件） | `HostedDocument`、`ExitingDocuments`；`McResources`、`DevResources`、`DevOverlay` 包内私有 |
 | `mc.element` | 原版内容进入文档：每个绘制元素一个单元，自带标签、绘制（`ElementPainter`）与 tooltip 解析；库组件 `<mc-tooltip-lines>` | `McElements.into`（把本包元素与组件登记进 `UiRegistries.MC`）、`Tooltips`；`ItemElement`、`EntityElement`、`TooltipLinesModel` 包内私有 |
-| `mc.container` | 容器槽位接入：GUI 区域、`Slot.x/y` 写回与还原、隐藏规则、hover 判定、`IXCHEL` 逐槽裁剪绘制、关闭后的槽位内容快照 | `ContainerLayout`（`<mc-slot index>` 的声明类）、`ClippedSlotItems`、`SlotSnapshot`（`PAINTER` 绘制 `<mc-slot>`）；`SlotPositions`、`PlayerInventoryModel` 包内私有 |
+| `mc.container` | 容器槽位接入：`<mc-slot>` 占位（`SlotElement`）、GUI 区域、`Slot.x/y` 写回与还原、隐藏规则、hover 判定、`IXCHEL` 逐槽裁剪绘制、关闭后的槽位内容快照 | `ContainerElements.into`（把本包元素与组件登记进 `UiRegistries.MC`）、`ContainerLayout`、`ClippedSlotItems`、`SlotSnapshot`、`PlayerInventoryModel`（公开供登记）；`SlotElement`、`SlotPositions` 包内私有 |
 | `mc.paint` | core 端口实现：DisplayList 回放（自写顶点合批、scissor、按重叠分层）、文本与图片测量、`sprite:` 图集精灵 | `McPainter`、`ElementPainter`、`McTextMeasurer`、`McImageMeasurer`；`Sprites`、`Layers` 包内私有 |
 | `mc.source` | 游戏状态作为数据源 | `ClientSources`、`WorldProjection` |
 | `mc.playtest` | 游戏内测试（仅开发期，T2，#026）：按 `-Dixchel.playtest.<modid>` 运行、进开发世界、经原版 `Screen` 驱动 core `PlaytestDriver`、服务端步骤、截图、槽位、断言失败转储与退出码 | `Playtests`、`Playtest`；`ScreenInput` 包内私有 |

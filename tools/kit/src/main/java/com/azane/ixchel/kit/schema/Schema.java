@@ -45,12 +45,10 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
     /**
      * @param attributes  the plain attributes the tag accepts, global ones included
      * @param payload     the attribute a drawn element's payload is bound to, or {@code null}
-     * @param payloadType  the payload's type (a binding may also hand a {@code Supplier} of it), or
-     *                     {@code null} when unchecked or not a drawn element
-     * @param containerOnly whether only container screens accept the tag
+     * @param payloadType the payload's type (a binding may also hand a {@code Supplier} of it), or
+     *                    {@code null} when unchecked or not a drawn element
      */
-    public record Tag(String name, List<String> attributes, String payload, String payloadType,
-                      boolean containerOnly) {
+    public record Tag(String name, List<String> attributes, String payload, String payloadType) {
     }
 
     /** A longhand CSS property. */
@@ -115,10 +113,10 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
             Set<String> attributes = new TreeSet<>(type.attributes());
             attributes.addAll(TagRegistry.GLOBAL_ATTRIBUTES);
             tags.add(new Tag(name, List.copyOf(attributes), type.payload(),
-                    type.payloadType() == null ? null : type.payloadType().getName(), elements.containerOnly().contains(name)));
+                    type.payloadType() == null ? null : type.payloadType().getName()));
         }
         com.azane.ixchel.core.view.ViewParser.RESOURCE_TAGS.forEach((name, attrs) ->
-                tags.add(new Tag(name, attrs.stream().sorted().toList(), null, null, false)));
+                tags.add(new Tag(name, attrs.stream().sorted().toList(), null, null)));
         tags.sort(Comparator.comparing(Tag::name));
         List<Property> properties = new ArrayList<>();
         for (PropertyDef<?> p : CssProperties.REGISTRY.all()) {
@@ -181,7 +179,7 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("tags", tags.stream().map(t -> object(
                 "name", t.name(), "attributes", t.attributes(), "payload", t.payload(),
-                "payloadType", t.payloadType(), "containerOnly", t.containerOnly())).toList());
+                "payloadType", t.payloadType())).toList());
         out.put("themes", themes.stream().map(s -> object(
                 "href", s.href(), "variables", s.variables())).toList());
         out.put("cssProperties", properties.stream().map(p -> object(
@@ -215,9 +213,6 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
                 if (t.payloadType() != null) {
                     sb.append(" (").append(t.payloadType()).append(" or a Supplier of one)");
                 }
-            }
-            if (t.containerOnly()) {
-                sb.append(" [container screens only]");
             }
             sb.append("\n    attributes: ").append(t.attributes().isEmpty() ? "none" : String.join(" ", t.attributes()))
                     .append('\n');

@@ -33,7 +33,4 @@ public @interface UiElement {
 
     /** Extra plain attributes. */
     String[] attributes() default {};
-
-    /** Whether only container screens accept the element. */
-    boolean containerOnly() default false;
 }

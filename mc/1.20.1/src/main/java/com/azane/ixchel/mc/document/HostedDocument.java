@@ -86,19 +86,18 @@ public final class HostedDocument implements AutoCloseable {
      * Loads the document now. In a development run, warns when {@code model}'s class does not declare
      * {@code page} with {@link UiView}: the lint then skips the page's binding checks.
      *
-     * @param page      the page; its namespace is the host mod id, whose {@linkplain UiRegistries#hosting
-     *                  hosting} it sees; its stylesheets are {@code <link>}ed
-     * @param container whether a container screen hosts it, which accepts the container-only elements
-     * @param model     the view model the page binds to, or {@code null}; closed by {@link #close}
-     * @param onReload  runs after a later load replaced the document
+     * @param page     the page; its namespace is the host mod id, whose {@linkplain UiRegistries#hosting
+     *                 hosting} it sees; its stylesheets are {@code <link>}ed
+     * @param model    the view model the page binds to, or {@code null}; closed by {@link #close}
+     * @param onReload runs after a later load replaced the document
      * @throws UiLoadException outside development when the document has errors
      */
-    public HostedDocument(ResourceLocation page, boolean container, ViewModel model, Runnable onReload) {
+    public HostedDocument(ResourceLocation page, ViewModel model, Runnable onReload) {
         this.dev = DevResources.forHost(page.getNamespace());
         this.resources = new McResources(page.getNamespace(), dev);
         this.pagePath = page.getPath();
         this.hosting = UiRegistries.hosting(page.getNamespace());
-        this.tags = hosting.tags(container);
+        this.tags = hosting.tags();
         this.painters = painters(hosting, tags);
         this.painter = new McPainter(page.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
         this.tooltipPainter = new McPainter(page.getNamespace(), Minecraft.getInstance().font, this.tags, painters);

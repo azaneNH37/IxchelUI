@@ -5,12 +5,10 @@ import com.azane.ixchel.core.diag.Diagnostic.Severity;
 
 /** Problems placing a container screen's menu slots with {@code <mc-slot>} elements. */
 public enum ContainerCode implements DiagCode {
-    MISSING_INDEX("container/missing-index", Severity.ERROR,
-            "An <mc-slot> has no slot index; give it index=\"N\" or bind:index."),
-    MALFORMED_INDEX("container/malformed-index", Severity.ERROR,
-            "An <mc-slot>'s index is not an integer."),
-    INDEX_OUT_OF_RANGE("container/index-out-of-range", Severity.ERROR,
-            "An <mc-slot>'s index is negative or not below the menu's slot count."),
+    MISSING_SLOT("container/missing-slot", Severity.ERROR,
+            "An <mc-slot> in a container screen has no slot; bind:menuslot gives it one of the menu's."),
+    FOREIGN_SLOT("container/foreign-slot", Severity.ERROR,
+            "An <mc-slot> is bound to a slot that is not one of the container screen's menu."),
     DUPLICATE_SLOT("container/duplicate-slot", Severity.ERROR,
             "Two <mc-slot> elements place the same menu slot; the later one is ignored."),
     SLOT_TOO_SMALL("container/slot-too-small", Severity.ERROR,

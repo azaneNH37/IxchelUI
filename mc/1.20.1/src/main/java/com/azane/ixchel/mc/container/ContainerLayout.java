@@ -7,9 +7,8 @@ import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.runtime.UiDocument;
-import com.azane.ixchel.core.view.UiElement;
+import com.azane.ixchel.core.view.ElementPayload;
 import com.azane.ixchel.core.view.TagRegistry;
-import com.azane.ixchel.mc.UiRegistries;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 
@@ -24,26 +23,16 @@ import java.util.TreeSet;
 
 /**
  * Projects a document onto a vanilla container screen: the GUI area other mods read, and every menu
- * slot written back to {@code Slot.x/y} from its {@code <mc-slot>} element (see
+ * slot written back to {@code Slot.x/y} from the {@code <mc-slot>} element bound to it (see
  * {@code ref/SDG-ixchel-container-slot-integration} for the rules). Client thread only.
  */
-@UiElement(tag = ContainerLayout.SLOT_TAG, attributes = ContainerLayout.INDEX_ATTRIBUTE, containerOnly = true)
 public final class ContainerLayout {
-    /**
-     * Tag of the slot element, {@code <mc-slot index="N">}, declared on this class and registered in
-     * {@link UiRegistries#MC}: the projection of menu slot {@code N}. The slot's 16×16 item area is
-     * centered in the element's border box and written back to {@code Slot.x/y}; vanilla keeps drawing
-     * the item and handling clicks, drags and quick moves there. Use {@code bind:index} for slots from
-     * an {@code each} row.
-     */
-    public static final String SLOT_TAG = "mc-slot";
-    /** Attribute holding the menu slot index. */
-    public static final String INDEX_ATTRIBUTE = "index";
-
     static final int ITEM_SIZE = 16;
 
     private final AbstractContainerMenu menu;
     private final boolean clipWholeItem;
+    /** Each slot of the menu → its index. */
+    private final Map<Slot, Integer> indexOf = new IdentityHashMap<>();
     /** Slot index → element placing it, rebuilt whenever the display list changes. */
     private final Map<Integer, Element> placed = new HashMap<>();
     private final Map<Element, Integer> slotOf = new IdentityHashMap<>();
@@ -74,6 +63,7 @@ public final class ContainerLayout {
         for (int i = 0; i < originalPositions.length; i++) {
             Slot slot = menu.slots.get(i);
             originalPositions[i] = position(slot.x, slot.y);
+            indexOf.put(slot, i);
         }
     }
 
@@ -151,13 +141,13 @@ public final class ContainerLayout {
         collect(d.root(), elements);
         int count = menu.slots.size();
         for (Element e : elements) {
-            Integer index = index(d, e, count);
+            Integer index = index(d, e);
             if (index == null) {
                 continue;
             }
             Element earlier = placed.putIfAbsent(index, e);
             if (earlier != null) {
-                report(d, e, ContainerCode.DUPLICATE_SLOT, "slot " + index + " is already placed by the <" + SLOT_TAG
+                report(d, e, ContainerCode.DUPLICATE_SLOT, "slot " + index + " is already placed by the <" + SlotElement.TAG
                         + "> at " + earlier.pos() + "; this one is ignored");
                 continue;
             }
@@ -179,7 +169,7 @@ public final class ContainerLayout {
             }
             LayoutBox b = e.box();
             if (b.width() < ITEM_SIZE || b.height() < ITEM_SIZE) {
-                report(d, e, ContainerCode.SLOT_TOO_SMALL, "<" + SLOT_TAG + "> for slot " + i + " is " + b.width()
+                report(d, e, ContainerCode.SLOT_TOO_SMALL, "<" + SlotElement.TAG + "> for slot " + i + " is " + b.width()
                         + "x" + b.height() + "; it must be at least 16x16");
             }
             int x = Math.round(b.x() + (b.width() - ITEM_SIZE) / 2);
@@ -197,7 +187,7 @@ public final class ContainerLayout {
                     Math.min(placedWidth, (int) Math.ceil(clip[2])), Math.min(placedHeight, (int) Math.ceil(clip[3]))});
         }
         if (!missing.isEmpty()) {
-            report(d, d.root(), ContainerCode.UNPLACED_SLOT, "menu slots " + missing + " have no <" + SLOT_TAG
+            report(d, d.root(), ContainerCode.UNPLACED_SLOT, "menu slots " + missing + " have no <" + SlotElement.TAG
                     + ">; every slot of " + menu.getClass().getSimpleName() + " must be placed");
         }
     }
@@ -231,7 +221,7 @@ public final class ContainerLayout {
     }
 
     private static void collect(Element e, List<Element> out) {
-        if (e.tag().equals(SLOT_TAG)) {
+        if (e.tag().equals(SlotElement.TAG)) {
             out.add(e);
         }
         for (Node n : e.children()) {
@@ -241,23 +231,17 @@ public final class ContainerLayout {
         }
     }
 
-    private Integer index(UiDocument d, Element e, int count) {
-        String raw = e.attribute(INDEX_ATTRIBUTE);
-        if (raw == null) {
-            report(d, e, ContainerCode.MISSING_INDEX, "<" + SLOT_TAG + "> needs a slot index: index=\"N\" or bind:index");
+    /** The menu index of the slot {@code e} is bound to, or {@code null} after reporting why it has none. */
+    private Integer index(UiDocument d, Element e) {
+        Object slot = ElementPayload.valueOf(e.payload(), e.type());
+        if (slot == null) {
+            report(d, e, ContainerCode.MISSING_SLOT, "<" + SlotElement.TAG + "> has no slot: bind:menuslot gives it one of the menu's");
             return null;
         }
-        int index;
-        try {
-            index = Integer.parseInt(raw.trim());
-        } catch (NumberFormatException ex) {
-            report(d, e, ContainerCode.MALFORMED_INDEX, "slot index '" + raw + "' is not an integer");
-            return null;
-        }
-        if (index < 0 || index >= count) {
-            report(d, e, ContainerCode.INDEX_OUT_OF_RANGE, "slot index " + index + " is out of range; the menu has "
-                    + count + " slots");
-            return null;
+        Integer index = indexOf.get(slot);
+        if (index == null) {
+            report(d, e, ContainerCode.FOREIGN_SLOT, "<" + SlotElement.TAG + "> is bound to a slot that is not one of "
+                    + menu.getClass().getSimpleName() + "'s");
         }
         return index;
     }
@@ -305,11 +289,11 @@ public final class ContainerLayout {
 
     /** What the visible slots show now, by their elements; call before {@link #restore}. */
     public SlotSnapshot snapshot() {
-        Map<Element, SlotSnapshot.Item> items = new IdentityHashMap<>();
+        Map<Element, SlotSnapshot.Frozen> items = new IdentityHashMap<>();
         for (Map.Entry<Integer, Element> placement : placed.entrySet()) {
             Slot slot = menu.slots.get(placement.getKey());
             if (clipOf.get(slot) != null && slot.isActive()) {
-                items.put(placement.getValue(), new SlotSnapshot.Item(slot.getItem().copy(), slot.getNoItemIcon(),
+                items.put(placement.getValue(), new SlotSnapshot.Frozen(slot.getItem().copy(), slot.getNoItemIcon(),
                         slot.x + slot.y * areaWidth));
             }
         }

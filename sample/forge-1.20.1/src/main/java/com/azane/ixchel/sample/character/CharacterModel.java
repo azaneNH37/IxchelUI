@@ -20,6 +20,9 @@ import net.minecraft.world.effect.MobEffectUtil;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.inventory.Slot;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +76,12 @@ final class CharacterModel extends ViewModel {
     final Value<String> tab = state("equipment");
     final Value<List<Tab>> tabs = state(tabs());
 
+    final Value<AbstractContainerMenu> menu;
+    final Value<List<Slot>> armor;
+    final Value<Slot> offhand;
+    final Value<List<Slot>> crafting;
+    final Value<Slot> craftResult;
+
     /** A stable handle: the painter reads the player at paint time, so the binding never changes. */
     final Value<Supplier<LivingEntity>> doll = state(() -> Minecraft.getInstance().player);
     final Cell<List<AttributeRow>> attributes = source(ClientSources.player(CharacterModel::attributes, List.of()));
@@ -88,6 +97,14 @@ final class CharacterModel extends ViewModel {
             }
         }
     });
+
+    CharacterModel(InventoryMenu menu) {
+        this.menu = state(menu);
+        armor = state(List.copyOf(menu.slots.subList(InventoryMenu.ARMOR_SLOT_START, InventoryMenu.ARMOR_SLOT_END)));
+        offhand = state(menu.getSlot(InventoryMenu.SHIELD_SLOT));
+        crafting = state(List.copyOf(menu.slots.subList(InventoryMenu.CRAFT_SLOT_START, InventoryMenu.CRAFT_SLOT_END)));
+        craftResult = state(menu.getSlot(InventoryMenu.RESULT_SLOT));
+    }
 
     private static List<Tab> tabs() {
         List<Tab> out = new ArrayList<>(TABS.length);

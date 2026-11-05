@@ -97,7 +97,7 @@ public final class HostedDocument implements AutoCloseable {
         this.resources = new McResources(page.getNamespace(), dev);
         this.pagePath = page.getPath();
         this.hosting = UiRegistries.hosting(page.getNamespace());
-        this.tags = hosting.tags(false);
+        this.tags = hosting.tags();
         this.painters = painters(hosting, tags);
         this.painter = new McPainter(page.getNamespace(), Minecraft.getInstance().font, this.tags, painters);
         this.tooltipPainter = new McPainter(page.getNamespace(), Minecraft.getInstance().font, this.tags, painters);

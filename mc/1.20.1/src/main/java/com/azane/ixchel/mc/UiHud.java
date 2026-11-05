@@ -78,7 +78,7 @@ public final class UiHud {
         if (doc == null) {
             ViewModel m = model.get();
             try {
-                doc = new HostedDocument(page, false, m, () -> { });
+                doc = new HostedDocument(page, m, () -> { });
             } catch (UiLoadException e) {
                 if (m != null) {
                     m.close();

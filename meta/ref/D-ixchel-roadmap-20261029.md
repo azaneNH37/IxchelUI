@@ -55,6 +55,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | V4 | 完成 | S1、S6 | 整页开关动画：UiScreen 关闭与 UiHud 显隐复用进出伪类（#032） |
 | TH1 | 完成 | 全部页面的主题与库引入 | 主题机制：`<link rel="theme">`、主题文件的 `@import` 与 `@-ix-effect`、`.ix-*` 表面类、按角色的 `--ix-*` 变量；库资源显式引入与包、删除预引入表（#034、#039），结果见下文；文件与引用机制由 RS 重做 |
 | RS | 完成 | 全部页面 | 资源规范（`ref/D-ixchel-resource-spec-20261105.md`，#041）：视图根元素与 `<link href>`、css 的 `@stylesheet`/`@partial`/`@link`、特效别名、删除主题层与包、`ix-` 名字检查、统一登记与库根专用目录、改名（view、`@UiView`、`*Model`、`@UiElement`）；结果见下文 |
+| CS | 完成 | character、machine、storage | 容器槽位倒置依赖（#042）：`<mc-slot bind:menuslot>` 与环境无关，`UiContainerScreen` 按身份匹配；删除 `containerOnly`；`<mc-player-inventory bind:menu>`；结果见下文 |
 | TH2 | 待做 | — | 形状与像素化：`corner-shape`、`shape-rendering: crisp-edges`、GLSL `ix_snap` |
 | TH3 | 待做 | — | 文字：`font-family`（MC 字体 id）、`text-transform`；不做 `letter-spacing` |
 | TH4 | 待做 | — | 四套内置主题 `vanilla`、`dark`、`holo`、`cyber`，内置特效 `ix-chromatic`、`ix-glitch`、`ix-cooldown`，主题陈列页 |
@@ -350,7 +351,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 动机：kit 自行拼探针页判定组件文件、lint 不检查行内内容规则（`layout/block-in-inline`、`absolute-in-inline`、`inline-box-property` 只在布局时报出），两处与运行时分叉。
 - core：`TemplateLoader.declared(id, read, library, tags)` 返回文件顶层 `<template>` 声明的组件或 `null`，kit 的 `Components` 改用它。新类 `layout.Formatting` 按计算样式与树结构判定每个盒子的角色（`Mode`：叶子、弹性/网格项、块级流、段落；`FlowChild`：自成盒、行内；`InlineChild`：跳过、文本、行内盒、原子盒）并报行内内容错误；`LayoutEngine` 的 sync/collect 按它分支，`UiDocument.lint` 在 restyle 后调用 `Formatting.check`。lint 不跑布局、不编造视口或字体度量。
 - 不覆盖：`<if>`/`<for>` 块内容、未打开的顶层元素（与绑定检查同一边界）；依赖尺寸的检查（容器槽位过小等）仍只在运行时。
-- 已定（2026-11-04，原待定）：文档种类由 Java 侧推出（`@UiTemplate` 所在的类为容器界面的 ViewModel，或宿主类型），页面上不写声明；实施单独一阶段。
+- 已定（2026-11-04，原待定）：文档种类由 Java 侧推出，页面上不写声明。已作废（2026-11-05，#042）：文档没有种类，`<mc-slot>` 与环境无关。
 - 验收：core 与 kit 测试；`build` 两版 lint 零错误；`-Pplaytest=all` 通过。
 - 结果（2026-11-04）：完成，按上列实施；sample 页面无新报错。`UiDocumentTest` 原先固定"lint 不报行内规则"的用例改为断言报出。验收：core 与 kit 测试、`build`、两版 lint 零错误；`-Pplaytest=all` 260/262，失败两项为 env 帧时间（未改动时同样超标）与 effects 的 glint 移动检查（单跑与重跑均通过，检查对相位敏感，暂不修，归 REC 一并处理）。
 
@@ -378,6 +379,11 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 结果（2026-11-05）：完成，五个提交（改名；视图与样式表；特效别名；统一登记；库名字检查）。core：视图根元素 `<page>`/`<component>` 与 `<link href>`，`link.Linker` 取代 `TemplateLoader`；css 文件声明 `@stylesheet;`/`@partial;`，经 `@link` 引入部分样式与特效，部分样式按后序分层、`!important` 反序；删除包、主题层、`@import`/`@-ix-effect` 与 `<style>`；特效在每个 css 文件内以 PascalCase 别名引用，参数为 `--<Alias>-<param>`，按文件改写为由特效文件 id 生成的内部名（规则、行内样式、`bind:style` 同一套）；新码 `effect/invalid-alias`、`duplicate-alias`、`unknown-alias`、`unmarked-param`，删 `duplicate-effect`、`unknown-effect`。登记：`runtime.UiRegistry`（`CORE`、`library()`、`host(modid)`）登记元素、Java 组件与库文件根，`UiHosting.of` 合成并拒绝重名，宿主不得登记 `ix-`/`mc-` 标签或 `@ixchel/` 文件；`Library` 只剩按前缀的根（库文件在锚点类旁的 `ui/` 目录），运行时只按 id 读取；`JavaComponent` 移到 `binding`，`NativeElements` 改为 `DeclaredElements`，术语"原生元素"改为"绘制元素"。mc（两版）：`UiRegistries`（`MC`、`register`、`hosting`）取代 `McLibrary`、`UiComponents`、`McElements.register` 与 `ContainerLayout.TAGS`，`<mc-slot>` 以 `element(ContainerLayout.class, SlotSnapshot.PAINTER)` 登记，`HostedDocument` 不再收额外绘制器。kit：经 `UiRegistries.MC` 反射读取 mc 层的库，`LibraryFiles` 扫描库根（目录与 jar）列出库文件，schema 的库主题为全部库 `@partial` css（因此含 `base.css`）；lint 按全部库 css 的 `.ix-*` 类与 `--ix-*` 变量检查宿主 css 与行内样式（`style/unknown-library-class`、`style/unknown-library-token`，警告），组件样式表在 `:root` 设自定义属性报 `style/component-root-token`（加载与 lint 都查）。sample 两版迁移，lint 零错误零警告；`-Pplaytest=all` 14 项 262 断言全过。
   - 与"已定"的出入：`ix-` 名字表只由工具构建（运行时不枚举文件，故不查）；`<mc-slot>` 由登记携带绘制器，不再是 `HostedDocument` 的参数。
   - 推迟：`core.view` 由原 `template` 包整体改名，解析器与宿主可见的元素声明（`UiElement`、`ElementPayload`、`TagRegistry`）仍同包，按契约拆包留待后续。
+
+#### CS 容器槽位倒置依赖
+
+- 设计依据：#042（作废 L8 的"文档种类由 Java 侧推出"）。
+- 结果（2026-11-05）：完成。core：删除 `UiElement.containerOnly`、`UiRegistry.Element.containerOnly`、`UiHosting` 的第二张标签表（`tags()` 无参）。mc 1.20.1：`container.SlotElement` 声明 `<mc-slot>`，载荷 `Slot`，只画离场快照；`ContainerLayout` 按 `Slot` 身份匹配占位，`MISSING_INDEX`/`MALFORMED_INDEX`/`INDEX_OUT_OF_RANGE` 改为 `container/missing-slot`（容器界面中未绑定槽位）与 `container/foreign-slot`（槽位不属于本菜单），`UNPLACED_SLOT`、`DUPLICATE_SLOT` 保留；`ContainerElements.into` 登记本包；`PlayerInventoryModel` 以 `Param<AbstractContainerMenu> menu` 取菜单，不再读 `player.containerMenu`。两版 `HostedDocument` 去掉 `container` 参数。kit：`ElementDeclarations` 只剩一张表，schema 去掉 `containerOnly`。sample：三页面改 `bind:menuslot`，模型持有菜单。验收：`build`（含 core、kit 测试与两版 lint）零错误；`-Pplaytest=all` 262/262，截图与改前一致。
 
 #### TH2 形状与像素化
 

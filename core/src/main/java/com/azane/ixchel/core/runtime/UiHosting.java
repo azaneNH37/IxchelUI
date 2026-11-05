@@ -21,15 +21,13 @@ public final class UiHosting {
 
     private final Library library;
     private final TagRegistry tags;
-    private final TagRegistry containerTags;
     private final Map<String, Object> implementations;
     private final Map<String, JavaComponent> components;
 
-    private UiHosting(Library library, TagRegistry tags, TagRegistry containerTags, Map<String, Object> implementations,
+    private UiHosting(Library library, TagRegistry tags, Map<String, Object> implementations,
                       Map<String, JavaComponent> components) {
         this.library = library;
         this.tags = tags;
-        this.containerTags = containerTags;
         this.implementations = implementations;
         this.components = components;
     }
@@ -42,16 +40,12 @@ public final class UiHosting {
     public static UiHosting of(UiRegistry... registries) {
         List<Library.Root> roots = new ArrayList<>();
         TagRegistry.Builder tags = TagRegistry.builder();
-        TagRegistry.Builder containerTags = TagRegistry.builder();
         Map<String, Object> implementations = new HashMap<>();
         Map<String, JavaComponent> components = new HashMap<>();
         for (UiRegistry r : registries) {
             roots.addAll(r.roots());
             for (UiRegistry.Element e : r.elements()) {
-                containerTags.add(e.type());
-                if (!e.containerOnly()) {
-                    tags.add(e.type());
-                }
+                tags.add(e.type());
                 if (e.implementation() != null) {
                     implementations.put(e.type().tag(), e.implementation());
                 }
@@ -62,7 +56,7 @@ public final class UiHosting {
                 }
             });
         }
-        return new UiHosting(Library.of(roots), tags.build(), containerTags.build(), Map.copyOf(implementations),
+        return new UiHosting(Library.of(roots), tags.build(), Map.copyOf(implementations),
                 Map.copyOf(components));
     }
 
@@ -71,9 +65,9 @@ public final class UiHosting {
         return library;
     }
 
-    /** The elements a document may use; container screens also accept the container-only ones. */
-    public TagRegistry tags(boolean container) {
-        return container ? containerTags : tags;
+    /** The elements a document may use. */
+    public TagRegistry tags() {
+        return tags;
     }
 
     /** The object registered as the implementation of {@code tag}, or {@code null}. */

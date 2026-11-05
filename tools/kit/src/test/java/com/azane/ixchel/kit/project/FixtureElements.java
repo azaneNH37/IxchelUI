@@ -12,7 +12,7 @@ final class FixtureElements {
     static final class Item implements ElementPayload<Integer> {
     }
 
-    @UiElement(tag = "mc-slot", attributes = "index", containerOnly = true)
+    @UiElement(tag = "mc-slot", attributes = "index")
     static final class Slot {
     }
 }

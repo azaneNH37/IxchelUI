@@ -227,8 +227,8 @@ final class WaypointsView extends ViewModel {
 改名后的 `mc-` 元素（现为 `item`、`entity`、`item-slot slot`）：
 
 ```html
-<mc-slot class="slot" index="5"></mc-slot>
-<for each="inventory" as="i" key="i"><mc-slot class="slot" bind:index="i"></mc-slot></for>
+<mc-slot class="slot" bind:menuslot="fuelSlot"></mc-slot>
+<for each="inventory" as="s" key="s"><mc-slot class="slot" bind:menuslot="s"></mc-slot></for>
 <mc-entity class="doll" bind:entity="doll"></mc-entity>
 <mc-item class="icon" bind:item="r.icon"></mc-item>
 ```

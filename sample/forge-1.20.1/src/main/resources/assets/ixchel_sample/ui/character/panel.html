@@ -10,24 +10,18 @@
     </div>
     <div class="page equipment" bind:class:shown="tab == 'equipment'">
       <div class="column">
-        <mc-slot class="slot" index="5"></mc-slot>
-        <mc-slot class="slot" index="6"></mc-slot>
-        <mc-slot class="slot" index="7"></mc-slot>
-        <mc-slot class="slot" index="8"></mc-slot>
+        <for each="armor" as="s" key="s"><mc-slot class="slot" bind:menuslot="s"></mc-slot></for>
       </div>
       <mc-entity class="doll" bind:entity="doll" t:title="ixchel_sample.character.doll"></mc-entity>
       <div class="column offhand">
-        <mc-slot class="slot" index="45"></mc-slot>
+        <mc-slot class="slot" bind:menuslot="offhand"></mc-slot>
       </div>
       <div class="crafting">
         <div class="craft-grid">
-          <mc-slot class="slot" index="1"></mc-slot>
-          <mc-slot class="slot" index="2"></mc-slot>
-          <mc-slot class="slot" index="3"></mc-slot>
-          <mc-slot class="slot" index="4"></mc-slot>
+          <for each="crafting" as="s" key="s"><mc-slot class="slot" bind:menuslot="s"></mc-slot></for>
         </div>
         <span class="arrow">↓</span>
-        <mc-slot class="slot result" index="0"></mc-slot>
+        <mc-slot class="slot result" bind:menuslot="craftResult"></mc-slot>
       </div>
     </div>
     <div class="page list" bind:class:shown="tab == 'attributes'">
@@ -54,6 +48,6 @@
         <span class="value" bind:text="s.value"></span>
       </div></for>
     </div>
-    <mc-player-inventory></mc-player-inventory>
+    <mc-player-inventory bind:menu="menu"></mc-player-inventory>
   </div>
 </page>

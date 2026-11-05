@@ -6,6 +6,7 @@ import com.azane.ixchel.core.binding.Derived;
 import com.azane.ixchel.core.binding.Feed;
 import com.azane.ixchel.core.binding.Source;
 import com.azane.ixchel.core.binding.UiView;
+import com.azane.ixchel.core.binding.Value;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.sample.network.Network;
 import com.azane.ixchel.sample.network.Replication;
@@ -14,6 +15,8 @@ import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -48,6 +51,12 @@ final class MachineModel extends ViewModel {
 
     private final MachineMenu menu;
 
+    final Value<AbstractContainerMenu> container;
+    final Value<Slot> fuelSlot;
+    final Value<Slot> waterSlot;
+    final Value<Slot> inputSlot;
+    final Value<Slot> outputSlot;
+
     final Cell<MachineState> machine;
     final Cell<Item> input;
     final Cell<String> waterColor;
@@ -71,6 +80,11 @@ final class MachineModel extends ViewModel {
 
     MachineModel(MachineMenu menu) {
         this.menu = menu;
+        container = state(menu);
+        fuelSlot = state(menu.getSlot(MachineMenu.FUEL));
+        waterSlot = state(menu.getSlot(MachineMenu.WATER_SLOT));
+        inputSlot = state(menu.getSlot(MachineMenu.INPUT));
+        outputSlot = state(menu.getSlot(MachineMenu.OUTPUT));
         machine = source(STATE, menu.pos);
         input = source(Source.polled(() -> menu.getSlot(MachineMenu.INPUT).getItem().getItem()));
         waterColor = source(Source.polled(() -> {

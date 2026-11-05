@@ -2,9 +2,7 @@ package com.azane.ixchel.mc;
 
 import com.azane.ixchel.core.runtime.UiHosting;
 import com.azane.ixchel.core.runtime.UiRegistry;
-import com.azane.ixchel.mc.container.ContainerLayout;
-import com.azane.ixchel.mc.container.PlayerInventoryModel;
-import com.azane.ixchel.mc.container.SlotSnapshot;
+import com.azane.ixchel.mc.container.ContainerElements;
 import com.azane.ixchel.mc.element.McElements;
 
 import java.util.Map;
@@ -23,13 +21,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class UiRegistries {
     /**
      * This layer's: {@code @ixchel/mc/x} is {@code ui/x} next to this class;
-     * {@code <mc-item bind:item>}, {@code <mc-entity bind:entity>}, {@code <mc-slot index>} (container screens only)
+     * {@code <mc-item bind:item>}, {@code <mc-entity bind:entity>}, {@code <mc-slot bind:menuslot>}
      * and the components {@code <mc-tooltip-lines>} and {@code <mc-player-inventory>}. Its initialization touches
      * no game state, so tools can read it.
      */
-    public static final UiRegistry MC = McElements.into(UiRegistry.library().root("mc/", UiRegistries.class, "ui/"))
-            .element(ContainerLayout.class, SlotSnapshot.PAINTER)
-            .component(PlayerInventoryModel.class, PlayerInventoryModel::new);
+    public static final UiRegistry MC = ContainerElements.into(McElements.into(UiRegistry.library().root("mc/", UiRegistries.class, "ui/")));
 
     /** Registered during mod setup, which runs on worker threads. */
     private static final Map<String, UiRegistry> HOSTS = new ConcurrentHashMap<>();

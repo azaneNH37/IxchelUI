@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SchemaTest {
@@ -30,8 +29,6 @@ class SchemaTest {
         Schema.Tag item = tag(schema, "mc-item");
         assertEquals("item", item.payload());
         assertEquals("java.lang.Integer", item.payloadType());
-        assertFalse(item.containerOnly());
-        assertTrue(tag(schema, "mc-slot").containerOnly());
         assertTrue(tag(schema, "mc-slot").attributes().contains("index"));
 
         assertEquals(List.of("kit-gauge", "kit-meter", "kit-part"),

@@ -38,10 +38,10 @@ public final class UiRegistry {
     private final Map<String, JavaComponent> components = new LinkedHashMap<>();
 
     /**
-     * An element: its type, the object implementing it ({@code null} for none, as for one declared on
-     * a class the host builds itself) and whether only container screens accept it.
+     * An element: its type and the object implementing it ({@code null} for none, as for one declared
+     * on a class the host builds itself).
      */
-    record Element(ElementType type, Object implementation, boolean containerOnly) {
+    record Element(ElementType type, Object implementation) {
     }
 
     private UiRegistry(String host) {
@@ -81,7 +81,7 @@ public final class UiRegistry {
     public UiRegistry elements(List<ElementType> types) {
         library("engine elements");
         for (ElementType t : types) {
-            elements.add(new Element(t, null, false));
+            elements.add(new Element(t, null));
         }
         return this;
     }
@@ -108,7 +108,7 @@ public final class UiRegistry {
             throw new IllegalArgumentException("<" + type.tag() + "> of " + declaring.getName()
                     + ": ix- and mc- names belong to the library");
         }
-        elements.add(new Element(type, implementation, declaring.getAnnotation(UiElement.class).containerOnly()));
+        elements.add(new Element(type, implementation));
         return this;
     }
 

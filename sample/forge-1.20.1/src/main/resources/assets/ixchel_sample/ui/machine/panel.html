@@ -15,19 +15,19 @@
         <div class="water-fill" bind:style:height="waterHeight" bind:style:background-color="waterColor"></div>
       </div>
       <div class="feed">
-        <mc-slot class="slot" index="1" t:title="ixchel_sample.machine.water_slot"></mc-slot>
+        <mc-slot class="slot" bind:menuslot="waterSlot" t:title="ixchel_sample.machine.water_slot"></mc-slot>
         <div class="flame">
           <div class="flame-fill" bind:style:height="flameHeight" bind:style:background-position-y="flameY"></div>
         </div>
-        <mc-slot class="slot" index="0" t:title="ixchel_sample.machine.fuel_slot"></mc-slot>
+        <mc-slot class="slot" bind:menuslot="fuelSlot" t:title="ixchel_sample.machine.fuel_slot"></mc-slot>
       </div>
       <div class="work">
         <div class="io">
-          <mc-slot class="slot" index="2"></mc-slot>
+          <mc-slot class="slot" bind:menuslot="inputSlot"></mc-slot>
           <div class="arrow">
             <div class="arrow-fill" bind:style:width="arrowWidth"></div>
           </div>
-          <mc-slot class="slot output" index="3"></mc-slot>
+          <mc-slot class="slot output" bind:menuslot="outputSlot"></mc-slot>
         </div>
         <div class="recipes">
           <if test="recipes.size == 0"><span class="hint" t="ixchel_sample.machine.no_recipes"></span></if>
@@ -42,7 +42,7 @@
       <button class="redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></button>
       <button class="sides-toggle" bind:class:ix-selected="sidesOpen" on:click="sidesOpen = !sidesOpen" t="ixchel_sample.machine.sides"></button>
     </div>
-    <mc-player-inventory></mc-player-inventory>
+    <mc-player-inventory bind:menu="container"></mc-player-inventory>
     <div class="sides" bind:class:open="sidesOpen">
       <for each="sideRows" as="s" key="s.side"><div class="side" on:click="cycleSide(s)">
         <span class="face" bind:text="s.face"></span>

@@ -198,7 +198,7 @@ related: [DECISIONS.md#034, DECISIONS.md#035, DECISIONS.md#037, DECISIONS.md#039
 |---|---|---|---|---|
 | HTML 元素 | 引擎 Java | `div` `button` `input` `dialog` `img` | 全局常驻 | 引擎 |
 | 引擎扩展元素 | 引擎 Java（顶层、指针定位） | `ix-tooltip` `ix-drag-preview` | 全局常驻 | 引擎 |
-| 宿主层元素 | `@UiElement` + `ElementPainter`，宿主层绘制或普通流内容 | `mc-item` `mc-entity` `mc-slot` | 按宿主全局，不经 link；`mc-slot` 仅容器界面 | mc 层、宿主（登记，§6） |
+| 宿主层元素 | `@UiElement` + `ElementPainter`，宿主层绘制或普通流内容 | `mc-item` `mc-entity` `mc-slot` | 按宿主全局，不经 link | mc 层、宿主（登记，§6） |
 | 组件 | 视图文件 + css，可选 ViewModel 与工厂（登记，§6） | `guide-book` `mc-player-inventory` | 按文件 link | 任何文件 |
 
 - 选用：需要标记写不出的能力（自绘、布局或交互、顶层）用元素；其余用组件。布局与交互 facet 仅引擎可用（登记时检查，§6）。
@@ -270,7 +270,7 @@ API 名与目录名为示意，实现时确定。
 
 #### 6.2 声明
 
-- 元素由 `@UiElement(tag, payload, attributes, containerOnly)` 声明在实现类上（取代 `@NativeElement`），组件的 Java 部分由 `@UiView` 声明；kit 不启动游戏，静态读取这些声明与登记。
+- 元素由 `@UiElement(tag, payload, attributes)` 声明在实现类上（取代 `@NativeElement`），组件的 Java 部分由 `@UiView` 声明；kit 不启动游戏，静态读取这些声明与登记。元素不声明适用界面（#042）。
 - 元素与组件是同一 API 的两种声明，"Native"不再使用：所有元素都由 Java 实现，不与 HTML 元素区分。
 
 #### 6.3 按来源保留的差异

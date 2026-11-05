@@ -81,10 +81,10 @@ record 成员本来就按声明的组件类型解析（`Compiler.java:912-943`�
 声明留在元素的 Java 实现类上，kit 用 `Class.forName(name, false, loader)` 读取注解与泛型，不创建元素实现、不运行游戏初始化。运行时与 kit 调用同一个声明适配器，构造同一种切面组合定义（#031）。
 
 - 自绘元素：实现类声明 `@NativeElement(tag = "mc-item", payload = "item")`，实现 `NativePainter<ItemStack>`；绘制与 tooltip 同属该类。
-- 原版槽位：`ContainerLayout` 声明 `@NativeElement(tag = "mc-slot", attributes = "index", containerOnly = true)`，不伪造绘制载荷。
+- 原版槽位：`SlotElement` 声明 `@UiElement(tag = "mc-slot", payload = "menuslot")`，载荷为菜单的 `Slot`；只是占位，由容器界面的 `ContainerLayout` 读取（#042）。
 - 文本行：不是原生元素。`<mc-tooltip-lines>` 为 mc 层库 Java 组件（#038），kit 经库登记的 Java 组件与包认识它。
 
-载荷类型只写在泛型参数里；绑定接受 `T` 或 `Supplier<T>`。`containerOnly` 供 kit 限制适用界面；宿主注册仍按 modid 分开。声明格式不再要求作者维护资源文件，也不维护 kit 专用副本。内部布局与交互切面暂不向宿主开放。
+载荷类型只写在泛型参数里；绑定接受 `T` 或 `Supplier<T>`；元素不声明适用界面（#042）；宿主注册仍按 modid 分开。声明格式不再要求作者维护资源文件，也不维护 kit 专用副本。内部布局与交互切面暂不向宿主开放。
 
 ### 6. 诊断错误码（#023）
 

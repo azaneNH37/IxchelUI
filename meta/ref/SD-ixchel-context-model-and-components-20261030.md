@@ -170,7 +170,7 @@ final class EnergyView extends ViewModel {
 - 成员表：`ModelShape.Kind` 为 `CELL`、`ACTION`、`EVENT`，按组件体内用法分（`Param`、`TwoWay` 在体内就是只读或可写的值）；`Member.port` 标出对外签名，只有签名核对与使用处检查看它。页面 ViewModel 没有端口成员。
 - 实例化：工厂构造 → 按字段名接线（未传入的接默认值单元格）→ 查未接线的端口对象（`param()` 的结果没存进可见字段）→ 以子模型成员表编译组件体，体内 `state:` 归子模型 → 登记到 `Bindings` 每帧在页面之后 poll。构造器里 `Param.get()` 抛异常；在 `derive` 与 supplier 中读没有时序问题；按参数打开资源用 `source(feed, keyCell)`（绑定文档 §10）。
 - 生命周期：随外壳元素挂载；`:-ix-exiting` 期间保留、绑定停止，真正移除或文档关闭时 `close()`；热重载重建（同局部状态）。子模型只经 `Event` 与使用方通信，拿不到使用方 ViewModel。
-- 不设框架值（#035）：数据入口只有 ViewModel。宿主与客户端状态由组件自己的来源读取。背包的内容属于玩家（全局，可在任何文档读），槽位属于当前菜单；原版的当前菜单即 `player.containerMenu`：玩家构造与 `closeContainer` 时为 `inventoryMenu`（E 键界面就用它），`MenuScreens` 打开容器时设为新菜单，`MultiPlayerGameMode.handleInventoryMouseClick` 拒绝与它不一致的点击。故 `<mc-player-inventory>` 无参，读 `ClientSources.player(p -> p.containerMenu)`。容器界面在构造函数中加载文档，早于 `MenuScreens` 设置 `containerMenu`，首次 poll 读到旧菜单，首帧开头的 poll 纠正，代价是 `<for>` 行重建一次。
+- 不设框架值（#035）：数据入口只有 ViewModel。宿主与客户端状态由组件自己的来源读取；界面独有的对象不由组件从客户端状态猜，由宿主构造页面 ViewModel 时传入，再作参数往下传（#042）。背包的内容属于玩家（全局，可在任何文档读），槽位属于菜单：`<mc-player-inventory bind:menu="…">` 从传入的菜单分出背包区与快捷栏，不读 `player.containerMenu`（容器界面在构造函数中加载文档，早于 `MenuScreens` 设置它，读到的是旧菜单）。
 - 端口限制：字面量属性一律是 `String`（`max="100"` 不能给 `Param<Integer>`，写 `bind:max="100"`）；数值按拓宽规则赋值（`Integer` → `Long`/`Float`/`Double`，`Double` → `Float`，对页面绑定与模板组件同样生效）；动作不能作参数传入，向外调用一律用事件；传入可变对象时只感知换了对象，对象内部变化要靠值语义的轮询。
 - 对子模型的要求：无参构造；数据以轮询为主入口，组件要用的状态在客户端须有按参数可寻址的落点（Menu、客户端方块实体、缓存），网络方案不限；直接推进打开的 Screen 的同步方式要先改为写入这些落点；轮询值须值语义或自带快照比较；数据须能缺席（区块卸载、Menu 更换时返回缺席值）。
 - 分层用法（科技 mod）：页面 → 宿主 Java 组件（按 `pos` 读一种能力、发对应意图）→ 库展示组件（`ix-bar`、`ix-cycle`）。方块实体或菜单实现共同能力接口，组件写一次用于所有机器。多组件读同一数据：默认由上层一个 ViewModel 取数往下传值；需要组件单独按 `pos` 使用时用 `Feed` 共享。

@@ -118,7 +118,7 @@ public class UiContainerScreen<M extends AbstractContainerMenu> extends Abstract
         super(menu, inventory, title);
         this.layout = new ContainerLayout(menu, slotItems == SlotItemRendering.IXCHEL);
         this.clippedItems = slotItems == SlotItemRendering.IXCHEL ? new ClippedSlotItems() : null;
-        this.doc = new HostedDocument(page, true, model, layout::invalidate);
+        this.doc = new HostedDocument(page, model, layout::invalidate);
     }
 
     @Override

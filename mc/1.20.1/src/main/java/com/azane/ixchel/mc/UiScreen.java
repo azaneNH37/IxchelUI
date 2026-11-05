@@ -112,7 +112,7 @@ public class UiScreen extends Screen {
      */
     public UiScreen(ResourceLocation page, ViewModel model, Screen parent) {
         super(Component.empty());
-        this.doc = new HostedDocument(page, false, model, () -> { });
+        this.doc = new HostedDocument(page, model, () -> { });
         this.parent = parent;
     }
 

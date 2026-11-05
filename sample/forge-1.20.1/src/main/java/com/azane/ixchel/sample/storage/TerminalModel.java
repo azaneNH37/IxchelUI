@@ -12,6 +12,7 @@ import com.azane.ixchel.sample.network.Replica;
 import com.azane.ixchel.sample.network.Replication;
 import com.azane.ixchel.sample.network.Replication.Entry;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -45,6 +46,8 @@ final class TerminalModel extends ViewModel {
 
     private final TerminalMenu menu;
 
+    final Value<AbstractContainerMenu> container;
+
     final Value<String> query = state("");
     final Value<SortKey> sortKey = state(SortKey.NAME);
     final Value<Boolean> descending = state(false);
@@ -67,6 +70,7 @@ final class TerminalModel extends ViewModel {
 
     TerminalModel(TerminalMenu menu) {
         this.menu = menu;
+        container = state(menu);
         Replica<List<Entry<StoredItem, Long>>> replica = Replication.watch(Network.STORAGE, menu.containerId);
         scope().own(replica);
         contents = source(Source.polled(() -> replica.get() == null ? List.of() : replica.get()));
