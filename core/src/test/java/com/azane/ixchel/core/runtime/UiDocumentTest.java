@@ -107,9 +107,9 @@ class UiDocumentTest {
                 <div><link href="t.css"/></div>
                 <link href="nope.html"/>
                 """), "t.html", files::get, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertEquals(List.of("view/invalid-link@t.html:1:27", "view/unknown-attribute@t.html:2:7",
+        assertEquals(List.of("view/invalid-link@t.html:1:21", "view/unknown-attribute@t.html:2:7",
                 "link/wrong-kind@t.html:2:1", "link/wrong-kind@t.html:3:1", "view/invalid-link@t.html:4:1",
-                "link/file-not-found@t.html:4:1", "view/misplaced-element@t.html:5:6", "view/link-after-element@t.html:6:1",
+                "link/file-not-found@t.html:4:1", "view/misplaced-element@t.html:5:6", "view/misplaced-element@t.html:6:1",
                 "link/cycle@loop.css:1:11", "link/wrong-kind@a.css:1:32", "link/file-not-found@a.css:1:47",
                 "css/missing-kind@m.css:1:1"), DiagCodes.of(thrown));
     }
@@ -117,7 +117,7 @@ class UiDocumentTest {
     @Test
     void aStylesheetTheHostCannotReadFailsTheLoadAtItsLink() {
         UiLoadException failed = assertThrows(UiLoadException.class, () -> UiDocument.load(GoldenTest.page("<link href=\"nope.css\"/>"), "t.html", GoldenTest.NO_SHEETS, com.azane.ixchel.core.html.HtmlElements.TAGS, GoldenTest.MONO, GoldenTest.NO_IMAGES));
-        assertEquals(List.of("link/unreadable-file@t.html:1:7"), DiagCodes.of(failed));
+        assertEquals(List.of("link/unreadable-file@t.html:1:1"), DiagCodes.of(failed));
     }
 
     @Test
@@ -156,7 +156,12 @@ class UiDocumentTest {
         float[] advance = {6};
         TextMeasurer font = new TextMeasurer() {
             @Override
-            public float width(String text, float size, boolean bold) {
+            public boolean hasFont(String font) {
+                return true;
+            }
+
+            @Override
+            public float width(String text, float size, boolean bold, String font) {
                 return text.length() * advance[0];
             }
 

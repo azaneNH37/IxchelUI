@@ -301,10 +301,10 @@ public final class Painter implements PaintFacet.Context {
         TextShadow shadow = cs.get(CssProperties.TEXT_SHADOW);
         int s = shadow.color();
         if (s >>> 24 != 0) {
-            out.add(new DrawCommand.Text(x + shadow.x(), y + shadow.y(), size, s, text, 0));
+            out.add(new DrawCommand.Text(x + shadow.x(), y + shadow.y(), size, s, text, 0, null));
         }
         if (color >>> 24 != 0) {
-            out.add(new DrawCommand.Text(x, y, size, color, text, 0));
+            out.add(new DrawCommand.Text(x, y, size, color, text, 0, null));
         }
     }
 
@@ -331,7 +331,7 @@ public final class Painter implements PaintFacet.Context {
                 continue;
             }
             shape = new RoundRect(shape.x() + s.x(), shape.y() + s.y(), shape.width(), shape.height(), shape.radii());
-            out.add(new DrawCommand.Shadow(shape, s.blur() / 2, color, inset, base));
+            out.add(new DrawCommand.Shadow(shape, s.blur() / 2, color, inset, base, crisp(cs)));
         }
     }
 
@@ -348,7 +348,7 @@ public final class Painter implements PaintFacet.Context {
         float h = r.height() + 2 * s;
         RoundRect.Radii grown = q.isZero() ? q : new RoundRect.Radii(grow(q.topLeftX(), s), grow(q.topLeftY(), s),
                 grow(q.topRightX(), s), grow(q.topRightY(), s), grow(q.bottomRightX(), s), grow(q.bottomRightY(), s),
-                grow(q.bottomLeftX(), s), grow(q.bottomLeftY(), s)).fit(w, h);
+                grow(q.bottomLeftX(), s), grow(q.bottomLeftY(), s), q.corners()).fit(w, h);
         return new RoundRect(r.x() - s, r.y() - s, w, h, grown);
     }
 
@@ -377,7 +377,7 @@ public final class Painter implements PaintFacet.Context {
             boolean visible = t > 0 && tc >>> 24 != 0 || r > 0 && rc >>> 24 != 0 || bt > 0 && bc >>> 24 != 0
                     || l > 0 && lc >>> 24 != 0;
             if (visible) {
-                out.add(new DrawCommand.Border(border, t, r, bt, l, tc, rc, bc, lc));
+                out.add(new DrawCommand.Border(border, t, r, bt, l, tc, rc, bc, lc, crisp(cs)));
             }
             return;
         }
@@ -583,7 +583,7 @@ public final class Painter implements PaintFacet.Context {
         rect(out, bar.x(), bar.thumbY() - dy, bar.width(), bar.thumbHeight(), colors.thumb());
     }
 
-    /** The corner radii of the border box of {@code cs}'s element, reduced to fit it. */
+    /** The corner radii and shapes of the border box of {@code cs}'s element, the radii reduced to fit it. */
     private static RoundRect.Radii radii(ComputedStyle cs, float w, float h) {
         CornerRadius tl = cs.get(CssProperties.BORDER_TOP_LEFT_RADIUS);
         CornerRadius tr = cs.get(CssProperties.BORDER_TOP_RIGHT_RADIUS);
@@ -593,8 +593,17 @@ public final class Painter implements PaintFacet.Context {
                 && bl.equals(CornerRadius.ZERO)) {
             return RoundRect.Radii.ZERO;
         }
+        RoundRect.Corners corners = new RoundRect.Corners(cs.get(CssProperties.CORNER_TOP_LEFT_SHAPE),
+                cs.get(CssProperties.CORNER_TOP_RIGHT_SHAPE), cs.get(CssProperties.CORNER_BOTTOM_RIGHT_SHAPE),
+                cs.get(CssProperties.CORNER_BOTTOM_LEFT_SHAPE));
         return new RoundRect.Radii(radius(tl.x(), w), radius(tl.y(), h), radius(tr.x(), w), radius(tr.y(), h),
-                radius(br.x(), w), radius(br.y(), h), radius(bl.x(), w), radius(bl.y(), h)).fit(w, h);
+                radius(br.x(), w), radius(br.y(), h), radius(bl.x(), w), radius(bl.y(), h),
+                corners).fit(w, h);
+    }
+
+    /** Whether {@code cs}'s element bakes its shape masks crisp ({@code shape-rendering}). */
+    private static boolean crisp(ComputedStyle cs) {
+        return cs.get(CssProperties.SHAPE_RENDERING) == Keywords.ShapeRendering.CRISP_EDGES;
     }
 
     private static float radius(Length l, float side) {
@@ -632,7 +641,7 @@ public final class Painter implements PaintFacet.Context {
         boolean multiply = layer(blends, bottom) == Keywords.BackgroundBlendMode.MULTIPLY
                 && images.get(bottom) instanceof CssImage.Url;
         if (!multiply) {
-            fill(out, border, bg);
+            fill(out, border, bg, crisp(cs));
         }
         for (int i = bottom; i >= 0; i--) {
             paintLayer(e, cs, b, border, i, multiply && i == bottom ? 0xFF000000 | bg : OPAQUE_WHITE, out);
@@ -640,13 +649,13 @@ public final class Painter implements PaintFacet.Context {
     }
 
     /** {@code shape} in a solid color: a plain rectangle when it has no rounded corner. */
-    private void fill(DisplayList out, RoundRect shape, int color) {
+    private void fill(DisplayList out, RoundRect shape, int color, boolean crisp) {
         if (shape.radii().isZero()) {
             rect(out, shape.x(), shape.y(), shape.width(), shape.height(), color);
             return;
         }
         if (color >>> 24 != 0) {
-            out.add(new DrawCommand.Fill(shape, shape.x(), shape.y(), shape.width(), shape.height(), color, null));
+            out.add(new DrawCommand.Fill(shape, shape.x(), shape.y(), shape.width(), shape.height(), color, null, crisp));
         }
     }
 
@@ -723,6 +732,7 @@ public final class Painter implements PaintFacet.Context {
             return;
         }
         DrawCommand.Image.Filter filter = filter(cs);
+        boolean crisp = crisp(cs);
         for (int row = 0; row < rows; row++) {
             float ty = y0 + row * h;
             float cy0 = Math.max(ty, top);
@@ -743,7 +753,7 @@ public final class Painter implements PaintFacet.Context {
                 } else {
                     Gradient g = gradient((CssImage.LinearGradient) image, tx, ty, w, h);
                     if (g != null) {
-                        out.add(new DrawCommand.Fill(border, cx0, cy0, cx1 - cx0, cy1 - cy0, 0, g));
+                        out.add(new DrawCommand.Fill(border, cx0, cy0, cx1 - cx0, cy1 - cy0, 0, g, crisp));
                     }
                 }
             }
@@ -905,10 +915,10 @@ public final class Painter implements PaintFacet.Context {
                 own |= s.flags();
             }
             if (shadowColor >>> 24 != 0) {
-                out.add(new DrawCommand.Text(f.x() + shadow.x(), f.y() - dy + shadow.y(), f.size(), shadowColor, f.text(), own));
+                out.add(new DrawCommand.Text(f.x() + shadow.x(), f.y() - dy + shadow.y(), f.size(), shadowColor, f.text(), own, f.font()));
             }
             if (color >>> 24 != 0) {
-                out.add(new DrawCommand.Text(f.x(), f.y() - dy, f.size(), color, f.text(), own));
+                out.add(new DrawCommand.Text(f.x(), f.y() - dy, f.size(), color, f.text(), own, f.font()));
             }
         }
     }

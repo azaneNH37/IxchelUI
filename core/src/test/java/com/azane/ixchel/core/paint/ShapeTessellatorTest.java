@@ -1,19 +1,28 @@
 package com.azane.ixchel.core.paint;
 
+import com.azane.ixchel.core.css.property.Keywords.CornerShape;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Rasterizes the meshes point by point (bilinear texel filtering, as the hosts sample the atlas) and checks the coverage they draw. */
+/**
+ * Rasterizes the meshes point by point (bilinear texel filtering, as the hosts sample the atlas, nearest
+ * for crisp commands) and checks the coverage they draw.
+ */
 class ShapeTessellatorTest {
     private final MaskAtlas atlas = new MaskAtlas(() -> {
     });
-    private final ShapeTessellator tess = new ShapeTessellator(atlas);
+    private final ShapeTessellator tess = new ShapeTessellator(atlas, false);
+    private final MaskAtlas crispAtlas = new MaskAtlas(() -> {
+    });
+    private final ShapeTessellator crispTess = new ShapeTessellator(crispAtlas, true);
 
     /** The drawn ARGB at {@code (x, y)}: vertex color times mask alpha, or 0 where no quad covers it. */
     private int at(DrawCommand c, float x, float y) {
-        float[] m = tess.mesh(c);
+        boolean crisp = c instanceof DrawCommand.Fill f && f.crisp() || c instanceof DrawCommand.Shadow sh && sh.crisp();
+        float[] m = (crisp ? crispTess : tess).mesh(c);
+        MaskAtlas source = crisp ? crispAtlas : atlas;
         int s = ShapeTessellator.STRIDE;
         for (int q = 0; q < m.length; q += 4 * s) {
             for (int t = 0; t < 2; t++) {
@@ -33,7 +42,8 @@ class ShapeTessellatorTest {
                 }
                 float u = w0 * m[i0 + 2] + w1 * m[i1 + 2] + w2 * m[i2 + 2];
                 float v = w0 * m[i0 + 3] + w1 * m[i1 + 3] + w2 * m[i2 + 3];
-                float mask = sample(u * MaskAtlas.SIZE - 0.5f, v * MaskAtlas.SIZE - 0.5f);
+                float mask = crisp ? texel(source, (int) Math.floor(u * MaskAtlas.SIZE), (int) Math.floor(v * MaskAtlas.SIZE)) / 255f
+                        : sample(source, u * MaskAtlas.SIZE - 0.5f, v * MaskAtlas.SIZE - 0.5f);
                 int c0 = Float.floatToRawIntBits(m[i0 + 4]);
                 int c1 = Float.floatToRawIntBits(m[i1 + 4]);
                 int c2 = Float.floatToRawIntBits(m[i2 + 4]);
@@ -52,20 +62,24 @@ class ShapeTessellatorTest {
     }
 
     /** The mask at texel coordinates {@code (x, y)} between texel centers, filtered linearly. */
-    private float sample(float x, float y) {
+    private static float sample(MaskAtlas atlas, float x, float y) {
         int x0 = (int) Math.floor(x);
         int y0 = (int) Math.floor(y);
         float fx = x - x0;
         float fy = y - y0;
-        float top = texel(x0, y0) * (1 - fx) + texel(x0 + 1, y0) * fx;
-        float bottom = texel(x0, y0 + 1) * (1 - fx) + texel(x0 + 1, y0 + 1) * fx;
+        float top = texel(atlas, x0, y0) * (1 - fx) + texel(atlas, x0 + 1, y0) * fx;
+        float bottom = texel(atlas, x0, y0 + 1) * (1 - fx) + texel(atlas, x0 + 1, y0 + 1) * fx;
         return (top * (1 - fy) + bottom * fy) / 255f;
     }
 
-    private int texel(int x, int y) {
+    private static int texel(MaskAtlas atlas, int x, int y) {
         int cx = Math.max(0, Math.min(MaskAtlas.SIZE - 1, x));
         int cy = Math.max(0, Math.min(MaskAtlas.SIZE - 1, y));
         return atlas.pixels()[cy * MaskAtlas.SIZE + cx] & 0xFF;
+    }
+
+    private static RoundRect.Radii radii(float r, RoundRect.Corners corners) {
+        return new RoundRect.Radii(r, r, r, r, r, r, r, r, corners);
     }
 
     private static int alpha(int argb) {
@@ -74,8 +88,8 @@ class ShapeTessellatorTest {
 
     @Test
     void roundedFillCoversTheInsideOfTheCurveOnly() {
-        RoundRect.Radii r = new RoundRect.Radii(10, 10, 10, 10, 10, 10, 10, 10);
-        DrawCommand.Fill f = new DrawCommand.Fill(new RoundRect(0, 0, 40, 20, r), 0, 0, 40, 20, 0xFFFFFFFF, null);
+        RoundRect.Radii r = radii(10, RoundRect.Corners.ROUND);
+        DrawCommand.Fill f = new DrawCommand.Fill(new RoundRect(0, 0, 40, 20, r), 0, 0, 40, 20, 0xFFFFFFFF, null, false);
         assertEquals(0, alpha(at(f, 1, 1)), "outside the top-left curve");
         assertEquals(255, alpha(at(f, 20, 10)), "the middle");
         assertEquals(255, alpha(at(f, 20, 0.2f)), "the straight top edge");
@@ -86,7 +100,7 @@ class ShapeTessellatorTest {
     @Test
     void gradientFillInterpolatesAcrossItsStops() {
         Gradient g = new Gradient(0, 0, 10, 0, new float[]{0, 0.5f, 1}, new int[]{0xFFFF0000, 0xFF00FF00, 0xFF0000FF});
-        DrawCommand.Fill f = new DrawCommand.Fill(new RoundRect(0, 0, 10, 4, RoundRect.Radii.ZERO), 0, 0, 10, 4, 0, g);
+        DrawCommand.Fill f = new DrawCommand.Fill(new RoundRect(0, 0, 10, 4, RoundRect.Radii.ZERO), 0, 0, 10, 4, 0, g, false);
         assertEquals(0xFFFF0000, at(f, 0, 2));
         assertEquals(0xFF808000, at(f, 2.5f, 2), "halfway to the middle stop");
         assertEquals(0xFF00FF00, at(f, 5, 2));
@@ -96,7 +110,7 @@ class ShapeTessellatorTest {
     @Test
     void outerShadowFadesAcrossTheEdgeAndLeavesTheBoxAlone() {
         RoundRect box = new RoundRect(20, 20, 40, 40, RoundRect.Radii.ZERO);
-        DrawCommand.Shadow s = new DrawCommand.Shadow(box, 2, 0xFF000000, false, box);
+        DrawCommand.Shadow s = new DrawCommand.Shadow(box, 2, 0xFF000000, false, box, false);
         assertEquals(0, alpha(at(s, 40, 40)), "not under the box");
         // Sharp-edged masks have 1/4 px texels: the last one outside the box is centered 1/8 px out, Φ(-1/16).
         int edge = alpha(at(s, 19.95f, 40));
@@ -108,12 +122,50 @@ class ShapeTessellatorTest {
 
     @Test
     void multicoloredBorderSplitsCornersAlongTheDiagonal() {
-        RoundRect outer = new RoundRect(0, 0, 20, 20, new RoundRect.Radii(6, 6, 6, 6, 6, 6, 6, 6));
-        DrawCommand.Border b = new DrawCommand.Border(outer, 4, 4, 4, 4, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00);
+        RoundRect outer = new RoundRect(0, 0, 20, 20, radii(6, RoundRect.Corners.ROUND));
+        DrawCommand.Border b = new DrawCommand.Border(outer, 4, 4, 4, 4, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00, false);
         assertEquals(0xFFFF0000, at(b, 10, 1), "top");
         assertEquals(0xFFFFFF00, at(b, 1, 10), "left");
         assertEquals(0xFFFF0000, at(b, 4, 2.2f), "top-left corner above the diagonal");
         assertEquals(0xFFFFFF00, at(b, 2.2f, 4), "top-left corner below the diagonal");
         assertEquals(0, alpha(at(b, 10, 10)), "the hole");
+    }
+
+    @Test
+    void eachCornerShapeCutsItsOwnRadiusBox() {
+        RoundRect.Corners corners = new RoundRect.Corners(CornerShape.BEVEL, CornerShape.NOTCH, CornerShape.SCOOP, CornerShape.SQUARE);
+        DrawCommand.Fill f = new DrawCommand.Fill(new RoundRect(0, 0, 40, 40, radii(10, corners)), 0, 0, 40, 40, 0xFFFFFFFF, null, false);
+        assertEquals(0, alpha(at(f, 5, 3)), "bevel: beyond the cut, inside a round curve");
+        assertEquals(255, alpha(at(f, 7, 7)), "bevel: before the cut");
+        assertEquals(0, alpha(at(f, 35, 5)), "notch: the radius box is cut away");
+        assertEquals(255, alpha(at(f, 35, 12)), "notch: below the radius box");
+        assertEquals(0, alpha(at(f, 39, 39)), "scoop: the box corner is bitten out");
+        assertEquals(255, alpha(at(f, 32, 32)), "scoop: near the inner point");
+        assertEquals(255, alpha(at(f, 0.5f, 39.5f)), "square: the corner stays");
+    }
+
+    @Test
+    void crispMasksStepByWholeGuiPixelsWithoutAntialiasing() {
+        RoundRect.Corners notch = new RoundRect.Corners(CornerShape.NOTCH, CornerShape.NOTCH, CornerShape.NOTCH, CornerShape.NOTCH);
+        DrawCommand.Fill vanilla = new DrawCommand.Fill(new RoundRect(0, 0, 20, 10, radii(1, notch)), 0, 0, 20, 10, 0xFFFFFFFF, null, true);
+        assertEquals(0, alpha(at(vanilla, 0.5f, 0.5f)), "notch 1px: the corner pixel is missing");
+        assertEquals(255, alpha(at(vanilla, 1.5f, 0.5f)), "notch 1px: its neighbour is drawn");
+
+        DrawCommand.Fill round = new DrawCommand.Fill(new RoundRect(0, 0, 20, 20, radii(6, RoundRect.Corners.ROUND)), 0, 0, 20, 20,
+                0xFFFFFFFF, null, true);
+        for (int y = 0; y < 6; y++) {
+            for (int x = 0; x < 6; x++) {
+                int a = alpha(at(round, x + 0.25f, y + 0.25f));
+                assertTrue(a == 0 || a == 255, "no partial coverage at " + x + "," + y + ": " + a);
+                assertEquals(a, alpha(at(round, x + 0.75f, y + 0.75f)), "one value across pixel " + x + "," + y);
+            }
+        }
+
+        RoundRect box = new RoundRect(20, 20, 40, 40, RoundRect.Radii.ZERO);
+        DrawCommand.Shadow s = new DrawCommand.Shadow(box, 2, 0xFF000000, false, box, true);
+        int cell = alpha(at(s, 18.2f, 40));
+        assertTrue(cell > 0 && cell < 255, "the halo is drawn: " + cell);
+        assertEquals(cell, alpha(at(s, 18.8f, 40)), "one value across a halo pixel");
+        assertTrue(alpha(at(s, 17.5f, 40)) < cell, "fading out pixel by pixel");
     }
 }

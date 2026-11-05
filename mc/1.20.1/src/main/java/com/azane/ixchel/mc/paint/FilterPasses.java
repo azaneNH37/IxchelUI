@@ -148,6 +148,10 @@ final class FilterPasses {
         s.safeGetUniform("Size").set(shape.width(), shape.height());
         s.safeGetUniform("RadiiTop").set(r.topLeftX(), r.topLeftY(), r.topRightX(), r.topRightY());
         s.safeGetUniform("RadiiBottom").set(r.bottomRightX(), r.bottomRightY(), r.bottomLeftX(), r.bottomLeftY());
+        RoundRect.Corners c = r.corners();
+        // A float first picks the float overload; the int one writes values a float uniform does not have.
+        s.safeGetUniform("Corners").set((float) c.topLeft().ordinal(), c.topRight().ordinal(), c.bottomRight().ordinal(),
+                c.bottomLeft().ordinal());
         s.safeGetUniform("Opaque").set(opaque ? 1f : 0f);
         FilterShaders.apply(s, t.fbo.getColorTextureId());
         RenderSystem.enableBlend();

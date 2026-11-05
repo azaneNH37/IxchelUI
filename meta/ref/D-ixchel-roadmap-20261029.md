@@ -56,8 +56,8 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | TH1 | 完成 | 全部页面的主题与库引入 | 主题机制：`<link rel="theme">`、主题文件的 `@import` 与 `@-ix-effect`、`.ix-*` 表面类、按角色的 `--ix-*` 变量；库资源显式引入与包、删除预引入表（#034、#039），结果见下文；文件与引用机制由 RS 重做 |
 | RS | 完成 | 全部页面 | 资源规范（`ref/D-ixchel-resource-spec-20261105.md`，#041）：视图根元素与 `<link href>`、css 的 `@stylesheet`/`@partial`/`@link`、特效别名、删除主题层与包、`ix-` 名字检查、统一登记与库根专用目录、改名（view、`@UiView`、`*Model`、`@UiElement`）；结果见下文 |
 | CS | 完成 | character、machine、storage | 容器槽位倒置依赖（#042）：`<mc-slot bind:menuslot>` 与环境无关，`UiContainerScreen` 按身份匹配；删除 `containerOnly`；`<mc-player-inventory bind:menu>`；结果见下文 |
-| TH2 | 待做 | — | 形状与像素化：`corner-shape`、`shape-rendering: crisp-edges`、GLSL `ix_snap` |
-| TH3 | 待做 | — | 文字：`font-family`（MC 字体 id）、`text-transform`；不做 `letter-spacing` |
+| TH2 | 完成 | effects 页 Shapes 标签 | 形状与像素化：`corner-shape`、`shape-rendering: crisp-edges`、GLSL `ix_snap`；结果见下文 |
+| TH3 | 完成 | effects 页 Shapes 标签 | 文字：`font-family`（MC 字体 id）、`text-transform`；不做 `letter-spacing`；结果见下文 |
 | TH4 | 待做 | — | 四套内置主题 `vanilla`、`dark`、`holo`、`cyber`，内置特效 `ix-chromatic`、`ix-glitch`、`ix-cooldown`，主题陈列页 |
 | U4 | 待做 | — | `ix-` 组件库与内置元素补齐，讨论中（`ref/SD-ixchel-u4-components-20261104.md`） |
 | FX1 | 完成 | — | 私有图层；`opacity` 整组语义（shader 构造并入 FX2） |
@@ -392,21 +392,35 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 主题接入（承 TH1）：`base` 给 `.ix-panel`、`.ix-well`、`button`、`ix-tooltip:open` 写 `corner-shape: var(--ix-corner, round)` 与 `border-radius: var(--ix-radius, 0)`；`shape-rendering` 由主题写在 `:root`（`vanilla` 开 `crisp-edges`，`dark` 不开）；`--ix-corner`、`--ix-radius` 进主题文档 §4 表，schema 随之列出。
 - 引擎：`corner-shape`（`round | bevel | notch | scoop | square`，1–4 值），沿用圆角 SDF 与遮罩图集；继承属性 `shape-rendering: auto | crisp-edges`，`crisp-edges` 时遮罩每 GUI 像素 1 纹素、最近邻采样；GLSL 原语 `ix_snap(p)`。两个 mc 版本。
 - 验收：effects 页加一个标签：五种 `corner-shape`、`crisp-edges` 开关前后的圆角与阴影各一格，像素断言阶梯与切角；1.21.1 冒烟。
+- 结果（2026-11-05）：完成。core：`corner-shape` 每角一个属性加简写，形状随 `RoundRect.Radii.corners` 传递，`ShapeTessellator` 烘焙五种形状的覆盖与模糊；`shape-rendering` 继承，经 `Fill`/`Border`/`Shadow` 的 `crisp` 传到 mc。mc（两版）：每宿主第二张图集 `<modid>:ixchel/mask_atlas_crisp`，最近邻上传；`IxCorner` uniform、`IxBox`/`IxLayer.corner`、`ix_sd_shape_rect`/`ix_sd_box`、`ix_snap`；`backdrop.fsh` 跟随角形状；glint 改用 `ix_sd_box`，`ix_sd_round_rect` 保留。主题：`base` 在 `:root` 设 `--ix-radius: 0`、`--ix-corner: round`，四种表面写 `border-radius`/`corner-shape`；`vanilla` 开 `crisp-edges`。验收：`build`；`-Pplaytest=all` 通过，Shapes 标签逐格断言切角、阶梯、逐像素阴影与 auto 的抗锯齿；1.21.1 只验到编译与 lint。
+  - 与"已定"的出入：
+    - crisp 遮罩不是"同一图集、键带密度"，而是每宿主两张图集（线性、最近邻各一），密度由图集决定。
+    - crisp 除每纹素一 GUI 像素外，还把边缘、半径与阴影外沿取整到 GUI 像素，纹素中心采样一次，不做抗锯齿；盒子本身已是整像素（taffy rounding），阶梯与屏幕网格对齐。
+    - `--ix-radius`/`--ix-corner` 在 `base` 的 `:root` 给默认值，而非写在 `var()` 回退里，schema 因此能列出。
+    - crisp 不改特效的覆盖计算；特效要像素化自己调 `ix_snap`。
+  - 推迟：bevel/scoop 的内框线按半径内缩近似，斜边上框线略细（bevel 约 0.7 倍）。
 
 #### TH3 文字
 
 - 设计依据：主题文档 §5.3。
 - 已定（2026-11-04）：core 的 `TextMeasurer`/`TextShaper` 加字体参数；`Component` 片段自带的字体优先于 CSS `font-family`；`text-transform` 作用于全部文本（含 `t=` 译文与 `Component`），测量前变换；未知字体 id 只在运行时开发期报错，lint 不查（字体是资源包内容）；不做 `letter-spacing`。
 - 主题接入（承 TH1）：`base` 给 `.ix-title` 写 `font-family: var(--ix-title-font, inherit)`，`text-transform` 由各主题直接写。
-- 先定：字体与大写会改文字宽度，与"主题不改盒子尺寸"冲突——TH4 的布局矩形断言只覆盖定宽元素，还是限定主题只改标题字体并给标题定宽。
+- 已定（2026-11-05，原"先定"）：主题只经 `--ix-title-font` 改标题字体，现有内置主题都不设；`text-transform` 由各主题自写，内置主题目前不写；TH4 的布局矩形断言只覆盖定宽元素。
 - 引擎：`font-family` 取 MC 字体资源 id 列表，测量与绘制按 `Style.withFont`；`text-transform: none | uppercase | lowercase`。两个 mc 版本。
 - 验收：`minecraft:uniform`、`minecraft:alt` 与大写各一行截图；行内排版测量与绘制宽度一致（core 测试覆盖 `text-transform`）。
+- 结果（2026-11-05）：完成。core：`font-family`（逗号分隔，字符串或裸 `ns:path`/`path`，缺省命名空间为 `minecraft`，拒绝 `sprite:`）取宿主有的第一个，都没有用默认字体，缺失的报 `layout/unknown-font`（WARNING，每文档每字体一次）；`text-transform` 按 `Locale.ROOT`、测量前变换；`TextMeasurer.width` 加 `font`、新增 `hasFont`，`TextShaper.Run`、`TextFragment`、`DrawCommand.Text`、`StyledText.Span` 带字体，`Component` 自带字体优先。mc（两版）：`Style.withFont` 测量与绘制，`hasFont` 查 `assets/<ns>/font/<path>.json`。主题：`base` 的 `.ix-title` 写 `font-family: var(--ix-title-font, inherit)`。验收：core 测试（`straße` → `STRASSE` 的宽度、字体回退、`Component` 字体优先、未知字体报码）；`-Pplaytest=all` 通过，三行文字宽度不同于默认行、`minecraft:uniform`/`alt` 不报未知。
+  - 与"已定"的出入：
+    - `text-transform` 不作用于表单控件自绘的文字（`input` 的值与占位、`select` 的标签）与原版 `title` tooltip，避免光标下标错位。
+    - 未知字体报运行时 WARNING（`layout/unknown-font`），不是 ERROR。
+  - 同分支随后修 ModernUI 兼容：测量改用 `font.getSplitter().stringWidth` 的小数宽度（`Font.width` 按段向上取整会累积误差）；测量与绘制都用 `StringDecomposer.iterate` 构造字符序列（`§` 作普通字符；原版下 `font.width(String)` 也会吃掉 `§` 码而绘制照画，effects 页加一行断言）；GUI 缩放变化时 `invalidateText`。MUI 下其余差异记在主题文档 §5.3。
+  - 推迟：`Component` 显式写 `minecraft:default` 时与"未设字体"不可分，跟随 CSS；文档里"怎么加字体"一节随 Doc。
 
 #### TH4 四套内置主题
 
 - 设计依据：主题文档 §6、§7。
 - 已定（2026-11-04）：只有 `holo` 带入场动画，内置主题不带离场动画；`ix-cooldown` 由 U4 并入（box，参数 `--ix-cooldown-progress`）；陈列页单独定 `FrameTimer` 预算，不沿用 env HUD（其 p95 在未改动时已超 6000 us）。
-- 承 TH1：`input`、`select`、`dialog` 的主题规则只上色（UA 的边框宽度不动），与 `button` 同用 `--ix-control-*`、`--ix-overlay-*`；dark 系按钮的 1px 透明边框保留，陈列页以此为基准；选中叠悬停是否去掉随陈列页一并定；主题自带特效经主题文件的 `@-ix-effect` 引入；glint 移动检查的相位问题仍归 REC。
+- 承 TH1：`input`、`select`、`dialog` 的主题规则只上色（UA 的边框宽度不动），与 `button` 同用 `--ix-control-*`、`--ix-overlay-*`；dark 系按钮的 1px 透明边框保留，陈列页以此为基准；选中叠悬停是否去掉随陈列页一并定；主题自带特效经主题 partial 的 `@link` 引入（RS 已删 `@-ix-effect`）；glint 移动检查的相位问题仍归 REC。
+- 承 TH2/TH3：`--ix-corner`/`--ix-radius` 已由 `base` 接到四种表面，`holo`/`cyber` 只设值；`cyber` 若要像素字须用 bitmap 字体（ModernUI 会替换默认字体，见主题文档 §5.3）。
 - 内容：`vanilla`、`dark`、`holo`、`cyber` 四套，共用 `base`；四套补齐 `input`、`select`、`dialog` 的主题规则；内置特效 `ix-chromatic`、`ix-glitch`（layer）、`ix-cooldown`（box）。
 - sample：主题陈列页，一份模板列出所有表面类与标准控件的全部状态，四个页面各链接一套主题。
 - 验收：四张陈列页截图；同一陈列页在四套主题下的布局矩形一致（playtest 断言）；全息与赛博常驻动画在陈列页预算内；1.21.1 冒烟。
@@ -425,7 +439,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 #### Doc 用户文档
 
 - 先定：站点结构按 Diátaxis 四类（教程、操作指南、参考、原理）；哪些参考页由代码生成（CI 文档 §2：属性注册表、元素注册表）。
-- 内容：面向宿主开发者（接入、ViewModel）与资源包作者（模板、CSS、组件覆盖，不写 Java）；语言参考写成规范：数值按 JLS 提升与整除、`==` 按值比较，另列与 Web/JS 的偏离清单（初值、`null` 规则、无 `null` 字面量等）；原理页取自上下文模型文档。
+- 内容：面向宿主开发者（接入、ViewModel）与资源包作者（模板、CSS、组件覆盖，不写 Java）；语言参考写成规范：数值按 JLS 提升与整除、`==` 按值比较，另列与 Web/JS 的偏离清单（初值、`null` 规则、无 `null` 字面量等）；原理页取自上下文模型文档；ModernUI 下的字体差异取自主题文档 §5.3。
 - 工程：VuePress 源码放 `docs/`；生成参考页的 Gradle 任务；`vuepress build` 进 `check`（CI 文档 §7 的触发条件即 `docs/` 建立）。部署 Pages 仍按 CI 文档等仓库转公开与 `release` 落地。
 - 验收：`check` 通过；按教程从零写出一个带组件的界面。
 

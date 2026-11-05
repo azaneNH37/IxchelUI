@@ -5,7 +5,7 @@ param speed { syntax: <number>; inherits: false; initial-value: 0.5; } // turns 
 param width { syntax: <length>; inherits: false; initial-value: 2px; }
 
 vec4 effect(IxBox b) {
-    float d = ix_sd_round_rect(b.pos, b.size, b.radius);
+    float d = ix_sd_box(b);
     float band = 1.0 - smoothstep(0.0, width, abs(d));
     float phase = fract(ix_perimeter(b) - ix_time * speed);
     return color * band * ix_pulse(phase, 0.15);

@@ -16,12 +16,16 @@ import java.util.concurrent.CompletableFuture;
  * tile the way CSS defines, each blend mode mixes a gold square with the canvas as its formula says,
  * and backdrop filters blur and gray the stripes behind glass; shader effects: a glint runs around a
  * button, a tint lights up under the pointer, a card burns away on a transition and another dissolves
- * part way by a binding; all of it still after a resource reload. Read from the drawn pixels.
+ * part way by a binding; each corner shape cuts its corner, crisp-edges steps curves and shadows by
+ * whole GUI pixels, and fonts and upper case change text widths; all of it still after a resource
+ * reload. Read from the drawn pixels.
  */
 public final class EffectsPlaytest {
     /** A gold square over a blue canvas: page.css {@code .blob} and {@code .blends}. */
     private static final int[] GOLD = {208, 160, 64};
     private static final int[] CANVAS = {48, 128, 192};
+    /** The opaque ground behind the layer effects and the shape tiles: page.css {@code .ground}. */
+    private static final int[] GROUND = {32, 36, 44};
     /** spotlight.ixeffect's default color. */
     private static final int[] SPOT = {72, 144, 224};
     private static CompletableFuture<Void> reload = CompletableFuture.completedFuture(null);
@@ -153,6 +157,55 @@ public final class EffectsPlaytest {
                 }
                 return gone && kept;
             });
+
+            s.click(".shapes-tab");
+            s.waitUntil("the shape tiles show", () -> Playtest.query(".shape").size() == 12
+                    && Playtest.query(".shape").get(0).box().width() > 0, Playtest.WAIT);
+            s.pause(2);
+            s.shot("effects-shapes");
+            // Fails if corner-shape does not reach the masks: every corner would stay round. Crisp, so each GUI pixel is in or out.
+            s.expect("each corner shape cuts its own corner", () -> {
+                // Pixel (2, 1) of a 6px corner: inside round and square only; pixel (5, 3): outside notch only.
+                boolean[] keeps21 = {true, false, false, false, true};
+                boolean[] keeps53 = {true, true, false, true, true};
+                try (NativeImage image = screenshot()) {
+                    for (int i = 0; i < 5; i++) {
+                        LayoutBox b = Playtest.query(".shape-row.crisp .shape").get(i).box();
+                        if (is(at(image, b.x() + 2.5f, b.y() + 1.5f), GOLD) != keeps21[i]
+                                || is(at(image, b.x() + 5.5f, b.y() + 3.5f), GOLD) != keeps53[i]) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            });
+            // Fails if the crisp mask is filtered linearly or baked finer than a GUI pixel: corner pixels would blend.
+            s.expect("crisp-edges steps the curve by whole GUI pixels", () -> cornerStepped(".shape-row.crisp .shape.round"));
+            s.expect("auto antialiases the curve", () -> !cornerStepped(".shape-row.smooth .shape.round"));
+            s.expect("a crisp shadow fades GUI pixel by GUI pixel", () -> {
+                LayoutBox b = Playtest.query(".shape-row.crisp .shape.shadowed").get(0).box();
+                float y = b.y() + b.height() / 2;
+                try (NativeImage image = screenshot()) {
+                    if (is(at(image, b.x() - 0.5f, y), GROUND)) {
+                        return false;
+                    }
+                    for (int d = 1; d <= 4; d++) {
+                        if (!near(at(image, b.x() - d + 0.25f, y), at(image, b.x() - d + 0.75f, y), 3)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            });
+            // Fails if the font or the case does not reach measuring: every line would be as wide as the default one.
+            s.expect("font-family and text-transform change how wide the text is", () -> {
+                float plain = width(".font.plain");
+                return width(".font.uniform") != plain && width(".font.alt") != plain && width(".font.upper") > plain;
+            });
+            s.expect("minecraft:uniform and minecraft:alt are fonts the game has", () ->
+                    Playtest.document().diagnostics().entries().stream().noneMatch(d -> d.code().id().equals("layout/unknown-font")));
+            // Fails if a § is read as a formatting code when measuring: the line would take no room.
+            s.expect("a § is text, measured as drawn", () -> width(".font.codes") > 0);
             // F3+T: vanilla's reload deletes the shader objects in its program table, ours included.
             // Fails if a layer, blend mode, backdrop or effect draws wrong with the programs built before it.
             s.run(() -> {
@@ -190,6 +243,45 @@ public final class EffectsPlaytest {
     private static float[] spot() {
         LayoutBox b = Playtest.query(".spotlight").get(0).box();
         return new float[]{b.x() + 10, b.y() + 5};
+    }
+
+    private static float width(String selector) {
+        return Playtest.query(selector).get(0).box().width();
+    }
+
+    /**
+     * Whether every GUI pixel of the top-left 6px corner of {@code selector} is one color, gold or the
+     * ground, as far as two physical pixels inside it show.
+     */
+    private static boolean cornerStepped(String selector) {
+        LayoutBox b = Playtest.query(selector).get(0).box();
+        try (NativeImage image = screenshot()) {
+            for (int y = 0; y < 6; y++) {
+                for (int x = 0; x < 6; x++) {
+                    int p = at(image, b.x() + x + 0.25f, b.y() + y + 0.25f);
+                    if (!near(p, at(image, b.x() + x + 0.75f, b.y() + y + 0.75f), 3) || !is(p, GOLD) && !is(p, GROUND)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+
+    private static NativeImage screenshot() {
+        return Screenshot.takeScreenshot(Minecraft.getInstance().getMainRenderTarget());
+    }
+
+    /** The color of {@code image} at GUI point {@code (x, y)}, ABGR. */
+    private static int at(NativeImage image, float x, float y) {
+        double scale = Minecraft.getInstance().getWindow().getGuiScale();
+        return image.getPixelRGBA((int) (x * scale), (int) (y * scale));
+    }
+
+    /** Whether the ABGR pixel {@code abgr} is {@code rgb} within a rounding margin. */
+    private static boolean is(int abgr, int[] rgb) {
+        int[] c = rgb(abgr);
+        return Math.abs(c[0] - rgb[0]) <= 8 && Math.abs(c[1] - rgb[1]) <= 8 && Math.abs(c[2] - rgb[2]) <= 8;
     }
 
     /** Whether the spotlight shows its color at {@code strength} over the panel beside it. */

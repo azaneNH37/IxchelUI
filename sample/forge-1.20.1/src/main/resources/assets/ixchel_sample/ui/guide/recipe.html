@@ -1,6 +1,6 @@
 <!-- A crafting grid of nine slots, an arrow and the result. -->
+<link href="recipe.css"/>
 <component name="guide-recipe" params="grid result">
-  <link href="recipe.css"/>
   <div class="recipe">
     <div class="grid">
       <for each="grid" as="s" key="s.index"><div class="cell"><mc-item class="item" bind:item="s.stack"></mc-item></div></for>

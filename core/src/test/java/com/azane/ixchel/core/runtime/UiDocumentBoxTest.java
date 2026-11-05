@@ -53,6 +53,19 @@ class UiDocumentBoxTest {
     }
 
     @Test
+    void cornerShapeExpandsPerCornerAndCrispEdgesInherits() {
+        UiDocument doc = load("<div class=\"p\"><div class=\"c\"></div></div>", """
+                .p { shape-rendering: crisp-edges }
+                .c { width: 10px; height: 10px; background-color: #000; border-radius: 2px; corner-shape: bevel notch;
+                     box-shadow: 0 0 2px #f00 }
+                """, GoldenTest.NO_IMAGES);
+        assertEquals("""
+                shadow 0 0 10 10 radii 2/2 2/2 2/2 2/2 corners bevel notch bevel notch sigma 1 #FFFF0000 clip 0 0 10 10 radii 2/2 2/2 2/2 2/2 corners bevel notch bevel notch crisp
+                fill 0 0 10 10 radii 2/2 2/2 2/2 2/2 corners bevel notch bevel notch clip 0 0 10 10 #FF000000 crisp""",
+                GoldenTest.print(doc.frame(100, 100)));
+    }
+
+    @Test
     void aShadowListTransitionsFromNoneThroughATransparentShadow() {
         long[] nowMs = {0};
         UiDocument doc = load("<div class=\"s\"></div>", """

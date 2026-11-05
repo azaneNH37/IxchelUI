@@ -1,8 +1,9 @@
-/* The vanilla container look: light gray panels framed in dark gray, dark text. */
+/* The vanilla container look: light gray panels framed in dark gray, dark text, pixel-stepped shapes. */
 @partial;
 @link "base.css";
 
 :root {
+    shape-rendering: crisp-edges;
     --ix-panel-bg: #C6C6C6;
     --ix-panel-shadow: inset 0 0 0 1px #555555;
     --ix-well-bg: #8B8B8B;

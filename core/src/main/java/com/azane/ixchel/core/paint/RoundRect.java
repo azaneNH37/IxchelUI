@@ -1,17 +1,27 @@
 package com.azane.ixchel.core.paint;
 
+import com.azane.ixchel.core.css.property.Keywords.CornerShape;
+
 /**
- * A rectangle with elliptical corners in GUI pixels. Radii are the horizontal then vertical radius of
- * each corner, already reduced so that adjacent corners do not overlap (CSS Backgrounds 3 §5.5).
+ * A rectangle with shaped corners in GUI pixels. Radii are the horizontal then vertical radius of
+ * each corner, already reduced so that adjacent corners do not overlap (CSS Backgrounds 3 §5.5); each
+ * corner's shape ({@code corner-shape}) is drawn inside its radius box.
  */
 public record RoundRect(float x, float y, float width, float height, Radii radii) {
 
-    public record Radii(float topLeftX, float topLeftY, float topRightX, float topRightY,
-                        float bottomRightX, float bottomRightY, float bottomLeftX, float bottomLeftY) {
-        public static final Radii ZERO = new Radii(0, 0, 0, 0, 0, 0, 0, 0);
+    /** Each corner's {@code corner-shape}. */
+    public record Corners(CornerShape topLeft, CornerShape topRight, CornerShape bottomRight, CornerShape bottomLeft) {
+        public static final Corners ROUND = new Corners(CornerShape.ROUND, CornerShape.ROUND, CornerShape.ROUND, CornerShape.ROUND);
+    }
 
+    public record Radii(float topLeftX, float topLeftY, float topRightX, float topRightY,
+                        float bottomRightX, float bottomRightY, float bottomLeftX, float bottomLeftY, Corners corners) {
+        public static final Radii ZERO = new Radii(0, 0, 0, 0, 0, 0, 0, 0, Corners.ROUND);
+
+        /** Whether every radius is 0, so the corners are square whatever their shape. */
         public boolean isZero() {
-            return equals(ZERO);
+            return topLeftX == 0 && topLeftY == 0 && topRightX == 0 && topRightY == 0
+                    && bottomRightX == 0 && bottomRightY == 0 && bottomLeftX == 0 && bottomLeftY == 0;
         }
 
         /**
@@ -28,7 +38,7 @@ public record RoundRect(float x, float y, float width, float height, Radii radii
                 return this;
             }
             return new Radii(topLeftX * f, topLeftY * f, topRightX * f, topRightY * f,
-                    bottomRightX * f, bottomRightY * f, bottomLeftX * f, bottomLeftY * f);
+                    bottomRightX * f, bottomRightY * f, bottomLeftX * f, bottomLeftY * f, corners);
         }
 
         private static float scale(float f, float side, float sum) {
@@ -38,13 +48,13 @@ public record RoundRect(float x, float y, float width, float height, Radii radii
         /**
          * The radii of the curve {@code top}, {@code right}, {@code bottom} and {@code left} pixels
          * inside (outside when negative) this one, as CSS draws padding and inner border edges;
-         * a radius never goes below 0.
+         * a radius never goes below 0, the shapes stay.
          */
         public Radii inset(float top, float right, float bottom, float left) {
             return new Radii(Math.max(0, topLeftX - left), Math.max(0, topLeftY - top),
                     Math.max(0, topRightX - right), Math.max(0, topRightY - top),
                     Math.max(0, bottomRightX - right), Math.max(0, bottomRightY - bottom),
-                    Math.max(0, bottomLeftX - left), Math.max(0, bottomLeftY - bottom));
+                    Math.max(0, bottomLeftX - left), Math.max(0, bottomLeftY - bottom), corners);
         }
     }
 

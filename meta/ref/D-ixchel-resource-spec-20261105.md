@@ -214,23 +214,25 @@ related: [DECISIONS.md#034, DECISIONS.md#035, DECISIONS.md#037, DECISIONS.md#039
 #### 5.4 文件种类与引用
 
 ```html
+<link href="panel.css"/>
+<link href="@ixchel/mc/player-inventory.html"/>
 <page>
-  <link href="panel.css"/>
-  <link href="@ixchel/mc/player-inventory.html"/>
   <div class="panel">…</div>
 </page>
 
+<link href="page.css"/>
 <component name="guide-page" params="heading=''">
-  <link href="page.css"/>
   <div class="page">…</div>
 </component>
 ```
 
-- 视图文件恰有一个根元素 `<page>` 或 `<component>`，由它声明种类；根外只允许注释与空白。根元素是定义，不进元素树。`<component>` 取代 `<template>`，签名属性 `name`、`params`、`events` 不变（#035）。
-- `<link>` 写在根元素内、元素树之前，只有 `href`，不写 `rel`；被 link 文件的种类由其自身声明，引用方只核对。
+- 视图文件由若干 `<link>` 和其后恰好一个根元素 `<page>` 或 `<component>` 组成，根元素声明种类；此外只允许注释与空白。根元素是定义，不进元素树。`<component>` 取代 `<template>`，签名属性 `name`、`params`、`events` 不变（#035）。
+- `<link>` 写在文件顶层、根元素之前，只有 `href`，不写 `rel`；被 link 文件的种类由其自身声明，引用方只核对。这样根元素内只有元素树，文件形状也与 css 的"先 `@link` 后规则"一致。
 - 视图可 link：至多一个 stylesheet（§2.2）、任意多个 `<component>` 文件。link partial、`.ixeffect`（特效只由 css link，§3）或 `<page>` 均为错误。
 - 诊断：
   - `view/missing-root`：无根元素、多个根元素或根元素不是二者之一。
+  - `view/misplaced-element`：`<link>` 写在根元素内。
+  - `view/link-after-element`：`<link>` 写在根元素之后。
   - `link/wrong-kind`：被 link 文件声明的种类不允许出现在此处。
 
 ### 6 登记

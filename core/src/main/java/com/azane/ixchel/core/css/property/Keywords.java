@@ -72,6 +72,20 @@ public final class Keywords {
     public enum ImageRendering { AUTO, SMOOTH, PIXELATED, CRISP_EDGES }
 
     /**
+     * {@code corner-shape} per corner (CSS Borders 4), inside the corner's {@code border-radius} box:
+     * {@code round} the ellipse, {@code bevel} a straight cut, {@code notch} the whole box cut away,
+     * {@code scoop} a concave quarter ellipse, {@code square} no curve. {@code superellipse()} is not supported.
+     */
+    public enum CornerShape { ROUND, BEVEL, NOTCH, SCOOP, SQUARE }
+
+    /**
+     * {@code shape-rendering}, inherited (the SVG property): {@code crisp-edges} bakes the masks of
+     * rounded and shaped corners and of {@code box-shadow} at one texel per GUI pixel without
+     * antialiasing, so curves step and shadows fade cell by cell.
+     */
+    public enum ShapeRendering { AUTO, CRISP_EDGES }
+
+    /**
      * {@code content}, read only on {@code ::before} and {@code ::after}: {@link #EMPTY} is the empty
      * string {@code ""}, which generates the box; {@code normal} computes to {@code none} there.
      * Text is not supported: a pseudo-element is decoration, not a place for words that bypass translation.
@@ -99,6 +113,13 @@ public final class Keywords {
 
     /** {@code font-style}; {@code oblique} is not supported. */
     public enum FontStyle { NORMAL, ITALIC }
+
+    /**
+     * {@code text-transform}, inherited: case mapping (root locale) of the text laid out in the document,
+     * translations and bound {@code Component}s included, before it is measured. A form control's own
+     * text (an input's value and placeholder, a select's label) is not transformed.
+     */
+    public enum TextTransform { NONE, UPPERCASE, LOWERCASE }
 
     /**
      * {@code text-decoration}, one line keyword; color, style and thickness are not supported. As in

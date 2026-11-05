@@ -409,7 +409,7 @@ public final class UiDocument {
         bindings.close();
     }
 
-    /** Fonts or glyph widths changed (resource reload, Force Unicode): re-measure all text next frame. */
+    /** Fonts or glyph widths changed (resource reload, Force Unicode, a GUI scale ModernUI lays text out at): re-measure all text next frame. */
     public void invalidateText() {
         layout.invalidateText();
         textInvalidated = true;

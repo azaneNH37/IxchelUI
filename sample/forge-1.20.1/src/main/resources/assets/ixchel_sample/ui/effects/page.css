@@ -277,3 +277,67 @@ button {
 .burn.burnt {
   --Burn-progress: 1;
 }
+
+/* The five corner shapes and a shadow, smooth and then pixel-stepped, gold on the opaque ground. */
+.shapes .caption {
+  color: #A0A4AC;
+}
+
+.shape-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.shape-row.crisp {
+  shape-rendering: crisp-edges;
+}
+
+.shape {
+  width: 28px;
+  height: 20px;
+  border-radius: 6px;
+  background-color: #D0A040;
+}
+
+.shape.bevel {
+  corner-shape: bevel;
+}
+
+.shape.notch {
+  corner-shape: notch;
+}
+
+.shape.scoop {
+  corner-shape: scoop;
+}
+
+.shape.square-corner {
+  corner-shape: square;
+}
+
+.shape.shadowed {
+  width: 20px;
+  height: 12px;
+  margin: 4px;
+  border-radius: 4px;
+  box-shadow: 0 0 6px #FFFFFF;
+}
+
+/* One sample sentence in the default font, two Minecraft fonts and upper case. */
+.fonts {
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.font.uniform {
+  font-family: minecraft:uniform;
+}
+
+.font.alt {
+  font-family: "minecraft:alt";
+}
+
+.font.upper {
+  text-transform: uppercase;
+}

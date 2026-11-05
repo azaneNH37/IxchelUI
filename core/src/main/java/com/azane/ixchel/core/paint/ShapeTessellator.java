@@ -17,6 +17,10 @@ import java.util.Map;
  *
  * <p>Blur is CSS's: a Gaussian whose standard deviation is half the blur radius, integrated exactly
  * across rows and numerically along the corners.
+ *
+ * <p>A crisp tessellator ({@code shape-rendering: crisp-edges}) rounds every edge, radius and blur
+ * reach to whole GUI pixels and bakes one texel per GUI pixel, sampled once at its center, for an
+ * atlas the host samples nearest: on a box at whole pixels each texel is one GUI pixel.
  */
 public final class ShapeTessellator {
     /** Floats per vertex in a mesh: x, y, u, v and the ARGB color as {@link Float#intBitsToFloat} bits. */
@@ -32,22 +36,33 @@ public final class ShapeTessellator {
     private static final int OUTER = 2;
     private static final int INNER = 3;
 
+    /** Floats in a shape: {@code l, t, r, b}, 8 radii, sigma, then the 4 corner shapes' ordinals. */
+    private static final int SHAPE = 17;
+    private static final int ROUND = 0;
+    private static final int BEVEL = 1;
+    private static final int NOTCH = 2;
+    private static final int SCOOP = 3;
+    private static final int SQUARE = 4;
+
     private final MaskAtlas atlas;
+    private final boolean crisp;
     private Map<DrawCommand, float[]> current = new IdentityHashMap<>();
     private Map<DrawCommand, float[]> previous = new IdentityHashMap<>();
     private int cachedGeneration;
     private float[] buffer = new float[STRIDE * 64];
     private int size;
 
-    // Shapes of the command being built: {l, t, r, b, 8 radii, sigma}.
-    private final float[] a = new float[13];
-    private final float[] b = new float[13];
+    // Shapes of the command being built, SHAPE floats each.
+    private final float[] a = new float[SHAPE];
+    private final float[] b = new float[SHAPE];
     private int kind;
     private final float[] xs = new float[24];
     private final float[] ys = new float[24];
 
-    public ShapeTessellator(MaskAtlas atlas) {
+    /** {@code crisp}: draws the commands whose {@code crisp} is set, into an atlas sampled nearest. */
+    public ShapeTessellator(MaskAtlas atlas, boolean crisp) {
         this.atlas = atlas;
+        this.crisp = crisp;
         cachedGeneration = atlas.generation();
     }
 
@@ -112,11 +127,10 @@ public final class ShapeTessellator {
     private void fill(DrawCommand.Fill f) {
         kind = COVER;
         set(a, f.shape(), 0);
-        RoundRect s = f.shape();
-        float x0 = Math.max(s.x(), f.clipX());
-        float y0 = Math.max(s.y(), f.clipY());
-        float x1 = Math.min(s.x() + s.width(), f.clipX() + f.clipWidth());
-        float y1 = Math.min(s.y() + s.height(), f.clipY() + f.clipHeight());
+        float x0 = Math.max(a[0], snap(f.clipX()));
+        float y0 = Math.max(a[1], snap(f.clipY()));
+        float x1 = Math.min(a[2], snap(f.clipX() + f.clipWidth()));
+        float y1 = Math.min(a[3], snap(f.clipY() + f.clipHeight()));
         cells(x0, y0, x1, y1, f.color(), f.gradient(), null);
     }
 
@@ -127,41 +141,48 @@ public final class ShapeTessellator {
         set(b, outer.inset(r.top(), r.right(), r.bottom(), r.left()), 0);
         int[] colors = {r.topColor(), r.rightColor(), r.bottomColor(), r.leftColor()};
         boolean same = colors[0] == colors[1] && colors[1] == colors[2] && colors[2] == colors[3];
-        cells(outer.x(), outer.y(), outer.x() + outer.width(), outer.y() + outer.height(), colors[0], null,
-                same ? null : sides(r, colors));
+        cells(a[0], a[1], a[2], a[3], colors[0], null, same ? null : sides(r, colors));
     }
 
     private void shadow(DrawCommand.Shadow s) {
-        RoundRect shape = s.shape();
-        set(a, shape, s.sigma());
+        set(a, s.shape(), s.sigma());
         set(b, s.clip(), 0);
         if (s.inset()) {
             kind = INNER;
-            RoundRect c = s.clip();
-            cells(c.x(), c.y(), c.x() + c.width(), c.y() + c.height(), s.color(), null, null);
+            cells(b[0], b[1], b[2], b[3], s.color(), null, null);
         } else {
             kind = OUTER;
-            float e = 3 * s.sigma();
-            cells(shape.x() - e, shape.y() - e, shape.x() + shape.width() + e, shape.y() + shape.height() + e,
-                    s.color(), null, null);
+            float e = reach(a);
+            cells(a[0] - e, a[1] - e, a[2] + e, a[3] + e, s.color(), null, null);
         }
     }
 
-    private static void set(float[] s, RoundRect r, float sigma) {
+    private void set(float[] s, RoundRect r, float sigma) {
         RoundRect.Radii q = r.radii();
-        s[0] = r.x();
-        s[1] = r.y();
-        s[2] = r.x() + r.width();
-        s[3] = r.y() + r.height();
-        s[4] = q.topLeftX();
-        s[5] = q.topLeftY();
-        s[6] = q.topRightX();
-        s[7] = q.topRightY();
-        s[8] = q.bottomRightX();
-        s[9] = q.bottomRightY();
-        s[10] = q.bottomLeftX();
-        s[11] = q.bottomLeftY();
-        s[12] = sigma;
+        RoundRect.Corners c = q.corners();
+        s[0] = snap(r.x());
+        s[1] = snap(r.y());
+        s[2] = snap(r.x() + r.width());
+        s[3] = snap(r.y() + r.height());
+        s[4] = snap(q.topLeftX());
+        s[5] = snap(q.topLeftY());
+        s[6] = snap(q.topRightX());
+        s[7] = snap(q.topRightY());
+        s[8] = snap(q.bottomRightX());
+        s[9] = snap(q.bottomRightY());
+        s[10] = snap(q.bottomLeftX());
+        s[11] = snap(q.bottomLeftY());
+        // Crisp: a reach of 3 sigma in whole pixels.
+        s[12] = crisp ? (float) Math.ceil(3 * sigma) / 3 : sigma;
+        s[13] = c.topLeft().ordinal();
+        s[14] = c.topRight().ordinal();
+        s[15] = c.bottomRight().ordinal();
+        s[16] = c.bottomLeft().ordinal();
+    }
+
+    /** {@code v} on the GUI pixel grid when crisp, else as is. */
+    private float snap(float v) {
+        return crisp ? Math.round(v) : v;
     }
 
     private boolean usesB() {
@@ -292,6 +313,9 @@ public final class ShapeTessellator {
     }
 
     private float density() {
+        if (crisp) {
+            return 1;
+        }
         float sigma = Math.max(a[12], usesB() ? b[12] : 0);
         return sigma <= 2 ? SHARP_DENSITY : Math.max(0.25f, 8 / sigma);
     }
@@ -429,6 +453,7 @@ public final class ShapeTessellator {
     /**
      * A cell's mask: its kind, its size in pixels and texels, and its shapes relative to its top-left,
      * quantized, with edges beyond reach moved to a fixed distance so the key does not depend on them.
+     * A crisp mask samples each texel once, at its center.
      */
     private static final class Mask implements MaskAtlas.Baker {
         final int kind;
@@ -438,11 +463,12 @@ public final class ShapeTessellator {
         final int m;
         final boolean flatX;
         final boolean flatY;
+        final boolean crisp;
         final float[] sa;
         final float[] sb;
         final int hash;
 
-        Mask(int kind, float w, float h, int n, int m, boolean flatX, boolean flatY, float[] sa, float[] sb) {
+        Mask(int kind, float w, float h, int n, int m, boolean flatX, boolean flatY, boolean crisp, float[] sa, float[] sb) {
             this.kind = kind;
             this.w = w;
             this.h = h;
@@ -450,16 +476,18 @@ public final class ShapeTessellator {
             this.m = m;
             this.flatX = flatX;
             this.flatY = flatY;
+            this.crisp = crisp;
             this.sa = sa;
             this.sb = sb;
             this.hash = ((((kind * 31 + Float.hashCode(w)) * 31 + Float.hashCode(h)) * 31 + n) * 31 + m) * 31
-                    + Arrays.hashCode(sa) * 7 + Arrays.hashCode(sb) + (flatX ? 1 : 0) + (flatY ? 2 : 0);
+                    + Arrays.hashCode(sa) * 7 + Arrays.hashCode(sb) + (flatX ? 1 : 0) + (flatY ? 2 : 0) + (crisp ? 4 : 0);
         }
 
         @Override
         public boolean equals(Object o) {
             return o instanceof Mask k && k.hash == hash && k.kind == kind && k.w == w && k.h == h && k.n == n && k.m == m
-                    && k.flatX == flatX && k.flatY == flatY && Arrays.equals(k.sa, sa) && Arrays.equals(k.sb, sb);
+                    && k.flatX == flatX && k.flatY == flatY && k.crisp == crisp && Arrays.equals(k.sa, sa)
+                    && Arrays.equals(k.sb, sb);
         }
 
         @Override
@@ -475,7 +503,7 @@ public final class ShapeTessellator {
                 float cy = flatY ? h / 2 : (j + 0.5f) * th;
                 for (int i = 0; i < width; i++) {
                     float cx = flatX ? w / 2 : (i + 0.5f) * tw;
-                    out[j * width + i] = field(sa, sb, kind, cx, cy, flatX ? 0 : tw, flatY ? 0 : th);
+                    out[j * width + i] = field(sa, sb, kind, cx, cy, flatX || crisp ? 0 : tw, flatY || crisp ? 0 : th);
                 }
             }
         }
@@ -484,13 +512,13 @@ public final class ShapeTessellator {
     private Mask mask(float x0, float y0, float w, float h, int n, int m, boolean flatX, boolean flatY) {
         float qw = q(w);
         float qh = q(h);
-        return new Mask(kind, qw, qh, n, m, flatX, flatY, relative(a, x0, y0, qw, qh),
+        return new Mask(kind, qw, qh, n, m, flatX, flatY, crisp, relative(a, x0, y0, qw, qh),
                 usesB() ? relative(b, x0, y0, qw, qh) : null);
     }
 
     private static float[] relative(float[] s, float x0, float y0, float w, float h) {
-        float[] r = new float[13];
-        for (int i = 4; i < 13; i++) {
+        float[] r = new float[SHAPE];
+        for (int i = 4; i < SHAPE; i++) {
             r[i] = q(s[i]);
         }
         float e = 3 * r[12] + 1;
@@ -543,19 +571,30 @@ public final class ShapeTessellator {
         if (x < s[0] || x >= s[2] || y < s[1] || y >= s[3]) {
             return false;
         }
-        return corner(x, y, s[0] + s[4], s[1] + s[5], s[4], s[5], x < s[0] + s[4] && y < s[1] + s[5])
-                && corner(x, y, s[2] - s[6], s[1] + s[7], s[6], s[7], x > s[2] - s[6] && y < s[1] + s[7])
-                && corner(x, y, s[2] - s[8], s[3] - s[9], s[8], s[9], x > s[2] - s[8] && y > s[3] - s[9])
-                && corner(x, y, s[0] + s[10], s[3] - s[11], s[10], s[11], x < s[0] + s[10] && y > s[3] - s[11]);
+        return corner(x, y, s[0] + s[4], s[1] + s[5], s[4], s[5], (int) s[13], x < s[0] + s[4] && y < s[1] + s[5])
+                && corner(x, y, s[2] - s[6], s[1] + s[7], s[6], s[7], (int) s[14], x > s[2] - s[6] && y < s[1] + s[7])
+                && corner(x, y, s[2] - s[8], s[3] - s[9], s[8], s[9], (int) s[15], x > s[2] - s[8] && y > s[3] - s[9])
+                && corner(x, y, s[0] + s[10], s[3] - s[11], s[10], s[11], (int) s[16], x < s[0] + s[10] && y > s[3] - s[11]);
     }
 
-    private static boolean corner(float x, float y, float cx, float cy, float rx, float ry, boolean in) {
+    /**
+     * Whether {@code (x, y)}, {@code in} the radius box of the corner whose inner point is {@code (cx, cy)},
+     * is inside the corner's {@code shape}.
+     */
+    private static boolean corner(float x, float y, float cx, float cy, float rx, float ry, int shape, boolean in) {
         if (!in || rx <= 0 || ry <= 0) {
             return true;
         }
-        float dx = (x - cx) / rx;
-        float dy = (y - cy) / ry;
-        return dx * dx + dy * dy <= 1;
+        // 0 at the inner point, 1 at the box's edges.
+        float dx = Math.abs(x - cx) / rx;
+        float dy = Math.abs(y - cy) / ry;
+        return switch (shape) {
+            case BEVEL -> dx + dy <= 1;
+            case NOTCH -> false;
+            case SCOOP -> (1 - dx) * (1 - dx) + (1 - dy) * (1 - dy) >= 1;
+            case SQUARE -> true;
+            default -> dx * dx + dy * dy <= 1;
+        };
     }
 
     /** The Gaussian blur of {@code s} (standard deviation {@code s[12]}) at {@code (x, y)}. */
@@ -600,21 +639,29 @@ public final class ShapeTessellator {
     /** The row of {@code s} at {@code y} blurred horizontally, at {@code x}. */
     private static float row(float[] s, float x, float y) {
         float sigma = s[12];
-        float left = s[0] + Math.max(arcInset(s[4], s[5], y - s[1]), arcInset(s[10], s[11], s[3] - y));
-        float right = s[2] - Math.max(arcInset(s[6], s[7], y - s[1]), arcInset(s[8], s[9], s[3] - y));
+        float left = s[0] + Math.max(arcInset(s[4], s[5], (int) s[13], y - s[1]), arcInset(s[10], s[11], (int) s[16], s[3] - y));
+        float right = s[2] - Math.max(arcInset(s[6], s[7], (int) s[14], y - s[1]), arcInset(s[8], s[9], (int) s[15], s[3] - y));
         if (right <= left) {
             return 0;
         }
         return phi((x - left) / sigma) - phi((x - right) / sigma);
     }
 
-    /** How far a corner's curve stands in from the straight edge, {@code d} into the box along the other axis. */
-    private static float arcInset(float rx, float ry, float d) {
+    /** How far a corner's {@code shape} stands in from the straight edge, {@code d} into the box along the other axis. */
+    private static float arcInset(float rx, float ry, int shape, float d) {
         if (rx <= 0 || ry <= 0 || d >= ry) {
             return 0;
         }
+        // k: how far out toward the edge the corner's box is, 1 at the edge; reach: how far out the shape spans.
         float k = (ry - Math.max(0, d)) / ry;
-        return rx * (1 - (float) Math.sqrt(Math.max(0, 1 - k * k)));
+        float reach = switch (shape) {
+            case BEVEL -> 1 - k;
+            case NOTCH -> 0;
+            case SCOOP -> 1 - (float) Math.sqrt(Math.max(0, 1 - (1 - k) * (1 - k)));
+            case SQUARE -> 1;
+            default -> (float) Math.sqrt(Math.max(0, 1 - k * k));
+        };
+        return rx * (1 - reach);
     }
 
     /** Standard normal CDF, through Abramowitz and Stegun 7.1.26. */

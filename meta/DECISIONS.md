@@ -242,7 +242,7 @@
 ## #041 资源规范：文件自我声明种类，统一 link 与登记
 - **decided**: 2026-11-05
 - **context**: L5–TH1 迭代叠出 rel 种类、`@import`、`@-ix-effect`、主题层、预引入、包等多套规则，"template" 一词指代模板文件、组件根标签与解析结果；库与宿主资源各一套登记
-- **decision**: 以 `ref/D-ixchel-resource-spec-20261105.md` 为准。文件自我声明种类：css 以 `@stylesheet;`/`@partial;` 开头，html（视图）以唯一根元素 `<page>` 或 `<component name params events>` 声明。引用只有 link：视图根内、元素前的 `<link href>`（至多一个 stylesheet、任意个组件），css 的 `@link "<href>" [as Alias];`（partial 与特效）；种类不符报 `link/wrong-kind`。展开时每个文件只出现一次、各占一层，层叠为 UA < 被 link 的层 < 作者层 < 内联；删除 `<style>`、`@import`、`@-ix-effect`、`rel`。特效只由 css link，别名 PascalCase、只在本文件有效，参数写 `--<Alias>-<param>`。前缀：`-ix-` 语法扩展，`ix-` 库与引擎名字，`ix_`/`Ix` GLSL。命名：html 统称视图，注解 `@UiView`，ViewModel 子类 `*Model`，元素注解 `@UiElement`。登记：core、mc、宿主用同一 API 登记元素与组件的 Java 部分，库另登记文件根
+- **decision**: 以 `ref/D-ixchel-resource-spec-20261105.md` 为准。文件自我声明种类：css 以 `@stylesheet;`/`@partial;` 开头，html（视图）以唯一根元素 `<page>` 或 `<component name params events>` 声明。引用只有 link：视图文件顶层、根元素前的 `<link href>`（至多一个 stylesheet、任意个组件），css 的 `@link "<href>" [as Alias];`（partial 与特效）；种类不符报 `link/wrong-kind`。展开时每个文件只出现一次、各占一层，层叠为 UA < 被 link 的层 < 作者层 < 内联；删除 `<style>`、`@import`、`@-ix-effect`、`rel`。特效只由 css link，别名 PascalCase、只在本文件有效，参数写 `--<Alias>-<param>`。前缀：`-ix-` 语法扩展，`ix-` 库与引擎名字，`ix_`/`Ix` GLSL。命名：html 统称视图，注解 `@UiView`，ViewModel 子类 `*Model`，元素注解 `@UiElement`。登记：core、mc、宿主用同一 API 登记元素与组件的 Java 部分，库另登记文件根
 - **rejected**: 引用方决定文件种类（rel、补扩展名）——同一文件可被当作两种东西；保留主题层——主题只是被 link 的 partial；组件名做文件局部别名——它进入元素树，被选择器与查询观察到；特效别名加 `E` 前缀——首字母大写已专指特效
 
 ## #042 容器槽位倒置依赖：`<mc-slot>` 是占位，容器界面是接收方

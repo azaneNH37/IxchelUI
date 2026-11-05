@@ -28,7 +28,12 @@ class GoldenTest {
     /** Monospace stand-in for the vanilla font: 6px advance (7px bold), 9px line, baseline 7 at size 9. */
     static final TextMeasurer MONO = new TextMeasurer() {
         @Override
-        public float width(String text, float size, boolean bold) {
+        public boolean hasFont(String font) {
+            return true;
+        }
+
+        @Override
+        public float width(String text, float size, boolean bold, String font) {
             return text.length() * (bold ? 7 : 6) * size / 9;
         }
 
@@ -46,15 +51,22 @@ class GoldenTest {
     /** For documents without {@code background-size: auto}: every image is unknown. */
     static final ImageMeasurer NO_IMAGES = src -> null;
 
-    /** {@code <page>} and the {@code <link>} of {@link #sheet} as line 1, so view positions in {@code html} start at line 2. */
+    /** The {@code <link>} of {@link #sheet} and {@code <page>} as line 1, so view positions in {@code html} start at line 2. */
     static String linked(String html) {
-        return "<page><link href=\"t.css\"/>\n" + html + "</page>";
+        return "<link href=\"t.css\"/><page>\n" + html + "</page>";
     }
 
-    /** {@code html} as a page's content, on its first line after {@code <page>}. */
+    /** {@code html} as a page: its leading {@code <link>}s above the root, the rest as the page's content on the same line. */
     static String page(String html) {
-        return "<page>" + html + "</page>";
+        int end = 0;
+        java.util.regex.Matcher m = LEADING_LINK.matcher(html);
+        while (m.find(end) && m.start() == end) {
+            end = m.end();
+        }
+        return html.substring(0, end) + "<page>" + html.substring(end) + "</page>";
     }
+
+    private static final java.util.regex.Pattern LEADING_LINK = java.util.regex.Pattern.compile("\\s*<link [^>]*(/>|></link>)");
 
     /** Serves {@code css} as {@code t.css}, the only linked file; its first line starts after {@code @stylesheet;}. */
     static Function<String, String> sheet(String css) {
@@ -102,26 +114,26 @@ class GoldenTest {
                     paint = s.toString();
                 }
                 return "fill " + shape(c.shape()) + " clip " + n(c.clipX()) + " " + n(c.clipY()) + " " + n(c.clipWidth()) + " "
-                        + n(c.clipHeight()) + " " + paint;
+                        + n(c.clipHeight()) + " " + paint + crisp(c.crisp());
             }
 
             @Override
             public String visitBorder(DrawCommand.Border c) {
                 return "border " + shape(c.outer()) + " widths " + n(c.top()) + " " + n(c.right()) + " " + n(c.bottom()) + " "
                         + n(c.left()) + " " + argb(c.topColor()) + " " + argb(c.rightColor()) + " " + argb(c.bottomColor()) + " "
-                        + argb(c.leftColor());
+                        + argb(c.leftColor()) + crisp(c.crisp());
             }
 
             @Override
             public String visitShadow(DrawCommand.Shadow c) {
                 return (c.inset() ? "inset-shadow " : "shadow ") + shape(c.shape()) + " sigma " + n(c.sigma()) + " "
-                        + argb(c.color()) + " clip " + shape(c.clip());
+                        + argb(c.color()) + " clip " + shape(c.clip()) + crisp(c.crisp());
             }
 
             @Override
             public String visitText(DrawCommand.Text c) {
                 return "text " + n(c.x()) + " " + n(c.y()) + " " + n(c.size()) + " " + argb(c.color()) + " \"" + c.text() + "\""
-                        + (c.flags() != 0 ? " flags " + c.flags() : "");
+                        + (c.flags() != 0 ? " flags " + c.flags() : "") + (c.font() != null ? " font " + c.font() : "");
             }
 
             @Override
@@ -200,8 +212,22 @@ class GoldenTest {
         if (q.isZero()) {
             return s;
         }
-        return s + " radii " + n(q.topLeftX()) + "/" + n(q.topLeftY()) + " " + n(q.topRightX()) + "/" + n(q.topRightY()) + " "
+        String radii = s + " radii " + n(q.topLeftX()) + "/" + n(q.topLeftY()) + " " + n(q.topRightX()) + "/" + n(q.topRightY()) + " "
                 + n(q.bottomRightX()) + "/" + n(q.bottomRightY()) + " " + n(q.bottomLeftX()) + "/" + n(q.bottomLeftY());
+        var c = q.corners();
+        if (c.equals(com.azane.ixchel.core.paint.RoundRect.Corners.ROUND)) {
+            return radii;
+        }
+        return radii + " corners " + lower(c.topLeft()) + " " + lower(c.topRight()) + " " + lower(c.bottomRight()) + " "
+                + lower(c.bottomLeft());
+    }
+
+    private static String lower(Enum<?> e) {
+        return e.name().toLowerCase(Locale.ROOT);
+    }
+
+    private static String crisp(boolean crisp) {
+        return crisp ? " crisp" : "";
     }
 
     private static String filters(java.util.List<Filter> filters) {

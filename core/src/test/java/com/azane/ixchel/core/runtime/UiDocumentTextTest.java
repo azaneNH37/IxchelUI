@@ -131,8 +131,8 @@ class UiDocumentTextTest {
 
             @Override
             public StyledText styled(Object value) {
-                return new StyledText(List.of(new StyledText.Span("ab", 0xFFFF0000, StyledText.BOLD),
-                        new StyledText.Span("cd", 0, StyledText.OBFUSCATED)));
+                return new StyledText(List.of(new StyledText.Span("ab", 0xFFFF0000, StyledText.BOLD, null),
+                        new StyledText.Span("cd", 0, StyledText.OBFUSCATED, null)));
             }
         };
         UiDocument doc = UiDocument.load(GoldenTest.linked("<div><span class=\"u\" bind:text=\"'x'\"></span></div>"),
@@ -140,6 +140,67 @@ class UiDocumentTextTest {
         assertEquals("""
                 text 0 0 9 #FFFF0000 "ab" flags 5
                 text 14 0 9 #FF00FF00 "cd" flags 20""", GoldenTest.print(doc.frame(100, 100)));
+    }
+
+    @Test
+    void textTransformMapsCaseBeforeMeasuringAndIsInherited() {
+        // "STRASSE " is eight 6px glyphs, so the span starts at 48, not at the 42 of "straße ".
+        assertEquals("""
+                text 0 0 9 #FFFFFFFF "STRASSE "
+                text 48 0 9 #FFFFFFFF "X"
+                text 0 9 9 #FFFFFFFF "abc\"""", frame("""
+                <div class="u">straße <span>x</span></div>
+                <div class="l">ABC</div>
+                """, """
+                div { display: block }
+                .u { text-transform: uppercase }
+                .l { text-transform: lowercase }
+                """));
+    }
+
+    @Test
+    void fontFamilyTakesTheFirstFontTheHostHasAndAComponentFontWins() {
+        // The host has minecraft:uniform (4px glyphs) and mod:runes; other fonts are 6px.
+        com.azane.ixchel.core.text.TextMeasurer fonts = new com.azane.ixchel.core.text.TextMeasurer() {
+            @Override
+            public boolean hasFont(String font) {
+                return font.equals("minecraft:uniform") || font.equals("mod:runes");
+            }
+
+            @Override
+            public float width(String text, float size, boolean bold, String font) {
+                return text.length() * ("minecraft:uniform".equals(font) ? 4 : 6);
+            }
+
+            @Override
+            public float lineHeight(float size) {
+                return 9;
+            }
+
+            @Override
+            public float baseline(float size) {
+                return 7;
+            }
+        };
+        Bindings.TextConverter runes = new Bindings.TextConverter() {
+            @Override
+            public String plain(Object value) {
+                return String.valueOf(value);
+            }
+
+            @Override
+            public StyledText styled(Object value) {
+                return new StyledText(List.of(new StyledText.Span("ef", 0, 0, "mod:runes")));
+            }
+        };
+        UiDocument doc = UiDocument.load(GoldenTest.linked("<div>ab<span>cd</span><span bind:text=\"'x'\"></span></div>"),
+                "t.html", GoldenTest.sheet("div { display: block; font-family: missing, minecraft:uniform }"),
+                com.azane.ixchel.core.html.HtmlElements.TAGS, fonts, GoldenTest.NO_IMAGES, null, runes);
+        assertEquals("""
+                text 0 0 9 #FFFFFFFF "ab" font minecraft:uniform
+                text 8 0 9 #FFFFFFFF "cd" font minecraft:uniform
+                text 16 0 9 #FFFFFFFF "ef" font mod:runes""", GoldenTest.print(doc.frame(100, 100)));
+        assertEquals(List.of("layout/unknown-font@t.html:2:1"), DiagCodes.of(doc.diagnostics()));
     }
 
     @Test

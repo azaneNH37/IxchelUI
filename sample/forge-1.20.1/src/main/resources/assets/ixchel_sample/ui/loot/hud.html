@@ -1,5 +1,5 @@
+<link href="hud.css"/>
 <page>
-  <link href="hud.css"/>
   <div class="radar">
     <for each="labels" as="l" key="l.id"><span class="label" bind:style:left="l.left" bind:style:top="l.top" bind:style:color="l.color" bind:text="l.text"></span></for>
     <for each="edges" as="e" key="e.sector"><div class="edge" bind:style:left="e.left" bind:style:top="e.top">

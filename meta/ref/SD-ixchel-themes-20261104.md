@@ -115,9 +115,9 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#028
 |---|---|---|
 | 表面 | `--ix-<面>-bg`、`--ix-<面>-image`、`--ix-<面>-shadow`、`--ix-<面>-backdrop`；面 = `panel`、`well`、`overlay`、`control`；另有 `--ix-control-border`、`--ix-overlay-border` | `-shadow` 含框线与斜面（inset）及外投影，`-image` 是背景层列表（含 `paint()`），`-backdrop` 是 `backdrop-filter` 值；`-border` 只给 UA 保留宽度的边框（`button`、`ix-tooltip`）上色，未设为透明（TH1 补） |
 | 状态 | `--ix-hover`、`--ix-active`、`--ix-selected`、`--ix-selected-text`、`--ix-disabled-text`、`--ix-focus` | 叠色与焦点环 |
-| 文字 | `--ix-text`、`--ix-title`、`--ix-text-muted`、`--ix-text-dim`、`--ix-text-shadow`、`--ix-title-font`、`--ix-overlay-text` | `--ix-title-font` 随 TH3 |
+| 文字 | `--ix-text`、`--ix-title`、`--ix-text-muted`、`--ix-text-dim`、`--ix-text-shadow`、`--ix-title-font`、`--ix-overlay-text` | `--ix-title-font` 由 `base` 写到 `.ix-title`（`var(--ix-title-font, inherit)`），内置主题都不设 |
 | 强调与语义 | `--ix-accent`、`--ix-on-accent`、`--ix-positive`、`--ix-negative`、`--ix-warning` | |
-| 形状 | `--ix-radius`、`--ix-corner` | `--ix-corner` 为 `corner-shape` 值（§5.1），随 TH2 |
+| 形状 | `--ix-radius`、`--ix-corner` | `--ix-corner` 为 `corner-shape` 值（§5.1）；两者由 `base` 在 `:root` 给默认值（`0`、`round`）并写到四种表面，主题只改值 |
 | 动效 | `--ix-duration`、`--ix-easing` | |
 
 L3 变量的去向：`--ix-surface` → `--ix-panel-bg`；`--ix-frame` 并入 `--ix-panel-shadow`；`--ix-well` → `--ix-well-bg`；`--ix-button`、`--ix-button-frame` → `--ix-control-bg`、`--ix-control-shadow`；`--ix-button-hover` → `--ix-hover` 叠在 `--ix-control-bg` 上；`--ix-button-text` → `--ix-text`；`--ix-button-disabled-text` → `--ix-disabled-text`；`--ix-tooltip`、`--ix-tooltip-frame`、`--ix-tooltip-text` → `--ix-overlay-bg`、`--ix-overlay-shadow`、`--ix-overlay-text`。
@@ -136,8 +136,8 @@ TH1 的基底只给 L3 已有的词汇穿外观（`.ix-panel`、`.ix-title`、`b
 
 现状：圆角与阴影遮罩按每 GUI 像素多个纹素烘焙、线性过滤（`ShapeTessellator.density`），模糊与特效按物理像素计算，GUI 缩放 3–4 时显得平滑、像网页。补法：
 
-- 继承属性 `shape-rendering: auto | crisp-edges`（取 SVG 的属性名）：`crisp-edges` 时遮罩按每 GUI 像素 1 纹素烘焙、最近邻采样，圆角成阶梯，阴影模糊成逐格的像素晕。
-- GLSL 原语库加 `ix_snap(p)`，特效可对齐 GUI 像素网格。
+- 继承属性 `shape-rendering: auto | crisp-edges`（取 SVG 的属性名）：`crisp-edges` 时遮罩按每 GUI 像素 1 纹素烘焙、最近邻采样，边缘、半径与阴影外沿取整到 GUI 像素，纹素中心采样一次、不做抗锯齿；圆角成阶梯，阴影模糊成逐格的像素晕。实现为每宿主两张遮罩图集（线性、最近邻各一）。
+- GLSL 原语库加 `ix_snap(p)`：把 `p`（元素局部物理像素）移到它所在 GUI 像素的中心，`(floor(p / ix_scale) + 0.5) * ix_scale`。`crisp-edges` 不改特效的覆盖计算，特效要像素化自己调它。
 - 模糊滤镜像素化（降采样到 GUI 像素后最近邻放大）先不做，看前两项效果再定。
 
 主题在 `:root` 设置：原版、赛博开，dark、全息各自决定。
@@ -145,8 +145,12 @@ TH1 的基底只给 L3 已有的词汇穿外观（`.ix-panel`、`.ix-title`、`b
 #### 5.3 文字
 
 - `font-family` 映射到 MC 字体资源 id（`minecraft:default`、`minecraft:uniform`、`minecraft:alt` 附魔台符文、`minecraft:illageralt`，及宿主字体）：`Style.withFont` 已支持，测量与绘制改动小。
-- `text-transform: uppercase | lowercase | none`：core 文本变换，便宜。
+  - 写法：逗号分隔，字符串或裸 `ns:path`/`path`，缺省命名空间为 `minecraft`；取宿主有的第一个（`assets/<ns>/font/<path>.json` 存在），都没有用默认字体，缺失的报 `layout/unknown-font`（WARNING，每文档每字体一次）。
+- `text-transform: uppercase | lowercase | none`：core 文本变换，按 `Locale.ROOT`、测量前做；不作用于表单控件自绘的文字（`input` 值与占位、`select` 标签）与原版 `title` tooltip。
 - `letter-spacing`：需逐字绘制，代价中等，视赛博主题效果再定。
+- 装了 ModernUI（MUI，默认开启 Modern Text Engine）时的两处差异，Ixchel 不处理，写 Doc 时挪入用户文档（操作指南"加字体"与主题页）。依据读 MUI-MC 1.20.1（core 3.12.0）、1.21.1（core 3.13.0）分支源码，未在装 MUI 的实例中实测：
+  - 默认字体被替换：`minecraft:default` 去掉原版 `ascii`、`accented`、`nonlatin_european` 点阵与空格 provider，接上 MUI 选定的 TTF（默认 Inter，再回退系统字体）；`minecraft:uniform` 不加载 unifont，同样绑到该 TTF（`TextLayoutEngine` 474-494、564-585、726-735）。布局不错（测量与绘制都经 MUI），但"CSS `9px` = 原版点阵 1 倍"不再成立，`crisp-edges` 主题里形状是阶梯、文字是平滑字。像素风只对 MUI 不替换的 bitmap 字体保证（`minecraft:alt`、宿主 bitmap 字体）。
+  - 字体参数与回退：资源包 `ttf` provider 的 `size`、`oversample`、`shift`、`skip` 被忽略，统一按 `baseFontSize`（8）排版（870-886），同一页面装与不装 MUI 字号不同；不存在、加载失败或为空的 font id 不画缺字方框，而是落到 MUI 默认字体（`getFontCollection` 1205-1214）。`font-family` 列表靠 `hasFont`（字体 JSON 是否存在）选第一个，JSON 存在而 MUI 没加载时选中的是它、实际画 MUI 默认字体，后面的候选轮不到，也不报 `layout/unknown-font`。按 MUI 实际加载结果判断需要调用其内部类（`TextLayoutEngine`，无公开 API、跨版本变化），故不做。
 
 #### 5.4 内置特效
 

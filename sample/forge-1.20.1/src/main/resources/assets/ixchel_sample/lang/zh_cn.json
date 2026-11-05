@@ -292,5 +292,11 @@
   "ixchel_sample.effects.spotlight": "指向这里",
   "ixchel_sample.effects.layer_effects": "图层效果：filter 中的 -ix-paint()",
   "ixchel_sample.effects.burn": "燃尽",
-  "ixchel_sample.effects.step": "步进"
+  "ixchel_sample.effects.step": "步进",
+  "ixchel_sample.effects.shapes": "形状、文字",
+  "ixchel_sample.effects.corner_shapes": "corner-shape：round、bevel、notch、scoop、square，最后是阴影",
+  "ixchel_sample.effects.shape_auto": "shape-rendering：auto",
+  "ixchel_sample.effects.shape_crisp": "shape-rendering：crisp-edges",
+  "ixchel_sample.effects.fonts": "font-family 与 text-transform：默认、minecraft:uniform、minecraft:alt、大写",
+  "ixchel_sample.effects.font_sample": "The quick brown fox"
 }

@@ -98,7 +98,7 @@ final class EffectPrograms {
 
     /**
      * Sets what the body sees: the params from {@code values}, lengths turned to physical pixels, the
-     * size and radii of {@code shape}, the time and the pointer at {@code (mouseX, mouseY)} in the
+     * size, radii and corner shapes of {@code shape}, the time and the pointer at {@code (mouseX, mouseY)} in the
      * shape's GUI coordinates, NaN for none.
      */
     void bind(ShaderInstance s, Effect e, float[] values, RoundRect shape, float scale, float time, float mouseX, float mouseY) {
@@ -117,6 +117,10 @@ final class EffectPrograms {
         s.safeGetUniform("IxSize").set(shape.width() * scale, shape.height() * scale);
         s.safeGetUniform("IxRadius").set(Math.min(r.topLeftX(), r.topLeftY()) * scale, Math.min(r.topRightX(), r.topRightY()) * scale,
                 Math.min(r.bottomRightX(), r.bottomRightY()) * scale, Math.min(r.bottomLeftX(), r.bottomLeftY()) * scale);
+        RoundRect.Corners c = r.corners();
+        // A float first picks the float overload; the int one writes values a float uniform does not have.
+        s.safeGetUniform("IxCorner").set((float) c.topLeft().ordinal(), c.topRight().ordinal(), c.bottomRight().ordinal(),
+                c.bottomLeft().ordinal());
         s.safeGetUniform("ix_scale").set(scale);
         s.safeGetUniform("ix_time").set(time);
         boolean none = Float.isNaN(mouseX);
@@ -197,7 +201,8 @@ final class EffectPrograms {
         uniform(sb, "ix_mouse_inside", 1).append(',');
         uniform(sb, "ix_scale", 1).append(',');
         uniform(sb, "IxSize", 2).append(',');
-        uniform(sb, "IxRadius", 4);
+        uniform(sb, "IxRadius", 4).append(',');
+        uniform(sb, "IxCorner", 4);
         for (Effect.Param p : e.params()) {
             uniform(sb.append(','), p.uniform(), p.type().components());
         }
@@ -235,14 +240,14 @@ final class EffectPrograms {
         if (layer) {
             sb.append("""
                     void main() {
-                        fragColor = effect(IxLayer((IxLocal * vec4(gl_FragCoord.xy, 0.0, 1.0)).xy, IxSize, IxRadius, texCoord));
+                        fragColor = effect(IxLayer((IxLocal * vec4(gl_FragCoord.xy, 0.0, 1.0)).xy, IxSize, IxRadius, IxCorner, texCoord));
                     }
                     """);
         } else {
             sb.append("""
                     void main() {
-                        IxBox b = IxBox(texCoord * ix_scale, IxSize, IxRadius);
-                        float d = ix_sd_round_rect(b.pos, b.size, b.radius);
+                        IxBox b = IxBox(texCoord * ix_scale, IxSize, IxRadius, IxCorner);
+                        float d = ix_sd_box(b);
                         fragColor = effect(b) * clamp(0.5 - d, 0.0, 1.0);
                     }
                     """);

@@ -26,12 +26,12 @@ import java.util.Set;
  * Strict view parser: no HTML5 error recovery, never closes elements implicitly. Every problem is
  * reported to {@link Diagnostics}; parsing continues past errors so one load reports as many as it can.
  *
- * <p>A view file is one root element, {@code <page>} or {@code <component name params events>}, which
- * declares its kind; only comments and whitespace may surround it. The root is a definition, not part of
- * the tree: a page's children are its top-level elements, a component's children its body. Directly
- * inside the root, before its first element, {@code <link href="…"/>}s (self-closing, nothing but
- * {@code href}) name what the view uses: one {@code .css} file, its stylesheet ({@link ParsedView#stylesheet()}),
- * and any number of component files, whose components become usable as tags. What other files a view
+ * <p>A view file is {@code <link href="…"/>}s (self-closing, nothing but {@code href}), then one root
+ * element, {@code <page>} or {@code <component name params events>}, which declares its kind; only
+ * comments and whitespace may be between them and after the root. The links name what the view uses:
+ * one {@code .css} file, its stylesheet ({@link ParsedView#stylesheet()}), and any number of component
+ * files, whose components become usable as tags. The root is a definition, not part of the tree: a
+ * page's children are its top-level elements, a component's children its body. What other files a view
  * names and whether a linked file is of the kind its extension says are the {@link Links}' to check.
  *
  * <p>The reserved tags {@code <for each as key>}, {@code <if test>}, {@code <slot name>} and the root
@@ -57,12 +57,11 @@ public final class ViewParser {
 
     /** Where nodes being parsed sit. */
     private enum Level {
-        /** Outside the root. */
+        /** Outside the root: the links and the root. */
         DOCUMENT,
-        /** Directly in a {@code <page>}: top-level elements and links. */
+        /** Directly in a {@code <page>}: its top-level elements. */
         PAGE,
-        /** Directly in a {@code <component>}: its body and links. */
-        COMPONENT,
+        /** Anywhere else, a component's body included. */
         NESTED
     }
 
@@ -222,15 +221,15 @@ public final class ViewParser {
         boolean reserved = block || root || tag.equals("slot");
         boolean isLink = tag.equals("link");
         boolean topLevel = level == Level.PAGE;
-        boolean linkable = level == Level.PAGE || level == Level.COMPONENT;
+        boolean linkable = level == Level.DOCUMENT;
         boolean known = reserved || isLink || component != null || tags.isKnownTag(tag);
         if (!known) {
             diag.report(ViewCode.UNKNOWN_TAG, openPos, "unknown tag <" + tag + ">");
         }
         if (isLink && !linkable) {
-            diag.report(ViewCode.MISPLACED_ELEMENT, openPos, "<link> only appears directly inside the root <page> or <component>");
+            diag.report(ViewCode.MISPLACED_ELEMENT, openPos, "<link> only appears at the top of the file, before the root <page> or <component>");
         }
-        if (!isLink && level != Level.DOCUMENT) {
+        if (!isLink && level == Level.DOCUMENT) {
             sawElement = true;
         }
         if (root && level != Level.DOCUMENT) {
@@ -321,8 +320,7 @@ public final class ViewParser {
             tooltipDepth += inTooltip ? 1 : 0;
             boolean outerUntranslated = untranslated;
             untranslated = ownUntranslated;
-            Level inner = level != Level.DOCUMENT || !root ? Level.NESTED
-                    : inComponent ? Level.COMPONENT : Level.PAGE;
+            Level inner = level == Level.DOCUMENT && root && !inComponent ? Level.PAGE : Level.NESTED;
             parseNodes(children, inner);
             untranslated = outerUntranslated;
             componentDepth -= inComponent ? 1 : 0;
@@ -360,12 +358,12 @@ public final class ViewParser {
         return tag.equals("page") || tag.equals("component");
     }
 
-    /** A {@code <link href>} directly in the root: the stylesheet, or a file the {@link Links} load. */
+    /** A {@code <link href>} above the root: the stylesheet, or a file the {@link Links} load. */
     private void link(String href, SourcePos at) {
         if (href == null || href.isEmpty()) {
             diag.report(ViewCode.INVALID_LINK, at, "<link> requires an 'href' attribute");
         } else if (sawElement) {
-            diag.report(ViewCode.LINK_AFTER_ELEMENT, at, "<link> must come before the root's first element");
+            diag.report(ViewCode.LINK_AFTER_ELEMENT, at, "<link> must come before the root <page> or <component>");
         } else if (href.endsWith(CSS)) {
             if (stylesheet != null) {
                 diag.report(ViewCode.INVALID_LINK, at, "a view links at most one stylesheet; " + stylesheet.href()

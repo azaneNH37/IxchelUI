@@ -366,7 +366,7 @@ class UiDocumentHostingTest {
                 <link href="ui/panel.html"/>
                 <for each="rows" as="r" key="r"><div><if test="shown"><ui-panel></ui-panel></if></div></for>
                 """, Map.of(DIAL_FILE, DIAL, "ui/panel.html", """
-                <component name="ui-panel"><link href="dial.html"/><ui-dial label="x"></ui-dial></component>
+                <link href="dial.html"/><component name="ui-panel"><ui-dial label="x"></ui-dial></component>
                 """), m, UiHosting.of(UiRegistry.CORE, java));
         assertEquals(2, panels.size());
         assertEquals(2, dials.size());
@@ -551,7 +551,7 @@ class UiDocumentHostingTest {
                 <link href="@ixchel/test/lib/mc-dial.html"/><link href="wrap.html"/>
                 <ix-badge id="a"></ix-badge><ix-badge id="b" note="b"></ix-badge><ui-wrap id="w"></ui-wrap>
                 <mc-dial id="d" label="x"></mc-dial>
-                """, Map.of("wrap.html", "<component name=\"ui-wrap\">" + badge + "<ix-badge note=\"w\"></ix-badge></component>"),
+                """, Map.of("wrap.html", badge + "<component name=\"ui-wrap\"><ix-badge note=\"w\"></ix-badge></component>"),
                 new Page(), LIBRARY);
         doc.frame(100, 100);
         assertEquals("?", byId(doc, "a").textContent());
@@ -597,7 +597,7 @@ class UiDocumentHostingTest {
     void hostFilesUseOnlyTheLibrarysIxNames() {
         Map<String, String> files = Map.of(
                 "t.css", "@stylesheet;\n.ix-panel, .ix-pannel { --ix-panel-bg: red; --ix-panel-bgg: red; color: var(--ix-nope, red) }",
-                "c.html", "<component name=\"ui-c\"><link href=\"c.css\"/></component>",
+                "c.html", "<link href=\"c.css\"/><component name=\"ui-c\"></component>",
                 "c.css", "@stylesheet;\n:root { --c-gap: 1px }");
         String page = GoldenTest.page("<link href=\"t.css\"/><link href=\"c.html\"/>\n<ui-c></ui-c><div style=\"--ix-typo: 1\"></div>");
         com.azane.ixchel.core.style.LibraryNames vocabulary = com.azane.ixchel.core.style.LibraryNames.of(

@@ -99,7 +99,7 @@ class UiDocumentComponentTest {
                 <ui-counter id="a" bind:count="total" on:changed="last = $event"></ui-counter>
                 <ui-counter id="b" bind:count="total" label="x" bind:step="10"></ui-counter>
                 """, Map.of("page.css", "@stylesheet; ui-counter { width: 20px; height: 10px }",
-                "ui/counter.html", COUNTER.replaceFirst(">", "><link href=\"counter.css\"/>"),
+                "ui/counter.html", "<link href=\"counter.css\"/>" + COUNTER,
                 "ui/counter.css", COUNTER_CSS), m);
         doc.frame(100, 100);
         EventDispatcher ev = doc.events();
@@ -161,10 +161,10 @@ class UiDocumentComponentTest {
                 <ui-counter bind:count="total" on:changed.shift="last = 1"></ui-counter>
                 """, Map.of("counter.html", COUNTER,
                 "card.html", "<component name=\"ui-card\" events=\"done\"><button on:click=\"done; done(1)\"></button></component>",
-                "loop-a.html", "<component name=\"ui-a\"><link href=\"loop-b.html\"/></component>",
-                "loop-b.html", "<component name=\"ui-b\"><link href=\"loop-a.html\"/></component>",
+                "loop-a.html", "<link href=\"loop-b.html\"/><component name=\"ui-a\"></component>",
+                "loop-b.html", "<link href=\"loop-a.html\"/><component name=\"ui-b\"></component>",
                 "dup.html", "<component name=\"ui-card\"></component>"), new Counters()));
-        assertEquals(List.of("link/cycle@loop-b.html:1:24", "link/duplicate-component@dup.html:1:1",
+        assertEquals(List.of("link/cycle@loop-b.html:1:1", "link/duplicate-component@dup.html:1:1",
                 "binding/not-assignable@counter.html:2:31", "binding/duplicate-parameter@t.html:4:1",
                 "binding/missing-parameter@t.html:5:1", "binding/unknown-slot@t.html:6:10",
                 "binding/event-payload@card.html:1:65", "binding/unexpected-filter@t.html:7:32"), DiagCodes.of(e));
@@ -188,7 +188,7 @@ class UiDocumentComponentTest {
                 <link href="tag.html"/><link href="page.css"/>
                 <ui-tag></ui-tag>
                 """, Map.of("tag.html", """
-                <component name="ui-tag"><link href="tag.css"/>
+                <link href="tag.css"/><component name="ui-tag">
                 <span class="a">a</span><span class="b">b</span><span class="c" style="color: #00f">c</span></component>
                 """, "tag.css", "@stylesheet; .a { color: #f00 } .b { color: #0f0 !important } .c { color: #f00 }",
                 "page.css", "@stylesheet; .a { color: #00f } .c { color: #0f0 } .b { color: #f00 !important }"), new Styled());
@@ -215,7 +215,7 @@ class UiDocumentComponentTest {
                 @link "@ixchel/themes/dark.css";
                 .ix-title { color: #0f0 } .muted { color: var(--ix-text-muted) } .accent { color: var(--accent) }
                 """, "btn.html", """
-                <component name="ui-btn"><link href="btn.css"/><button class="b">b</button></component>
+                <link href="btn.css"/><component name="ui-btn"><button class="b">b</button></component>
                 """, "btn.css", "@stylesheet; ui-btn button.b { background-color: #f00; color: var(--ix-accent) }"), m);
         doc.frame(100, 100);
         assertEquals(0xE0101418, doc.querySelectorAll(".ix-panel").get(0).computed().get(CssProperties.BACKGROUND_COLOR));
@@ -259,9 +259,9 @@ class UiDocumentComponentTest {
     void eachLinkMustNameTheKindItsPlaceExpects() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("""
                 <link href="part.css"/><link href="c.html"/><ui-c></ui-c>
-                """, Map.of("part.css", "@partial;", "c.html", "<component name=\"ui-c\"><link href=\"p.html\"/></component>",
+                """, Map.of("part.css", "@partial;", "c.html", "<link href=\"p.html\"/><component name=\"ui-c\"></component>",
                 "p.html", "<page></page>"), new Styled()));
-        assertEquals(List.of("link/wrong-kind@c.html:1:24", "link/wrong-kind@t.html:1:7"), DiagCodes.of(e));
+        assertEquals(List.of("link/wrong-kind@c.html:1:1", "link/wrong-kind@t.html:1:1"), DiagCodes.of(e));
 
         UiLoadException component = assertThrows(UiLoadException.class, () -> UiDocument.load(
                 "<component name=\"ui-c\"></component>", "t.html", Map.<String, String>of()::get,

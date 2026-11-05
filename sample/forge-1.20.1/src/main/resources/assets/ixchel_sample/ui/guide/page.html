@@ -1,7 +1,7 @@
 <!-- One page of a <guide-book>; its paragraphs are <div class="text"> (display: block: an inline
      formatting context). -->
+<link href="page.css"/>
 <component name="guide-page" params="heading=''">
-  <link href="page.css"/>
   <div class="page">
     <if test="heading != ''"><span class="heading" bind:text="heading"></span></if>
     <slot></slot>

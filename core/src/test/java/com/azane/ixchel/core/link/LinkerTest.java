@@ -33,7 +33,7 @@ class LinkerTest {
     @Test
     void aFileIsAComponentFileExactlyWhenItsRootIsAComponent() {
         Map<String, String> files = Map.of(
-                "m:broken.html", "<component name=\"ui-a\"><link href=\"a.css\"/></component><div></div>",
+                "m:broken.html", "<link href=\"a.css\"/><component name=\"ui-a\"></component><div></div>",
                 "m:links.html", "<link href=\"a.css\"/>",
                 "m:page.html", "<page><div></div></page>");
         assertEquals("ui-a", Linker.declared("m:broken.html", files::get, UiHosting.NONE.library(), HtmlElements.TAGS).name(),

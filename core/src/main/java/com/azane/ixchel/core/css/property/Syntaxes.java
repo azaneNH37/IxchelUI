@@ -234,6 +234,31 @@ public final class Syntaxes {
         });
     }
 
+    /**
+     * {@code font-family}: comma-separated Minecraft font ids, each a string or written bare as
+     * {@code namespace:path} or {@code path}; a missing namespace is {@code minecraft}. Kept as full ids.
+     */
+    public static Syntax<List<String>> fontFamily() {
+        return commaList((value, pos, diag) -> {
+            String id = null;
+            if (value.size() == 1 && value.get(0) instanceof Token t && (t.is(Token.Kind.STRING) || t.is(Token.Kind.IDENT))) {
+                id = t.value();
+            } else if (value.size() == 3 && value.get(0) instanceof Token ns && ns.is(Token.Kind.IDENT)
+                    && value.get(1) instanceof Token c && c.is(Token.Kind.COLON)
+                    && value.get(2) instanceof Token path && path.is(Token.Kind.IDENT)) {
+                id = ns.value() + ":" + path.value();
+            }
+            if (id == null || id.startsWith(SPRITE)) {
+                diag.report(PropertyCode.INVALID_VALUE, pos, "expected a font id such as minecraft:uniform or \"mod:path\"");
+                return null;
+            }
+            if (resourceLocation(id, pos, diag) == null) {
+                return null;
+            }
+            return id.indexOf(':') < 0 ? "minecraft:" + id : id;
+        });
+    }
+
     /** {@code animation-iteration-count} item: a non-negative number, {@code infinite} as positive infinity. */
     public static Syntax<Float> iterationCount() {
         return (value, pos, diag) -> {

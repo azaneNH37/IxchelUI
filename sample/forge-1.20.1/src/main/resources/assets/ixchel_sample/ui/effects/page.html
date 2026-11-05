@@ -1,5 +1,5 @@
+<link href="page.css"/>
 <page>
-  <link href="page.css"/>
   <div class="screen">
     <div class="ix-panel">
       <div class="header">
@@ -9,6 +9,7 @@
           <button class="tab filters-tab" bind:class:ix-selected="tab == 'filters'" on:click="tab = 'filters'" t="ixchel_sample.effects.filters"></button>
           <button class="tab blend-tab" bind:class:ix-selected="tab == 'blend'" on:click="tab = 'blend'" t="ixchel_sample.effects.blend"></button>
           <button class="tab shaders-tab" bind:class:ix-selected="tab == 'shaders'" on:click="tab = 'shaders'" t="ixchel_sample.effects.shaders"></button>
+          <button class="tab shapes-tab" bind:class:ix-selected="tab == 'shapes'" on:click="tab = 'shapes'" t="ixchel_sample.effects.shapes"></button>
         </div>
       </div>
 
@@ -107,6 +108,38 @@
             <button class="toggle step" on:click="progress = (progress + 0.25) % 1.25" t="ixchel_sample.effects.step"></button>
             <span class="caption progress" bind:text="progress"></span>
           </div>
+        </div>
+      </div>
+
+      <div class="page" bind:class:shown="tab == 'shapes'">
+        <span class="section" t="ixchel_sample.effects.corner_shapes"></span>
+        <div class="ground shapes">
+          <span class="caption" t="ixchel_sample.effects.shape_auto"></span>
+          <div class="shape-row smooth">
+            <div class="shape round"></div>
+            <div class="shape bevel"></div>
+            <div class="shape notch"></div>
+            <div class="shape scoop"></div>
+            <div class="shape square-corner"></div>
+            <div class="shape shadowed"></div>
+          </div>
+          <span class="caption" t="ixchel_sample.effects.shape_crisp"></span>
+          <div class="shape-row crisp">
+            <div class="shape round"></div>
+            <div class="shape bevel"></div>
+            <div class="shape notch"></div>
+            <div class="shape scoop"></div>
+            <div class="shape square-corner"></div>
+            <div class="shape shadowed"></div>
+          </div>
+        </div>
+        <span class="section" t="ixchel_sample.effects.fonts"></span>
+        <div class="fonts">
+          <span class="font plain" t="ixchel_sample.effects.font_sample"></span>
+          <span class="font uniform" t="ixchel_sample.effects.font_sample"></span>
+          <span class="font alt" t="ixchel_sample.effects.font_sample"></span>
+          <span class="font upper" t="ixchel_sample.effects.font_sample"></span>
+          <span class="font codes">§c§l</span>
         </div>
       </div>
     </div>

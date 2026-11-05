@@ -188,6 +188,18 @@ public final class CssProperties {
             R.register("border-bottom-right-radius", cornerRadius(), CornerRadius.ZERO, false, false, true);
     public static final PropertyDef<CornerRadius> BORDER_BOTTOM_LEFT_RADIUS =
             R.register("border-bottom-left-radius", cornerRadius(), CornerRadius.ZERO, false, false, true);
+    /** The shape inside each corner's radius box; with a zero radius every shape is a square corner. Not animatable. */
+    public static final PropertyDef<Keywords.CornerShape> CORNER_TOP_LEFT_SHAPE =
+            R.register("corner-top-left-shape", keyword(Keywords.CornerShape.class), Keywords.CornerShape.ROUND, false, false, false);
+    public static final PropertyDef<Keywords.CornerShape> CORNER_TOP_RIGHT_SHAPE =
+            R.register("corner-top-right-shape", keyword(Keywords.CornerShape.class), Keywords.CornerShape.ROUND, false, false, false);
+    public static final PropertyDef<Keywords.CornerShape> CORNER_BOTTOM_RIGHT_SHAPE =
+            R.register("corner-bottom-right-shape", keyword(Keywords.CornerShape.class), Keywords.CornerShape.ROUND, false, false, false);
+    public static final PropertyDef<Keywords.CornerShape> CORNER_BOTTOM_LEFT_SHAPE =
+            R.register("corner-bottom-left-shape", keyword(Keywords.CornerShape.class), Keywords.CornerShape.ROUND, false, false, false);
+    /** Inherited; see {@link Keywords.ShapeRendering}. */
+    public static final PropertyDef<Keywords.ShapeRendering> SHAPE_RENDERING =
+            R.register("shape-rendering", keyword(Keywords.ShapeRendering.class), Keywords.ShapeRendering.AUTO, true, false, false);
     /** Shadows, top first; outer ones are not drawn under the border box, inset ones only inside the padding box. */
     public static final PropertyDef<List<BoxShadow>> BOX_SHADOW = R.register("box-shadow", boxShadow(), List.of(), false, false, true);
     /** Replaces the border's own drawing while it is not {@code none}; the border widths still lay out the box. */
@@ -220,6 +232,14 @@ public final class CssProperties {
     /** Bold text is wider in the vanilla font, so the weight affects layout. */
     public static final PropertyDef<FontWeight> FONT_WEIGHT = R.register("font-weight", keyword(FontWeight.class), FontWeight.NORMAL, true, true, false);
     public static final PropertyDef<FontStyle> FONT_STYLE = R.register("font-style", keyword(FontStyle.class), FontStyle.NORMAL, true, false, false);
+    /**
+     * Minecraft font ids ({@code minecraft:uniform}), the first one the host has is used; empty (the
+     * initial value) is the host's default font. A bound {@code Component}'s own font wins over it.
+     */
+    public static final PropertyDef<List<String>> FONT_FAMILY =
+            R.register("font-family", Syntaxes.fontFamily(), List.of(), true, true, false);
+    public static final PropertyDef<Keywords.TextTransform> TEXT_TRANSFORM =
+            R.register("text-transform", keyword(Keywords.TextTransform.class), Keywords.TextTransform.NONE, true, true, false);
     public static final PropertyDef<TextDecoration> TEXT_DECORATION =
             R.register("text-decoration", keyword(TextDecoration.class), TextDecoration.NONE, false, false, false);
     /** One unblurred shadow under the text, in its own color; inherited and animatable as in CSS. */
@@ -285,6 +305,8 @@ public final class CssProperties {
                 BACKGROUND_POSITION_X, BACKGROUND_POSITION_Y);
         R.registerShorthand("border-radius", borderRadius(), BORDER_TOP_LEFT_RADIUS, BORDER_TOP_RIGHT_RADIUS,
                 BORDER_BOTTOM_RIGHT_RADIUS, BORDER_BOTTOM_LEFT_RADIUS);
+        R.registerShorthand("corner-shape", Shorthand.box(keyword(Keywords.CornerShape.class)), CORNER_TOP_LEFT_SHAPE,
+                CORNER_TOP_RIGHT_SHAPE, CORNER_BOTTOM_RIGHT_SHAPE, CORNER_BOTTOM_LEFT_SHAPE);
         R.registerShorthand("border-image", borderImage(), BORDER_IMAGE_SOURCE, BORDER_IMAGE_SLICE, BORDER_IMAGE_WIDTH,
                 BORDER_IMAGE_REPEAT);
         R.registerShorthand("transition", Shorthand.transition(R),

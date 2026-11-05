@@ -26,7 +26,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LayoutEngineTest {
     private static final TextMeasurer MONO = new TextMeasurer() {
         @Override
-        public float width(String text, float size, boolean bold) {
+        public boolean hasFont(String font) {
+            return true;
+        }
+
+        @Override
+        public float width(String text, float size, boolean bold, String font) {
             return text.length() * 6;
         }
 

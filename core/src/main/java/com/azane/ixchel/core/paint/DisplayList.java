@@ -147,7 +147,8 @@ public final class DisplayList {
         @Override
         public Void visitShadow(DrawCommand.Shadow c) {
             RoundRect s = c.inset() ? c.clip() : c.shape();
-            float e = c.inset() ? 0 : 3 * c.sigma();
+            // A crisp shadow rounds its edges and reach out to whole pixels.
+            float e = c.inset() ? 0 : c.crisp() ? (float) Math.ceil(3 * c.sigma()) + 0.5f : 3 * c.sigma();
             return add(s.x() - e, s.y() - e, s.x() + s.width() + e, s.y() + s.height() + e);
         }
 

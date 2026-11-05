@@ -10,20 +10,25 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A host mod's {@link MaskAtlas} and the texture it is uploaded to, {@code <modid>:ixchel/mask_atlas},
- * shared by the host's painters: white texels whose alpha is the mask. Render thread only.
+ * A host mod's {@link MaskAtlas} and the texture it is uploaded to, shared by the host's painters:
+ * white texels whose alpha is the mask. Each host has two: {@code <modid>:ixchel/mask_atlas}, sampled
+ * linearly, and {@code <modid>:ixchel/mask_atlas_crisp} for {@code shape-rendering: crisp-edges},
+ * sampled nearest. Render thread only.
  */
 final class MaskTexture {
     private static final Map<String, MaskTexture> BY_HOST = new HashMap<>();
+    private static final Map<String, MaskTexture> CRISP_BY_HOST = new HashMap<>();
 
     final MaskAtlas atlas;
     private final ResourceLocation location;
+    private final boolean crisp;
     private DynamicTexture texture;
     /** The painter drawing now, whose pending quads a reset must draw while their masks are still there. */
     McPainter active;
 
-    private MaskTexture(String modid) {
-        location = ResourceLocation.fromNamespaceAndPath(modid, "ixchel/mask_atlas");
+    private MaskTexture(String modid, boolean crisp) {
+        this.crisp = crisp;
+        location = ResourceLocation.fromNamespaceAndPath(modid, crisp ? "ixchel/mask_atlas_crisp" : "ixchel/mask_atlas");
         atlas = new MaskAtlas(() -> {
             if (active != null) {
                 active.flushBatch();
@@ -31,8 +36,8 @@ final class MaskTexture {
         });
     }
 
-    static MaskTexture forHost(String modid) {
-        return BY_HOST.computeIfAbsent(modid, MaskTexture::new);
+    static MaskTexture forHost(String modid, boolean crisp) {
+        return (crisp ? CRISP_BY_HOST : BY_HOST).computeIfAbsent(modid, id -> new MaskTexture(id, crisp));
     }
 
     /** Uploads the texels written since the last call, registering the texture on first use. */
@@ -54,8 +59,8 @@ final class MaskTexture {
                 }
             }
             texture.bind();
-            // Linear filtering, clamped, so a mask's edge texels blend as the tessellator expects.
-            image.upload(0, x0, y0, x0, y0, w, h, true, true, false, false);
+            // Clamped; linear so a mask's edge texels blend as the tessellator expects, nearest when crisp.
+            image.upload(0, x0, y0, x0, y0, w, h, !crisp, true, false, false);
             atlas.clean();
         }
         return location;

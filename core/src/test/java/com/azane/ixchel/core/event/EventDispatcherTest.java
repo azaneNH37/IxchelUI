@@ -24,7 +24,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EventDispatcherTest {
     private static final TextMeasurer MONO = new TextMeasurer() {
         @Override
-        public float width(String text, float size, boolean bold) {
+        public boolean hasFont(String font) {
+            return true;
+        }
+
+        @Override
+        public float width(String text, float size, boolean bold, String font) {
             return text.length() * 6 * size / 9;
         }
 
@@ -58,7 +63,7 @@ class EventDispatcherTest {
             """;
 
     private static UiDocument load() {
-        UiDocument doc = UiDocument.load("<page>" + HTML + "</page>", "t.html", Map.of("t.css", CSS)::get, com.azane.ixchel.core.html.HtmlElements.TAGS, MONO, src -> null);
+        UiDocument doc = UiDocument.load(HTML.replace("/>\n", "/><page>\n") + "</page>", "t.html", Map.of("t.css", CSS)::get, com.azane.ixchel.core.html.HtmlElements.TAGS, MONO, src -> null);
         doc.frame(100, 100);
         return doc;
     }

@@ -292,5 +292,11 @@
   "ixchel_sample.effects.spotlight": "Point here",
   "ixchel_sample.effects.layer_effects": "Layer effects: -ix-paint() in filter",
   "ixchel_sample.effects.burn": "Burn",
-  "ixchel_sample.effects.step": "Step"
+  "ixchel_sample.effects.step": "Step",
+  "ixchel_sample.effects.shapes": "Shapes, text",
+  "ixchel_sample.effects.corner_shapes": "corner-shape: round, bevel, notch, scoop, square, then a shadow",
+  "ixchel_sample.effects.shape_auto": "shape-rendering: auto",
+  "ixchel_sample.effects.shape_crisp": "shape-rendering: crisp-edges",
+  "ixchel_sample.effects.fonts": "font-family and text-transform: default, minecraft:uniform, minecraft:alt, uppercase",
+  "ixchel_sample.effects.font_sample": "The quick brown fox"
 }

@@ -71,7 +71,7 @@ final class McResources {
             String ns = id.substring(0, colon);
             String path = id.substring(colon + 1);
             return ns.equals(hostModId) ? read(resources, path) : readPacked(resources, new ResourceLocation(ns, path));
-        }, tags, translations(), new McTextMeasurer(Minecraft.getInstance().font), new McImageMeasurer(resources), model, TEXT,
+        }, tags, translations(), new McTextMeasurer(Minecraft.getInstance().font, resources), new McImageMeasurer(resources), model, TEXT,
                 hosting);
         String host = name("");
         List<String> files = new ArrayList<>();
@@ -137,7 +137,7 @@ final class McResources {
             List<StyledText.Span> spans = new ArrayList<>();
             c.visit((style, text) -> {
                 if (!text.isEmpty()) {
-                    spans.add(new StyledText.Span(text, color(style), flags(style)));
+                    spans.add(new StyledText.Span(text, color(style), flags(style), font(style)));
                 }
                 return Optional.empty();
             }, Style.EMPTY);
@@ -148,6 +148,11 @@ final class McResources {
     private static int color(Style style) {
         TextColor c = style.getColor();
         return c == null ? 0 : 0xFF000000 | c.getValue();
+    }
+
+    /** The component's own font, {@code null} for the default font, which keeps the element's {@code font-family}. */
+    private static String font(Style style) {
+        return style.getFont().equals(Style.DEFAULT_FONT) ? null : style.getFont().toString();
     }
 
     private static int flags(Style style) {

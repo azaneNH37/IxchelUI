@@ -112,7 +112,7 @@ class ViewParserTest {
         assertEquals(1, page.roots().size());
         assertTrue(page.roots().get(0).parent() == null, "the root is not part of the tree");
 
-        ParsedView component = ViewParser.parse("<component name=\"x-a\"><link href=\"a.css\"/><slot></slot></component>",
+        ParsedView component = ViewParser.parse("<link href=\"a.css\"/><component name=\"x-a\"><slot></slot></component>",
                 "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
         assertFalse(diag.hasErrors(), diag.entries().toString());
         assertEquals(ParsedView.Kind.COMPONENT, component.kind());
@@ -131,27 +131,28 @@ class ViewParserTest {
     }
 
     @Test
-    void linksComeFirstInTheRootWhichKeepsOneStylesheet() {
+    void linksComeBeforeTheRootWhichKeepsOneStylesheet() {
         Diagnostics diag = new Diagnostics();
         ParsedView t = ViewParser.parse("""
-                <page>
                 <link href="a.css"/>
                 <link href="b.css"/>
+                <link rel="stylesheet" href="e.css"></link>
+                <page>
                 <div/>
                 <link href="c.css"/>
                 <div><link href="d.css"/></div>
-                <link rel="stylesheet" href="e.css"></link>
-                </page>""", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
-        assertEquals(new ParsedView.Link("a.css", new SourcePos("t.html", 2, 1)), t.stylesheet());
+                </page>
+                <link href="f.css"/>""", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag);
+        assertEquals(new ParsedView.Link("a.css", new SourcePos("t.html", 1, 1)), t.stylesheet());
         assertEquals(2, t.roots().size());
         assertTrue(el(t.roots().get(1)).children().isEmpty());
-        assertEquals(List.of("view/invalid-link@t.html:3:1", "view/link-after-element@t.html:5:1",
-                "view/misplaced-element@t.html:6:6", "view/unknown-attribute@t.html:7:7", "view/invalid-link@t.html:7:1",
-                "view/link-after-element@t.html:7:1"), DiagCodes.of(diag));
+        assertEquals(List.of("view/invalid-link@t.html:2:1", "view/unknown-attribute@t.html:3:7", "view/invalid-link@t.html:3:1",
+                "view/invalid-link@t.html:3:1", "view/misplaced-element@t.html:6:1", "view/misplaced-element@t.html:7:6",
+                "view/link-after-element@t.html:9:1"), DiagCodes.of(diag));
 
         Diagnostics unlinked = new Diagnostics();
-        ViewParser.parse("<page><link href=\"x.html\"/></page>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, unlinked);
-        assertEquals(List.of("view/link-unavailable@t.html:1:7"), DiagCodes.of(unlinked));
+        ViewParser.parse("<link href=\"x.html\"/><page></page>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, unlinked);
+        assertEquals(List.of("view/link-unavailable@t.html:1:1"), DiagCodes.of(unlinked));
     }
 
     @Test

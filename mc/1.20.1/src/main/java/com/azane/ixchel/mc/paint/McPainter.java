@@ -100,8 +100,12 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     private Batch batch = Batch.NONE;
     private ResourceLocation texture;
     private DrawCommand.Image.Filter filter = DrawCommand.Image.Filter.AUTO;
+    /** {@link #STYLES} in each font a text command names. */
+    private final Map<String, Style[]> fontStyles = new HashMap<>();
     private final MaskTexture masks;
     private final ShapeTessellator shapes;
+    private final MaskTexture crispMasks;
+    private final ShapeTessellator crispShapes;
     private final Layers layers = new Layers();
     private final OffscreenLayers offscreen = new OffscreenLayers();
     private final String modid;
@@ -122,8 +126,10 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
      */
     public McPainter(String modid, Font font, TagRegistry tags, Map<String, ElementPainter<?>> painters) {
         this.modid = modid;
-        this.masks = MaskTexture.forHost(modid);
-        this.shapes = new ShapeTessellator(masks.atlas);
+        this.masks = MaskTexture.forHost(modid, false);
+        this.shapes = new ShapeTessellator(masks.atlas, false);
+        this.crispMasks = MaskTexture.forHost(modid, true);
+        this.crispShapes = new ShapeTessellator(crispMasks.atlas, true);
         this.font = font;
         this.tags = tags;
         this.painters = Map.copyOf(painters);
@@ -155,10 +161,13 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         layers.clear();
         clipDepth = 0;
         masks.active = this;
+        crispMasks.active = this;
         list.replay(this);
         flush();
         masks.active = null;
+        crispMasks.active = null;
         shapes.endFrame();
+        crispShapes.endFrame();
         OffscreenLayers.evictIdle();
         RenderSystem.disableBlend();
         graphics = null;
@@ -236,26 +245,26 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
 
     @Override
     public Void visitFill(DrawCommand.Fill c) {
-        return shape(c);
+        return shape(c, c.crisp());
     }
 
     @Override
     public Void visitBorder(DrawCommand.Border c) {
-        return shape(c);
+        return shape(c, c.crisp());
     }
 
     @Override
     public Void visitShadow(DrawCommand.Shadow c) {
-        return shape(c);
+        return shape(c, c.crisp());
     }
 
-    private Void shape(DrawCommand c) {
-        float[] m = shapes.mesh(c);
+    private Void shape(DrawCommand c, boolean crisp) {
+        float[] m = (crisp ? crispShapes : shapes).mesh(c);
         if (m.length == 0) {
             return null;
         }
         // After the mesh: building it may have written masks, or reset the atlas and drawn the batch.
-        begin(Batch.SHAPE, masks.upload());
+        begin(Batch.SHAPE, (crisp ? crispMasks : masks).upload());
         float x0 = Float.POSITIVE_INFINITY;
         float y0 = Float.POSITIVE_INFINITY;
         float x1 = Float.NEGATIVE_INFINITY;
@@ -275,6 +284,22 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         return null;
     }
 
+    /** {@code c}'s flags as a style, in its font. */
+    private Style style(DrawCommand.Text c) {
+        if (c.font() == null) {
+            return STYLES[c.flags()];
+        }
+        Style[] styles = fontStyles.computeIfAbsent(c.font(), f -> {
+            Style[] s = new Style[STYLES.length];
+            ResourceLocation id = ResourceLocation.tryParse(f);
+            for (int i = 0; i < s.length; i++) {
+                s[i] = STYLES[i].withFont(id);
+            }
+            return s;
+        });
+        return styles[c.flags()];
+    }
+
     @Override
     public Void visitText(DrawCommand.Text c) {
         // Font draws alpha below 4 as opaque; that text is invisible, as fading text must end.
@@ -282,7 +307,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
             return null;
         }
         float scale = c.size() / VANILLA_SIZE;
-        FormattedCharSequence text = FormattedCharSequence.forward(c.text(), STYLES[c.flags()]);
+        FormattedCharSequence text = McTextMeasurer.sequence(c.text(), style(c));
         float z = 0;
         // Measuring is only needed once something is raised.
         if (!layers.isEmpty()) {

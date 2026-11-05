@@ -38,9 +38,11 @@ import dev.vfyjxf.taffy.util.MeasureFunc;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -98,8 +100,9 @@ public final class LayoutEngine {
     /**
      * A text node's characters on one line, at document coordinates; {@code y} is the top of a line of
      * the run's font. {@code span} indexes the node's {@linkplain TextNode#styled() styled spans}, -1 for plain text.
+     * {@code text} is already {@code text-transform}ed; {@code font} is a font id, {@code null} for the host's default.
      */
-    public record TextFragment(float x, float y, float size, String text, int span) {
+    public record TextFragment(float x, float y, float size, String text, int span, String font) {
     }
 
     private static final class Slot {
@@ -188,7 +191,7 @@ public final class LayoutEngine {
         }
 
         /** Adds {@code text} with whitespace collapsed, across run boundaries too; a forced line break is kept and ends a space run. */
-        void addRun(String text, float size, boolean bold, boolean nowrapRun, float lineHeight, Source source) {
+        void addRun(String text, float size, boolean bold, boolean nowrapRun, float lineHeight, String font, Source source) {
             StringBuilder sb = new StringBuilder(text.length());
             for (int i = 0; i < text.length(); i++) {
                 char c = text.charAt(i);
@@ -206,7 +209,7 @@ public final class LayoutEngine {
                 }
             }
             if (!sb.isEmpty()) {
-                items.add(new TextShaper.Run(sb.toString(), size, bold, nowrapRun, lineHeight));
+                items.add(new TextShaper.Run(sb.toString(), size, bold, nowrapRun, lineHeight, font));
                 sources.add(source);
             }
         }
@@ -235,6 +238,9 @@ public final class LayoutEngine {
     private final TextShaper shaper;
     private final int[] layoutIds;
     private final Formatting formatting;
+    private final Diagnostics diag;
+    /** The unknown fonts reported, each once per document, at the first element whose text asks for it. */
+    private final Set<String> reportedFonts = new HashSet<>();
     private final Map<Node, Slot> slots = new IdentityHashMap<>();
     private final Map<TextNode, List<TextFragment>> fragments = new IdentityHashMap<>();
     private int generation;
@@ -247,11 +253,12 @@ public final class LayoutEngine {
     private final Map<Element, NodeId> layers = new IdentityHashMap<>();
     private final Map<Element, List<NodeId>> layerChildren = new IdentityHashMap<>();
 
-    /** {@code diag} takes the inline content errors ({@link Formatting}). */
+    /** {@code diag} takes the inline content errors ({@link Formatting}) and fonts the host lacks. */
     public LayoutEngine(TextShaper shaper, PropertyRegistry registry, Diagnostics diag) {
         this.shaper = shaper;
         this.layoutIds = registry.layoutAffectingIds();
         this.formatting = new Formatting(diag);
+        this.diag = diag;
         tree.enableRounding();
     }
 
@@ -460,7 +467,7 @@ public final class LayoutEngine {
 
     /** The advance of {@code text} on one line, in a regular-weight font. */
     public float textWidth(String text, float fontSize) {
-        return shaper.width(text, fontSize, false);
+        return shaper.width(text, fontSize, false, null);
     }
 
     /** {@code null} for a text node that is not laid out: whitespace-only text between flex items. */
@@ -720,15 +727,43 @@ public final class LayoutEngine {
         float lh = lineHeight(cs);
         boolean bold = cs.get(CssProperties.FONT_WEIGHT) == Keywords.FontWeight.BOLD;
         boolean nowrap = cs.get(CssProperties.WHITE_SPACE) == Keywords.WhiteSpace.NOWRAP;
+        Keywords.TextTransform transform = cs.get(CssProperties.TEXT_TRANSFORM);
+        List<String> family = cs.get(CssProperties.FONT_FAMILY);
+        String font = shaper.font(family);
+        if (!family.isEmpty() && !family.get(0).equals(font)) {
+            reportMissingFonts(t.parent(), family, font);
+        }
         StyledText styled = t.styled();
         if (styled == null) {
-            p.addRun(t.text(), size, bold, nowrap, lh, new Source(t, -1));
+            p.addRun(transform(t.text(), transform), size, bold, nowrap, lh, font, new Source(t, -1));
             return;
         }
         List<StyledText.Span> spans = styled.spans();
         for (int k = 0; k < spans.size(); k++) {
             StyledText.Span s = spans.get(k);
-            p.addRun(s.text(), size, bold || (s.flags() & StyledText.BOLD) != 0, nowrap, lh, new Source(t, k));
+            p.addRun(transform(s.text(), transform), size, bold || (s.flags() & StyledText.BOLD) != 0, nowrap, lh,
+                    s.font() != null ? s.font() : font, new Source(t, k));
+        }
+    }
+
+    private static String transform(String text, Keywords.TextTransform transform) {
+        return switch (transform) {
+            case NONE -> text;
+            case UPPERCASE -> text.toUpperCase(Locale.ROOT);
+            case LOWERCASE -> text.toLowerCase(Locale.ROOT);
+        };
+    }
+
+    /** Reports the ids in {@code family} before {@code used} (null: the default font), which the host lacks. */
+    private void reportMissingFonts(Element e, List<String> family, String used) {
+        for (String f : family) {
+            if (f.equals(used)) {
+                return;
+            }
+            if (reportedFonts.add(f)) {
+                diag.report(LayoutCode.UNKNOWN_FONT, e.pos(), "the host has no font '" + f + "'; "
+                        + (used == null ? "the default font is used" : "'" + used + "' is used"));
+            }
         }
     }
 
@@ -986,7 +1021,7 @@ public final class LayoutEngine {
                 Source src = p.sources.get(piece.item());
                 if (p.items.get(piece.item()) instanceof TextShaper.Run r) {
                     float top = y + line.baseline() - shaper.baseline(r.size());
-                    fragments.get((TextNode) src.node()).add(new TextFragment(px, top, r.size(), piece.text(), src.span()));
+                    fragments.get((TextNode) src.node()).add(new TextFragment(px, top, r.size(), piece.text(), src.span(), r.font()));
                 } else {
                     TextShaper.Box box = (TextShaper.Box) p.items.get(piece.item());
                     end = Math.max(end, placeAtom((Element) src.node(), px, y + line.baseline() - box.ascent()));

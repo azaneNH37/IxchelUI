@@ -31,9 +31,9 @@ public final class TextShaper {
 
     /**
      * Text in one font, whitespace collapsed to single spaces; {@code nowrap}: no line breaks inside it.
-     * {@code lineHeight} is in pixels.
+     * {@code lineHeight} is in pixels; {@code font} a font id, {@code null} for the host's default.
      */
-    public record Run(String text, float size, boolean bold, boolean nowrap, float lineHeight) implements Item {
+    public record Run(String text, float size, boolean bold, boolean nowrap, float lineHeight, String font) implements Item {
     }
 
     /** An atomic box: the width of its margin box and how far that reaches above and below the baseline. */
@@ -85,6 +85,9 @@ public final class TextShaper {
     private final TextMeasurer measurer;
     private final Map<List<Item>, List<Unit>> units = new HashMap<>();
     private final Map<Key, Paragraph> paragraphs = new HashMap<>();
+    /** Each {@code font-family} list's used font, {@link #DEFAULT_FONT} for none. */
+    private final Map<List<String>, String> families = new HashMap<>();
+    private static final String DEFAULT_FONT = "";
 
     public TextShaper(TextMeasurer measurer) {
         this.measurer = measurer;
@@ -132,9 +135,28 @@ public final class TextShaper {
         return measurer.baseline(size);
     }
 
-    /** The advance of {@code text} on one line, unwrapped. */
-    public float width(String text, float size, boolean bold) {
-        return measurer.width(text, size, bold);
+    /** The advance of {@code text} on one line, unwrapped, in {@code font} ({@code null}: the default). */
+    public float width(String text, float size, boolean bold, String font) {
+        return measurer.width(text, size, bold, font);
+    }
+
+    /** The first of {@code family} ({@code font-family}) the host has; {@code null} for its default font. */
+    public String font(List<String> family) {
+        if (family.isEmpty()) {
+            return null;
+        }
+        String font = families.get(family);
+        if (font == null) {
+            font = DEFAULT_FONT;
+            for (String f : family) {
+                if (measurer.hasFont(f)) {
+                    font = f;
+                    break;
+                }
+            }
+            families.put(family, font);
+        }
+        return font.equals(DEFAULT_FONT) ? null : font;
     }
 
     /**
@@ -165,7 +187,7 @@ public final class TextShaper {
             }
             for (int end = p.text().length() - 1; end > 0; end--) {
                 String cut = p.text().substring(0, end).stripTrailing();
-                float w = measurer.width(cut, r.size(), r.bold());
+                float w = measurer.width(cut, r.size(), r.bold(), r.font());
                 if (!cut.isEmpty() && p.x() + w + e <= maxWidth) {
                     out.add(new Piece(font, cut, p.x(), w));
                     break;
@@ -182,7 +204,7 @@ public final class TextShaper {
             if (last.text() != null && last.text().endsWith(" ")) {
                 Run r = (Run) items.get(last.item());
                 String stripped = last.text().stripTrailing();
-                last = new Piece(last.item(), stripped, last.x(), measurer.width(stripped, r.size(), r.bold()));
+                last = new Piece(last.item(), stripped, last.x(), measurer.width(stripped, r.size(), r.bold(), r.font()));
                 out.set(out.size() - 1, last);
             }
             x = last.x() + last.width();
@@ -191,15 +213,16 @@ public final class TextShaper {
         return out;
     }
 
-    /** Fonts reloaded: cached widths are stale. */
+    /** Fonts reloaded: cached widths and the fonts there are are stale. */
     public void invalidate() {
         units.clear();
         paragraphs.clear();
+        families.clear();
     }
 
     private float ellipsis(List<Item> items, int run) {
         Run r = (Run) items.get(run);
-        return measurer.width(ELLIPSIS, r.size(), r.bold());
+        return measurer.width(ELLIPSIS, r.size(), r.bold(), r.font());
     }
 
     private List<Unit> units(List<Item> items) {
@@ -329,7 +352,7 @@ public final class TextShaper {
                 if (boundary && chunk >= 0) {
                     int first = s.codePointAt(chunk);
                     boolean brk = breakBefore(prevKind, prevChar, prevNowrap, first, r.nowrap());
-                    out.add(new Unit(i, chunk, k, measurer.width(s.substring(chunk, k), r.size(), r.bold()), TEXT, brk));
+                    out.add(new Unit(i, chunk, k, measurer.width(s.substring(chunk, k), r.size(), r.bold(), r.font()), TEXT, brk));
                     prevKind = TEXT;
                     prevChar = s.codePointBefore(k);
                     prevNowrap = r.nowrap();
@@ -349,7 +372,7 @@ public final class TextShaper {
                     while (e < s.length() && s.charAt(e) == ' ') {
                         e++;
                     }
-                    out.add(new Unit(i, k, e, measurer.width(s.substring(k, e), r.size(), r.bold()), SPACE, false));
+                    out.add(new Unit(i, k, e, measurer.width(s.substring(k, e), r.size(), r.bold(), r.font()), SPACE, false));
                     prevKind = SPACE;
                     prevNowrap = r.nowrap();
                     k = e;

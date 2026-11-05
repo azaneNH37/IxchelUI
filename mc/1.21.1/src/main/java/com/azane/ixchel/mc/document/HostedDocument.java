@@ -76,6 +76,8 @@ public final class HostedDocument implements AutoCloseable {
     private List<Diagnostic> loadErrors = List.of();
     private DevResources.Watcher watcher;
     private int logged;
+    /** The GUI scale the document's text was measured at; NaN before the first frame. */
+    private double guiScale = Double.NaN;
 
     static {
         // Counts while no level is loaded too; it stands still while the game is paused, as the game does.
@@ -193,6 +195,14 @@ public final class HostedDocument implements AutoCloseable {
         tooltipTarget = Float.isNaN(pointerX) || document.events().dragSource() != null ? null
                 : Tooltips.target(document.events().hitTest(pointerX, pointerY), painters);
         document.setTooltip(tooltipTarget == null ? null : Tooltips.tooltipOf(tooltipTarget), pointerX, pointerY);
+        // Under ModernUI text is laid out at the GUI scale, so its widths change with it.
+        double scale = Minecraft.getInstance().getWindow().getGuiScale();
+        if (scale != guiScale) {
+            if (!Double.isNaN(guiScale)) {
+                document.invalidateText();
+            }
+            guiScale = scale;
+        }
         displayList = document.frame(width, height);
         List<Diagnostic> entries = document.diagnostics().entries();
         for (; logged < entries.size(); logged++) {

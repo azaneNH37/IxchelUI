@@ -11,7 +11,12 @@ class TextShaperTest {
     /** One pixel per character (two bold), 10px lines with the baseline at 8. */
     private static final TextMeasurer ONE_PER_CHAR = new TextMeasurer() {
         @Override
-        public float width(String text, float size, boolean bold) {
+        public boolean hasFont(String font) {
+            return true;
+        }
+
+        @Override
+        public float width(String text, float size, boolean bold, String font) {
             return text.length() * (bold ? 2 : 1);
         }
 
@@ -33,7 +38,7 @@ class TextShaperTest {
     }
 
     private static TextShaper.Run run(String text) {
-        return new TextShaper.Run(text, 9, false, false, 10);
+        return new TextShaper.Run(text, 9, false, false, 10, null);
     }
 
     @Test
@@ -58,7 +63,7 @@ class TextShaperTest {
     @Test
     void runsBreakAcrossFontsAndNowrapRunsStayWhole() {
         TextShaper shaper = new TextShaper(ONE_PER_CHAR);
-        List<TextShaper.Item> items = List.of(run("aa "), new TextShaper.Run("bb cc", 9, true, true, 10), run(" dd"));
+        List<TextShaper.Item> items = List.of(run("aa "), new TextShaper.Run("bb cc", 9, true, true, 10, null), run(" dd"));
         // the bold nowrap run is 10px wide and cannot break inside
         assertEquals(List.of("aa", "bb cc", "dd"), lines(shaper.layout(items, 9, 10, 8)));
         assertEquals(List.of("aa |bb cc| dd"), lines(shaper.layout(items, 9, 10, 100)));

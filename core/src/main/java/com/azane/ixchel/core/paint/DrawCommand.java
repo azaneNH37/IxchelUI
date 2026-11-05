@@ -63,10 +63,11 @@ public sealed interface DrawCommand
     /**
      * Paints {@code shape} where it overlaps the clip rectangle, in {@code color} or, when
      * {@code gradient} is not {@code null}, in the gradient's colors. Hosts draw these through
-     * {@link ShapeTessellator}.
+     * {@link ShapeTessellator}. {@code crisp}: {@code shape-rendering: crisp-edges}, a mask of one
+     * unantialiased texel per GUI pixel sampled nearest (the same for borders and shadows).
      */
     record Fill(RoundRect shape, float clipX, float clipY, float clipWidth, float clipHeight, int color,
-                Gradient gradient) implements DrawCommand {
+                Gradient gradient, boolean crisp) implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitFill(this);
@@ -79,7 +80,7 @@ public sealed interface DrawCommand
      * corner is split along the line from the outer to the inner corner of the border edges.
      */
     record Border(RoundRect outer, float top, float right, float bottom, float left,
-                  int topColor, int rightColor, int bottomColor, int leftColor) implements DrawCommand {
+                  int topColor, int rightColor, int bottomColor, int leftColor, boolean crisp) implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitBorder(this);
@@ -92,7 +93,7 @@ public sealed interface DrawCommand
      * an inset one only inside it (the padding box), where it is the shadow of the area around
      * {@code shape}.
      */
-    record Shadow(RoundRect shape, float sigma, int color, boolean inset, RoundRect clip) implements DrawCommand {
+    record Shadow(RoundRect shape, float sigma, int color, boolean inset, RoundRect clip, boolean crisp) implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitShadow(this);
@@ -126,8 +127,9 @@ public sealed interface DrawCommand
     /**
      * {@code (x, y)} is the top-left of a line of the text's font; {@code size} is the font size in GUI
      * pixels. {@code flags} are {@link StyledText}'s: bold, italic, underline, strikethrough, obfuscated.
+     * {@code font} is a font id, {@code null} for the host's default font.
      */
-    record Text(float x, float y, float size, int color, String text, int flags) implements DrawCommand {
+    record Text(float x, float y, float size, int color, String text, int flags, String font) implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitText(this);

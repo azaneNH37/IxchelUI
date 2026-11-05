@@ -118,7 +118,7 @@ class LintTest {
         Path resources = tmp.resolve("resources");
         Path page = resources.resolve("assets/kitlib/ui/page.html");
         Files.createDirectories(page.getParent());
-        Files.writeString(page, "<page><link href=\"@ixchel/kitfixture/kit-gauge.html\"/>\n<div>\n"
+        Files.writeString(page, "<link href=\"@ixchel/kitfixture/kit-gauge.html\"/><page>\n<div>\n"
                 + "  <mc-kit-gauge bind:level=\"count\"></mc-kit-gauge>\n</div></page>\n", StandardCharsets.UTF_8);
         Path mcLayer = FixtureLibrary.mcLayer(tmp.resolve("mc"));
 
@@ -129,7 +129,7 @@ class LintTest {
                             .stream().map(LintTest::at).toList());
         }
         Project withoutLibrary = new Project(List.of(resources), List.of(), LintTest.class.getClassLoader());
-        assertEquals(List.of("model/unassociated-view kitlib:ui/page.html:1:1", "link/file-not-found kitlib:ui/page.html:1:7",
+        assertEquals(List.of("link/file-not-found kitlib:ui/page.html:1:1", "model/unassociated-view kitlib:ui/page.html:1:1",
                         "view/unknown-tag kitlib:ui/page.html:3:3"),
                 Lint.run(withoutLibrary, ElementDeclarations.load(withoutLibrary).tags(), Translations.NONE, Set.of())
                         .stream().map(LintTest::at).toList());

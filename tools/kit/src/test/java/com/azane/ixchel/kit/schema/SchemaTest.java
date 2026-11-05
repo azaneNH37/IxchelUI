@@ -79,7 +79,7 @@ class SchemaTest {
     @Test
     void listsShorthandsAndThemesWithTheVariablesOfTheirBases(@TempDir Path tmp) throws IOException {
         Path ui = Files.createDirectories(tmp.resolve("assets/t/ui"));
-        Files.writeString(ui.resolve("page.html"), "<page><link href=\"page.css\"/><div></div></page>");
+        Files.writeString(ui.resolve("page.html"), "<link href=\"page.css\"/><page><div></div></page>");
         Files.writeString(ui.resolve("page.css"), "@stylesheet;\n@link \"main.css\";");
         Files.writeString(ui.resolve("main.css"), "@partial;\n@link \"@ixchel/themes/dark.css\";\n:root { --ix-extra: 1px; --own: 2px }");
         Project project = new Project(List.of(tmp), List.of(), SchemaTest.class.getClassLoader());

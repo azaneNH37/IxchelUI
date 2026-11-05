@@ -1,13 +1,23 @@
 /*
  * The rules every built-in theme shares, written against the --ix-* variables the theme sets on
  * :root; a theme links this first. Visual only: no sizes, margins, padding or border widths (the
- * user agent sheet owns those), so changing themes never moves a box.
+ * user agent sheet owns those), so changing themes never moves a box. --ix-radius and --ix-corner
+ * shape the surfaces' corners (border-radius, corner-shape), --ix-title-font the title's font-family;
+ * shape-rendering and text-transform are written by each theme. Fonts and case are the exception to
+ * the boxes staying put: they change how wide text is.
  */
 @partial;
+:root {
+    --ix-radius: 0;
+    --ix-corner: round;
+}
+
 .ix-panel {
     background-color: var(--ix-panel-bg, transparent);
     background-image: var(--ix-panel-image, none);
     box-shadow: var(--ix-panel-shadow, none);
+    border-radius: var(--ix-radius);
+    corner-shape: var(--ix-corner);
     color: var(--ix-text);
 }
 
@@ -15,10 +25,13 @@
     background-color: var(--ix-well-bg, transparent);
     background-image: var(--ix-well-image, none);
     box-shadow: var(--ix-well-shadow, none);
+    border-radius: var(--ix-radius);
+    corner-shape: var(--ix-corner);
 }
 
 .ix-title {
     color: var(--ix-title);
+    font-family: var(--ix-title-font, inherit);
 }
 
 .ix-muted {
@@ -34,6 +47,8 @@ button {
     background-color: var(--ix-control-bg);
     background-image: var(--ix-control-image, none);
     box-shadow: var(--ix-control-shadow, none);
+    border-radius: var(--ix-radius);
+    corner-shape: var(--ix-corner);
     color: var(--ix-text);
     transition: background-color 120ms;
 }
@@ -57,5 +72,7 @@ ix-tooltip:open {
     background-color: var(--ix-overlay-bg);
     background-image: var(--ix-overlay-image, none);
     box-shadow: var(--ix-overlay-shadow, none);
+    border-radius: var(--ix-radius);
+    corner-shape: var(--ix-corner);
     color: var(--ix-overlay-text);
 }
