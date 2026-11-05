@@ -9,8 +9,9 @@ import com.azane.ixchel.core.diag.Diagnostics;
 import java.util.List;
 
 /**
- * Custom properties a component's stylesheet sets on {@code :root}: they would restyle the whole
- * page, which sets the tokens the component follows.
+ * Custom properties a component's stylesheet sets on {@code :root}: a component's rules reach only its
+ * own elements, never the page's top-level ones, so they set nothing; the page sets the tokens the
+ * component follows.
  */
 public final class ComponentRootTokens {
     private ComponentRootTokens() {
@@ -25,7 +26,7 @@ public final class ComponentRootTokens {
             for (Rule.Declaration d : r.declarations()) {
                 if (d.name().startsWith("--")) {
                     diag.report(StyleCode.COMPONENT_ROOT_TOKEN, d.pos(), "a component's stylesheet sets " + d.name()
-                            + " on :root, the whole page", "follow the page through var(); the page's stylesheet sets tokens");
+                            + " on :root, which is the page's and out of its reach", "follow the page through var(); the page's stylesheet sets tokens");
                 }
             }
         }

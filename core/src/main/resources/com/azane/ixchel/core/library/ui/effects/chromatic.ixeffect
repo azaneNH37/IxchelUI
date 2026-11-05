@@ -1,0 +1,14 @@
+// Splits the layer's colors: red shifted one way, blue the other, along x.
+kind layer;
+param offset { syntax: <length>; inherits: false; initial-value: 1px; }
+
+vec4 effect(IxLayer l) {
+    // uv per physical pixel along x; 0 if the layer is turned a quarter, which leaves it whole.
+    float dx = dFdx(l.pos.x);
+    float k = abs(dx) > 1e-6 ? dFdx(l.uv.x) / dx : 0.0;
+    vec2 o = vec2(offset * k, 0.0);
+    vec4 r = ix_content(l.uv - o);
+    vec4 c = ix_content(l.uv);
+    vec4 b = ix_content(l.uv + o);
+    return vec4(r.r, c.g, b.b, max(c.a, max(r.a, b.a)));
+}

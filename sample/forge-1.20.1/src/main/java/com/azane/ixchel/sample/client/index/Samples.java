@@ -8,6 +8,7 @@ import com.azane.ixchel.sample.guide.Guide;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
 import com.azane.ixchel.sample.registry.ModItems;
+import com.azane.ixchel.sample.showcase.ShowcaseScreen;
 import com.azane.ixchel.sample.quests.QuestsScreen;
 import com.azane.ixchel.sample.storage.TerminalScreen;
 import com.azane.ixchel.sample.tooltips.TooltipsScreen;
@@ -36,6 +37,7 @@ public final class Samples {
                 Sample.screen("quests", new ItemStack(Items.WRITABLE_BOOK), QuestsScreen::open),
                 Sample.screen("guide", new ItemStack(Items.BOOK), Guide::open),
                 Sample.screen("tooltips", new ItemStack(Items.NAME_TAG), TooltipsScreen::open),
-                Sample.screen("effects", new ItemStack(Items.AMETHYST_SHARD), EffectsScreen::open));
+                Sample.screen("effects", new ItemStack(Items.AMETHYST_SHARD), EffectsScreen::open),
+                Sample.screen("themes", new ItemStack(Items.PAINTING), ShowcaseScreen::open));
     }
 }

@@ -55,6 +55,8 @@
   "ixchel_sample.index.tooltips.description": "按钮、表单控件、正文术语和物品（原版、自定义、带物品自身行的自定义）上的富提示；屏幕边缘的滚动列表、嵌套、组件、倒计时和对话框。",
   "ixchel_sample.index.effects.title": "视觉效果",
   "ixchel_sample.index.effects.description": "整组透明度：重叠的方块、物品和文字作为一个整体淡化，旁边是逐个淡化的同样内容；以及连同物品一起淡出的卡片；每个滤镜函数、混合模式，以及圆角玻璃后的背景滤镜；着色器效果：流光、跟随指针的光斑、燃尽的卡片。",
+  "ixchel_sample.index.themes.title": "主题",
+  "ixchel_sample.index.themes.description": "四套内置主题（原版、暗色、全息、赛博）作用于同一张陈列页，列出所有表面与控件的各个状态；用标签页切换主题，盒子位置保持不变。",
 
   "ixchel_sample.loot.title": "附近的掉落物",
   "ixchel_sample.loot.count": "%s / %s 个掉落物",

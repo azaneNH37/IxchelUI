@@ -66,6 +66,10 @@ class EffectParserTest {
     void theLibraryEffectsParse() {
         assertEquals(Effect.Kind.BOX, parseOk("@ixchel/effects/glint.ixeffect").kind());
         assertEquals(Effect.Kind.LAYER, parseOk("@ixchel/effects/dissolve.ixeffect").kind());
+        assertEquals(Effect.Kind.LAYER, parseOk("@ixchel/effects/chromatic.ixeffect").kind());
+        assertEquals(Effect.Kind.LAYER, parseOk("@ixchel/effects/glitch.ixeffect").kind());
+        assertEquals(Effect.Kind.BOX, parseOk("@ixchel/effects/cooldown.ixeffect").kind());
+        assertEquals(Effect.Kind.BOX, parseOk("@ixchel/effects/stripes.ixeffect").kind());
     }
 
     private static Effect parseOk(String id) {

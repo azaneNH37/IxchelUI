@@ -183,20 +183,48 @@ class UiDocumentComponentTest {
     }
 
     @Test
-    void authorRulesBeatComponentRulesImportantReversesThatAndInlineBeatsBoth() {
+    void eachViewsRulesReachOnlyItsOwnElementsAndThePageWinsOnTheHostUnlessTheComponentIsImportant() {
         UiDocument doc = load("""
                 <link href="tag.html"/><link href="page.css"/>
-                <ui-tag></ui-tag>
+                <ui-tag><span class="a" id="given">g</span></ui-tag><span class="a" id="own">p</span>
                 """, Map.of("tag.html", """
-                <link href="tag.css"/><component name="ui-tag">
-                <span class="a">a</span><span class="b">b</span><span class="c" style="color: #00f">c</span></component>
-                """, "tag.css", "@stylesheet; .a { color: #f00 } .b { color: #0f0 !important } .c { color: #f00 }",
-                "page.css", "@stylesheet; .a { color: #00f } .c { color: #0f0 } .b { color: #f00 !important }"), new Styled());
-        assertEquals("""
-                text 0 0 9 #FF0000FF "a"
-                text 0 9 9 #FF00FF00 "b"
-                text 0 18 9 #FF0000FF "c"
-                """.strip(), GoldenTest.print(doc.frame(100, 100)).strip());
+                <link href="tag.css"/><component name="ui-tag"><span class="a" id="inner">a</span><slot></slot></component>
+                """, "tag.css", "@stylesheet; .a { color: #f00 } ui-tag { background-color: #f00; border-color: #f00 !important }",
+                "page.css", "@stylesheet; .a { color: #00f } ui-tag { background-color: #00f; border-color: #00f }"), new Styled());
+        doc.frame(100, 100);
+        assertEquals(0xFFFF0000, byId(doc, "inner").computed().get(CssProperties.COLOR), "the page's .a does not reach in");
+        assertEquals(0xFF0000FF, byId(doc, "own").computed().get(CssProperties.COLOR), "the component's .a does not leak out");
+        assertEquals(0xFF0000FF, byId(doc, "given").computed().get(CssProperties.COLOR), "slot content is the page's");
+        Element host = doc.querySelectorAll("ui-tag").get(0);
+        assertEquals(0xFF0000FF, host.computed().get(CssProperties.BACKGROUND_COLOR), "the page wins on the host");
+        assertEquals(0xFFFF0000, host.computed().get(CssProperties.BORDER_TOP_COLOR), "!important reverses that");
+    }
+
+    @Test
+    void thePageStylesAComponentsInsideOnlyThroughItsParts() {
+        UiDocument doc = load("""
+                <link href="bar.html"/><link href="page.css"/>
+                <ui-bar id="x"></ui-bar><ui-bar id="y"></ui-bar>
+                """, Map.of("bar.html", """
+                <link href="bar.css"/><component name="ui-bar"><div class="fill" part="fill track"></div><div class="tip"></div></component>
+                """, "bar.css", "@stylesheet; .fill { background-color: #f00; width: 5px } .tip { background-color: #f00 }",
+                "page.css", """
+                @stylesheet;
+                #x::part(fill) { background-color: #00f }
+                #y::part(track):hover { background-color: #0f0 }
+                .tip, ui-bar::part(tip) { background-color: #00f }
+                """), new Styled());
+        doc.frame(100, 100);
+        Element xFill = doc.querySelectorAll("#x .fill").get(0);
+        Element yFill = doc.querySelectorAll("#y .fill").get(0);
+        assertEquals(0xFF0000FF, xFill.computed().get(CssProperties.BACKGROUND_COLOR), "a named part of the matched host");
+        assertEquals(0xFFFF0000, yFill.computed().get(CssProperties.BACKGROUND_COLOR), "not while the part is not hovered");
+        assertEquals(0xFFFF0000, doc.querySelectorAll("#x .tip").get(0).computed().get(CssProperties.BACKGROUND_COLOR),
+                "an element no part names stays the component's");
+
+        yFill.setState(Element.HOVER, true);
+        doc.frame(100, 100);
+        assertEquals(0xFF00FF00, yFill.computed().get(CssProperties.BACKGROUND_COLOR), "a state after ::part() tests the part");
     }
 
     static final class Themed extends ViewModel {
@@ -204,7 +232,7 @@ class UiDocumentComponentTest {
     }
 
     @Test
-    void aLinkedThemeJoinsTheAuthorLayerAndItsPropertiesReachEveryElement() {
+    void aLinkedThemeReachesEveryElementBelowTheComponentsOwnRules() {
         Themed m = new Themed();
         UiDocument doc = load("""
                 <link href="btn.html"/><link href="page.css"/>
@@ -222,8 +250,8 @@ class UiDocumentComponentTest {
         assertEquals(0xFF00FF00, doc.querySelectorAll(".ix-title").get(0).computed().get(CssProperties.COLOR));
         assertEquals(0xFFAAAAAA, doc.querySelectorAll(".muted").get(0).computed().get(CssProperties.COLOR));
         Element b = doc.querySelectorAll("button").get(0);
-        assertEquals(0x30FFFFFF, b.computed().get(CssProperties.BACKGROUND_COLOR), "the theme beats a more specific component rule");
-        assertEquals(0xFFFFFFFF, b.computed().get(CssProperties.COLOR));
+        assertEquals(0xFFFF0000, b.computed().get(CssProperties.BACKGROUND_COLOR), "a component's rule beats the theme");
+        assertEquals(0xFFFFFF55, b.computed().get(CssProperties.COLOR), "the theme's tokens reach inside");
         assertEquals(0xFF0000FF, doc.querySelectorAll("ui-btn").get(0).computed().get(CssProperties.COLOR));
 
         m.accent.set("#ff0");

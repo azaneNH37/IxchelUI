@@ -15,8 +15,9 @@ import java.util.Locale;
  * {@code :hover/:active/:focus/:disabled/:checked/:open}, {@code :-ix-absent/:-ix-entering/:-ix-exiting}
  * (see {@code Presence}), {@code :root}, {@code :lang(range, …)},
  * {@code :not()}, {@code :is()} and {@code :where()} of selector lists (combinators allowed),
- * {@code ::before} and {@code ::after} at the end of a selector, descendant and child combinators,
- * selector lists. Anything else is a dev-time error.
+ * {@code ::before}, {@code ::after} and {@code ::part(name)} at the end of a selector, the last
+ * followed by any of the state pseudo-classes, descendant and child combinators, selector lists.
+ * Anything else is a dev-time error.
  */
 public final class SelectorParser {
     private final List<ComponentValue> in;
@@ -27,6 +28,9 @@ public final class SelectorParser {
     private int i;
     /** Set by {@link #compound} on reading a pseudo-element, which must end the selector. */
     private Selector.PseudoElement pseudo = Selector.PseudoElement.NONE;
+    /** The name in {@code ::part()} and the state pseudo-classes after it. */
+    private String part;
+    private int partStates;
 
     private SelectorParser(List<ComponentValue> in, SourcePos rulePos, Diagnostics diag, boolean nested) {
         this.in = in;
@@ -67,6 +71,8 @@ public final class SelectorParser {
     private Selector complex() {
         skipWs();
         pseudo = Selector.PseudoElement.NONE;
+        part = null;
+        partStates = 0;
         List<Selector.Compound> compounds = new ArrayList<>();
         List<Selector.Combinator> combinators = new ArrayList<>();
         while (true) {
@@ -98,8 +104,8 @@ public final class SelectorParser {
                 return null;
             }
         }
-        return new Selector(List.copyOf(compounds), List.copyOf(combinators), pseudo,
-                Selector.specificity(compounds, pseudo));
+        return new Selector(List.copyOf(compounds), List.copyOf(combinators), pseudo, part, partStates,
+                Selector.specificity(compounds, pseudo, partStates));
     }
 
     private Selector.Compound compound() {
@@ -123,8 +129,16 @@ public final class SelectorParser {
             ComponentValue v = in.get(i);
             if (pseudo != Selector.PseudoElement.NONE && !(v instanceof Token w && w.is(Token.Kind.WHITESPACE))
                     && !(v instanceof Token c && c.is(Token.Kind.COMMA))) {
-                diag.report(SelectorCode.MISPLACED_PSEUDO_ELEMENT, v.pos(), "a pseudo-element must end the selector");
-                return null;
+                int bit = pseudo == Selector.PseudoElement.PART && v instanceof Token colon && colon.is(Token.Kind.COLON)
+                        && i + 1 < in.size() && in.get(i + 1) instanceof Token n && n.is(Token.Kind.IDENT) ? stateBit(n.value()) : 0;
+                if (bit == 0) {
+                    diag.report(SelectorCode.MISPLACED_PSEUDO_ELEMENT, v.pos(), pseudo == Selector.PseudoElement.PART
+                            ? "only state pseudo-classes such as :hover may follow ::part()" : "a pseudo-element must end the selector");
+                    return null;
+                }
+                partStates |= bit;
+                i += 2;
+                continue;
             }
             if (v instanceof ComponentValue.Block b && b.open() == Token.Kind.LBRACKET) {
                 Selector.AttributeMatch m = attribute(b);
@@ -213,21 +227,30 @@ public final class SelectorParser {
                 List.copyOf(logical));
     }
 
-    /** Reads {@code ::before} or {@code ::after} at {@code colon}; false once reported. */
+    /** Reads {@code ::before}, {@code ::after} or {@code ::part(name)} at {@code colon}; false once reported. */
     private boolean pseudoElement(Token colon) {
         ComponentValue name = i + 2 < in.size() ? in.get(i + 2) : null;
-        if (!(name instanceof Token n && n.is(Token.Kind.IDENT))) {
+        Selector.PseudoElement p;
+        String partName = null;
+        if (name instanceof ComponentValue.Function f && f.name().equalsIgnoreCase("part")) {
+            partName = partName(f);
+            if (partName == null) {
+                return false;
+            }
+            p = Selector.PseudoElement.PART;
+        } else if (name instanceof Token n && n.is(Token.Kind.IDENT)) {
+            p = switch (n.value().toLowerCase(Locale.ROOT)) {
+                case "before" -> Selector.PseudoElement.BEFORE;
+                case "after" -> Selector.PseudoElement.AFTER;
+                default -> null;
+            };
+            if (p == null) {
+                diag.report(SelectorCode.UNSUPPORTED_PSEUDO, n.pos(), "unsupported pseudo-element ::" + n.value(),
+                        "only ::before, ::after and ::part() are supported");
+                return false;
+            }
+        } else {
             diag.report(SelectorCode.MISSING_PSEUDO_NAME, colon.pos(), "expected a pseudo-element name after '::'");
-            return false;
-        }
-        Selector.PseudoElement p = switch (n.value().toLowerCase(Locale.ROOT)) {
-            case "before" -> Selector.PseudoElement.BEFORE;
-            case "after" -> Selector.PseudoElement.AFTER;
-            default -> null;
-        };
-        if (p == null) {
-            diag.report(SelectorCode.UNSUPPORTED_PSEUDO, n.pos(), "unsupported pseudo-element ::" + n.value(),
-                    "only ::before and ::after are supported");
             return false;
         }
         if (nested) {
@@ -235,8 +258,28 @@ public final class SelectorParser {
             return false;
         }
         pseudo = p;
+        part = partName;
         i += 3;
         return true;
+    }
+
+    /** The one identifier in {@code ::part()}; {@code null} once reported. */
+    private String partName(ComponentValue.Function f) {
+        String out = null;
+        for (ComponentValue v : f.args()) {
+            if (v instanceof Token t && t.is(Token.Kind.WHITESPACE)) {
+                continue;
+            }
+            if (out != null || !(v instanceof Token t && t.is(Token.Kind.IDENT))) {
+                out = null;
+                break;
+            }
+            out = t.value();
+        }
+        if (out == null) {
+            diag.report(SelectorCode.INVALID_PART, f.pos(), "::part() takes one part name, such as ::part(hotbar)");
+        }
+        return out;
     }
 
     private static Selector.Logical logicalKind(String name) {

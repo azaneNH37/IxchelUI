@@ -95,7 +95,7 @@ button {
 }
 
 /* No gap above the hotbar: four even rows to scroll through. */
-.inventory .mc-player-inventory-hotbar {
+.inventory mc-player-inventory::part(hotbar) {
   margin-top: 0px;
 }
 

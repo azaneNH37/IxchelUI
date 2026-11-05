@@ -1,0 +1,10 @@
+// A cooldown's shade: covers the part of the box still waiting, sweeping clockwise from the top as
+// progress falls from 1 (just used) to 0 (ready).
+kind box;
+param progress { syntax: <number>; inherits: false; initial-value: 0; }
+param color    { syntax: <color>;  inherits: true;  initial-value: #000000a0; }
+
+vec4 effect(IxBox b) {
+    float left = clamp(progress, 0.0, 1.0);
+    return ix_perimeter(b) >= 1.0 - left ? color : vec4(0.0);
+}

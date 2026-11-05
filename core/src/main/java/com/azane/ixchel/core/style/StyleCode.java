@@ -19,7 +19,7 @@ public enum StyleCode implements DiagCode {
     UNKNOWN_LIBRARY_TOKEN("style/unknown-library-token", Severity.WARNING,
             "A host file sets or reads an --ix-* property no library css file of the document sets; ix- names belong to the library."),
     COMPONENT_ROOT_TOKEN("style/component-root-token", Severity.WARNING,
-            "A rule of the component layer sets a custom property on :root, which is the whole page; the page's stylesheet sets tokens.");
+            "A component's stylesheet sets a custom property on :root, which is the page's: a component's rules reach only its own elements, and the page's stylesheet sets tokens.");
 
     private final String id;
     private final Severity severity;

@@ -10,14 +10,17 @@ import java.util.Locale;
  * compound {@code i} and {@code i + 1}. Elements whose tag starts with {@code #} (the implicit
  * document root) or {@code ::} (a pseudo-element's box) never match. A selector ending in
  * {@code ::before} or {@code ::after} selects that pseudo-element of the elements its compounds
- * match: {@link #matches} is false for it, {@link #matchesOrigin} tests the element.
+ * match: {@link #matches} is false for it, {@link #matchesOrigin} tests the element. One ending in
+ * {@code ::part(name)} selects the elements of a component's view with {@code name} among their
+ * {@code part} attribute's words, in the instances whose host the compounds match, while they are
+ * in all of {@code partStates} (the state pseudo-classes written after it); the style engine finds them.
  */
 public record Selector(List<Compound> compounds, List<Combinator> combinators, PseudoElement pseudoElement,
-                       int specificity) {
+                       String part, int partStates, int specificity) {
 
     public enum Combinator { DESCENDANT, CHILD }
 
-    public enum PseudoElement { NONE, BEFORE, AFTER }
+    public enum PseudoElement { NONE, BEFORE, AFTER, PART }
 
     /** {@code :not()}, {@code :is()} and {@code :where()}. */
     public enum Logical { NOT, IS, WHERE }
@@ -128,9 +131,9 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, P
         return compounds.get(compounds.size() - 1);
     }
 
-    /** The {@link Element} state bits any of its compounds tests, inside logical pseudo-classes too. */
+    /** The {@link Element} state bits any of its compounds tests, inside logical pseudo-classes too, and its {@code partStates}. */
     public int states() {
-        int mask = 0;
+        int mask = partStates;
         for (Compound c : compounds) {
             mask |= c.stateMask;
             for (LogicalMatch m : c.logical) {
@@ -173,10 +176,11 @@ public record Selector(List<Compound> compounds, List<Combinator> combinators, P
 
     /**
      * Packed (ids, classes + attributes + pseudo-classes, tags + pseudo-element), each saturating at
-     * 1023; a logical pseudo-class adds its own specificity, as in Selectors 4.
+     * 1023; a logical pseudo-class adds its own specificity, as in Selectors 4. {@code partStates}
+     * count as pseudo-classes.
      */
-    static int specificity(List<Compound> compounds, PseudoElement pseudoElement) {
-        int ids = 0, classes = 0, tags = pseudoElement == PseudoElement.NONE ? 0 : 1;
+    static int specificity(List<Compound> compounds, PseudoElement pseudoElement, int partStates) {
+        int ids = 0, classes = Integer.bitCount(partStates), tags = pseudoElement == PseudoElement.NONE ? 0 : 1;
         for (Compound c : compounds) {
             if (c.id != null) {
                 ids++;

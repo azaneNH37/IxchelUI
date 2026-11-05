@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,11 +40,12 @@ import java.util.function.Supplier;
  *
  * <p>A view links one {@code @stylesheet} and any number of {@code <component>} files; a css file
  * links {@code @partial}s and effects with {@code @link}. A component file is loaded once however
- * many files link it. A stylesheet expands into layers depth first, each file after what it links
- * and once per expansion: the stylesheets of the component files, in load order, make the component
- * layer, the page's the author layer above it, each file a layer of its own. A file linking itself
- * through others and two files declaring the same component name are errors. An effect file linked
- * several times is read once.
+ * many files link it. A css file expands depth first, each file after what it links, each file once.
+ * The {@link Loaded#layers() layers} are every partial reached, lowest, then the views'
+ * stylesheets in load order, the components' below the page's, each file a layer of its own: a
+ * partial reaches every element, a stylesheet only the elements of the views it is the stylesheet of.
+ * A file linking itself through others and two files declaring the same component name are errors.
+ * An effect file linked several times is read once.
  *
  * <p>Each css file names the effects it links by its own {@link Aliases}; its rules, and the inline
  * styles of the views whose stylesheet it is, come out with the aliases rewritten to internal names.
@@ -63,22 +63,33 @@ public final class Linker {
     static final String EFFECT = ".ixeffect";
 
     /**
+     * A layer of the cascade: a css file and the views it serves. For a stylesheet, {@code views} are
+     * those it is the stylesheet of, whose elements its rules reach; for a partial, which reaches
+     * every element, the views whose stylesheet links it, directly or through other partials.
+     */
+    public record Layer(Sheet sheet, boolean partial, Set<String> views) {
+    }
+
+    /**
      * @param components     every component reachable from the page, by name
      * @param componentFiles the file id of each of them, by name
-     * @param componentLayer the component layer's files, lowest first
-     * @param authorLayer    the author layer's files, lowest first: the page's stylesheet last
+     * @param layers         the layers, lowest first: the partials, then the stylesheets, the page's last
      * @param effects        the texts of the effect files read, by id, in first-link order
      * @param aliases        the effect aliases of each view's stylesheet, by view id; a view without
      *                       one is absent
      * @param files          the ids of the page and every file read for it through the host, in first-read order
      */
     public record Loaded(ParsedView page, Map<String, ComponentDef> components, Map<String, String> componentFiles,
-                         List<Sheet> componentLayer, List<Sheet> authorLayer, Map<String, String> effects,
+                         List<Layer> layers, Map<String, String> effects,
                          Map<String, Aliases> aliases, List<String> files) {
         /** The effect aliases of the stylesheet of the view {@code id}. */
         public Aliases aliasesOf(String id) {
             return aliases.getOrDefault(id, Aliases.NONE);
         }
+    }
+
+    /** A layer being collected: its file and the views seen so far. */
+    private record Collecting(Sheet sheet, Set<String> views) {
     }
 
     private final Function<String, String> read;
@@ -90,8 +101,10 @@ public final class Linker {
     private final Map<String, String> fileOfName = new HashMap<>();
     private final Map<String, ComponentDef> components = new LinkedHashMap<>();
     private final Deque<String> loading = new ArrayDeque<>();
-    private final List<Sheet> componentLayer = new ArrayList<>();
-    private final Set<String> inComponentLayer = new HashSet<>();
+    private final Map<String, Collecting> partials = new LinkedHashMap<>();
+    private final Map<String, Collecting> stylesheets = new LinkedHashMap<>();
+    /** The files each css file expands into, lowest first, itself last, by id; once expanded. */
+    private final Map<String, List<Sheet>> expansions = new HashMap<>();
     /** Each css file parsed, by id; {@code null} when it cannot be read. */
     private final Map<String, Sheet> sheets = new HashMap<>();
     private final Set<String> files = new LinkedHashSet<>();
@@ -123,11 +136,12 @@ public final class Linker {
             diag.report(LinkCode.WRONG_KIND, new SourcePos(id, 1, 1), "'" + id + "' is a component, not a page;"
                     + " a screen or HUD shows a <page>");
         }
-        List<Sheet> author = new ArrayList<>();
-        l.stylesheet(id, page, author, new HashSet<>());
-        return new Loaded(page, Map.copyOf(l.components), Map.copyOf(l.fileOfName), List.copyOf(l.componentLayer),
-                List.copyOf(author), Collections.unmodifiableMap(l.effects), Map.copyOf(l.viewAliases),
-                List.copyOf(l.files));
+        l.stylesheet(id, page);
+        List<Layer> layers = new ArrayList<>(l.partials.size() + l.stylesheets.size());
+        l.partials.values().forEach(c -> layers.add(new Layer(c.sheet(), true, Set.copyOf(c.views()))));
+        l.stylesheets.values().forEach(c -> layers.add(new Layer(c.sheet(), false, Set.copyOf(c.views()))));
+        return new Loaded(page, Map.copyOf(l.components), Map.copyOf(l.fileOfName), List.copyOf(layers),
+                Collections.unmodifiableMap(l.effects), Map.copyOf(l.viewAliases), List.copyOf(l.files));
     }
 
     /**
@@ -144,7 +158,7 @@ public final class Linker {
     }
 
     /**
-     * The layers the css file {@code id} expands into, lowest first, itself last, loaded as a link to
+     * The files the css file {@code id} expands into, lowest first, itself last, loaded as a link to
      * it would load them; empty if it cannot be read. Problems are not reported; a page linking the
      * file reports them.
      *
@@ -152,9 +166,7 @@ public final class Linker {
      */
     public static List<Sheet> expand(String id, Function<String, String> read, Library library) {
         Linker l = new Linker(read, library, TagRegistry.builder().build(), Translations.NONE, new Diagnostics());
-        List<Sheet> out = new ArrayList<>();
-        l.expand(id, id, new SourcePos(id, 1, 1), null, out, new HashSet<>(), new ArrayDeque<>());
-        return List.copyOf(out);
+        return l.expand(id, id, new SourcePos(id, 1, 1), null, new ArrayDeque<>());
     }
 
     /** The components the file {@code from} links. */
@@ -210,7 +222,7 @@ public final class Linker {
             diag.report(LinkCode.WRONG_KIND, at, "'" + href + "' is a page, not a component");
             return null;
         }
-        stylesheet(id, t, componentLayer, inComponentLayer);
+        stylesheet(id, t);
         ComponentDef def = t.component();
         if (def == null) {
             return null;
@@ -226,15 +238,18 @@ public final class Linker {
     }
 
     /**
-     * Adds the layers of the stylesheet the view {@code from} links to {@code layer}, skipping files
-     * in {@code seen}, and rewrites the view's inline styles with the stylesheet's aliases.
+     * Collects the layers of the stylesheet the view {@code from} links, counting {@code from} among
+     * the views of each, and rewrites the view's inline styles with the stylesheet's aliases.
      */
-    private void stylesheet(String from, ParsedView view, List<Sheet> layer, Set<String> seen) {
+    private void stylesheet(String from, ParsedView view) {
         ParsedView.Link link = view.stylesheet();
         String id = link == null ? null : id(from, link.href(), link.pos());
         Aliases aliases = Aliases.NONE;
         if (id != null) {
-            expand(id, link.href(), link.pos(), ParsedSheet.Kind.STYLESHEET, layer, seen, new ArrayDeque<>());
+            for (Sheet s : expand(id, link.href(), link.pos(), ParsedSheet.Kind.STYLESHEET, new ArrayDeque<>())) {
+                (s.id().equals(id) ? stylesheets : partials)
+                        .computeIfAbsent(s.id(), k -> new Collecting(s, new LinkedHashSet<>())).views().add(from);
+            }
             Sheet sheet = sheets.get(id);
             if (sheet != null && sheet.sheet().kind() != ParsedSheet.Kind.PARTIAL) {
                 aliases = sheet.aliases();
@@ -259,31 +274,31 @@ public final class Linker {
     }
 
     /**
-     * Adds the css file {@code id} to {@code layer} after the partials it links, depth first,
-     * skipping files in {@code seen}; {@code kind} is what the linking file expects it to be,
-     * {@code null} for anything.
+     * The css file {@code id} after the partials it links, depth first, each file once; empty when
+     * it cannot be read or is not the {@code kind} the linking file expects ({@code null} for
+     * anything). A file is expanded once; later links reuse the result.
      */
-    private void expand(String id, String href, SourcePos at, ParsedSheet.Kind kind, List<Sheet> layer,
-                        Set<String> seen, Deque<String> chain) {
+    private List<Sheet> expand(String id, String href, SourcePos at, ParsedSheet.Kind kind, Deque<String> chain) {
         if (chain.contains(id)) {
             diag.report(LinkCode.CYCLE, at, "'" + href + "' links back to itself through " + String.join(" <- ", chain));
-            return;
-        }
-        if (seen.contains(id)) {
-            return;
+            return List.of();
         }
         Sheet linked = sheet(id, href, at);
         if (linked == null) {
-            return;
+            return List.of();
         }
         ParsedSheet sheet = linked.sheet();
         if (kind != null && sheet.kind() != null && sheet.kind() != kind) {
             diag.report(LinkCode.WRONG_KIND, at, "'" + href + "' is " + (sheet.kind() == ParsedSheet.Kind.PARTIAL
                     ? "a @partial; a view links a @stylesheet and its stylesheet links the partial"
                     : "a @stylesheet; a css file links only @partial files"));
-            return;
+            return List.of();
         }
-        seen.add(id);
+        List<Sheet> done = expansions.get(id);
+        if (done != null) {
+            return done;
+        }
+        Map<String, Sheet> out = new LinkedHashMap<>();
         chain.push(id);
         for (ParsedSheet.Link l : sheet.links()) {
             if (l.href().endsWith(EFFECT)) {
@@ -294,14 +309,19 @@ public final class Linker {
                 continue;
             }
             if (l.href().endsWith(CSS)) {
-                expand(partial, l.href(), l.pos(), ParsedSheet.Kind.PARTIAL, layer, seen, chain);
+                for (Sheet s : expand(partial, l.href(), l.pos(), ParsedSheet.Kind.PARTIAL, chain)) {
+                    out.putIfAbsent(s.id(), s);
+                }
             } else {
                 diag.report(LinkCode.WRONG_KIND, l.pos(), "a css file links " + CSS + " partials and " + EFFECT
                         + " effects, not '" + l.href() + "'");
             }
         }
         chain.pop();
-        layer.add(linked);
+        out.putIfAbsent(id, linked);
+        done = List.copyOf(out.values());
+        expansions.put(id, done);
+        return done;
     }
 
     /**

@@ -1,24 +1,38 @@
-/* The dark overlay look: translucent near-black panels with white text and yellow titles. */
+/*
+ * The dark overlay look: translucent near-black panels over a blurred world, thin light edges, small
+ * rounded corners, white text and yellow titles, short eased transitions.
+ */
 @partial;
 @link "base.css";
 
 :root {
     --ix-panel-bg: #101418E0;
+    --ix-panel-shadow: 0 0 0 1px #FFFFFF20, 0 2px 6px #00000080;
+    --ix-panel-backdrop: blur(4px);
     --ix-well-bg: #00000060;
+    --ix-well-border: #FFFFFF30;
     --ix-control-bg: #FFFFFF30;
+    --ix-control-border: transparent;
     --ix-overlay-bg: #101418F0;
     --ix-overlay-border: #FFFFFF30;
+    --ix-overlay-shadow: 0 2px 6px #00000080;
     --ix-overlay-text: #FFFFFF;
     --ix-hover: #FFFFFF20;
+    --ix-active: #FFFFFF40;
     --ix-selected: #E0E0E0;
     --ix-selected-text: #202020;
     --ix-disabled-text: #777777;
+    --ix-focus: #FFFF55;
     --ix-text: #FFFFFF;
     --ix-title: #FFFF55;
     --ix-text-muted: #AAAAAA;
     --ix-text-dim: #777777;
     --ix-accent: #FFFF55;
+    --ix-on-accent: #202020;
     --ix-positive: #55FF55;
     --ix-negative: #FF5555;
     --ix-warning: #FFAA00;
+    --ix-radius: 3px;
+    --ix-duration: 120ms;
+    --ix-easing: ease-out;
 }

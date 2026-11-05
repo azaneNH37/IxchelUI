@@ -9,7 +9,7 @@ import java.util.Set;
 /** Immutable vocabulary of runtime elements. ParsedView syntax is not part of this registry. */
 public final class TagRegistry {
     public static final Set<String> GLOBAL_ATTRIBUTES = Set.of("class", "id", "style", "tabindex", "disabled", "title",
-            "lang", "translate", "mark", "draggable");
+            "lang", "translate", "mark", "draggable", "part");
     private final Map<String, ElementType> types;
 
     private TagRegistry(Map<String, ElementType> types) { this.types = types; }

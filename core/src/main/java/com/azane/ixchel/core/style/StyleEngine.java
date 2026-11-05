@@ -34,6 +34,13 @@ import java.util.WeakHashMap;
  * {@linkplain Element#boundStyle() bound values} are inline declarations that replace the
  * {@code style} attribute's declarations of the same properties.
  *
+ * <p>A layer with a {@linkplain Layer#scope() scope} reaches only the elements of those views: an
+ * element belongs to the view its {@linkplain Element#pos() position} is in (slot content to the view
+ * that wrote it), and a component's host to the component's view as well. Only the element a
+ * selector selects is checked; its ancestors may be anyone's. A {@code ::part(name)} rule reaches the
+ * elements of a component's view whose {@code part} names it, through the host of their instance:
+ * the scope and the compounds are checked on the host.
+ *
  * <p>Custom properties cascade the same way and always inherit. Once an element's custom properties
  * are known, the {@code var()}s in their values and then in its other declarations are substituted;
  * a custom property whose {@code var()} cannot be resolved, or that refers to itself through others,
@@ -46,8 +53,13 @@ import java.util.WeakHashMap;
  * It is restyled whenever its element is.
  */
 public final class StyleEngine {
-    /** {@code layer}: 0 for the user agent, then one per sheet, the normal declarations' order. */
-    private record Entry(Selector selector, Declarations.Compiled declarations, int layer, int specificity, int order) {
+    /** A sheet and the views whose elements its rules reach; an empty scope reaches every element. */
+    public record Layer(StyleSheet sheet, Set<String> scope) {
+    }
+
+    /** {@code layer}: 0 for the user agent, then one per sheet, the normal declarations' order; {@code scope} {@code null} for everywhere. */
+    private record Entry(Selector selector, Declarations.Compiled declarations, int layer, int specificity, int order,
+                         Set<String> scope) {
     }
 
     /** An element's compiled {@code style} attribute and the list it was compiled from. */
@@ -92,6 +104,10 @@ public final class StyleEngine {
     private final Index elements = new Index();
     private final Index before = new Index();
     private final Index after = new Index();
+    /** The {@code ::part()} rules, by part name. */
+    private final Map<String, List<Entry>> parts = new HashMap<>();
+    /** The file of each component's view, by its tag: a host belongs to that view too. */
+    private final Map<String, String> hosts;
     /** The {@link Element} state bits some selector tests. */
     private int states;
     private final Map<String, Keyframes> keyframes = new HashMap<>();
@@ -111,42 +127,98 @@ public final class StyleEngine {
 
     /** {@code diag} receives errors from inline styles, compiled when an element is restyled with a new one. */
     public StyleEngine(PropertyRegistry registry, List<StyleSheet> sheets, Diagnostics diag) {
-        this(registry, List.of(), sheets, diag, (e, previous, next, cascade) -> {
-        });
+        this(registry, List.of(), sheets.stream().map(s -> new Layer(s, Set.of())).toList(), Map.of(), diag,
+                (e, previous, next, cascade) -> {
+                });
     }
 
     /**
-     * @param userAgent sheets below every other, sharing one layer, such as the form controls' defaults
+     * @param userAgent sheets below every other, sharing one layer, reaching every element, such as
+     *                  the form controls' defaults
      * @param layers    the other sheets, each a layer above those before it
+     * @param hosts     the file of each component's view, by the component's tag
      * @param diag      also receives declarations found invalid after {@code var()} substitution
      */
-    public StyleEngine(PropertyRegistry registry, List<StyleSheet> userAgent, List<StyleSheet> layers,
-                       Diagnostics diag, Hook hook) {
+    public StyleEngine(PropertyRegistry registry, List<StyleSheet> userAgent, List<Layer> layers,
+                       Map<String, String> hosts, Diagnostics diag, Hook hook) {
         this.registry = registry;
         this.hook = hook;
         this.diag = diag;
-        index(userAgent, 0);
+        this.hosts = hosts;
+        index(userAgent, 0, null);
         for (int k = 0; k < layers.size(); k++) {
-            index(List.of(layers.get(k)), k + 1);
+            Layer l = layers.get(k);
+            index(List.of(l.sheet()), k + 1, l.scope().isEmpty() ? null : l.scope());
         }
     }
 
-    private void index(List<StyleSheet> sheets, int layer) {
+    private void index(List<StyleSheet> sheets, int layer, Set<String> scope) {
         int order = 0;
         for (StyleSheet sheet : sheets) {
             int base = order;
             for (StyleSheet.StyleRule r : sheet.rules()) {
-                Entry e = new Entry(r.selector(), r.declarations(), layer, r.selector().specificity(), base + r.order());
+                Selector s = r.selector();
+                Entry e = new Entry(s, r.declarations(), layer, s.specificity(), base + r.order(), scope);
                 order = Math.max(order, e.order + 1);
-                states |= r.selector().states();
-                switch (r.selector().pseudoElement()) {
+                states |= s.states();
+                switch (s.pseudoElement()) {
                     case NONE -> elements.add(e);
                     case BEFORE -> before.add(e);
                     case AFTER -> after.add(e);
+                    case PART -> parts.computeIfAbsent(s.part(), k -> new ArrayList<>()).add(e);
                 }
             }
             keyframes.putAll(sheet.keyframes());
         }
+    }
+
+    /** Whether {@code e} belongs to a view {@code rule} reaches. */
+    private boolean reaches(Entry rule, Element e) {
+        if (rule.scope == null || rule.scope.contains(e.pos().file())) {
+            return true;
+        }
+        String view = hosts.get(e.tag());
+        return view != null && rule.scope.contains(view);
+    }
+
+    /** The host of the component instance whose view wrote {@code e}; {@code null} for an element of the page. */
+    private Element instanceHost(Element e) {
+        String view = e.pos().file();
+        for (Element a = e.parent(); a != null; a = a.parent()) {
+            if (view.equals(hosts.get(a.tag()))) {
+                return a;
+            }
+        }
+        return null;
+    }
+
+    /** Adds to {@code out} the {@code ::part()} rules that select {@code e}. */
+    private void collectParts(Element e, List<Entry> out) {
+        String names = parts.isEmpty() ? null : e.attribute("part");
+        Element host = names == null ? null : instanceHost(e);
+        if (host == null) {
+            return;
+        }
+        for (String name : names.trim().split("\\s+")) {
+            List<Entry> candidates = parts.get(name);
+            if (candidates == null) {
+                continue;
+            }
+            for (Entry c : candidates) {
+                if (reaches(c, host) && inStates(e, c.selector.partStates()) && c.selector.matchesOrigin(host) && !out.contains(c)) {
+                    out.add(c);
+                }
+            }
+        }
+    }
+
+    private static boolean inStates(Element e, int mask) {
+        for (int bit = 1; bit != 0 && bit <= mask; bit <<= 1) {
+            if ((mask & bit) != 0 && !e.hasState(bit)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Whether some rule's selector tests one of the {@link Element} state bits in {@code mask}. */
@@ -194,6 +266,7 @@ public final class StyleEngine {
                 ComputedStyle previous = e.computed();
                 Declarations.Compiled inline = inline(e);
                 elements.collect(e, false, scratch);
+                collectParts(e, scratch);
                 ComputedStyle next = compute(e, inline, parent.computed());
                 cascade.parent = parent.computed();
                 hook.computed(e, previous, next, cascade);
@@ -402,7 +475,7 @@ public final class StyleEngine {
     }
 
     /** Rules by their rightmost compound's id, else first class, else tag, else none. */
-    private static final class Index {
+    private final class Index {
         private final Map<String, List<Entry>> byId = new HashMap<>();
         private final Map<String, List<Entry>> byClass = new HashMap<>();
         private final Map<String, List<Entry>> byTag = new HashMap<>();
@@ -439,12 +512,12 @@ public final class StyleEngine {
             collect(universal, e, origin, out);
         }
 
-        private static void collect(List<Entry> candidates, Element e, boolean origin, List<Entry> out) {
+        private void collect(List<Entry> candidates, Element e, boolean origin, List<Entry> out) {
             if (candidates == null) {
                 return;
             }
             for (Entry c : candidates) {
-                if (origin ? c.selector.matchesOrigin(e) : c.selector.matches(e)) {
+                if (reaches(c, e) && (origin ? c.selector.matchesOrigin(e) : c.selector.matches(e))) {
                     out.add(c);
                 }
             }

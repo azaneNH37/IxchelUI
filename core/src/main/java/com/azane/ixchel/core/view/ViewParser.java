@@ -51,7 +51,7 @@ public final class ViewParser {
     private static final Set<String> MOVED = Set.of("each", "as", "key", "if");
     /** Names a parameter or event cannot take: they are attributes or targets of the component's element. */
     private static final Set<String> SHELL_NAMES = Set.of("class", "id", "style", "tabindex", "disabled", "title",
-            "lang", "translate", "mark", "draggable", "text", "scrolltop", "slot", "t");
+            "lang", "translate", "mark", "draggable", "part", "text", "scrolltop", "slot", "t");
     /** The attributes {@code t:<attribute>} translates, besides a component's parameters. */
     private static final Set<String> TRANSLATABLE = Set.of("title", "placeholder");
 

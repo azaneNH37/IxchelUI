@@ -94,9 +94,9 @@ public final class Components {
                     files.add(f);
                 }
             }
-            for (Linker.Sheet sheet : loaded.authorLayer()) {
-                if (sheet.sheet().kind() == ParsedSheet.Kind.PARTIAL && !Library.isLibrary(sheet.id())) {
-                    themes.add(sheet.id());
+            for (Linker.Layer layer : loaded.layers()) {
+                if (layer.partial() && layer.views().contains(id) && !Library.isLibrary(layer.sheet().id())) {
+                    themes.add(layer.sheet().id());
                 }
             }
             for (ComponentDef def : loaded.components().values()) {

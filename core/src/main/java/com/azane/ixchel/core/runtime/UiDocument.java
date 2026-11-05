@@ -40,7 +40,6 @@ import com.azane.ixchel.core.text.TextMeasurer;
 import com.azane.ixchel.core.text.TextShaper;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,11 +57,11 @@ import java.util.function.LongSupplier;
  * style or layout. The caret of a focused {@code <input>} blinks every {@value #BLINK_MS} ms,
  * restarting visible on each edit or move.
  *
- * <p>The page's stylesheet and the partials it links make the author layer; below it sits the
- * component layer, the stylesheets of the component files with their partials (see {@link Linker}),
- * and below that a user-agent stylesheet with the defaults of the inline elements, the native
- * elements, the form controls, {@code <dialog>}, {@code <ix-tooltip>} and {@code <ix-drag-preview>}
- * (see {@link UserAgentSheets}).
+ * <p>Above a user-agent stylesheet with the defaults of the inline elements, the native elements,
+ * the form controls, {@code <dialog>}, {@code <ix-tooltip>} and {@code <ix-drag-preview>} (see
+ * {@link UserAgentSheets}) come the partials, reaching every element, then the components'
+ * stylesheets and the page's, each reaching only its own view's elements and hosts (see
+ * {@link Linker} and {@link StyleEngine}).
  * Open selects and dialogs, and the tooltip or drag preview shown at the pointer, live in the
  * document's {@link TopLayer}, which layout, paint and input share.
  *
@@ -221,7 +220,7 @@ public final class UiDocument {
     }
 
     /** A page and its stylesheets parsed, its roots under the implicit document root. */
-    private record Parsed(Linker.Loaded loaded, Effects effects, Element root, List<StyleSheet> layers) {
+    private record Parsed(Linker.Loaded loaded, Effects effects, Element root, List<StyleEngine.Layer> layers) {
         StyleEngine style(TagRegistry tags, Diagnostics diag, Animations animations, Transitions transitions) {
             List<StyleSheet> userAgent = new ArrayList<>(List.of(UserAgentSheets.USER_AGENT));
             userAgent.addAll(UserAgentSheets.drawnElements(tags));
@@ -231,7 +230,7 @@ public final class UiDocument {
                 animations.computed(e, previous, next, cascade);
                 transitions.computed(e, previous, next, cascade);
             };
-            return new StyleEngine(effects.registry(), userAgent, layers, diag, hook);
+            return new StyleEngine(effects.registry(), userAgent, layers, loaded.componentFiles(), diag, hook);
         }
     }
 
@@ -241,22 +240,16 @@ public final class UiDocument {
         Linker.Loaded loaded = Linker.load(page, pageFile, files, hosting.library(), tags,
                 translations, diag);
         Effects effects = Effects.load(loaded.effects(), CssProperties.REGISTRY, diag);
-        // a partial both layers use is compiled once
-        Map<String, StyleSheet> compiled = new HashMap<>();
-        List<StyleSheet> layers = new ArrayList<>(loaded.componentLayer().size() + loaded.authorLayer().size());
-        for (List<Linker.Sheet> layer : List.of(loaded.componentLayer(), loaded.authorLayer())) {
-            boolean component = layer == loaded.componentLayer();
-            for (Linker.Sheet s : layer) {
-                layers.add(compiled.computeIfAbsent(s.id(), id -> {
-                    if (component) {
-                        ComponentRootTokens.check(s.sheet(), diag);
-                    }
-                    if (vocabulary != null) {
-                        vocabulary.check(s.id(), s.sheet(), diag);
-                    }
-                    return compile(s, effects, diag);
-                }));
+        List<StyleEngine.Layer> layers = new ArrayList<>(loaded.layers().size());
+        for (Linker.Layer l : loaded.layers()) {
+            Linker.Sheet s = l.sheet();
+            if (!l.partial() && !l.views().contains(pageFile)) {
+                ComponentRootTokens.check(s.sheet(), diag);
             }
+            if (vocabulary != null) {
+                vocabulary.check(s.id(), s.sheet(), diag);
+            }
+            layers.add(new StyleEngine.Layer(compile(s, effects, diag), l.partial() ? Set.of() : l.views()));
         }
         if (vocabulary != null) {
             vocabulary.inline(loaded.page().roots(), diag);

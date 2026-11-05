@@ -1,0 +1,27 @@
+// Now and then, for a moment, cuts the layer into strips and shifts some of them sideways, their red
+// and blue apart.
+kind layer;
+param shift  { syntax: <length>; inherits: false; initial-value: 3px; } // the farthest a strip moves
+param strip  { syntax: <length>; inherits: false; initial-value: 3px; } // strip height
+param chance { syntax: <number>; inherits: false; initial-value: 0.08; } // of each 1/15 s glitching
+
+vec4 effect(IxLayer l) {
+    vec4 c = ix_content(l.uv);
+    float tick = floor(ix_time * 15.0);
+    if (ix_hash(vec2(tick, 7.0)) >= chance) {
+        return c;
+    }
+    float band = floor(l.pos.y / max(strip, 1.0));
+    float h = ix_hash(vec2(band, tick));
+    if (h < 0.5) {
+        return c;
+    }
+    float dx = dFdx(l.pos.x);
+    float k = abs(dx) > 1e-6 ? dFdx(l.uv.x) / dx : 0.0;
+    float s = floor((h - 0.75) * 4.0 * shift / ix_scale + 0.5) * ix_scale;
+    vec2 o = vec2(s * k, 0.0);
+    vec4 r = ix_content(l.uv - o * 1.5);
+    vec4 g = ix_content(l.uv - o);
+    vec4 b = ix_content(l.uv - o * 0.5);
+    return vec4(r.r, g.g, b.b, max(g.a, max(r.a, b.a)));
+}

@@ -1,0 +1,76 @@
+/* The showcase's layout only: sizes and gaps, the same under every theme. The title has a fixed width
+   so an upper-case or wider title font leaves the boxes where they are. */
+@stylesheet;
+@link "@ixchel/effects/cooldown.ixeffect";
+
+theme-showcase {
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.sheet {
+  width: 330px;
+  padding: 8px;
+  gap: 5px;
+}
+
+.tabs,
+.row {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab {
+  width: 50px;
+}
+
+.heading {
+  width: 200px;
+}
+
+.rule {
+  height: 1px;
+}
+
+.field {
+  width: 80px;
+}
+
+.slider {
+  width: 80px;
+}
+
+.choice {
+  width: 70px;
+}
+
+.slot {
+  width: 18px;
+  height: 18px;
+}
+
+/* A cooldown sweeping round, over and over. */
+.cooldown {
+  background-image: paint(Cooldown);
+  animation: showcase-cooldown 3s linear infinite;
+}
+
+@keyframes showcase-cooldown {
+  from { --Cooldown-progress: 1; }
+  to { --Cooldown-progress: 0; }
+}
+
+.list {
+  width: 100px;
+  height: 30px;
+  padding: 2px;
+  overflow: auto;
+}
+
+.box {
+  flex-direction: column;
+  gap: 4px;
+}

@@ -1,34 +1,99 @@
 /*
  * The rules every built-in theme shares, written against the --ix-* variables the theme sets on
  * :root; a theme links this first. Visual only: no sizes, margins, padding or border widths (the
- * user agent sheet owns those), so changing themes never moves a box. --ix-radius and --ix-corner
- * shape the surfaces' corners (border-radius, corner-shape), --ix-title-font the title's font-family;
- * shape-rendering and text-transform are written by each theme. Fonts and case are the exception to
- * the boxes staying put: they change how wide text is.
+ * user agent sheet owns those), so changing themes never moves a box. Fonts and case are the
+ * exception: --ix-title-font and a theme's text-transform change how wide text is.
+ *
+ * :root below gives every variable of the contract a default (close to the user agent sheet), so a
+ * theme sets only what it changes. Structural differences between themes (a bevel that flips when
+ * pressed, a reversed button, animations, entry effects) are each theme's own rules.
+ *
+ * Error, wait and success are classes, set by the view model: .ix-invalid, .ix-busy, .ix-done.
  */
 @partial;
 :root {
+    --ix-panel-bg: #202020;
+    --ix-panel-image: none;
+    --ix-panel-shadow: none;
+    --ix-panel-backdrop: none;
+    --ix-well-bg: #000000;
+    --ix-well-image: none;
+    --ix-well-shadow: none;
+    --ix-well-backdrop: none;
+    --ix-well-border: #A0A0A0;
+    --ix-overlay-bg: #100010F0;
+    --ix-overlay-image: none;
+    --ix-overlay-shadow: none;
+    --ix-overlay-backdrop: none;
+    --ix-overlay-border: #5000FF50;
+    --ix-control-bg: #6F6F6F;
+    --ix-control-image: none;
+    --ix-control-shadow: none;
+    --ix-control-backdrop: none;
+    --ix-control-border: #000000;
+
+    --ix-hover: #FFFFFF30;
+    --ix-active: #00000040;
+    --ix-selected: #3C78D8;
+    --ix-selected-text: #FFFFFF;
+    --ix-disabled-text: #A0A0A0;
+    --ix-focus: #FFFFFF;
+
+    --ix-text: #E0E0E0;
+    --ix-title: #FFFFFF;
+    --ix-text-muted: #A0A0A0;
+    --ix-text-dim: #707070;
+    --ix-text-shadow: none;
+    --ix-overlay-text: #FFFFFF;
+
+    --ix-accent: #FFFF80;
+    --ix-on-accent: #000000;
+    --ix-positive: #55FF55;
+    --ix-negative: #FF5555;
+    --ix-warning: #FFAA00;
+
     --ix-radius: 0;
     --ix-corner: round;
+
+    --ix-duration: 120ms;
+    --ix-easing: ease;
+
+    text-shadow: var(--ix-text-shadow);
+    scrollbar-color: var(--ix-text-dim) var(--ix-well-bg);
 }
 
+/* Surfaces. */
 .ix-panel {
-    background-color: var(--ix-panel-bg, transparent);
-    background-image: var(--ix-panel-image, none);
-    box-shadow: var(--ix-panel-shadow, none);
+    background-color: var(--ix-panel-bg);
+    background-image: var(--ix-panel-image);
+    box-shadow: var(--ix-panel-shadow);
+    backdrop-filter: var(--ix-panel-backdrop);
     border-radius: var(--ix-radius);
     corner-shape: var(--ix-corner);
     color: var(--ix-text);
 }
 
 .ix-well {
-    background-color: var(--ix-well-bg, transparent);
-    background-image: var(--ix-well-image, none);
-    box-shadow: var(--ix-well-shadow, none);
+    background-color: var(--ix-well-bg);
+    background-image: var(--ix-well-image);
+    box-shadow: var(--ix-well-shadow);
+    backdrop-filter: var(--ix-well-backdrop);
     border-radius: var(--ix-radius);
     corner-shape: var(--ix-corner);
 }
 
+dialog:open, ix-tooltip:open {
+    border-color: var(--ix-overlay-border);
+    background-color: var(--ix-overlay-bg);
+    background-image: var(--ix-overlay-image);
+    box-shadow: var(--ix-overlay-shadow);
+    backdrop-filter: var(--ix-overlay-backdrop);
+    border-radius: var(--ix-radius);
+    corner-shape: var(--ix-corner);
+    color: var(--ix-overlay-text);
+}
+
+/* Text. */
 .ix-title {
     color: var(--ix-title);
     font-family: var(--ix-title-font, inherit);
@@ -42,19 +107,31 @@
     background-color: var(--ix-text-dim);
 }
 
+/* Buttons: hover and focus lay a tint over the control, pressing another. */
 button {
-    border-color: var(--ix-control-border, transparent);
+    border-color: var(--ix-control-border);
     background-color: var(--ix-control-bg);
-    background-image: var(--ix-control-image, none);
-    box-shadow: var(--ix-control-shadow, none);
+    background-image: var(--ix-control-image);
+    box-shadow: var(--ix-control-shadow);
+    backdrop-filter: var(--ix-control-backdrop);
     border-radius: var(--ix-radius);
     corner-shape: var(--ix-corner);
     color: var(--ix-text);
-    transition: background-color 120ms;
+    transition: background-color var(--ix-duration) var(--ix-easing),
+        border-color var(--ix-duration) var(--ix-easing), color var(--ix-duration) var(--ix-easing);
 }
 
-button:hover, button:focus {
+button:hover {
     background-image: linear-gradient(var(--ix-hover), var(--ix-hover));
+}
+
+button:focus {
+    border-color: var(--ix-focus);
+    background-image: linear-gradient(var(--ix-hover), var(--ix-hover));
+}
+
+button:active {
+    background-image: linear-gradient(var(--ix-active), var(--ix-active));
 }
 
 .ix-selected {
@@ -63,16 +140,68 @@ button:hover, button:focus {
 }
 
 button:disabled {
-    background-image: var(--ix-control-image, none);
+    border-color: var(--ix-control-border);
+    background-image: var(--ix-control-image);
     color: var(--ix-disabled-text);
 }
 
-ix-tooltip:open {
-    border-color: var(--ix-overlay-border, transparent);
-    background-color: var(--ix-overlay-bg);
-    background-image: var(--ix-overlay-image, none);
-    box-shadow: var(--ix-overlay-shadow, none);
+/* Fields are wells. */
+input, select {
+    border-color: var(--ix-well-border);
+    background-color: var(--ix-well-bg);
+    background-image: var(--ix-well-image);
+    box-shadow: var(--ix-well-shadow);
     border-radius: var(--ix-radius);
     corner-shape: var(--ix-corner);
+    color: var(--ix-text);
+    accent-color: var(--ix-accent);
+    transition: border-color var(--ix-duration) var(--ix-easing);
+}
+
+input:focus, select:focus {
+    border-color: var(--ix-focus);
+}
+
+input:disabled, select:disabled {
+    border-color: var(--ix-well-border);
+    color: var(--ix-disabled-text);
+}
+
+input[type=range] {
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+}
+
+input[type=range]:focus {
+    background-color: var(--ix-hover);
+}
+
+select:open > option {
+    background-color: var(--ix-overlay-bg);
     color: var(--ix-overlay-text);
+}
+
+select:open > option:hover {
+    background-color: var(--ix-overlay-bg);
+    background-image: linear-gradient(var(--ix-hover), var(--ix-hover));
+    color: var(--ix-overlay-text);
+}
+
+select:open > option:checked {
+    background-color: var(--ix-selected);
+    color: var(--ix-selected-text);
+}
+
+/* States the view model sets. Over focus: an error stays visible while the field is edited. */
+.ix-invalid, .ix-invalid:focus {
+    border-color: var(--ix-negative);
+}
+
+.ix-done, .ix-done:focus {
+    border-color: var(--ix-positive);
+}
+
+.ix-busy {
+    color: var(--ix-text-muted);
 }

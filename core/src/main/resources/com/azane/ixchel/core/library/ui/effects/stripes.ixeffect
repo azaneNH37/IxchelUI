@@ -1,0 +1,11 @@
+// Diagonal warning stripes moving sideways, on the GUI pixel grid.
+kind box;
+param color { syntax: <color>;  inherits: true;  initial-value: #ffffff40; }
+param width { syntax: <length>; inherits: false; initial-value: 4px; } // one stripe, measured along x
+param speed { syntax: <number>; inherits: false; initial-value: 0.5; } // stripe pairs per second
+
+vec4 effect(IxBox b) {
+    vec2 p = ix_snap(b.pos);
+    float phase = fract((p.x + p.y) / (2.0 * max(width, 1.0)) - ix_time * speed);
+    return phase < 0.5 ? color : vec4(0.0);
+}

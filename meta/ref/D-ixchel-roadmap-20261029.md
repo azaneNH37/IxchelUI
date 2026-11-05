@@ -58,7 +58,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | CS | 完成 | character、machine、storage | 容器槽位倒置依赖（#042）：`<mc-slot bind:menuslot>` 与环境无关，`UiContainerScreen` 按身份匹配；删除 `containerOnly`；`<mc-player-inventory bind:menu>`；结果见下文 |
 | TH2 | 完成 | effects 页 Shapes 标签 | 形状与像素化：`corner-shape`、`shape-rendering: crisp-edges`、GLSL `ix_snap`；结果见下文 |
 | TH3 | 完成 | effects 页 Shapes 标签 | 文字：`font-family`（MC 字体 id）、`text-transform`；不做 `letter-spacing`；结果见下文 |
-| TH4 | 待做 | — | 四套内置主题 `vanilla`、`dark`、`holo`、`cyber`，内置特效 `ix-chromatic`、`ix-glitch`、`ix-cooldown`，主题陈列页 |
+| TH4 | 完成 | themes | 四套内置主题 `vanilla`、`dark`、`holo`、`cyber`，内置特效 `chromatic`、`glitch`、`cooldown`、`stripes`，主题陈列页；结果见下文 |
 | U4 | 待做 | — | `ix-` 组件库与内置元素补齐，讨论中（`ref/SD-ixchel-u4-components-20261104.md`） |
 | FX1 | 完成 | — | 私有图层；`opacity` 整组语义（shader 构造并入 FX2） |
 | FX2 | 完成 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
@@ -417,13 +417,30 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 #### TH4 四套内置主题
 
-- 设计依据：主题文档 §6、§7。
+- 设计依据：主题文档 §6、§7、§8（主题的分析框架与角色×状态矩阵）。
 - 已定（2026-11-04）：只有 `holo` 带入场动画，内置主题不带离场动画；`ix-cooldown` 由 U4 并入（box，参数 `--ix-cooldown-progress`）；陈列页单独定 `FrameTimer` 预算，不沿用 env HUD（其 p95 在未改动时已超 6000 us）。
-- 承 TH1：`input`、`select`、`dialog` 的主题规则只上色（UA 的边框宽度不动），与 `button` 同用 `--ix-control-*`、`--ix-overlay-*`；dark 系按钮的 1px 透明边框保留，陈列页以此为基准；选中叠悬停是否去掉随陈列页一并定；主题自带特效经主题 partial 的 `@link` 引入（RS 已删 `@-ix-effect`）；glint 移动检查的相位问题仍归 REC。
-- 承 TH2/TH3：`--ix-corner`/`--ix-radius` 已由 `base` 接到四种表面，`holo`/`cyber` 只设值；`cyber` 若要像素字须用 bitmap 字体（ModernUI 会替换默认字体，见主题文档 §5.3）。
-- 内容：`vanilla`、`dark`、`holo`、`cyber` 四套，共用 `base`；四套补齐 `input`、`select`、`dialog` 的主题规则；内置特效 `ix-chromatic`、`ix-glitch`（layer）、`ix-cooldown`（box）。
-- sample：主题陈列页，一份模板列出所有表面类与标准控件的全部状态，四个页面各链接一套主题。
+- 承 TH1：主题自带特效经主题 partial 的 `@link` 引入（RS 已删 `@-ix-effect`）；glint 移动检查的相位问题仍归 REC。
+- 承 TH2/TH3：`--ix-corner`/`--ix-radius` 已由 `base` 接到四种表面，`holo`/`cyber` 只设值；内置主题不能自带字体（#001 不带固定命名空间的 `assets/`），只从原版字体中选，宿主主题可覆盖 `--ix-title-font`。
+- 已定（2026-11-05）：
+  - 样式作用域（取主流框架的做法，Vue scoped / Shadow DOM）：partial 一律全局，排在最低的作者层；页面与组件的 stylesheet 只匹配本视图写的元素（插槽内容归写它的视图）与本视图中组件的外壳，只检查选择器的主体，祖先不限；组件 stylesheet 也匹配自己实例的外壳。层序 UA < partial < 组件 stylesheet < 页面 stylesheet < 内联，外壳上页面赢。页面定制组件内部只经 `part` 属性与 `::part(名)`（可跟状态伪类）、变量与继承属性；插槽内容的样式放进使用方 link 的 partial，不加 `::slotted()`。组件 link 的 partial 同样全局。
+  - 变量契约：接上只有名字的 `--ix-active`、`--ix-focus`、`--ix-duration`、`--ix-easing`、`--ix-text-shadow` 与四个 `-backdrop`；新增 `--ix-well-border`（`input`/`select` 归内凹面）；`base` 的 `:root` 给全部契约变量默认值，schema 因此列出完整契约。
+  - `base` 规则：`input`、`select`、下拉选项、`dialog`、复选框与滑条（`accent-color`）、滚动条、`button:active`；焦点用边框色（引擎无 `outline`，阴影列表拼 `var()` 遇 `none` 失效）；过渡用 `--ix-duration`/`--ix-easing`；状态类 `.ix-invalid`、`.ix-busy`、`.ix-done`（错误、等待、成功由 ViewModel 判断，用类不用伪类）。
+  - 主题自由：变量值、`shape-rendering`、`text-transform`，以及结构不同的效果（斜面翻转、反色、闪烁、故障、进场）由各主题自写规则。
+  - U4 部件同时带类与 `part`、同名（`class="ix-tab" part="tab"`）：类给主题，`part` 给页面；U4 往 `base` 追加部件到角色的映射，验收为不改四个主题文件即可在四套主题下显示。
+  - 选中叠悬停保留；dark 系按钮的 1px 透明边框保留为布局基准；`cyber` 标题大写，布局断言只覆盖定宽元素，陈列页给标题定宽。
+  - 常驻动画先保证效果，不设幅度限制；减弱动效开关以后单独加。
+  - 不做：疏密（主题不改尺寸、边距）、声音、`cursor`。
+- 顺序：0 样式作用域（层序、作用域、`::part()`，迁移 terminal 与 guide，修订资源规范 §2.3）→ 角色×状态矩阵与四套主题设计稿（确认后再写主题文件）→ 变量契约与 `base` 规则，`vanilla`、`dark` → 内置特效 `ix-chromatic`、`ix-glitch`、`ix-cooldown`，`holo`、`cyber`。
+- sample：主题陈列页，按矩阵列出全部部件与状态，四个页面各链接一套主题。
 - 验收：四张陈列页截图；同一陈列页在四套主题下的布局矩形一致（playtest 断言）；全息与赛博常驻动画在陈列页预算内；1.21.1 冒烟。
+- 结果（2026-11-05）：完成。
+  - 块 0 样式作用域：见资源规范 §2.3（`::part()`、`part` 全局属性、`css/invalid-part`）；sample 迁移 terminal（`::part(hotbar)`）与 guide（段落排版移入 `guide.css`）。
+  - `base`：`:root` 给全部契约变量默认值（取 UA 样式的颜色），并把 `text-shadow`、`scrollbar-color` 接到变量；接上 `input`、`select`、下拉选项、`dialog`、复选框与滑条（`accent-color`）、`button:active`/`:focus`、`.ix-invalid`/`.ix-busy`/`.ix-done`；过渡用 `--ix-duration`/`--ix-easing`。kit schema 中各内置主题的变量表因此一致。
+  - 主题：`vanilla`（斜面、`notch`、`crisp-edges`、0ms，按下翻转斜面）、`dark`（`backdrop: blur(4px)`、3px 圆角）、`holo`（扫描线与四角括号背景层、`Glint` 流光、`@keyframes` 闪烁、标题 `drop-shadow` 加 `Chromatic`、`minecraft:uniform` 标题、`scaleY` 进场）、`cyber`（`bevel` 只切左上与右下，控件 3px、面板 8px，`crisp-edges`、按下转强调色、标题大写加 `Glitch`、`.ix-busy` 走 `Stripes`）。
+  - 内置特效：`chromatic`、`glitch`（layer），`cooldown`、`stripes`（box）；按资源规范 §3 文件名不带 `ix-`，路线图原名 `ix-chromatic` 等作废。`stripes` 是计划外新增：cyber 的移动警示条纹用渐变平铺做不了平移（`background-position` 不可动画）。
+  - sample：主题陈列页 `ui/showcase/`（组件 `theme-showcase` 加四个各 link 一套主题的页面，标签页切换即打开另一页），索引新增"主题"条目。
+  - 测试：core `BuiltInThemesTest`（四套主题无诊断、布局矩形一致）；playtest `themes`：四张截图、布局一致（排除跟随指针的 tooltip）、holo/cyber 帧时间 p95 预算 12000 us（holo 中位约 5000 us、p95 6600-8600 us，最重；cyber 约 2500 us）。
+  - 与"已定"的出入：陈列页标题定宽，cyber 大写与 holo 字体只改标题宽度内的文字；`glitch` 每 1/15 秒以 8% 概率触发，未加减弱开关（按已定，以后单独加）。
 
 #### REC playtest 动图录制
 

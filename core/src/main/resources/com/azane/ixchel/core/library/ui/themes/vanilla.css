@@ -1,27 +1,49 @@
-/* The vanilla container look: light gray panels framed in dark gray, dark text, pixel-stepped shapes. */
+/*
+ * The vanilla container look: light gray panels framed in black with a white and gray bevel, gray
+ * slots sunk the other way, buttons whose bevel flips when pressed, dark text, pixel-stepped shapes
+ * and no transitions.
+ */
 @partial;
 @link "base.css";
 
 :root {
     shape-rendering: crisp-edges;
     --ix-panel-bg: #C6C6C6;
-    --ix-panel-shadow: inset 0 0 0 1px #555555;
+    --ix-panel-shadow: inset 0 0 0 1px #000000, inset 2px 2px 0 #FFFFFF, inset -2px -2px 0 #555555;
     --ix-well-bg: #8B8B8B;
+    --ix-well-shadow: inset 1px 1px 0 #373737, inset -1px -1px 0 #FFFFFF;
+    --ix-well-border: #373737;
     --ix-control-bg: #A0A0A0;
-    --ix-control-border: #555555;
+    --ix-control-shadow: inset 1px 1px 0 #DBDBDB, inset -1px -1px 0 #555555;
+    --ix-control-border: #000000;
     --ix-overlay-bg: #100010F0;
     --ix-overlay-border: #5000FF50;
     --ix-overlay-text: #FFFFFF;
     --ix-hover: #FFFFFF40;
+    --ix-active: #00000020;
     --ix-selected: #E0E0E0;
     --ix-selected-text: #202020;
     --ix-disabled-text: #707070;
+    --ix-focus: #FFFFFF;
     --ix-text: #404040;
     --ix-title: #404040;
     --ix-text-muted: #606060;
     --ix-text-dim: #707070;
     --ix-accent: #FFFF55;
+    --ix-on-accent: #202020;
     --ix-positive: #3F7F3F;
     --ix-negative: #AA2020;
     --ix-warning: #C07020;
+    --ix-radius: 1px;
+    --ix-corner: notch;
+    --ix-duration: 0ms;
+    --ix-easing: linear;
+}
+
+button:active {
+    box-shadow: inset 1px 1px 0 #555555, inset -1px -1px 0 #DBDBDB;
+}
+
+button:disabled {
+    box-shadow: none;
 }

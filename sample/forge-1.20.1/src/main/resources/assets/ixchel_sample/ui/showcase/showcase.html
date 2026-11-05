@@ -1,0 +1,56 @@
+<!-- The theme showcase: every surface class and standard control in each state a page can set,
+     the same in every theme. The tabs ask the page to show another theme; each page links one. -->
+<link href="showcase.css"/>
+<component name="theme-showcase" params="theme field checked level choice dialog" events="pick">
+  <div class="ix-panel sheet">
+    <div class="tabs">
+      <button class="tab tab-vanilla" bind:class:ix-selected="theme == 'vanilla'" on:click="pick('vanilla')">vanilla</button>
+      <button class="tab tab-dark" bind:class:ix-selected="theme == 'dark'" on:click="pick('dark')">dark</button>
+      <button class="tab tab-holo" bind:class:ix-selected="theme == 'holo'" on:click="pick('holo')">holo</button>
+      <button class="tab tab-cyber" bind:class:ix-selected="theme == 'cyber'" on:click="pick('cyber')">cyber</button>
+    </div>
+    <span class="ix-title heading">Theme showcase</span>
+    <span class="ix-muted">Surfaces and controls in every state</span>
+    <div class="ix-divider rule"></div>
+    <div class="row buttons">
+      <button class="plain">Button</button>
+      <button disabled="">Disabled</button>
+      <button class="ix-selected">Selected</button>
+      <button class="ix-invalid">Invalid</button>
+      <button class="ix-busy">Busy</button>
+      <button class="ix-done">Done</button>
+    </div>
+    <div class="row">
+      <input class="field" placeholder="Type here" bind:value="field"/>
+      <input class="field ix-invalid" placeholder="Invalid"/>
+      <input class="field" placeholder="Disabled" disabled=""/>
+    </div>
+    <div class="row">
+      <input type="checkbox" class="check" bind:checked="checked"/>
+      <input type="range" class="slider" min="0" max="10" step="1" bind:value="level"/>
+      <select class="choice" bind:value="choice">
+        <option value="a">Option A</option>
+        <option value="b">Option B</option>
+        <option value="c">Option C</option>
+      </select>
+    </div>
+    <div class="row">
+      <div class="ix-well slot"></div>
+      <div class="ix-well slot"></div>
+      <div class="ix-well slot cooldown"></div>
+      <div class="ix-well list">
+        <span>Line one</span><span>Line two</span><span>Line three</span><span>Line four</span>
+        <span>Line five</span><span>Line six</span><span>Line seven</span><span>Line eight</span>
+      </div>
+    </div>
+    <div class="row">
+      <button class="tipped">Tooltip<ix-tooltip><span>On the overlay surface</span></ix-tooltip></button>
+      <button class="opener" on:click="dialog = true">Dialog</button>
+    </div>
+  </div>
+  <dialog class="box" bind:open="dialog" on:keydown.escape="dialog = false">
+    <span class="ix-title">Dialog</span>
+    <span>Also on the overlay surface</span>
+    <button class="closer" on:click="dialog = false">Close</button>
+  </dialog>
+</component>

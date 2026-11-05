@@ -50,19 +50,22 @@ related: [DECISIONS.md#034, DECISIONS.md#035, DECISIONS.md#037, DECISIONS.md#039
 
 #### 2.3 展开与层
 
-- stylesheet 展开为一份样式表：深度优先，被 link 的文件先于 link 方；每个文件在一次展开中只出现一次，位于第一次出现处；成环报错。
-- 展开顺序（后序）即层序：每个文件一层，被 link 的低于 link 方，并列的按 link 顺序，后者高。层之间按层序决定胜负，不比较特异性；层内按特异性与书写顺序。语义同 CSS Cascade 5 的 `@layer`，`!important` 声明的层序反转。
-- partial 按普通 CSS 书写，不需要 `:where()` 降低特异性：link 方的规则总能覆盖它 link 的 partial。
+- 每个 css 文件展开：深度优先，被 link 的文件先于 link 方；每个文件在文档中只加载一次，位于第一次出现处；成环报错。
+- 每个文件一层。层之间按层序决定胜负，不比较特异性；层内按特异性与书写顺序。语义同 CSS Cascade 5 的 `@layer`，`!important` 声明的层序反转。
+- partial 按普通 CSS 书写，不需要 `:where()` 降低特异性：stylesheet 的规则总能覆盖 partial。
+- 作用域（TH4 块 0，2026-11-05）：partial 作用于文档中所有元素；stylesheet 只作用于以它为 stylesheet 的视图中的元素。元素归属写下它的视图（slot 内容归使用组件的视图）；组件的宿主元素同时属于外层视图与组件视图。只检查被选中的元素，祖先不限，故组件规则可写 `mc-player-inventory .x`。
 - 文档的层叠，低到高：
 
-| 顺序 | 内容 |
-|---|---|
-| UA | 引擎常驻 |
-| 组件层 | 每个组件的 stylesheet 展开结果，内部按 §2.3 分层 |
-| 作者层 | 页面的 stylesheet 展开结果，内部按 §2.3 分层 |
-| 内联 | `style` 属性、`bind:style:*` |
+| 顺序 | 内容 | 作用域 |
+|---|---|---|
+| UA | 引擎常驻 | 全部 |
+| partial | 文档中所有 partial，按第一次加载的顺序 | 全部 |
+| 组件 stylesheet | 每个组件视图的 stylesheet，按加载顺序 | 该组件的元素及宿主 |
+| 页面 stylesheet | 页面视图的 stylesheet | 页面的元素（含宿主、slot 内容） |
+| 内联 | `style` 属性、`bind:style:*` | 元素自身 |
 
-- 同一文件可同时出现在组件层与作者层，去重按层分别进行。
+- 结果：主题 partial 低于所有 stylesheet，组件自己的规则胜过主题；页面在宿主元素上胜过组件，组件的 `!important` 反转；页面的通用规则（`button { ... }`）不进入组件内部。
+- `::part(name)`：组件视图中带 `part="name"` 的元素（`part` 为全局属性，可空格分隔多个名字）对外开放；外层视图写 `host 选择器::part(name)`，其后只可跟状态伪类（`:hover` 等，测试该 part 元素）。规则按外层视图的层参与层叠，作用于宿主属于外层视图、且是该 part 元素最近宿主的实例。`::part()` 不跨两层组件转发（无 `exportparts`）。诊断 `css/invalid-part`：括号内不是恰好一个名字。
 
 示例：
 
@@ -90,7 +93,8 @@ related: [DECISIONS.md#034, DECISIONS.md#035, DECISIONS.md#037, DECISIONS.md#039
 
 #### 2.5 诊断
 
-- `style/component-root-token`（WARNING）：组件层中来自某组件 stylesheet 展开的规则在 `:root` 上声明自定义属性。`:root` 匹配页面顶层，令牌会作用于整个页面；组件应经变量跟随页面，令牌由页面的 stylesheet 设置。
+- `style/component-root-token`（WARNING）：组件的 stylesheet 在 `:root` 上声明自定义属性。`:root` 是页面的顶层元素，组件规则只在宿主恰为顶层时作用到它，令牌不随组件生效；组件经变量跟随页面，令牌由页面的 stylesheet 设置。
+- `css/invalid-part`（ERROR）：见 §2.3。
 
 #### 2.6 关键字
 

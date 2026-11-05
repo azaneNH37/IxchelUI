@@ -124,9 +124,16 @@ class StyleEngineTest {
                 :is() {}
                 div::first-line {}
                 div::before {}
+                x::part() {}
+                x::part(a b) {}
+                x::part(a)::before {}
+                x::part(a).b {}
+                x::part(a):hover:focus {}
                 """, diag);
         assertEquals(List.of("css/misplaced-pseudo-element@t.css:1:13", "css/misplaced-pseudo-element@t.css:2:6",
-                "css/invalid-logical-pseudo@t.css:3:2", "css/unsupported-pseudo@t.css:4:6"), DiagCodes.of(diag));
+                "css/invalid-logical-pseudo@t.css:3:2", "css/unsupported-pseudo@t.css:4:6", "css/invalid-part@t.css:6:4",
+                "css/invalid-part@t.css:7:4", "css/misplaced-pseudo-element@t.css:8:11", "css/misplaced-pseudo-element@t.css:9:11"),
+                DiagCodes.of(diag));
     }
 
     @Test

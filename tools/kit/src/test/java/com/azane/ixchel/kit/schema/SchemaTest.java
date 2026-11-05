@@ -65,9 +65,11 @@ class SchemaTest {
         Schema schema = Schema.of(project, ElementDeclarations.load(project));
 
         // unlinked.ixeffect has an invalid header, so it is not offered.
-        assertEquals(List.of("@ixchel/effects/dissolve.ixeffect", "@ixchel/effects/glint.ixeffect", "kitfixture:ui/fx/glow.ixeffect"),
+        assertEquals(List.of("@ixchel/effects/chromatic.ixeffect", "@ixchel/effects/cooldown.ixeffect", "@ixchel/effects/dissolve.ixeffect",
+                        "@ixchel/effects/glint.ixeffect", "@ixchel/effects/glitch.ixeffect", "@ixchel/effects/stripes.ixeffect",
+                        "kitfixture:ui/fx/glow.ixeffect"),
                 schema.effects().stream().map(Schema.Effect::href).toList());
-        Schema.Effect glow = schema.effects().get(2);
+        Schema.Effect glow = schema.effects().get(6);
         assertEquals("box", glow.kind());
         assertEquals("Glow", glow.alias());
         assertEquals(List.of(new Schema.EffectParam("--Glow-tint", "<color>", true, "#ff000080"),
@@ -90,10 +92,12 @@ class SchemaTest {
         assertEquals(List.of("margin-top", "margin-right", "margin-bottom", "margin-left"), margin.longhands());
         assertTrue(schema.properties().stream().noneMatch(p -> p.name().equals("margin")));
 
-        assertEquals(List.of("@ixchel/themes/base.css", "@ixchel/themes/dark.css", "@ixchel/themes/vanilla.css", "t:ui/main.css"),
+        assertEquals(List.of("@ixchel/themes/base.css", "@ixchel/themes/cyber.css", "@ixchel/themes/dark.css", "@ixchel/themes/holo.css",
+                        "@ixchel/themes/vanilla.css", "t:ui/main.css"),
                 schema.themes().stream().map(Schema.Theme::href).toList());
-        Schema.Theme dark = schema.themes().get(1);
-        Schema.Theme main = schema.themes().get(3);
+        Schema.Theme dark = schema.themes().get(2);
+        Schema.Theme main = schema.themes().get(5);
+        assertEquals(schema.themes().get(0).variables(), dark.variables(), "base sets every variable of the contract");
         assertTrue(dark.variables().contains("--ix-panel-bg"));
         List<String> expected = new ArrayList<>(dark.variables());
         expected.add("--ix-extra");
