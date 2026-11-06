@@ -25,6 +25,7 @@ module("ixchel-mc-1.21.1", "mc/1.21.1")
 module("ixchel-forge-1.20.1", "loader/forge-1.20.1")
 module("ixchel-neoforge-1.21.1", "loader/neoforge-1.21.1")
 module("ixchel-kit", "tools/kit")
+module("ixchel-doclet", "tools/doclet")
 module("sample-forge-1.20.1", "sample/forge-1.20.1")
 module("sample-neoforge-1.21.1", "sample/neoforge-1.21.1")
 

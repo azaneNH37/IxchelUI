@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
@@ -24,6 +25,7 @@ import java.util.function.Supplier;
  * hud.show(false);
  * }</pre>
  */
+@HostApi
 public final class UiHud {
     private final ResourceLocation page;
     private final Supplier<? extends ViewModel> model;

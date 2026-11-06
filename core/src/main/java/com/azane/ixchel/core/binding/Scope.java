@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -9,6 +11,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * hand work to the client thread. After {@link #close()} posted work is dropped, so a late reply
  * never touches a closed view.
  */
+@HostApi
 public final class Scope implements AutoCloseable {
     private final ConcurrentLinkedQueue<Runnable> inbox = new ConcurrentLinkedQueue<>();
     private final List<AutoCloseable> owned = new ArrayList<>();

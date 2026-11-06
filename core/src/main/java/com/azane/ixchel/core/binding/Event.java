@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.util.function.Consumer;
 
 /**
@@ -8,6 +10,7 @@ import java.util.function.Consumer;
  * see the payload as {@code $event}. Declare {@code Event<Void>} for an event without payload. Without
  * a listener, or once its model is closed, emitting does nothing. Client thread only.
  */
+@HostApi
 public final class Event<T> {
     private final ViewModel owner;
     private Consumer<? super T> listener;

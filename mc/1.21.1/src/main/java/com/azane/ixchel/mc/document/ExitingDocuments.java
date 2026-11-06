@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.document;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.runtime.UiDocument;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.logging.LogUtils;
@@ -16,6 +17,7 @@ import java.util.List;
  * input is back with the game or the next screen; the loader layer draws what is left from its GUI
  * and screen render events, over whatever shows. Each library copy has its own. Client thread only.
  */
+@HostApi
 public final class ExitingDocuments {
     private static final Logger LOG = LogUtils.getLogger();
     /** Above what the HUD or the next screen drew, which may include items and tooltips. */

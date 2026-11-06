@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.view;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -21,6 +23,7 @@ import java.lang.annotation.Target;
  * <p>With a {@link #payload} the class implements {@link ElementPayload}, whose type argument is the
  * payload's type; without one the element is plain flow content with {@link #attributes}.
  */
+@HostApi
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

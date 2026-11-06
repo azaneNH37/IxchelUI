@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.binding.JavaComponent;
 import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.binding.ViewModel;
@@ -28,6 +29,7 @@ import java.util.function.Supplier;
  *         .component(EnergyModel.class, EnergyModel::new);
  * }</pre>
  */
+@HostApi
 public final class UiRegistry {
     /** The engine's elements and the core's files: {@code @ixchel/x} is {@code ui/x} next to {@link Library}. */
     public static final UiRegistry CORE = library().root("", Library.class, "ui/").elements(HtmlElements.ALL);

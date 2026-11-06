@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.view;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.dom.ElementType;
 
 import java.util.function.Supplier;
@@ -10,6 +11,7 @@ import java.util.function.Supplier;
  * which the host reads where it uses the value ({@link #valueOf}). Adapter interfaces extend it, so a
  * host only names the type once, as their type argument.
  */
+@HostApi
 public interface ElementPayload<T> {
     /**
      * The value a payload of {@code type} stands for right now: the payload, or what its

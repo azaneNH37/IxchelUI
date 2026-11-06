@@ -42,7 +42,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | E1 | 完成 | S8 | 文字排版补完：行内流式排版、CJK 断行、`Component` 富文本、行内链接 |
 | E2 | 完成 | S9；S1、S6、S7 的 tooltip | 文档内富 tooltip `<ix-tooltip>`，兼容原版物品 tooltip |
 | I | 完成 | 全部场景的界面文本 | i18n：`t` 语言键与参数 |
-| Doc | 待做 | — | 用户文档站 `docs/` 与语言参考 |
+| Doc | 进行中 | — | 用户文档站 `docs/` 与语言参考（#045、#046）：基建完成（plume、kit 生成参考页、doclet 生成 `/java-api/` 页、名字与死链检查），手写内容待写 |
 | T1 | 完成 | 2026-10-31 | 静态检查：`@UiTemplate`、成员表编译、原生元素声明数据、错误码、`ixchel-kit` 的 lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
 | T2 | 完成 | 2026-10-31 | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
 | U1 | 完成 | S7、S4 | `text-shadow`、`<for index>`、默认点击音、滚动条拖动与外观 |

@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
@@ -48,6 +49,7 @@ import net.minecraft.util.StringUtil;
  * <p>In a development run the files are read from the source tree and reloaded on save, keeping the
  * view model and its state (see {@link HostedDocument}).
  */
+@HostApi
 public class UiScreen extends Screen {
     private final HostedDocument doc;
     private final Screen parent;

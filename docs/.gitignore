@@ -1,0 +1,7 @@
+node_modules/
+.vuepress/.temp/
+.vuepress/.cache/
+.vuepress/dist/
+# Written by ./gradlew docs
+reference/
+java-api/*/

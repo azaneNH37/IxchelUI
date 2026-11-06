@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.util.function.Consumer;
 
 /**
@@ -8,6 +10,7 @@ import java.util.function.Consumer;
  * the user passed none it is this instance's local state, starting at the view's default. It is
  * wired after the constructor: {@link #get()} and {@link #set} throw until then.
  */
+@HostApi
 public final class TwoWay<T> extends Cell<T> {
     private final ViewModel owner;
     private Cell<T> source;

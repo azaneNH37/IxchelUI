@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.binding.UiView;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.diag.UiLoadException;
@@ -59,6 +60,7 @@ import java.util.Map;
  * to the document first, and what it does not consume goes to vanilla. ParsedView problems are
  * reported like other document errors (development overlay, log).
  */
+@HostApi
 public class UiContainerScreen<M extends AbstractContainerMenu> extends AbstractContainerScreen<M> {
     /** Who draws the items in the menu slots (#009). */
     public enum SlotItemRendering {

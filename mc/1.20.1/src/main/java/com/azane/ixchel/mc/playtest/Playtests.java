@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.playtest;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.playtest.Pump;
 import com.azane.ixchel.core.playtest.PlaytestRun;
 import com.mojang.logging.LogUtils;
@@ -42,6 +43,7 @@ import java.util.function.Consumer;
  * });
  * }</pre>
  */
+@HostApi
 public final class Playtests {
     private static final Logger LOG = LogUtils.getLogger();
     private static final String WORLD = "New World";

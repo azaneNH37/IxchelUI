@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.paint;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.css.property.Filter;
 import com.azane.ixchel.core.css.property.Keywords;
@@ -14,6 +15,7 @@ import java.util.List;
  * ARGB. Java 17 has no pattern-matching switch, so consumers dispatch through {@link Visitor}, which
  * keeps the exhaustiveness check when a command type is added.
  */
+@HostApi
 public sealed interface DrawCommand
         permits DrawCommand.Rect, DrawCommand.Fill, DrawCommand.Border, DrawCommand.Shadow, DrawCommand.Text,
         DrawCommand.Image, DrawCommand.Custom, DrawCommand.Paint, DrawCommand.PushClip, DrawCommand.PopClip,

@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.playtest.PlaytestDriver;
 import com.azane.ixchel.core.playtest.FrameBudget;
 import net.minecraft.client.gui.screens.Screen;
@@ -16,6 +17,7 @@ import java.util.Arrays;
  *  .run(() -> FrameTimer.expect(s, "list standing still", 8000));
  * }</pre>
  */
+@HostApi
 public final class FrameTimer {
     /** The target while timing screens: any open Ixchel screen. */
     private static final Object SCREENS = new Object();

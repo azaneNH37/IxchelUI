@@ -1,0 +1,18 @@
+{
+  "name": "ixchel-docs",
+  "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "type": "module",
+  "scripts": {
+    "docs:dev:full": "node scripts/gradle.mjs docs && vuepress dev .",
+    "docs:dev": "vuepress dev .",
+    "docs:build": "node scripts/gradle.mjs docs && vuepress build . --clean-cache --clean-temp"
+  },
+  "devDependencies": {
+    "@vuepress/bundler-vite": "2.0.0-rc.31",
+    "typescript": "^5.9.3",
+    "vue": "^3.5.45",
+    "vuepress": "2.0.0-rc.31",
+    "vuepress-theme-plume": "1.0.0-rc.214"
+  }
+}

@@ -1,15 +1,15 @@
 ---
 tags: [design]
 date: 2026-10-26
-origin: 仓库尚无 CI；为保证自动跑测、预留发版与文档站自动更新能力，先确定哪些流程必要及其触发器。同日把文档目标从 GitHub wiki 改为 VuePress 静态站，记录仓库将转公开，并补充 check 的组成、缓存与安全设计。
-related: [DECISIONS.md#010, DECISIONS.md#001, ref/D-ixchel-module-breakdown-20261026.md]
+origin: 仓库尚无 CI；为保证自动跑测、预留发版与文档站自动更新能力，先确定哪些流程必要及其触发器。同日把文档目标从 GitHub wiki 改为 VuePress 静态站，记录仓库将转公开，并补充 check 的组成、缓存与安全设计。2026-11-05 文档站基建落地，check 增加文档检查（#045）；2026-11-06 Java API 改由 doclet 生成站内页（#046）。
+related: [DECISIONS.md#010, DECISIONS.md#001, DECISIONS.md#045, DECISIONS.md#046, ref/D-ixchel-module-breakdown-20261026.md]
 ---
 
 # Ixchel UI: CI Workflows
 
 ## Summary
 
-现在只落地 `check`：PR 与 `master` 推送跑全量 `./gradlew build`，仅 Linux，设为 `master` 的 required check；`setup-gradle` 缓存 Gradle User Home，只由 `master` 写入。`release`（`v*` tag 触发，版本以 `gradle.properties` 为准）与 `docs`（VuePress 站，随 release 部署到本仓库 GitHub Pages）只定触发与校验规则，等有外部宿主、L1+ 文档生成落地、仓库转公开后再实现；远端发布目标届时再定。安全上 `check` 不用 secret、token 只读；改动 `.github/workflows/` 的 PR，检查结果不可信，必须看 diff。
+现在只落地 `check`：PR 与 `master` 推送跑全量 `./gradlew build docs`，再构建文档站并离线查死链，仅 Linux，设为 `master` 的 required check；`setup-gradle` 缓存 Gradle User Home，只由 `master` 写入。`release`（`v*` tag 触发，版本以 `gradle.properties` 为准）与 `docs` 部署（VuePress 站，随 release 部署到本仓库 GitHub Pages）只定触发与校验规则，等有外部宿主、仓库转公开后再实现；远端发布目标届时再定。安全上 `check` 不用 secret、token 只读；改动 `.github/workflows/` 的 PR，检查结果不可信，必须看 diff。
 
 ## Detail
 
@@ -40,7 +40,7 @@ flowchart LR
 |---|---|---|---|
 | `check` | 现在实现 | `pull_request`（目标 `master`）、`push: master` | 见 §3 |
 | `release` | 规则已定，暂不实现 | `push` tag `v*`；保留 `workflow_dispatch` | tag 去掉 `v` 后须等于 `gradle.properties` 的 `version` 且不含 `-SNAPSHOT`，否则失败；通过后 `build` 再发布 |
-| `docs` | 规则已定，暂不实现 | `release` 成功后；保留 `workflow_dispatch` | VuePress 源码在本仓库 `docs/`；先由 Gradle 任务从属性注册表与元素注册表生成参考页，再 `vuepress build`，用 `actions/deploy-pages` 部署到本仓库 Pages |
+| `docs` | 规则已定，暂不实现 | `release` 成功后；保留 `workflow_dispatch` | VuePress 源码在本仓库 `docs/`；`pnpm docs:build`（先 `./gradlew docs` 生成参考页与 Java API 页，#045、#046，再 `vuepress build`），用 `actions/deploy-pages` 部署到本仓库 Pages |
 
 取舍：
 
@@ -59,12 +59,13 @@ flowchart LR
 |---|---|---|---|
 | toolchain | 全部 | 解析 JDK 17 与 21（CI 中直接用 `setup-java` 装好的，实测无 foojay 下载） | — |
 | MC 产物 | mc、loader、sample 共 6 个 | MDG `createMinecraftArtifacts`：下载、反混淆、反编译（不重编译 MC） | 版本号错、上游不可达 |
-| 编译 | 全部 8 个 | `compileJava` | 编译错误；core 引用 MC 类（编译期 classpath 没有 MC） |
+| 编译 | 全部 9 个 | `compileJava` | 编译错误；core 引用 MC 类（编译期 classpath 没有 MC） |
 | 打包 | 6 个发布模块（含 kit） | `jar`、`sourcesJar`、`javadocJar`；1.20.1 两个库的 `jar` 自动 reobf 为 SRG；core、mc、loader 的 jar 清单带 `FMLModType: GAMELIBRARY`（#024） | **javadoc 的 doclint 错误**（`withJavadocJar()` 使 javadoc 成为隐含检查） |
 | 打包 | 2 个 sample | 经 `com.azane.ixchel` 插件（#025）的 `shadowJar`（relocate Ixchel 与 taffy），Forge 侧再 reobf | 插件接线失效：配置属性、relocate、shadow 产物的 reobf |
 | 构建 | Gradle 插件（included build） | 根 `build` 依赖其 `build`；两个 sample 应用它即在配置期编译 | 插件编译错误 |
 | 检查 | 2 个 sample | `ixchelLint`；Forge 侧另编译 `playtest` sourceSet | 模板与 ViewModel 不符；游戏内测试代码随业务改动失修 |
 | 测试 | core | JUnit，含弹药 HUD 黄金测试 | 行为回归 |
+| 文档 | `docs/` 站点 | `./gradlew build` 之后 pnpm 冻结安装、`pnpm docs:build`：根任务 `docs`（各库模块 `javaApi` 经 `ixchel-doclet` 写 `docs/java-api/<模块>/`，#046；之后 `docsReference` 在 1.20.1 mc 层上跑 `ixchel-kit docs`，写参考页并检查手写页与 Java API 页中的 `<ix-*>`/`<mc-*>`、`--ix-*`、`.ix-*`、错误码名字），再 `vuepress build`；最后 lychee `--offline` 查站内链接 | 改名后文档留下旧名；doclet 失效；站点构建失败；站内死链 |
 
 `build` 不包含：`runClient`、gametest、格式化与静态分析（仓库未配）、shade 副本在游戏内的共存（只在生产实例手动验证）。
 
@@ -171,7 +172,7 @@ GitHub 的平台防护：fork PR 不传 secret、token 只读、不能修改 `.g
 | Windows runner | 见 §2 取舍 | 出现实际的字符集回归时再加；转公开后分钟数不再计费，可重新评估 |
 | 文档站部署 | 私有期间 Pages 需付费套餐，且站点本身会公开 | 仓库转公开后 |
 | PR 标题格式检查 | squash 用 PR 标题作提交信息，但单人维护下没有出现过不合格的标题 | 有外部贡献后 |
-| `vuepress build` 进 `check` | `docs/` 尚不存在 | `docs/` 建立时 |
+| 整个错误码前缀改名的检查 | 名字检查只认现存前缀（如 `template/` → `view/` 后旧码不报），需另维护废弃前缀表 | 出现第二次整体改名时 |
 
 ### 8. 实测与待核实
 

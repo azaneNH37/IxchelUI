@@ -1,0 +1,15 @@
+# The theme's plugins import their own dependencies from the site's root (Vite's optimizeDeps,
+# md-power's components in compiled pages); plume's project generator sets the same.
+shamefullyHoist: true
+
+minimumReleaseAgeExclude:
+  - '@vue/compiler-core@3.5.45'
+  - '@vue/compiler-dom@3.5.45'
+  - '@vue/compiler-sfc@3.5.45'
+  - '@vue/compiler-ssr@3.5.45'
+  - '@vue/reactivity@3.5.45'
+  - '@vue/runtime-core@3.5.45'
+  - '@vue/runtime-dom@3.5.45'
+  - '@vue/server-renderer@3.5.45'
+  - '@vue/shared@3.5.45'
+  - vue@3.5.45

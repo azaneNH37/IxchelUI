@@ -1,5 +1,6 @@
 package com.azane.ixchel.forge;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.UiHud;
 import com.azane.ixchel.mc.document.ExitingDocuments;
@@ -21,6 +22,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /** Forge 1.20.1 glue for host mods: registers the mc layer's hosts with Forge and drives its playtests. */
+@HostApi
 public final class IxchelForge {
     private static boolean worldProjectionInstalled;
     private static boolean screenExitsInstalled;

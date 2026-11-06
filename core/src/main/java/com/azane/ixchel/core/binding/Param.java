@@ -1,11 +1,14 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 /**
  * A component's read-only input, made with {@link ViewModel#param()} and stored in a field named after
  * the {@code <component params>} entry. It reads what the user passed, or the view's default. It is
  * wired after the constructor: {@link #get()} throws until then, while {@code derive} and suppliers,
  * which read later, can use it freely.
  */
+@HostApi
 public final class Param<T> extends Cell<T> {
     private final ViewModel owner;
     private Cell<? extends T> source;

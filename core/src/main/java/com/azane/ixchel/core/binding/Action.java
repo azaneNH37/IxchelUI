@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -14,6 +16,7 @@ import java.util.function.Function;
  * triggering it again meanwhile is ignored, and a failure lands in {@link #error()}. Completion is
  * handed to the client thread through the model's {@link Scope}, so after the view closes it is dropped.
  */
+@HostApi
 public final class Action<A> {
     private final Scope scope;
     private final Consumer<A> sync;

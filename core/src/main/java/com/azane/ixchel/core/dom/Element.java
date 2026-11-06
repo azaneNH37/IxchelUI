@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.dom;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.css.syntax.ComponentValue;
@@ -36,6 +37,7 @@ import java.util.Set;
  * a change of a {@link #textField()}. Each scroll offset change, the layout pass clamping one included,
  * also marks the element {@linkplain #takeScrolled() scrolled} for the {@code scroll} event.
  */
+@HostApi
 public final class Element extends Node {
     public static final int HOVER = 1;
     public static final int ACTIVE = 1 << 1;

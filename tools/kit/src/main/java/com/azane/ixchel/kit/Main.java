@@ -2,16 +2,23 @@ package com.azane.ixchel.kit;
 
 import com.azane.ixchel.core.diag.DiagCode;
 import com.azane.ixchel.core.diag.Diagnostic;
+import com.azane.ixchel.core.library.Library;
+import com.azane.ixchel.core.style.LibraryNames;
+import com.azane.ixchel.kit.docs.NameCheck;
+import com.azane.ixchel.kit.docs.Reference;
 import com.azane.ixchel.kit.lint.CodeCatalog;
 import com.azane.ixchel.kit.lint.Lint;
 import com.azane.ixchel.kit.project.ElementDeclarations;
 import com.azane.ixchel.kit.project.Project;
+import com.azane.ixchel.kit.project.LibraryFiles;
 import com.azane.ixchel.kit.project.LanguageFiles;
 import com.azane.ixchel.kit.project.ProjectClassLoader;
 import com.azane.ixchel.kit.schema.Schema;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +37,7 @@ import java.util.regex.Pattern;
  * lint --resources &lt;dir&gt;... --classpath &lt;entry&gt;... [--enable &lt;code-id&gt;...] [--json]
  * schema [--resources &lt;dir&gt;...] [--classpath &lt;entry&gt;...] [--json]
  * explain &lt;code-id&gt; [--classpath &lt;entry&gt;...]
+ * docs --out &lt;dir&gt; [--check &lt;dir&gt;...] [--classpath &lt;entry&gt;...]
  * </pre>
  *
  * A resource directory holds {@code assets/<namespace>/…}, the sources that diagnostics point at.
@@ -49,6 +57,10 @@ public final class Main {
                   tags, library stylesheets, CSS properties, components and view model members
               explain <code-id> [--classpath <entry>...]
                   describes a diagnostic code such as binding/unknown-name
+              docs --out <dir> [--check <dir>...] [--classpath <entry>...]
+                  writes the reference pages of the library on the classpath into <dir>; --check
+                  then reports the element, token, class and code names in the .md files under each
+                  <dir> (but outside --out) that the library lacks, and exits 1 if there are any.
             Every option takes several paths, separate or joined with the platform's path separator.
             --classpath takes the project's runtime classpath. Its directories are the project's
             compiled output, where view models are looked for; its jars supply their field types
@@ -67,7 +79,7 @@ public final class Main {
 
     /** Parsed arguments: the command, its positionals, the paths of each option and the enabled codes. */
     private record Args(String command, List<String> positional, List<Path> resources, List<Path> classpath,
-                        List<String> enable, boolean json) {
+                        List<Path> out, List<Path> check, List<String> enable, boolean json) {
         static Args parse(String[] args) {
             if (args.length == 0) {
                 throw new IllegalArgumentException("no command");
@@ -75,6 +87,8 @@ public final class Main {
             List<String> positional = new ArrayList<>();
             List<Path> resources = new ArrayList<>();
             List<Path> classpath = new ArrayList<>();
+            List<Path> out = new ArrayList<>();
+            List<Path> check = new ArrayList<>();
             List<String> enable = new ArrayList<>();
             boolean json = false;
             List<Path> target = null;
@@ -88,6 +102,14 @@ public final class Main {
                     }
                     case "--classpath" -> {
                         target = classpath;
+                        codes = false;
+                    }
+                    case "--out" -> {
+                        target = out;
+                        codes = false;
+                    }
+                    case "--check" -> {
+                        target = check;
                         codes = false;
                     }
                     case "--enable" -> {
@@ -118,7 +140,7 @@ public final class Main {
                     }
                 }
             }
-            return new Args(args[0], positional, resources, classpath, enable, json);
+            return new Args(args[0], positional, resources, classpath, out, check, enable, json);
         }
 
         /** The project's own compiled output: the directories of its classpath. */
@@ -146,6 +168,12 @@ public final class Main {
                                 ? "schema takes no positional arguments" : "explain takes one code id");
                     }
                 }
+                case "docs" -> {
+                    if (args.out().size() != 1 || !args.positional().isEmpty() || !args.enable().isEmpty()
+                            || !args.resources().isEmpty()) {
+                        throw new IllegalArgumentException("docs takes one --out <dir>, --check <dir>... and --classpath");
+                    }
+                }
                 default -> throw new IllegalArgumentException("unknown command " + args.command());
             }
         } catch (IllegalArgumentException e) {
@@ -158,6 +186,7 @@ public final class Main {
             return switch (args.command()) {
                 case "lint" -> lint(project, args, out, err);
                 case "schema" -> schema(project, args.json(), out);
+                case "docs" -> docs(project, args.out().get(0), args.check(), out);
                 default -> explain(loader, args.positional().get(0), out, err);
             };
         } catch (LinkageError | TypeNotPresentException e) {
@@ -222,6 +251,25 @@ public final class Main {
         Schema schema = Schema.of(project, ElementDeclarations.load(project));
         out.print(json ? Json.write(schema.json()) + "\n" : schema.text());
         return 0;
+    }
+
+    private static int docs(Project project, Path dir, List<Path> check, PrintStream out) {
+        Schema schema = Schema.of(project, ElementDeclarations.load(project));
+        List<DiagCode> codes = CodeCatalog.all(project.loader());
+        Library library = project.hosting().library();
+        try {
+            Reference.write(schema, codes, library::read, dir);
+        } catch (IOException e) {
+            throw new UncheckedIOException("cannot write the reference pages into " + dir, e);
+        }
+        NameCheck names = new NameCheck(schema,
+                LibraryNames.of(library, LibraryFiles.list(library, ".css")).tokens(), codes);
+        List<NameCheck.Problem> problems = new ArrayList<>();
+        for (Path root : check) {
+            problems.addAll(names.check(root, dir));
+        }
+        problems.forEach(out::println);
+        return problems.isEmpty() ? 0 : 1;
     }
 
     private static int explain(ClassLoader loader, String id, PrintStream out, PrintStream err) {

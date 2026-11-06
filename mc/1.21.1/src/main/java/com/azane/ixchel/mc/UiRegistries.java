@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.runtime.UiHosting;
 import com.azane.ixchel.core.runtime.UiRegistry;
 import com.azane.ixchel.mc.element.McElements;
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *         .component(EnergyModel.class, EnergyModel::new));
  * }</pre>
  */
+@HostApi
 public final class UiRegistries {
     /**
      * This layer's: {@code @ixchel/mc/x} is {@code ui/x} next to this class;

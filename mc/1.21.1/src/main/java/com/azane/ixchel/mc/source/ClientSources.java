@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.source;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.binding.Source;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -22,6 +23,7 @@ import java.util.function.Supplier;
  * that comparison to records and lists holding stacks. Without a player (menus, loading) they read
  * as empty.
  */
+@HostApi
 public final class ClientSources {
     private ClientSources() {
     }

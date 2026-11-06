@@ -4,8 +4,10 @@ import com.azane.ixchel.core.binding.ModelShape;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.PropertyDef;
+import com.azane.ixchel.core.css.syntax.ComponentValue;
 import com.azane.ixchel.core.css.syntax.CssParser;
 import com.azane.ixchel.core.css.syntax.ParsedSheet;
+import com.azane.ixchel.core.css.syntax.Token;
 import com.azane.ixchel.core.diag.Diagnostics;
 import com.azane.ixchel.core.dom.ElementType;
 import com.azane.ixchel.core.effect.Aliases;
@@ -28,13 +30,17 @@ import com.azane.ixchel.kit.project.ElementDeclarations;
 import com.azane.ixchel.kit.project.LibraryFiles;
 import com.azane.ixchel.kit.project.Project;
 
+import java.math.BigDecimal;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -69,8 +75,9 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
      *
      * @param href      the {@code @link} href: {@code @ixchel/themes/<name>.css}, or the file id
      * @param variables the {@code --ix-*} custom properties it and its bases set on {@code :root}, sorted
+     *                  by name, each with the value it ends up with, as written (whitespace collapsed)
      */
-    public record Theme(String href, List<String> variables) {
+    public record Theme(String href, SortedMap<String, String> variables) {
     }
 
     /**
@@ -89,13 +96,18 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
 
     /**
      * @param file      the id of the file declaring it; a library component's starts with {@code @ixchel/}
-     * @param params    parameter names; {@code required} lists those without a default
+     * @param params    parameter names in declaration order
+     * @param defaults  each optional parameter's default expression as written; a parameter without one is required
      * @param uses      the names it takes from a {@code provide:} above it
      * @param slots     slot names, {@code ""} for the default slot
      * @param parts     the {@code part} names of its view's elements, which {@code ::part()} selects, sorted
      */
-    public record Component(String name, String file, List<String> params, List<String> required,
+    public record Component(String name, String file, List<String> params, Map<String, String> defaults,
                             List<String> events, List<String> uses, List<String> slots, List<String> parts) {
+        /** The parameters without a default, in declaration order. */
+        public List<String> required() {
+            return params.stream().filter(p -> !defaults.containsKey(p)).toList();
+        }
     }
 
     /** A view model class with its {@code @UiView} ids or patterns and its members. */
@@ -179,7 +191,8 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
             models.add(new Model(a.type().getName(), a.patterns(), members));
         }
         return new Schema(tags, themes, properties, shorthands, effects, components, models,
-                LibraryNames.of(library, LibraryFiles.list(library, ".css")).classes(), Expressions.PIPE_SIGNATURES);
+                LibraryNames.of(library, LibraryFiles.list(library, ".css")).classes(),
+                Expressions.PIPES.stream().map(Expressions.Pipe::signature).toList());
     }
 
     /** The schema as JSON-ready maps, lists, strings and booleans. */
@@ -189,7 +202,8 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
                 "name", t.name(), "attributes", t.attributes(), "payload", t.payload(),
                 "payloadType", t.payloadType())).toList());
         out.put("themes", themes.stream().map(s -> object(
-                "href", s.href(), "variables", s.variables())).toList());
+                "href", s.href(), "variables", List.copyOf(s.variables().keySet()),
+                "values", s.variables())).toList());
         out.put("cssProperties", properties.stream().map(p -> object(
                 "name", p.name(), "inherited", p.inherited(), "animatable", p.animatable())).toList());
         out.put("cssShorthands", shorthands.stream().map(s -> object(
@@ -200,6 +214,7 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
                         "inherits", p.inherits(), "initial", p.initial())).toList())).toList());
         out.put("components", components.stream().map(c -> object(
                 "name", c.name(), "file", c.file(), "params", c.params(), "required", c.required(),
+                "defaults", c.defaults(),
                 "events", c.events(), "uses", c.uses(), "slots", c.slots(), "parts", c.parts())).toList());
         out.put("models", models.stream().map(m -> object(
                 "class", m.type(), "views", m.views(),
@@ -231,7 +246,7 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
         for (Theme s : themes) {
             sb.append("  ").append(s.href()).append('\n');
             if (!s.variables().isEmpty()) {
-                sb.append("    variables: ").append(String.join(" ", s.variables())).append('\n');
+                sb.append("    variables: ").append(String.join(" ", s.variables().keySet())).append('\n');
             }
         }
         sb.append("css properties:\n");
@@ -298,9 +313,12 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
         return sb.toString();
     }
 
-    /** The theme {@code href} with the {@code --ix-*} variables it and the partials it links set on {@code :root}. */
+    /**
+     * The theme {@code href} with the {@code --ix-*} variables it and the partials it links set on
+     * {@code :root}; a later sheet or rule overrides an earlier one, as in the cascade.
+     */
     private static Theme theme(String href, Project project, Library library) {
-        Set<String> variables = new TreeSet<>();
+        SortedMap<String, String> variables = new TreeMap<>();
         for (Linker.Sheet t : Linker.expand(href, project::read, library)) {
             StyleSheet sheet = StyleSheet.compile(t.sheet(), CssProperties.REGISTRY, new Diagnostics());
             for (StyleSheet.StyleRule r : sheet.rules()) {
@@ -309,12 +327,53 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
                 }
                 for (Declarations.Custom c : r.declarations().customs()) {
                     if (c.name().startsWith("--ix-")) {
-                        variables.add(c.name());
+                        variables.put(c.name(), css(c.value()).trim());
                     }
                 }
             }
         }
-        return new Theme(href, List.copyOf(variables));
+        return new Theme(href, Collections.unmodifiableSortedMap(variables));
+    }
+
+    /** {@code values} written back as CSS, runs of whitespace as one space. */
+    private static String css(List<ComponentValue> values) {
+        StringBuilder sb = new StringBuilder();
+        for (ComponentValue v : values) {
+            if (v instanceof Token t) {
+                sb.append(css(t));
+            } else if (v instanceof ComponentValue.Function f) {
+                sb.append(f.name()).append('(').append(css(f.args())).append(')');
+            } else if (v instanceof ComponentValue.Block b) {
+                String pair = switch (b.open()) {
+                    case LBRACKET -> "[]";
+                    case LBRACE -> "{}";
+                    default -> "()";
+                };
+                sb.append(pair.charAt(0)).append(css(b.contents())).append(pair.charAt(1));
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String css(Token t) {
+        return switch (t.kind()) {
+            case WHITESPACE -> " ";
+            case HASH, HASH_ID -> "#" + t.value();
+            case STRING -> '"' + t.value().replace("\\", "\\\\").replace("\"", "\\\"") + '"';
+            case URL -> "url(" + t.value() + ")";
+            case AT_KEYWORD -> "@" + t.value();
+            case NUMBER -> number(t.number());
+            case PERCENTAGE -> number(t.number()) + "%";
+            case DIMENSION -> number(t.number()) + t.unit();
+            case COLON -> ":";
+            case SEMICOLON -> ";";
+            case COMMA -> ",";
+            default -> t.value() == null ? "" : t.value();
+        };
+    }
+
+    private static String number(double n) {
+        return BigDecimal.valueOf(n).stripTrailingZeros().toPlainString();
     }
 
     /** Whether {@code s} is a lone {@code :root}. */
@@ -329,16 +388,16 @@ public record Schema(List<Tag> tags, List<Theme> themes, List<Property> properti
 
     private static Component component(ComponentDef def, String file) {
         List<String> params = new ArrayList<>();
-        List<String> required = new ArrayList<>();
+        Map<String, String> defaults = new LinkedHashMap<>();
         for (ComponentDef.Param p : def.params()) {
             params.add(p.name());
-            if (p.fallback() == null) {
-                required.add(p.name());
+            if (p.fallback() != null) {
+                defaults.put(p.name(), p.fallback().value());
             }
         }
         Set<String> parts = new TreeSet<>();
         parts(def.body(), parts);
-        return new Component(def.name(), file, params, required, def.events(), def.uses(),
+        return new Component(def.name(), file, params, Collections.unmodifiableMap(defaults), def.events(), def.uses(),
                 List.copyOf(new TreeSet<>(def.slots())), List.copyOf(parts));
     }
 

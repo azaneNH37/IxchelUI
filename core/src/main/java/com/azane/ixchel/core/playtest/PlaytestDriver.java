@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.playtest;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.LayoutBox;
 import com.azane.ixchel.core.event.EventDispatcher;
@@ -25,6 +26,7 @@ import java.util.function.BooleanSupplier;
  *  .click(".row:nth-child(2)");
  * }</pre>
  */
+@HostApi
 public abstract class PlaytestDriver<S extends PlaytestDriver<S>> {
     /** Default wait limit: one second of ticks. */
     public static final int WAIT = 20;

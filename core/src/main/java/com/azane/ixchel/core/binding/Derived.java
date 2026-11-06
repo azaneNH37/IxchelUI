@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -8,6 +10,7 @@ import java.util.function.Function;
  * input's version changed. A result equal to the previous one keeps the version, so downstream cells
  * and bindings treat it as unchanged.
  */
+@HostApi
 public final class Derived<T> extends Cell<T> {
     private final Cell<?>[] inputs;
     private final long[] seen;

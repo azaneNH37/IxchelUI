@@ -46,10 +46,33 @@ public final class Expressions {
     private record Node(Type type, Eval eval) {
     }
 
-    /** The built-in pipes as a view writes them, their input before the bar; nothing else resolves after a {@code |}. */
-    public static final List<String> PIPE_SIGNATURES = List.of(
-            "Number | compact(digits = 1)", "Integer | duration", "Number | percent");
-    private static final List<String> PIPES = List.of("compact", "duration", "percent");
+    /**
+     * A built-in pipe as a view writes it: {@code <input> | <name>(<params>)}, giving a {@code String}.
+     *
+     * @param input    the type of the value before the bar
+     * @param params   its arguments with their defaults as a call writes them, {@code ""} for none
+     * @param summary  what it turns the input into
+     * @param examples expressions using it, each compiling with no paths in scope
+     */
+    public record Pipe(String name, String input, String params, String summary, List<String> examples) {
+        /** {@code Number | compact(digits = 1)}: the pipe after its input type. */
+        public String signature() {
+            return input + " | " + name + (params.isEmpty() ? "" : "(" + params + ")");
+        }
+    }
+
+    /** The built-in pipes; nothing else resolves after a {@code |}. */
+    public static final List<Pipe> PIPES = List.of(
+            new Pipe("compact", "Number", "digits = 1",
+                    "The number in steps of 1000 (k, M, G, T) with at most digits decimals, trailing zeros stripped.",
+                    List.of("999 | compact", "12500 | compact", "1234567 | compact(2)", "-12500 | compact")),
+            new Pipe("duration", "Integer", "",
+                    "A count of game ticks (20 per second) as m:ss, or h:mm:ss from one hour; a negative count as 0:00.",
+                    List.of("1250 | duration", "72000 | duration")),
+            new Pipe("percent", "Number", "",
+                    "A 0–1 fraction as a rounded whole percent.",
+                    List.of("0.456 | percent", "1 | percent")));
+    private static final List<String> NAMES = PIPES.stream().map(Pipe::name).toList();
 
     private final Paths paths;
     private final Function<Object, String> textOf;
@@ -255,8 +278,8 @@ public final class Expressions {
             args.add(n);
         }
         String name = p.name();
-        if (!PIPES.contains(name)) {
-            errors.report(ExprCode.UNKNOWN_PIPE, p.at(), "no built-in pipe '" + name + "'; the pipes are " + PIPES);
+        if (!NAMES.contains(name)) {
+            errors.report(ExprCode.UNKNOWN_PIPE, p.at(), "no built-in pipe '" + name + "'; the pipes are " + NAMES);
             return null;
         }
         if (!ok) {

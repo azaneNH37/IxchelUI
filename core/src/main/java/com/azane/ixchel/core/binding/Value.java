@@ -1,8 +1,11 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.util.Objects;
 
 /** Local state: set by host code, and by the view where a view binds it two-way. */
+@HostApi
 public final class Value<T> extends Cell<T> {
     private final ViewModel owner;
     private T value;

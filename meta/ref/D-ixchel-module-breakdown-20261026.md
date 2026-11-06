@@ -31,6 +31,7 @@ flowchart LR
 
 | 包 | 内容 | 依赖 |
 |---|---|---|
+| `api` | `@HostApi`：标记宿主可依赖的类型，javadoc jar 与文档站 Java API 只收录带标记的类型（#046） | — |
 | `diag` | 源位置、诊断收集、开发期叠加层数据 | — |
 | `css.syntax` | CSS Syntax L3 分词、组件值 | diag |
 | `css.selector` | 选择器解析、优先级、匹配 | css.syntax, dom |

@@ -81,4 +81,14 @@ class PipesTest {
         assertEquals(List.of("0%", "100%", "46%"),
                 List.of(eval("0 | percent"), eval("1 | percent"), eval("0.456 | percent")));
     }
+
+    /** Fails if an example the reference shows for a pipe stops compiling with no paths in scope. */
+    @Test
+    void everyDocumentedExampleCompiles() throws Exception {
+        for (Expressions.Pipe p : Expressions.PIPES) {
+            for (String e : p.examples()) {
+                assertEquals(List.of(), errors(e), e);
+            }
+        }
+    }
 }

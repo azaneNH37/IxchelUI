@@ -56,6 +56,11 @@ public final class LibraryNames {
         return classes.stream().sorted().toList();
     }
 
+    /** The {@code --ix-*} tokens, sorted. */
+    public List<String> tokens() {
+        return tokens.stream().sorted().toList();
+    }
+
     private void classes(List<ComponentValue> prelude) {
         for (int i = 0; i < prelude.size(); i++) {
             String c = className(prelude, i);

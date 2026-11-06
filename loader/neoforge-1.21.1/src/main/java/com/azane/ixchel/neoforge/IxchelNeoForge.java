@@ -1,5 +1,6 @@
 package com.azane.ixchel.neoforge;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.mc.UiHud;
 import com.azane.ixchel.mc.document.ExitingDocuments;
@@ -18,6 +19,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import java.util.function.Supplier;
 
 /** NeoForge 1.21.1 glue for host mods: registers the mc layer's hosts with NeoForge. */
+@HostApi
 public final class IxchelNeoForge {
     private static boolean worldProjectionInstalled;
     private static boolean screenExitsInstalled;

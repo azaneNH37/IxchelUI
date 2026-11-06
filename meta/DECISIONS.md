@@ -262,3 +262,15 @@
 - **context**: U4 的大数字、时长、百分比要在模板中格式化；表达式原本没有函数调用，L1 定的"不提供内置函数"已到第二处真实需要
 - **decision**: 表达式加管道 `expr | 名字(参数…)`，优先级最低（低于 `?:`），参数用括号；管道名只在 `|` 右侧解析，与模板中的其它名字互不冲突；首版只有内置的纯函数 `compact`、`duration`、`percent`，`Locale.ROOT`，宿主不能注册；单位不做管道。细节见 `ref/SD-ixchel-u4-components-20261104.md` §3.2
 - **rejected**: `$compact(x)` 函数调用——同样要新语法，需 `$` 前缀避开成员名，链式要嵌套；`|` 比 `+` 绑得紧——`a + b | compact` 与各家先例相反；冒号传参（Angular）——与 `?:` 冲突；宿主注册管道——没有三个真实场景
+
+## #045 文档站：plume 主题、中文手写、参考页由 kit 生成
+- **decided**: 2026-11-05（2026-11-06 修订：Java API 改为 doclet 生成的站内页，#046；参考页呈现方式）
+- **context**: Doc 阶段开工，需定站点框架与主题、语言、参考页来源与文档检查；手写维护名字表必然漏项
+- **decision**: 沿用 #010 的 VuePress 2（仍为 RC），主题 vuepress-theme-plume，关闭其 `autoFrontmatter`（否则改写每页 permalink）；`docs/pnpm-workspace.yaml` 设 `shamefullyHoist: true`（plume 的插件依赖不提升时 Vite 预构建解析失败，plume CLI 生成的项目同样如此）。手写内容只写中文，按 Diátaxis 分教程、How-to、参考、概念。参考页由 `ixchel-kit docs` 在 1.20.1 mc 层的运行时 classpath 上生成（1.21.1 为子集），英文、只列名字与事实，不提交；组件、特效的说明取库文件开头注释，管道示例取 `Expressions.Pipe`，组件参数默认值取 Schema `defaults`。呈现：来源与特性用 plume `<Badge>` 的自定义类型（`ix`、`mc`、`inherited`、`animatable`，样式在 `docs/.vuepress/styles/badges.css`），成组的事实用表格不用 `::: field` 列表；每个组件一张 Interface 表（参数及必填/默认值、事件、插槽、`uses` 的上下文及提供它的组件）、一张 Styling 表（每个带 `part`/`class` 的元素一行，把 `::part()` 与类并列），源码放折叠的 code-tabs。Java API 见 #046。`docs` 同一次运行检查手写 md 与 Java API 页中的 `<ix-*>`/`<mc-*>`、`--ix-*`、`.ix-*` 与错误码是否存在；`check` 另跑 `vuepress build` 与 lychee 离线死链。细节见 `ref/D-ixchel-ci-workflows-20261026.md` §3
+- **rejected**: VitePress——稳定版且官方推荐，但 #010 已定 VuePress，用户选择不改；参考页的说明文字写进 Java——core 随宿主 shade，增加每个宿主的体积；按 key 的手写说明片段与覆盖检查——用户要求生成部分保持最简；双语——手写量翻倍；参数用 `::: field` 卡片、其余事实用逐行列表——信息分散，part 与 class 的对应关系看不出
+
+## #046 宿主 API 以 `@HostApi` 标记，Java API 页由自写 doclet 生成
+- **decided**: 2026-11-06
+- **context**: Java 跨包即 `public`，public 不能说明哪些类型是对宿主的承诺；文档站需要只呈现宿主可依赖的类型，且与站点同一套导航、搜索与样式
+- **decision**: `core.api.HostApi`（`@Documented`，CLASS 保留）标在宿主可依赖的顶层类型上；标记类型的 public/protected 成员即其 API，签名中出现的未标记类型可见但不承诺。约定插件 `ixchel.library` 对所有 Javadoc 任务按源文本 `^@HostApi` 过滤：发布的 javadoc jar 与站点页面只含标记类型。站点页由 `tools/doclet`（`ixchel-doclet`，不发布）生成 Markdown，每个库模块的 `javaApi` 任务写到 `docs/java-api/<模块>/`（不提交），每个类型一页，成员带稳定锚点；参数、返回值、异常合成一张表，注释无说明时省略。跨模块链接取编译 classpath 上的 Ixchel 项目，模块根包按规则 `com.azane.ixchel.<artifactId 去掉 ixchel- 与 MC 版本>` 推出，新库模块须守此命名
+- **rejected**: 标准 doclet 的 HTML 挂 `/api/`——与站点的导航、搜索、样式割裂，站内只能用普通 `<a>` 链过去；根构建里逐模块注册任务并手写模块与根包对照表——新增模块要改两处，且须 `evaluationDependsOn`

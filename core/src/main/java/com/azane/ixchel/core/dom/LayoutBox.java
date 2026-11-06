@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.dom;
 
+import com.azane.ixchel.core.api.HostApi;
+
 /**
  * Border box in document coordinates (GUI pixels, origin at the viewport's top-left), and the used
  * border and padding widths inside it: the padding box is the border box minus the borders, the
@@ -9,6 +11,7 @@ package com.azane.ixchel.core.dom;
  * instead (its {@linkplain #fragments() fragments}, line-high); its border box is their bounding box
  * and it has no borders or padding.
  */
+@HostApi
 public final class LayoutBox {
     private static final float[] NO_FRAGMENTS = new float[0];
 

@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -21,6 +23,7 @@ import java.lang.annotation.Target;
  * mc.setScreen(new UiScreen(new ResourceLocation("sample", "ui/guide/entries/" + page + ".html"), view));
  * }</pre>
  */
+@HostApi
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface UiView {

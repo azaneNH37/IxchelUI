@@ -1,8 +1,10 @@
 package com.azane.ixchel.core.dom;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.diag.SourcePos;
 
 /** A tree node: an {@link Element} or a run of {@link TextNode text}. */
+@HostApi
 public abstract sealed class Node permits Element, TextNode {
     private final SourcePos pos;
     private final LayoutBox box = new LayoutBox();

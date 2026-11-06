@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -29,6 +31,7 @@ import java.util.function.UnaryOperator;
  * instance ends with its last reference. A {@code null} key reads as {@code null}, without touching
  * the feed. Client thread only, except {@link #tickClock}.
  */
+@HostApi
 public final class Feed<K, T> {
     private static final long NEVER = Long.MIN_VALUE;
     private static long pass;

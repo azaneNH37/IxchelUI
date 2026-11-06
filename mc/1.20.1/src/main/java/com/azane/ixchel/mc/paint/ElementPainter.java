@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.paint;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.view.ElementPayload;
@@ -16,6 +17,7 @@ import net.minecraft.client.gui.GuiGraphics;
  * final class GaugeElement implements ElementPainter<Float> { ... }
  * }</pre>
  */
+@HostApi
 public interface ElementPainter<T> extends ElementPayload<T> {
     /**
      * Draws {@code c} with the payload's current value at depth {@code z} of the current pose of

@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.playtest;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.playtest.PlaytestDriver;
 import com.azane.ixchel.core.playtest.Dump;
 import com.azane.ixchel.core.dom.Element;
@@ -41,6 +42,7 @@ import java.util.function.Predicate;
  *         .shot("sample-index"));
  * }</pre>
  */
+@HostApi
 public final class Playtest extends PlaytestDriver<Playtest> {
     private static final Logger LOG = LogUtils.getLogger();
 

@@ -1,5 +1,6 @@
 package com.azane.ixchel.mc.source;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
@@ -26,6 +27,7 @@ import java.util.Optional;
  * The level is drawn before the GUI, so a HUD or screen sees the frame it is part of. Client render
  * thread only.
  */
+@HostApi
 public final class WorldProjection {
     private static final Matrix4f VIEW_PROJECTION = new Matrix4f();
     private static boolean captured;

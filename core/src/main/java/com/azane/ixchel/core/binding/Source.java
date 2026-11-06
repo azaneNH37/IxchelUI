@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
@@ -9,6 +11,7 @@ import java.util.function.UnaryOperator;
  * External data polled once per frame. Mutable objects must come with a snapshot (copy) and a content
  * comparison: the live object is compared with the last snapshot, and copied only when they differ.
  */
+@HostApi
 public final class Source<T> {
     final Supplier<T> live;
     final UnaryOperator<T> snapshot;

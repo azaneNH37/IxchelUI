@@ -1,0 +1,51 @@
+/* The <Badge> types the generated reference pages use besides the theme's own. */
+
+.vp-badge.ix,
+.vp-badge.mc {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  border-color: transparent;
+}
+
+.vp-badge.ix::before,
+.vp-badge.mc::before {
+  width: 1em;
+  height: 1em;
+  content: '';
+  background-color: currentcolor;
+  mask: var(--badge-icon) center / contain no-repeat;
+}
+
+/* Ixchel's own: a sparkle (Lucide, ISC). */
+.vp-badge.ix {
+  --badge-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z'/%3E%3C/svg%3E");
+
+  color: #8e5cd9;
+  background-color: rgb(159 122 234 / 14%);
+}
+
+/* The Minecraft layer's: a box (Lucide, ISC). */
+.vp-badge.mc {
+  --badge-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5M12 22V12'/%3E%3C/svg%3E");
+
+  color: #3f8f3a;
+  background-color: rgb(91 168 70 / 16%);
+}
+
+.vp-badge.inherited {
+  color: #1f8a9e;
+  background-color: rgb(31 138 158 / 14%);
+  border-color: transparent;
+}
+
+.vp-badge.animatable {
+  color: #c2410c;
+  background-color: rgb(234 88 12 / 14%);
+  border-color: transparent;
+}
+
+[data-theme='dark'] .vp-badge.ix { color: #b39bf0; }
+[data-theme='dark'] .vp-badge.mc { color: #7bc96f; }
+[data-theme='dark'] .vp-badge.inherited { color: #5cc6d8; }
+[data-theme='dark'] .vp-badge.animatable { color: #fb923c; }

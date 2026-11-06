@@ -1,5 +1,7 @@
 package com.azane.ixchel.core.binding;
 
+import com.azane.ixchel.core.api.HostApi;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +30,7 @@ import java.util.function.Supplier;
  * closes the model with its view; a component's model closes with its instance. Client thread only,
  * except {@link Scope#post}.
  */
+@HostApi
 public abstract class ViewModel implements AutoCloseable {
     @FunctionalInterface
     public interface Fn3<A, B, C, R> {

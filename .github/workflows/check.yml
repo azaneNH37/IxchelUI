@@ -36,6 +36,26 @@ jobs:
 
       - run: ./gradlew build
 
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: docs/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+      # docs:build first runs `gradlew docs`: the reference pages and Javadoc, failing on stale names in docs/.
+      - run: pnpm install --frozen-lockfile && pnpm docs:build
+        working-directory: docs
+
+      # Internal links only; the site is not deployed from here.
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: --offline --no-progress --root-dir ${{ github.workspace }}/docs/.vuepress/dist 'docs/.vuepress/dist/**/*.html'
+          fail: true
+
       - if: failure()
         uses: actions/upload-artifact@v7
         with:

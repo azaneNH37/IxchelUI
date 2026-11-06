@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.anim.Animations;
 import com.azane.ixchel.core.anim.Transitions;
 import com.azane.ixchel.core.binding.compile.Bindings;
@@ -72,6 +73,7 @@ import java.util.function.LongSupplier;
  * <p>A {@link UiHosting} adds the library and the host's Java components. Component
  * instances own view models, which end with their instance or with {@link #close()}.
  */
+@HostApi
 public final class UiDocument {
     static final long BLINK_MS = 500;
 

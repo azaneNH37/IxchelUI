@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,12 +54,12 @@ class SchemaTest {
             Project project = new Project(List.of(), List.of(), loader);
             Schema schema = Schema.of(project, ElementDeclarations.load(project));
             assertEquals(List.of(new Schema.Component("mc-kit-gauge", "@ixchel/kitfixture/kit-gauge.html",
-                    List.of("level"), List.of("level"), List.of(), List.of(), List.of(), List.of())),
+                    List.of("level"), Map.of(), List.of(), List.of(), List.of(), List.of())),
                     schema.components().stream().filter(c -> c.file().startsWith("@ixchel/kitfixture/")).toList());
         }
     }
 
-    /** Fails if a library view component, what it uses or its parts go unlisted, or its part classes and the pipes do. */
+    /** Fails if a library view component, its defaults, what it uses or its parts go unlisted, or its part classes and the pipes do. */
     @Test
     void listsTheLibrarysViewComponentsWithUsesPartsAndClasses() throws URISyntaxException {
         Path resources = Path.of(SchemaTest.class.getResource("/fixture").toURI());
@@ -68,6 +69,7 @@ class SchemaTest {
         Schema.Component bar = schema.components().stream().filter(c -> c.name().equals("ix-bar")).findFirst().orElseThrow();
         assertEquals("@ixchel/components/bar.html", bar.file());
         assertEquals(List.of("fill", "trail"), bar.parts());
+        assertEquals(Map.of("dir", "'right'"), bar.defaults());
         Schema.Component tab = schema.components().stream().filter(c -> c.name().equals("ix-tab")).findFirst().orElseThrow();
         assertEquals(List.of("tabs"), tab.uses());
         assertTrue(schema.classes().containsAll(List.of("ix-bar-fill", "ix-tab-button", "ix-switch", "ix-row")));
@@ -94,7 +96,10 @@ class SchemaTest {
         assertEquals("layer", schema.effects().get(0).kind());
     }
 
-    /** Fails if a theme's variables leave out its base's, or a project theme reached only through a page goes unlisted. */
+    /**
+     * Fails if a theme's variables leave out its base's, a theme's own value loses to its base's, or a
+     * project theme reached only through a page goes unlisted.
+     */
     @Test
     void listsShorthandsAndThemesWithTheVariablesOfTheirBases(@TempDir Path tmp) throws IOException {
         Path ui = Files.createDirectories(tmp.resolve("assets/t/ui"));
@@ -114,11 +119,13 @@ class SchemaTest {
                 schema.themes().stream().map(Schema.Theme::href).toList());
         Schema.Theme dark = schema.themes().get(2);
         Schema.Theme main = schema.themes().get(5);
-        assertEquals(schema.themes().get(0).variables(), dark.variables(), "base sets every variable of the contract");
-        assertTrue(dark.variables().contains("--ix-panel-bg"));
-        List<String> expected = new ArrayList<>(dark.variables());
+        assertEquals(schema.themes().get(0).variables().keySet(), dark.variables().keySet(), "base sets every variable of the contract");
+        assertEquals("#202020", schema.themes().get(0).variables().get("--ix-panel-bg"));
+        assertEquals("#101418E0", dark.variables().get("--ix-panel-bg"));
+        List<String> expected = new ArrayList<>(dark.variables().keySet());
         expected.add("--ix-extra");
-        assertEquals(expected.stream().sorted().toList(), main.variables());
+        assertEquals(expected.stream().sorted().toList(), List.copyOf(main.variables().keySet()));
+        assertEquals("1px", main.variables().get("--ix-extra"));
     }
 
     private static Schema.Tag tag(Schema schema, String name) {
