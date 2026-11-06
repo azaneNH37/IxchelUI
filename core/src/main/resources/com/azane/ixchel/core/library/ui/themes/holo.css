@@ -1,64 +1,63 @@
 /*
- * The holographic look: translucent cyan panels projected over a blurred world, scanlines, corner
- * brackets and a light running round the edge, a flicker now and then, titles glowing with their
- * colors split, and panels that open out from a line as a screen enters.
+ * The holographic look: dark translucent panels projected over a blurred world in a cyan glow. Bright
+ * corner brackets hold each panel while its full frame breathes in and out, half there; a scan line
+ * sweeps down over faint scanlines, the panel flickers now and then, and titles glow in capitals with
+ * their colors split, jumping apart for a moment. Panels open out from a line as a screen enters.
  */
 @partial;
 @link "base.css";
-@link "@ixchel/effects/glint.ixeffect";
 @link "@ixchel/effects/chromatic.ixeffect";
 
 :root {
-    --ix-panel-bg: #0A3A4A60;
-    --ix-panel-shadow: inset 0 0 0 1px #40E0FF60, 0 0 6px #40E0FF60;
-    --ix-panel-backdrop: blur(2px);
-    --ix-well-bg: #00101860;
-    --ix-well-shadow: inset 0 0 0 1px #40E0FF50;
-    --ix-well-border: #40E0FF50;
-    --ix-control-bg: #40E0FF20;
-    --ix-control-border: #40E0FF80;
-    --ix-overlay-bg: #062830E0;
-    --ix-overlay-border: #40E0FFA0;
-    --ix-overlay-shadow: 0 0 6px #40E0FF60;
-    --ix-overlay-text: #B0F4FF;
-    --ix-hover: #40E0FF30;
-    --ix-active: #40E0FF60;
-    --ix-selected: #40E0FF50;
+    --ix-panel-bg: #04121CB0;
+    --ix-panel-shadow: inset 0 0 0 1px #6EDCFF30, 0 0 12px #6EDCFF30;
+    --ix-panel-backdrop: blur(3px);
+    --ix-well-bg: #0A2A3A50;
+    --ix-well-shadow: inset 0 0 0 1px #6EDCFF28;
+    --ix-well-border: #6EDCFF40;
+    --ix-control-bg: #6EDCFF14;
+    --ix-control-border: #6EDCFFB0;
+    --ix-overlay-bg: #021018E8;
+    --ix-overlay-border: #6EDCFFC0;
+    --ix-overlay-shadow: 0 0 8px #6EDCFF50;
+    --ix-overlay-text: #CFF6FF;
+    --ix-hover: #6EDCFF26;
+    --ix-active: #6EDCFF55;
+    --ix-selected: #6EDCFF40;
     --ix-selected-text: #FFFFFF;
-    --ix-disabled-text: #407080;
-    --ix-focus: #A0F8FF;
-    --ix-text: #B0F4FF;
-    --ix-title: #E0FFFF;
-    --ix-text-muted: #60A8B8;
-    --ix-text-dim: #307080;
-    --ix-title-font: minecraft:uniform;
-    --ix-accent: #40E0FF;
-    --ix-on-accent: #002028;
-    --ix-positive: #60FFC0;
-    --ix-negative: #FF6080;
+    --ix-disabled-text: #3E6E7E;
+    --ix-focus: #CFF6FF;
+    --ix-text: #A8E8FF;
+    --ix-title: #F0FCFF;
+    --ix-text-muted: #5FA0B4;
+    --ix-text-dim: #2E6070;
+    --ix-accent: #6EDCFF;
+    --ix-on-accent: #001A24;
+    --ix-positive: #5CFFB0;
+    --ix-negative: #FF4A6A;
     --ix-warning: #FFD060;
     --ix-radius: 2px;
     --ix-duration: 150ms;
     --ix-easing: ease-out;
 }
 
-/* On top the edge light, then the four corner brackets (two strokes each), under them the scanlines. */
+/* On top the scan line, then the four corner brackets (two strokes each), under them the scanlines.
+   Square corners, so the brackets meet at the panel's own. */
 .ix-panel {
-    background-image: paint(Glint),
-        linear-gradient(#A0F8FF, #A0F8FF), linear-gradient(#A0F8FF, #A0F8FF),
-        linear-gradient(#A0F8FF, #A0F8FF), linear-gradient(#A0F8FF, #A0F8FF),
-        linear-gradient(#A0F8FF, #A0F8FF), linear-gradient(#A0F8FF, #A0F8FF),
-        linear-gradient(#A0F8FF, #A0F8FF), linear-gradient(#A0F8FF, #A0F8FF),
-        linear-gradient(#40E0FF14 50%, transparent 50%);
-    background-size: auto, 6px 1px, 1px 6px, 6px 1px, 1px 6px, 6px 1px, 1px 6px, 6px 1px, 1px 6px, 100% 2px;
+    border-radius: 0;
+    background-image: linear-gradient(90deg, transparent, #6EDCFF50, #CFF6FF90, #6EDCFF50, transparent),
+        linear-gradient(#CFF6FF, #CFF6FF), linear-gradient(#CFF6FF, #CFF6FF),
+        linear-gradient(#CFF6FF, #CFF6FF), linear-gradient(#CFF6FF, #CFF6FF),
+        linear-gradient(#CFF6FF, #CFF6FF), linear-gradient(#CFF6FF, #CFF6FF),
+        linear-gradient(#CFF6FF, #CFF6FF), linear-gradient(#CFF6FF, #CFF6FF),
+        linear-gradient(#6EDCFF10 50%, transparent 50%);
+    background-size: 100% 1px, 10px 1px, 1px 10px, 10px 1px, 1px 10px, 10px 1px, 1px 10px, 10px 1px, 1px 10px, 100% 2px;
     background-position-x: 0, 0, 0, 100%, 100%, 0, 0, 100%, 100%, 0;
     background-position-y: 0, 0, 0, 0, 0, 100%, 100%, 100%, 100%, 0;
     background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat-y;
-    --Glint-color: #40E0FF80;
-    --Glint-speed: 0.2;
-    --Glint-width: 1px;
     transition: transform 200ms ease-out, opacity 200ms ease-out;
-    animation: ix-holo-flicker 5s linear infinite;
+    animation: ix-holo-frame 2.5s ease-in-out infinite alternate, ix-holo-scan 4s linear infinite,
+        ix-holo-flicker 7s linear infinite;
 }
 
 /* Entering only: built-in themes have no exit motion. */
@@ -68,15 +67,66 @@
 }
 
 .ix-title {
-    filter: drop-shadow(0 0 2px #40E0FF) -ix-paint(Chromatic);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    filter: drop-shadow(0 0 2px #6EDCFF) -ix-paint(Chromatic);
+    animation: ix-holo-split 6s linear infinite;
+}
+
+/* Lit controls glow. */
+button {
+    transition: background-color var(--ix-duration) var(--ix-easing), border-color var(--ix-duration) var(--ix-easing),
+        color var(--ix-duration) var(--ix-easing), box-shadow var(--ix-duration) var(--ix-easing);
+}
+
+button:hover, button:focus {
+    box-shadow: 0 0 6px #6EDCFF60;
+}
+
+button:disabled {
+    box-shadow: none;
+}
+
+.ix-bar-fill {
+    box-shadow: 0 0 4px #6EDCFFA0;
+}
+
+/* A badge is a status tag: outlined, not filled. */
+.ix-badge {
+    background-color: #00000099;
+    box-shadow: inset 0 0 0 1px var(--ix-accent);
+    color: var(--ix-accent);
+}
+
+/* The full frame half there, breathing; the brackets stay. Only colors change: the glow's shape is
+   baked once. */
+@keyframes ix-holo-frame {
+    from { box-shadow: inset 0 0 0 1px #6EDCFF18, 0 0 12px #6EDCFF18; }
+    to { box-shadow: inset 0 0 0 1px #6EDCFF60, 0 0 12px #6EDCFF50; }
+}
+
+@keyframes ix-holo-scan {
+    from { background-position-y: 0%, 0, 0, 0, 0, 100%, 100%, 100%, 100%, 0; }
+    to { background-position-y: 100%, 0, 0, 0, 0, 100%, 100%, 100%, 100%, 0; }
 }
 
 @keyframes ix-holo-flicker {
     0% { opacity: 1; }
-    91% { opacity: 1; }
-    92% { opacity: 0.75; }
     93% { opacity: 1; }
-    96% { opacity: 0.88; }
-    97% { opacity: 1; }
+    94% { opacity: 0.8; }
+    95% { opacity: 1; }
+    97% { opacity: 0.9; }
+    98% { opacity: 1; }
     100% { opacity: 1; }
+}
+
+/* The title's colors jump apart for a moment, twice. */
+@keyframes ix-holo-split {
+    0% { --Chromatic-offset: 1px; }
+    88% { --Chromatic-offset: 1px; }
+    89% { --Chromatic-offset: 3px; }
+    90% { --Chromatic-offset: 1px; }
+    92% { --Chromatic-offset: -2px; }
+    93% { --Chromatic-offset: 1px; }
+    100% { --Chromatic-offset: 1px; }
 }

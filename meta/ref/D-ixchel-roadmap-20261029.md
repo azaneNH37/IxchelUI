@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则），TH1（主题机制与库资源显式引入，#034、#039）、RS（按资源规范重做文件种类、引用与登记，#041）、TH2–TH4（形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`）、U4（组件库）、REC（确定性录制）、CSS1、CSS2（参考前端视效补齐 CSS，依据 `ref/S-ixchel-frontend-visual-gap-20261106.md`）；Doc 分批写，第一批（站点基建、生成的参考页与 Java API 页）已合入（#87）。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则），TH1（主题机制与库资源显式引入，#034、#039）、RS（按资源规范重做文件种类、引用与登记，#041）、TH2–TH4（形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`）、U4（组件库）、REC（确定性录制）、CSS1、CSS2（参考前端视效补齐 CSS，依据 `ref/S-ixchel-frontend-visual-gap-20261106.md`）、TH5（`holo` 重做、`cyber` 换成 `amber`）；下一步 FT（内置字体）；Doc 分批写，第一批（站点基建、生成的参考页与 Java API 页）已合入（#87）。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -67,6 +67,8 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | REC | 完成 | effects、themes、quests | 确定性录制：可注入的文档时钟与游戏时间步进、逐帧钩子、ffmpeg 编码、光标与点击叠加、按元素取景与超采样，录制指令复用 playtest 脚本；结果见下文 |
 | CSS1 | 完成 | effects 页 CSS 标签 | 低难度 CSS 补齐：`outline`、`letter-spacing`、`inset`、`radial-gradient`/`conic-gradient`/`repeating-*-gradient`、`background-position` 可动画、`skew`、`aspect-ratio`；结果见下文 |
 | CSS2 | 完成 | effects 页遮罩标签 | 图层遮罩类：`clip-path`、`mask-image`、`background-clip: text`；结果见下文 |
+| TH5 | 完成 | themes | 主题重做：`holo` 按 CodePen 参考重做，`cyber` 换成 `amber`（飞船 HUD）；结果见下文 |
+| FT | 待做 | effects 页、themes | 内置字体：库自带 OFL 字体与 `@font-face`，缺字回退，兼容 ModernUI；见下文 |
 
 依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1 → RS → TH2、TH3（彼此独立），TH2–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → L5 → L6，L5 → TH1（`@ixchel/themes/` 走统一解析），L5 → U4（`ix-*` 组件进 core 的库）；REC 只依赖 T2，与 CSS1 互不依赖，可并行；CSS1 → CSS2（图层遮罩复用 CSS1 的渐变绘制）。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
@@ -521,6 +523,23 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - 验证：core `UiDocumentClipMaskTest`；effects playtest 6 项断言（每种形状内外像素、被裁掉的角不命中、线性与径向遮罩的半透明过渡、纹理遮罩逐格、渐变文字只填字形）；1.21.1 经临时入口截图，与 1.20.1 一致，入口已删除。
   - 已知：polygon 每像素遍历全部边，大面积时的开销未测；只有第一层背景能选 `text`；文字阴影不进遮罩。
 - 另评估、不在本阶段：`z-index`（用量最高，要改绘制与命中顺序）、3D 变换（透视合成与命中）、伪元素文字与 `attr()`、`@font-face`。
+
+#### TH5 主题重做
+
+- 动机：TH4 的 `holo`、`cyber` 只换了配色，展示效果不足；按 `ref/S-ixchel-frontend-visual-gap-20261106.md` §4 的 CodePen 参考重做。
+- 已定（2026-11-07，用户）：`holo` 取 Ahmod-Musa/YPGGZgg（角括号、扫描线、标题色差）与 nin10doking/bNpRMEM（青色光晕面板），角括号明显、完整边框若隐若现；`cyber` 先按 gwannon/LYjvOLK（2077 黄底）做出后被否，改为 DESKTOP-the-decoder/ZEZJvPL（琥珀飞船 HUD），并改名 `amber`；`dark`、`vanilla` 不动；字体延后到 FT。
+- 结果（2026-11-07）：完成。设计稿见主题文档 §6、§6.2。
+  - `holo`：面板直角，四角 10px 亮括号；框线与外晕只在颜色上呼吸（外晕半径固定，阴影遮罩只烘焙一次）；第一层背景是 1px 扫描线，`background-position-y` 动画下扫；标题大写加 1px 字间距，`--Chromatic-offset` 由 `@keyframes` 偶尔跳开；按钮悬停与焦点发光；徽章改为描边；不再用 `Glint`。
+  - `amber`：近黑底、琥珀框线、直角、`crisp-edges`；内凹、输入框与条带共用 100° 暗色斜纹（`--ix-well-image`）；条的填充半透明，`flex-basis` 过渡 `steps(8)`；按下填满琥珀色；`.ix-busy` 走 `Stripes`。内置特效 `glitch` 不再被内置主题使用，仍作为库特效保留。
+  - 改名涉及：core `amber.css`（删 `cyber.css`）、`BuiltInThemesTest`、kit `SchemaTest`（主题按名排序，`base` 的下标改为 1）、sample 陈列页 `themes/amber.{html,css}`、标签页、`ThemesPlaytest`、索引说明。
+  - 验证：core `BuiltInThemesTest`、kit `SchemaTest` 通过；`-Pplaytest=themes` 20 项通过、截图逐张查看；holo 帧时间 p95 超预算 12000 us（中位约 10-11 ms），同一次会话把 master 的旧 holo 换回实测为中位 10.2 ms、p95 13.0 ms，说明是本机负载而非新主题退化，预算未动；amber 中位约 4.0 ms、p95 5.2 ms。
+  - 已知：主题文件 `@link` 的 `base.css` 排在主题规则之前，层序上主题规则一律胜出、与选择器优先级无关；主题写宽泛选择器（如 `button { color }`）会盖掉 `base` 的状态规则，须把状态重写一遍（2077 草稿中踩到，`amber` 未写这类规则）。低 alpha 的白色重复渐变条纹（`#FFFFFF14`）在游戏内画得比底色更暗，core 输出的命令正确、`#FFFFFF33` 的同类条纹正常，原因未查，`amber` 改用不透明 `#262626` 条纹绕开。
+
+#### FT 内置字体
+
+- 动机：主题与展示需要非 MC 字体；内置主题不能带固定命名空间的 `assets/`（#001）。
+- 先定（开工时）：字体文件放 classpath，由 mc 层自建字形来源与 `FontSet`，不经资源包；CSS 侧 `@font-face`；缺字回退到 MC 默认字体，测量与绘制同一套回退；装 ModernUI 时的行为；只收 SIL OFL 字体，原样内置不做子集，授权文本随 jar 带上。
+- 验收：两版各显示一种内置字体；中英混排缺字回退正确；装与不装 MUI 排版一致或差异写明；`-Pplaytest=all`；1.21.1 冒烟。
 
 #### Doc 用户文档
 

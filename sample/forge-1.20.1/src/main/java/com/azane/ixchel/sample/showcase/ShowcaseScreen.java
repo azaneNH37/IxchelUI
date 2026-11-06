@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * Theme showcase sample: the same component on four pages, each linking one built-in theme
- * (vanilla, dark, holo, cyber). Switching themes opens the other page, so the document loads again.
+ * (vanilla, dark, holo, amber). Switching themes opens the other page, so the document loads again.
  */
 public final class ShowcaseScreen {
     private ShowcaseScreen() {

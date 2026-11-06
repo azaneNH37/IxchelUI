@@ -56,7 +56,7 @@
   "ixchel_sample.index.effects.title": "Visual effects",
   "ixchel_sample.index.effects.description": "Group opacity: overlapping boxes, items and text fade as one, beside the same content faded piece by piece, and a card that fades with its item; every filter function, blend mode and backdrop filters behind rounded glass; shader effects: a glint, a tint that follows the pointer, cards that burn away; outlines, letter spacing, new gradients, skew and a ported pen of fighting game health meters.",
   "ixchel_sample.index.themes.title": "Themes",
-  "ixchel_sample.index.themes.description": "The four built-in themes, vanilla, dark, holo and cyber, on one showcase of every surface and control in each state; the tabs switch themes and the boxes stay where they are.",
+  "ixchel_sample.index.themes.description": "The four built-in themes, vanilla, dark, holo and amber, on one showcase of every surface and control in each state; the tabs switch themes and the boxes stay where they are.",
 
   "ixchel_sample.showcase.search": "Search",
   "ixchel_sample.showcase.folder": "Folder",

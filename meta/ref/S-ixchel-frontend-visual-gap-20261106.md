@@ -53,7 +53,7 @@ related: [ref/S-ixchel-ui-capability-comparison-20261102.md, ref/SD-ixchel-theme
 |---|---|---|---|
 | 动效 | 100–200ms 过渡与 `steps()` 像素跳帧；少数主题有循环（arwes 扫描光带、mecha 警示条闪烁、terminal 光标） | 无：lss 目录无 transition、animation、keyframes；悬停与按下是三张贴图瞬切，唯一内建动效是 Switch 写死的 0.1s | 过渡、`@keyframes`、进出伪类、`.ixeffect` |
 | 外观手段 | token 变量 + 伪元素、渐变、`clip-path`、mask、`@font-face`；Create、AE 用九宫格 PNG | `sdf()` 圆角矩形（无渐变阴影）与九宫格图集 | 变量 + `corner-shape`、`backdrop-filter`、`text-shadow`、box/layer 特效 |
-| 最出彩 | t13 蒸汽波（透视网格地面、条纹落日）、t02 Create（黄铜木纹九宫格）、t08/09 arwes 科幻 HUD、t15 机甲（警示斜纹、切角） | dusk 家族（一套设计 6 个调色板，1px 发丝线三级圆角）、ore（像素凸起按钮） | holo、cyber |
+| 最出彩 | t13 蒸汽波（透视网格地面、条纹落日）、t02 Create（黄铜木纹九宫格）、t08/09 arwes 科幻 HUD、t15 机甲（警示斜纹、切角） | dusk 家族（一套设计 6 个调色板，1px 发丝线三级圆角）、ore（像素凸起按钮） | holo、amber（TH5 重做后） |
 
 AUI 主题的可移植性：arwes、mecha、Create、Ore 现有能力即可（切角用 `corner-shape`，斜纹用 `Stripes`，`steps()` 已支持）；蒸汽波的透视地面缺 perspective 与 `clip-path`，可改为 box 特效按 `ix_time` 画滚动网格；印象派油画依赖斜向 repeating 渐变与椭圆 `clip-path`。AUI 引擎本身不支持 `text-shadow`、radial/conic 渐变、skew、perspective（其 `theme-spec.md` §7）。
 

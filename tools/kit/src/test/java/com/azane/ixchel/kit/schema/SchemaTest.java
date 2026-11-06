@@ -114,13 +114,14 @@ class SchemaTest {
         assertEquals(List.of("margin-top", "margin-right", "margin-bottom", "margin-left"), margin.longhands());
         assertTrue(schema.properties().stream().noneMatch(p -> p.name().equals("margin")));
 
-        assertEquals(List.of("@ixchel/themes/base.css", "@ixchel/themes/cyber.css", "@ixchel/themes/dark.css", "@ixchel/themes/holo.css",
+        assertEquals(List.of("@ixchel/themes/amber.css", "@ixchel/themes/base.css", "@ixchel/themes/dark.css", "@ixchel/themes/holo.css",
                         "@ixchel/themes/vanilla.css", "t:ui/main.css"),
                 schema.themes().stream().map(Schema.Theme::href).toList());
         Schema.Theme dark = schema.themes().get(2);
         Schema.Theme main = schema.themes().get(5);
-        assertEquals(schema.themes().get(0).variables().keySet(), dark.variables().keySet(), "base sets every variable of the contract");
-        assertEquals("#202020", schema.themes().get(0).variables().get("--ix-panel-bg"));
+        Schema.Theme base = schema.themes().get(1);
+        assertEquals(base.variables().keySet(), dark.variables().keySet(), "base sets every variable of the contract");
+        assertEquals("#202020", base.variables().get("--ix-panel-bg"));
         assertEquals("#101418E0", dark.variables().get("--ix-panel-bg"));
         List<String> expected = new ArrayList<>(dark.variables().keySet());
         expected.add("--ix-extra");

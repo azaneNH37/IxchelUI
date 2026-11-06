@@ -13,12 +13,12 @@ import java.util.List;
 /**
  * {@code -Pplaytest=themes}: the showcase opens in each built-in theme through its {@code ix-tab}s
  * without errors, shows a tooltip on the overlay surface, keeps every box (the library components'
- * parts included) where the first theme put it, and holo and cyber, whose animations and effects run
+ * parts included) where the first theme put it, and holo and amber, whose animations and effects run
  * every frame, draw within the showcase's budget. One screenshot per theme; {@code -Precord=themes}
  * records the walk through the four themes as {@code recordings/themes.mp4}.
  */
 public final class ThemesPlaytest {
-    private static final List<String> THEMES = List.of("vanilla", "dark", "holo", "cyber");
+    private static final List<String> THEMES = List.of("vanilla", "dark", "holo", "amber");
     /** p95 CPU time per frame of the showcase in holo, the heaviest theme (median about 5000 us), in microseconds. */
     private static final double BUDGET_US = 12000;
     /** The boxes under the first theme, kept between steps. */
@@ -56,7 +56,7 @@ public final class ThemesPlaytest {
                         }
                         return now.equals(first[0]);
                     });
-                    if (theme.equals("holo") || theme.equals("cyber")) {
+                    if (theme.equals("holo") || theme.equals("amber")) {
                         t.run(() -> FrameTimer.screen(4096));
                         t.pause(100);
                         t.run(() -> FrameTimer.expect(t, theme + " showcase standing still", BUDGET_US));

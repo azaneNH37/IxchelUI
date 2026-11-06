@@ -1,0 +1,66 @@
+/*
+ * The amber look, after a spaceship HUD: near-black panels framed by a thin amber line, square and on
+ * the pixel grid; everything in one amber, titles glowing; wells and bars hatched with dark diagonal
+ * stripes, a bar's charge laid over them half see-through and moving in steps like a readout; outlined
+ * buttons that fill with amber when pressed, and moving amber stripes on what is busy.
+ */
+@partial;
+@link "base.css";
+@link "@ixchel/effects/stripes.ixeffect";
+
+:root {
+    shape-rendering: crisp-edges;
+    --ix-panel-bg: #050402E8;
+    --ix-panel-shadow: inset 0 0 0 1px #F5AF19;
+    --ix-well-bg: #000000C0;
+    --ix-well-image: repeating-linear-gradient(100deg, transparent 0, transparent 10px, #262626 10px, #262626 13px);
+    --ix-well-shadow: inset 0 0 0 1px #F5AF1980;
+    --ix-well-border: #F5AF1980;
+    --ix-control-bg: #F5AF1910;
+    --ix-control-border: #F5AF19;
+    --ix-overlay-bg: #000000F0;
+    --ix-overlay-border: #F5AF19;
+    --ix-overlay-text: #F5AF19;
+    --ix-hover: #F5AF1930;
+    --ix-active: #F5AF19;
+    --ix-selected: #F5AF19;
+    --ix-selected-text: #000000;
+    --ix-disabled-text: #5A4A2A;
+    --ix-focus: #FFE08A;
+    --ix-text: #F5AF19;
+    --ix-title: #FFC94D;
+    --ix-text-muted: #A87812;
+    --ix-text-dim: #5A4210;
+    --ix-accent: #F5AF19;
+    --ix-on-accent: #000000;
+    --ix-positive: #9BE15D;
+    --ix-negative: #F12711;
+    --ix-warning: #FFD700;
+    --ix-radius: 0;
+    --ix-duration: 90ms;
+    --ix-easing: linear;
+}
+
+/* Pressed, a button fills with amber. Lit controls glow. */
+button:active {
+    color: var(--ix-on-accent);
+}
+
+button:focus {
+    box-shadow: 0 0 4px #F5AF19A0;
+}
+
+.ix-title {
+    filter: drop-shadow(0 0 3px #F5AF19);
+}
+
+/* A bar's charge lets the hatching through and moves like a readout. */
+.ix-bar-fill {
+    background-color: #F5AF19A0;
+    transition: flex-basis 400ms steps(8, end);
+}
+
+.ix-busy, .ix-busy:hover, .ix-busy:focus, .ix-busy:active {
+    background-image: paint(Stripes);
+    --Stripes-color: #F5AF1940;
+}

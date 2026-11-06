@@ -13,6 +13,8 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#028
 
 > 文件与引用规则由资源规范（`ref/D-ixchel-resource-spec-20261105.md`，#041）取代：主题是被页面 stylesheet `@link` 的 partial，不再有 `rel="theme"`、主题层、`@import`、`@-ix-effect` 与包；内置特效为 `glint.ixeffect`、`dissolve.ixeffect`，css 中按别名引用。本文其余内容（变量表、表面类、能力缺口、四套主题）不变。
 
+> 2026-11-07（TH5）：`holo` 按 CodePen 参考重做，`cyber` 换成 `amber`（飞船 HUD 风格）；§6、§6.2 已按新稿改写，原 `cyber` 设计不再保留。
+
 ## Detail
 
 ### 1. 现状与问题
@@ -66,7 +68,7 @@ related: [DECISIONS.md#001, DECISIONS.md#003, DECISIONS.md#015, DECISIONS.md#028
 
 ```css
 /* assets/mymod/ui/themes/main.css */
-@import "@ixchel/themes/cyber";
+@import "@ixchel/themes/amber";
 :root { --ix-accent: #FF2A6D; }
 ```
 
@@ -173,8 +175,8 @@ TH1 的基底只给 L3 已有的词汇穿外观（`.ix-panel`、`.ix-title`、`b
 |---|---|---|---|
 | `vanilla` 原版 | 原版容器的浅灰面板 | `#C6C6C6` 底，1px 黑框加 `inset 2px 2px 0 #FFF`、`inset -2px -2px 0 #555` 斜面；内凹反向斜面；按钮 `:active` 翻转斜面；硬阴影文字；无模糊、无常驻动画 | ● 斜面与配色；○ 1px 缺角（`corner-shape: notch`）与 `crisp-edges` |
 | `dark` 常规暗色 | 现代暗色浮层 | 半透明深底、`backdrop-filter: blur()`、半透明细亮边、小圆角、投影分层、平滑过渡 | ● 全部 |
-| `holo` 全息+电子 | 投影出来的青蓝界面 | `screen`/`plus-lighter` 加色、1×2px 扫描线平铺、`@keyframes` 闪烁、四层渐变背景画四角括号、`:-ix-entering` 配 `scaleY` 投影式进场、`glint` 边缘流光、标题 `drop-shadow` 发光（每个元素一个图层，只用于标题） | ● 大部分；○ 色差（`chromatic`）、装饰字体 |
-| `cyber` 赛博 | 高对比霓虹 | 黄、青、品红；切角；彩色 `box-shadow` 霓虹；45° 渐变平铺警示条纹；故障效果；大写标题 | ● 霓虹、条纹；○ 切角、`glitch`、`text-transform`、像素化 |
+| `holo` 全息+电子 | 投影出来的青蓝界面（参考 CodePen Ahmod-Musa/YPGGZgg 的角括号、扫描线与标题色差，nin10doking/bNpRMEM 的青色光晕面板） | 角括号明显、完整边框若隐若现（框线与外晕的颜色呼吸）、下扫的扫描线、静态扫描线平铺、偶发闪烁、大写加字间距的发光标题且色差偶尔跳开、`scaleY` 投影式进场、按钮悬停发光 | ● 全部 |
+| `amber` 琥珀 HUD | 飞船 HUD（参考 CodePen DESKTOP-the-decoder/ZEZJvPL） | 近黑底、1px 琥珀框线、直角、`crisp-edges`；单一琥珀色、标题发光；内凹与条带暗色斜纹，条的填充半透明、按 `steps()` 跳动；描边按钮按下填满琥珀色；`.ix-busy` 琥珀条纹 | ● 全部 |
 
 原版主题不引用原版 GUI 纹理：1.20.1 是 `widgets.png`，1.20.2 起改为 GUI sprite，而内置主题在 core、不分版本 [INFERENCE：未逐版核对纹理路径]。
 
@@ -209,20 +211,20 @@ TH1 的基底只给 L3 已有的词汇穿外观（`.ix-panel`、`.ix-title`、`b
 
 #### 6.2 四套主题设计稿（2026-11-05 定稿，实现见路线图 TH4 结果）
 
-| | `vanilla` | `dark` | `holo` | `cyber` |
+| | `vanilla` | `dark` | `holo` | `amber` |
 |---|---|---|---|---|
-| 面板 | `#C6C6C6`，1px 黑框 + 白/`#555` 斜面 | `#101418E0`，1px `#FFFFFF30` 细边，投影，`backdrop: blur(4px)` | `#0A3A4A60`，1px `#40E0FFA0` 边 + `0 0 6px` 青晕，扫描线 + 四角括号背景，`backdrop: blur(2px)` | `#0D0D14` 不透明，1px `#00F0FF` + `0 0 8px` 霓虹 |
-| 内凹 | `#8B8B8B`，反向斜面 | `#00000060` | `#00101860`，1px `#40E0FF50` | `#000000`，内 1px `#FF2A6D` |
-| 控件 | `#A0A0A0` 斜面；按下翻转 | `#FFFFFF30`，1px 透明边 | `#40E0FF20`，1px 青边；按下 `active` 加亮 | `#1A1A24`，1px `#FCEE0A`；按下反色（黄底黑字） |
-| 浮层 | `#100010F0`，`#5000FF50` 边（原版 tooltip） | 同面板，更不透明 | 同面板 | 黑底品红边 |
-| 文字 / 标题 | `#404040` / `#404040`，无文字阴影 | `#FFFFFF` / `#FFFF55` | `#B0F4FF` / `#E0FFFF` 加 `drop-shadow` 发光 | `#E0E0E0` / `#FCEE0A` 大写 |
-| 强调 / 焦点 | `#FFFF55` / `#FFFFFF` | `#FFFF55` / `#FFFF55` | `#40E0FF` / `#A0F8FF` | `#FCEE0A` / `#FF2A6D` |
-| 选中 | `#E0E0E0` 底 `#202020` 字 | 同左 | `#40E0FF50` 底白字 | 黄底黑字 |
-| 语义 正/负/警 | `#3F7F3F` `#AA2020` `#C07020` | `#55FF55` `#FF5555` `#FFAA00` | `#60FFC0` `#FF6080` `#FFD060` | `#00FF9F` `#FF2A6D` `#FCEE0A` |
-| 形状 | `radius: 1px`，`notch`，`crisp-edges`；面板斜面各 1px | `3px` 圆角 | `2px` 圆角 | `bevel` 只切左上与右下：控件 3px、面板 8px（6px 四角切会把小按钮切成八边形）；`crisp-edges` |
-| 动效 | `0ms` | `120ms ease-out` | `150ms ease-out` | `80ms linear` |
-| 常驻动画与特效 | 无 | 无 | 面板 `ix-glint` 边缘流光、`@keyframes` 闪烁，标题 `ix-chromatic`，`scaleY` 进场 | 标题 `ix-glitch`，`.ix-busy` 45° 警示条纹平移 |
-| 字体 | `minecraft:default` | `minecraft:default` | `minecraft:uniform` 标题 | `minecraft:default` |
+| 面板 | `#C6C6C6`，1px 黑框 + 白/`#555` 斜面 | `#101418E0`，1px `#FFFFFF30` 细边，投影，`backdrop: blur(4px)` | `#04121CB0`，直角；四角 10px 亮括号 `#CFF6FF`；1px 框线与 `0 0 12px` 外晕在 `#6EDCFF18`–`#6EDCFF60` 间呼吸；下扫扫描线 + 1×2px 扫描线平铺，`backdrop: blur(3px)` | `#050402E8`，1px `#F5AF19` 内框线，直角 |
+| 内凹 | `#8B8B8B`，反向斜面 | `#00000060` | `#0A2A3A50`，1px `#6EDCFF28` | `#000000C0`，100° 暗色斜纹，1px `#F5AF1980` |
+| 控件 | `#A0A0A0` 斜面；按下翻转 | `#FFFFFF30`，1px 透明边 | `#6EDCFF14`，1px 青边；悬停与焦点 `0 0 6px` 光晕 | `#F5AF1910`，1px 琥珀边；按下琥珀底黑字；焦点 `0 0 4px` 光晕 |
+| 浮层 | `#100010F0`，`#5000FF50` 边（原版 tooltip） | 同面板，更不透明 | `#021018E8`，青边加光晕 | 黑底琥珀边 |
+| 文字 / 标题 | `#404040` / `#404040`，无文字阴影 | `#FFFFFF` / `#FFFF55` | `#A8E8FF` / `#F0FCFF` 大写、1px 字间距、`drop-shadow` 加 `Chromatic` | `#F5AF19` / `#FFC94D` 加 `drop-shadow` |
+| 强调 / 焦点 | `#FFFF55` / `#FFFFFF` | `#FFFF55` / `#FFFF55` | `#6EDCFF` / `#CFF6FF` | `#F5AF19` / `#FFE08A` |
+| 选中 | `#E0E0E0` 底 `#202020` 字 | 同左 | `#6EDCFF40` 底白字 | 琥珀底黑字 |
+| 语义 正/负/警 | `#3F7F3F` `#AA2020` `#C07020` | `#55FF55` `#FF5555` `#FFAA00` | `#5CFFB0` `#FF4A6A` `#FFD060` | `#9BE15D` `#F12711` `#FFD700` |
+| 形状 | `radius: 1px`，`notch`，`crisp-edges`；面板斜面各 1px | `3px` 圆角 | 控件 `2px` 圆角，面板直角（括号与面板角重合） | 直角，`crisp-edges` |
+| 动效 | `0ms` | `120ms ease-out` | `150ms ease-out` | `90ms linear`；条填充 `400ms steps(8)` |
+| 常驻动画与特效 | 无 | 无 | 框线呼吸 2.5s、扫描线下扫 4s、闪烁 7s、标题 `Chromatic` 偏移每 6s 跳开两次；`scaleY` 进场 | `.ix-busy` 条纹平移 |
+| 字体 | `minecraft:default` | `minecraft:default` | `minecraft:default` | `minecraft:default` |
 
 颜色为初值，按陈列页截图再调。
 

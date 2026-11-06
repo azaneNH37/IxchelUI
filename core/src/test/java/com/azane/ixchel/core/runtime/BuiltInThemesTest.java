@@ -14,7 +14,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class BuiltInThemesTest {
-    private static final List<String> THEMES = List.of("vanilla", "dark", "holo", "cyber");
+    private static final List<String> THEMES = List.of("vanilla", "dark", "holo", "amber");
     private static final String PAGE = """
             <link href="page.css"/>
             <link href="@ixchel/components/tabs.html"/><link href="@ixchel/components/tab.html"/>
