@@ -19,6 +19,7 @@ import com.azane.ixchel.mc.paint.McPainter;
 import com.azane.ixchel.mc.paint.ElementPainter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.logging.LogUtils;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -148,6 +149,8 @@ public final class HostedDocument implements AutoCloseable {
                 document.close();
             }
             document = loaded.document();
+            // The game's time source: a playtest recording steps it one video frame per frame.
+            document.clock(Util::getNanos);
             document.events().setClipboard(CLIPBOARD);
             document.events().setClickSound(CLICK_SOUND);
             files = loaded.files();

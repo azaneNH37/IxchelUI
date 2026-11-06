@@ -55,8 +55,9 @@ public final class DisplayList {
     /**
      * The rectangle a run of commands draws in, in the coordinates current at its start: each
      * command's extent (an outer shadow's blur included, a text's measured width) through the
-     * transforms pushed in the run and cut by the clips pushed in it. One pixel larger on every side
-     * for antialiased edges and slanted text.
+     * transforms pushed in the run and cut by the clips pushed in it; a nested layer's mask, which
+     * only takes away, adds nothing. One pixel larger on every side for antialiased edges and slanted
+     * text.
      */
     static final class Bounds implements DrawCommand.Visitor<Void> {
         /** The width of {@code text} at font size {@code size}, as layout measures it. */
@@ -73,6 +74,8 @@ public final class DisplayList {
         /** The current clip in the run's coordinates, or {@code null} for none. */
         private float[] clip;
         private float x0, y0, x1, y1;
+        /** How many layers the run has opened and not closed, and at which of those depths a mask is being drawn, or -1. */
+        private int depth, maskDepth;
         /** Written by {@link #map}. */
         private float ml, mt, mr, mb;
 
@@ -86,6 +89,8 @@ public final class DisplayList {
             clip = null;
             transforms.clear();
             clips.clear();
+            depth = 0;
+            maskDepth = -1;
             x0 = y0 = Float.POSITIVE_INFINITY;
             x1 = y1 = Float.NEGATIVE_INFINITY;
             for (int i = from; i < to; i++) {
@@ -117,7 +122,7 @@ public final class DisplayList {
         }
 
         private Void add(float ax, float ay, float bx, float by) {
-            if (map(ax, ay, bx, by)) {
+            if (maskDepth < 0 && map(ax, ay, bx, by)) {
                 x0 = Math.min(x0, ml);
                 y0 = Math.min(y0, mt);
                 x1 = Math.max(x1, mr);
@@ -156,7 +161,8 @@ public final class DisplayList {
         public Void visitText(DrawCommand.Text c) {
             // Bold glyphs are drawn twice, one font pixel apart; a quarter of the size covers it.
             float extra = (c.flags() & StyledText.BOLD) != 0 ? c.size() / 4 : 0;
-            return add(c.x(), c.y(), c.x() + textWidth.width(c.text(), c.size()) + extra, c.y() + c.size());
+            float spacing = c.spacing() * c.text().codePointCount(0, c.text().length());
+            return add(c.x(), c.y(), c.x() + textWidth.width(c.text(), c.size()) + spacing + extra, c.y() + c.size());
         }
 
         @Override
@@ -204,11 +210,25 @@ public final class DisplayList {
         /** A nested layer's rectangle, less its padding, covers what its filters spread its commands to. */
         @Override
         public Void visitPushLayer(DrawCommand.PushLayer c) {
-            return add(c.x() + PAD, c.y() + PAD, c.x() + c.width() - PAD, c.y() + c.height() - PAD);
+            add(c.x() + PAD, c.y() + PAD, c.x() + c.width() - PAD, c.y() + c.height() - PAD);
+            depth++;
+            return null;
+        }
+
+        @Override
+        public Void visitMask(DrawCommand.Mask c) {
+            if (maskDepth < 0) {
+                maskDepth = depth;
+            }
+            return null;
         }
 
         @Override
         public Void visitPopLayer(DrawCommand.PopLayer c) {
+            depth--;
+            if (depth < maskDepth) {
+                maskDepth = -1;
+            }
             return null;
         }
 

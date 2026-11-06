@@ -100,9 +100,10 @@ public final class LayoutEngine {
     /**
      * A text node's characters on one line, at document coordinates; {@code y} is the top of a line of
      * the run's font. {@code span} indexes the node's {@linkplain TextNode#styled() styled spans}, -1 for plain text.
-     * {@code text} is already {@code text-transform}ed; {@code font} is a font id, {@code null} for the host's default.
+     * {@code text} is already {@code text-transform}ed; {@code font} is a font id, {@code null} for the host's default;
+     * {@code spacing} is the used {@code letter-spacing}, added after every character.
      */
-    public record TextFragment(float x, float y, float size, String text, int span, String font) {
+    public record TextFragment(float x, float y, float size, String text, int span, String font, float spacing) {
     }
 
     private static final class Slot {
@@ -191,7 +192,8 @@ public final class LayoutEngine {
         }
 
         /** Adds {@code text} with whitespace collapsed, across run boundaries too; a forced line break is kept and ends a space run. */
-        void addRun(String text, float size, boolean bold, boolean nowrapRun, float lineHeight, String font, Source source) {
+        void addRun(String text, float size, boolean bold, boolean nowrapRun, float lineHeight, String font, float spacing,
+                Source source) {
             StringBuilder sb = new StringBuilder(text.length());
             for (int i = 0; i < text.length(); i++) {
                 char c = text.charAt(i);
@@ -209,7 +211,7 @@ public final class LayoutEngine {
                 }
             }
             if (!sb.isEmpty()) {
-                items.add(new TextShaper.Run(sb.toString(), size, bold, nowrapRun, lineHeight, font));
+                items.add(new TextShaper.Run(sb.toString(), size, bold, nowrapRun, lineHeight, font, spacing));
                 sources.add(source);
             }
         }
@@ -730,19 +732,20 @@ public final class LayoutEngine {
         Keywords.TextTransform transform = cs.get(CssProperties.TEXT_TRANSFORM);
         List<String> family = cs.get(CssProperties.FONT_FAMILY);
         String font = shaper.font(family);
+        float spacing = shaper.letterSpacing(cs.get(CssProperties.LETTER_SPACING).value());
         if (!family.isEmpty() && !family.get(0).equals(font)) {
             reportMissingFonts(t.parent(), family, font);
         }
         StyledText styled = t.styled();
         if (styled == null) {
-            p.addRun(transform(t.text(), transform), size, bold, nowrap, lh, font, new Source(t, -1));
+            p.addRun(transform(t.text(), transform), size, bold, nowrap, lh, font, spacing, new Source(t, -1));
             return;
         }
         List<StyledText.Span> spans = styled.spans();
         for (int k = 0; k < spans.size(); k++) {
             StyledText.Span s = spans.get(k);
             p.addRun(transform(s.text(), transform), size, bold || (s.flags() & StyledText.BOLD) != 0, nowrap, lh,
-                    s.font() != null ? s.font() : font, new Source(t, k));
+                    s.font() != null ? s.font() : font, spacing, new Source(t, k));
         }
     }
 
@@ -1021,7 +1024,8 @@ public final class LayoutEngine {
                 Source src = p.sources.get(piece.item());
                 if (p.items.get(piece.item()) instanceof TextShaper.Run r) {
                     float top = y + line.baseline() - shaper.baseline(r.size());
-                    fragments.get((TextNode) src.node()).add(new TextFragment(px, top, r.size(), piece.text(), src.span(), r.font()));
+                    fragments.get((TextNode) src.node()).add(new TextFragment(px, top, r.size(), piece.text(), src.span(), r.font(),
+                            r.spacing()));
                 } else {
                     TextShaper.Box box = (TextShaper.Box) p.items.get(piece.item());
                     end = Math.max(end, placeAtom((Element) src.node(), px, y + line.baseline() - box.ascent()));
@@ -1103,6 +1107,8 @@ public final class LayoutEngine {
         s.size = TaffySize.of(dim(cs.get(CssProperties.WIDTH)), dim(cs.get(CssProperties.HEIGHT)));
         s.minSize = TaffySize.of(dim(cs.get(CssProperties.MIN_WIDTH)), dim(cs.get(CssProperties.MIN_HEIGHT)));
         s.maxSize = TaffySize.of(dim(cs.get(CssProperties.MAX_WIDTH)), dim(cs.get(CssProperties.MAX_HEIGHT)));
+        float ratio = cs.get(CssProperties.ASPECT_RATIO);
+        s.aspectRatio = ratio > 0 ? ratio : Float.NaN;
         s.margin = rect(lpa(cs.get(CssProperties.MARGIN_LEFT)), lpa(cs.get(CssProperties.MARGIN_RIGHT)),
                 lpa(cs.get(CssProperties.MARGIN_TOP)), lpa(cs.get(CssProperties.MARGIN_BOTTOM)));
         s.padding = rect(lp(cs.get(CssProperties.PADDING_LEFT)), lp(cs.get(CssProperties.PADDING_RIGHT)),

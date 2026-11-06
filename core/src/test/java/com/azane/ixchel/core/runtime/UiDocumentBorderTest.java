@@ -75,4 +75,48 @@ class UiDocumentBorderTest {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", "div { border-style: dashed }"));
         assertEquals(List.of("css/invalid-value@t.css:1:34"), DiagCodes.of(e));
     }
+
+    @Test
+    void outlineRingsTheBorderBoxOverTheChildrenWithoutTakingRoomOrHits() {
+        UiDocument doc = load("<div class=\"o\"><div class=\"c\"></div></div><div class=\"n\"></div>", """
+                .o { width: 10px; height: 10px; outline: 2px solid #f00; outline-offset: 1px }
+                .c { width: 4px; height: 4px; background-color: #00f }
+                .n { width: 4px; height: 4px; background-color: #0f0 }
+                """);
+        assertEquals("""
+                rect 0 0 4 4 #FF0000FF
+                rect -3 -3 16 2 #FFFF0000
+                rect -3 11 16 2 #FFFF0000
+                rect -3 -1 2 12 #FFFF0000
+                rect 11 -1 2 12 #FFFF0000
+                rect 0 10 4 4 #FF00FF00""", GoldenTest.print(doc.frame(100, 100)));
+        assertSame(doc.root(), doc.events().hitTest(-2, 5), "on the outline");
+        assertSame(doc.root().children().get(1), doc.events().hitTest(2, 11), "under the outline, the next box");
+    }
+
+    @Test
+    void outlineFollowsTheCornersGrownByItsOffsetAndANegativeOffsetMovesItInside() {
+        UiDocument doc = load("<div class=\"r\"></div><div class=\"i\"></div><div class=\"z\"></div>", """
+                .r { width: 10px; height: 10px; border-radius: 3px; corner-shape: bevel; outline: 1px solid #fff }
+                .i { width: 10px; height: 10px; outline: 1px solid #fff; outline-offset: -3px }
+                .z { width: 10px; height: 10px; outline-width: 4px; outline-color: #fff }
+                """);
+        assertEquals("""
+                border -1 -1 12 12 radii 4/4 4/4 4/4 4/4 corners bevel bevel bevel bevel widths 1 1 1 1 #FFFFFFFF #FFFFFFFF #FFFFFFFF #FFFFFFFF
+                rect 2 12 6 1 #FFFFFFFF
+                rect 2 17 6 1 #FFFFFFFF
+                rect 2 13 1 4 #FFFFFFFF
+                rect 7 13 1 4 #FFFFFFFF""", GoldenTest.print(doc.frame(100, 100)), "z's style is none");
+    }
+
+    @Test
+    void outlineRejectsUnsupportedStyles() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", """
+                .a { outline: 1px dashed red }
+                .b { outline-style: auto }
+                .c { outline-offset: 10% }
+                """));
+        assertEquals(List.of("css/unsupported-value@t.css:1:32", "css/unsupported-value@t.css:2:21",
+                "css/invalid-value@t.css:3:22"), DiagCodes.of(e));
+    }
 }

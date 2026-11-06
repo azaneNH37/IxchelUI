@@ -17,7 +17,8 @@ import net.minecraft.world.item.Items;
 /**
  * {@code -Pplaytest=quests}: the quest tree's canvas pans by drag and zooms by wheel through a
  * {@code transform}, quests are hit where they paint, the detail panel stays put, a claim goes through
- * the server's checks, and a chapter of 33 quests holds the frame budget.
+ * the server's checks, and a chapter of 33 quests holds the frame budget. {@code -Precord=quests}
+ * records the detail panel sliding in and out as {@code recordings/quests-detail.mp4}.
  */
 public final class QuestsPlaytest {
     /** About twice the p95 measured on the development machine: 3.9-4.1 ms still, 3.4-3.8 ms panning. */
@@ -73,45 +74,50 @@ public final class QuestsPlaytest {
                 return tip != null && tip.parent().parent() == node(0);
             }, Playtest.WAIT);
             s.shot("quests-tooltip");
-            s.click(".node");
-            s.waitUntil("a click opens the quest's details", () -> Playtest.query(".detail").size() == 1
-                    && Playtest.text(".detail .name").equals(first.quests().get(0).title()), Playtest.WAIT);
-            // Fails if the panel does not enter from its :-ix-absent style off to the right.
-            s.expect("the opening panel starts off to the right", () -> detailOffset() > 1);
-            s.shot("quests-detail-entering");
-            s.waitUntil("the panel slides in and stops where its box is", () -> {
-                Element detail = Playtest.query(".detail").get(0);
-                float[] p = EventDispatcher.paintedCenter(detail);
-                return near(detailOffset(), 0) && hitsInside(detail, p);
-            }, Playtest.WAIT);
-            s.expect("claim is disabled without the items", () -> Playtest.query(".claim:disabled").size() == 1);
-            // The screenshot shows the framed panel, its shadow, its gold rule and the selected quest's glow.
-            s.expect("the detail panel has its ::before rule", () -> Playtest.query(".detail").get(0).before() != null);
-            s.shot("quests-detail");
+            // Recorded: the detail panel slides in, a claim, and the panel slides out.
+            s.take("quests-detail", t -> {
+                t.click(".node");
+                t.waitUntil("a click opens the quest's details", () -> Playtest.query(".detail").size() == 1
+                        && Playtest.text(".detail .name").equals(first.quests().get(0).title()), Playtest.WAIT);
+                // Fails if the panel does not enter from its :-ix-absent style off to the right.
+                t.expect("the opening panel starts off to the right", () -> detailOffset() > 1);
+                t.shot("quests-detail-entering");
+                t.waitUntil("the panel slides in and stops where its box is", () -> {
+                    Element detail = Playtest.query(".detail").get(0);
+                    float[] p = EventDispatcher.paintedCenter(detail);
+                    return near(detailOffset(), 0) && hitsInside(detail, p);
+                }, Playtest.WAIT);
+                t.expect("claim is disabled without the items", () -> Playtest.query(".claim:disabled").size() == 1);
+                // The screenshot shows the framed panel, its shadow, its gold rule and the selected quest's glow.
+                t.expect("the detail panel has its ::before rule", () -> Playtest.query(".detail").get(0).before() != null);
+                t.shot("quests-detail");
+                t.hold(600);
 
-            // Fails if a ready quest cannot be claimed, the reward is not given, or its followers stay locked.
-            s.server(p -> p.getInventory().add(new ItemStack(first.quests().get(0).item(), first.quests().get(0).count())));
-            s.waitUntil("holding the items makes the quest ready", () -> Playtest.query(".node.ready").size() == 1
-                    && Playtest.query(".claim:disabled").isEmpty(), Playtest.WAIT);
-            s.click(".claim");
-            s.waitUntil("the claim comes back from the server", () -> Playtest.query(".node.done").size() == 1
-                    && Playtest.query(".edge.done").size() > 0, Playtest.WAIT);
-            s.waitUntilServer("the reward is given", p -> p.getInventory().countItem(Items.EMERALD) == 1, Playtest.WAIT);
-            s.expect("a quest after it unlocks", () -> Playtest.query(".node").size() - Playtest.query(".node.locked").size() == 6);
-            s.shot("quests-claimed");
+                // Fails if a ready quest cannot be claimed, the reward is not given, or its followers stay locked.
+                t.server(p -> p.getInventory().add(new ItemStack(first.quests().get(0).item(), first.quests().get(0).count())));
+                t.waitUntil("holding the items makes the quest ready", () -> Playtest.query(".node.ready").size() == 1
+                        && Playtest.query(".claim:disabled").isEmpty(), Playtest.WAIT);
+                t.click(".claim");
+                t.waitUntil("the claim comes back from the server", () -> Playtest.query(".node.done").size() == 1
+                        && Playtest.query(".edge.done").size() > 0, Playtest.WAIT);
+                t.waitUntilServer("the reward is given", p -> p.getInventory().countItem(Items.EMERALD) == 1, Playtest.WAIT);
+                t.expect("a quest after it unlocks", () -> Playtest.query(".node").size() - Playtest.query(".node.locked").size() == 6);
+                t.shot("quests-claimed");
 
-            // Fails if the server honors a claim of a locked quest the client never offered.
-            s.run(() -> Network.sendToServer(new ClaimQuestPacket(first.quests().get(6).id())));
-            s.pause(10);
-            s.waitUntilServer("a locked quest's claim is refused", p -> !Claimed.view(p, 0).has(first.quests().get(6).id())
-                    && p.getInventory().countItem(Items.EMERALD) == 1, 1);
+                // Fails if the server honors a claim of a locked quest the client never offered.
+                t.run(() -> Network.sendToServer(new ClaimQuestPacket(first.quests().get(6).id())));
+                t.pause(10);
+                t.waitUntilServer("a locked quest's claim is refused", p -> !Claimed.view(p, 0).has(first.quests().get(6).id())
+                        && p.getInventory().countItem(Items.EMERALD) == 1, 1);
 
-            s.click(".close");
-            // Fails if the panel goes at once instead of exiting with its slide-out transition.
-            s.expect("the closing panel stays, exiting and inert, while it slides out",
-                    () -> Playtest.query(".detail:-ix-exiting").size() == 1 && Playtest.query(".detail").get(0).isInert());
-            s.shot("quests-detail-leaving");
-            s.waitUntil("close removes the details after the slide-out", () -> Playtest.query(".detail").isEmpty(), Playtest.WAIT);
+                t.click(".close");
+                // Fails if the panel goes at once instead of exiting with its slide-out transition.
+                t.expect("the closing panel stays, exiting and inert, while it slides out",
+                        () -> Playtest.query(".detail:-ix-exiting").size() == 1 && Playtest.query(".detail").get(0).isInert());
+                t.shot("quests-detail-leaving");
+                t.waitUntil("close removes the details after the slide-out", () -> Playtest.query(".detail").isEmpty(), Playtest.WAIT);
+                t.hold(500);
+            });
             s.clickNth(".chapter", 1);
             s.waitUntil("the second chapter replaces the canvas", () -> Playtest.query(".chapter.ix-selected").size() == 1
                     && Playtest.text(".chapter.ix-selected span").equals(Quests.chapters().get(1).title())

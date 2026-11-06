@@ -499,8 +499,13 @@ public final class UiDocument {
         return frameTime;
     }
 
-    /** Replaces the animation and transition clock ({@link System#nanoTime} by default); for tests. */
-    void clock(LongSupplier clock) {
+    /**
+     * Sets the time source of transitions, animations, the caret's blink and the effects' time
+     * ({@link #frameTime}), in nanoseconds; {@link System#nanoTime} until set. Hosts set the game's,
+     * so that whatever controls the game's time (a recording stepping it frame by frame) controls the
+     * document's too.
+     */
+    public void clock(LongSupplier clock) {
         this.clock = clock;
     }
 }

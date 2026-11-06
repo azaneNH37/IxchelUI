@@ -31,8 +31,19 @@ import java.util.function.Consumer;
  * screen, creating a creative superflat {@value #WORLD} when the game directory has none; runs the
  * selected playtests one after another, each a {@link Playtest}; writes
  * {@code playtests/<modid>/report.txt} under the game directory (and a {@linkplain Playtest dump} per
- * failure); and quits, with exit status 1 when an assertion failed.
+ * failure); and quits, with exit status 1 when an assertion failed. The run starts in English
+ * ({@code en_us}), in memory, whatever language the game directory's options keep: playtests assert
+ * English text unless they switch the language themselves.
  * Assertions are logged as {@code [ixchel-playtest] <playtest> <what>: PASS|FAIL}.
+ *
+ * <p>With {@code -Dixchel.record.<modid>=<name>[,<name>…]|all} instead, the same playtests run as a
+ * recording run: each {@linkplain Playtest#take take} becomes {@code playtests/<modid>/recordings/<take>.mp4},
+ * paced as a person acts and on game time stepped one video frame per drawn frame, so a recording
+ * does not depend on how fast the machine draws; failed assertions fail it the same way. The window
+ * is set to {@code ixchel.recording.window} ({@code 1280x720}) at GUI scale
+ * {@code ixchel.recording.guiScale} (2); {@code ixchel.recording.fps} (60), {@code .scale} (1, the
+ * video's size against the window's) and {@code .ffmpeg} (the one on PATH) set the video. The two
+ * properties exclude each other.
  *
  * <p>The loader layer installs it: {@code IxchelForge.installPlaytests(modid, playtests -> ...)}.
  *
@@ -47,32 +58,60 @@ import java.util.function.Consumer;
 public final class Playtests {
     private static final Logger LOG = LogUtils.getLogger();
     private static final String WORLD = "New World";
+    /** How long a recording run lets the loaded world settle before its first playtest, in ticks. */
+    private static final int SETTLE_TICKS = 40;
 
     private final String modid;
     private final Path dir;
     private final PlaytestRun<Playtest> run;
+    /** The recorder of a recording run, else {@code null}. */
+    private final Recorder recorder;
     private boolean resetPlayer;
     private boolean worldOpened;
     private boolean done;
+    /** Ticks a recording run has waited in the loaded world before its first playtest. */
+    private int settling;
 
-    private Playtests(String modid, String selection) {
+    private Playtests(String modid, String selection, Recorder.Settings recording) {
         this.modid = modid;
         this.dir = Minecraft.getInstance().gameDirectory.toPath().resolve("playtests").resolve(modid);
-        this.run = new PlaytestRun<>(selection, name -> new Playtest(name, dir), this::prepare);
+        this.recorder = recording == null ? null : new Recorder(recording, dir.resolve("recordings"));
+        this.run = new PlaytestRun<>(selection, name -> new Playtest(name, dir, recorder), this::prepare);
     }
 
     /**
-     * Runs the playtests {@code playtests} registers when {@code ixchel.playtest.<modid>} selects any;
-     * otherwise does nothing. Call once, from the client side of the host mod's constructor.
+     * Runs the playtests {@code playtests} registers when {@code ixchel.playtest.<modid>} or
+     * {@code ixchel.record.<modid>} selects any; otherwise does nothing. Call once, from the client
+     * side of the host mod's constructor.
+     *
+     * @throws IllegalStateException when both are set
      */
     public static void install(String modid, Pump pump, Consumer<Playtests> playtests) {
-        String selection = System.getProperty("ixchel.playtest." + modid);
-        if (selection == null) {
+        String tested = System.getProperty("ixchel.playtest." + modid);
+        String recorded = System.getProperty("ixchel.record." + modid);
+        if (tested == null && recorded == null) {
             return;
         }
-        Playtests created = new Playtests(modid, selection.isEmpty() ? "all" : selection);
+        if (tested != null && recorded != null) {
+            throw new IllegalStateException("ixchel.playtest." + modid + " and ixchel.record." + modid + " exclude each other");
+        }
+        String selection = tested != null ? tested : recorded;
+        Playtests created = new Playtests(modid, selection.isEmpty() ? "all" : selection,
+                recorded != null ? Recorder.Settings.fromSystemProperties() : null);
         playtests.accept(created);
-        pump.start(created::frame);
+        Minecraft mc = Minecraft.getInstance();
+        // In a fresh game directory the first screen would ask about accessibility, not the title screen.
+        mc.options.onboardAccessibility = false;
+        // Not saved: the developer's own language stays in options.txt.
+        mc.options.languageCode = "en_us";
+        if (mc.getLanguageManager() != null) {
+            mc.getLanguageManager().setSelected("en_us");
+        }
+        pump.start(created::tick);
+        if (created.recorder != null) {
+            ScreenInput.INSTANCE.recorder = created.recorder;
+            pump.frames(created::drawn);
+        }
     }
 
     /** Adds a playtest; {@code body} queues its steps on the {@link Playtest} when it starts. */
@@ -115,7 +154,7 @@ public final class Playtests {
         });
     }
 
-    private void frame() {
+    private void tick() {
         Minecraft mc = Minecraft.getInstance();
         if (done) {
             return;
@@ -123,7 +162,17 @@ public final class Playtests {
         if (mc.player == null) {
             if (!worldOpened && mc.screen instanceof TitleScreen title) {
                 worldOpened = true;
+                if (recorder != null) {
+                    recorder.prepareWindow();
+                }
                 openWorld(mc, title);
+            }
+            return;
+        }
+        if (recorder != null && settling < SETTLE_TICKS) {
+            // Long enough for the client to hear the still sky, which the server sends once a second.
+            if (settling++ == 0) {
+                recorder.stillSky(mc.getSingleplayerServer());
             }
             return;
         }
@@ -131,6 +180,15 @@ public final class Playtests {
             done = true;
             finish(mc);
         }
+    }
+
+    /** In a recording run, after each drawn frame: the frame into the open take, the frame steps, the server in step. */
+    private void drawn() {
+        recorder.frame();
+        if (!done) {
+            run.frame();
+        }
+        recorder.settle();
     }
 
     private static void openWorld(Minecraft mc, TitleScreen title) {
@@ -150,6 +208,9 @@ public final class Playtests {
     }
 
     private void finish(Minecraft mc) {
+        if (recorder != null) {
+            recorder.close();
+        }
         Path file = dir.resolve("report.txt");
         try {
             Files.createDirectories(dir);

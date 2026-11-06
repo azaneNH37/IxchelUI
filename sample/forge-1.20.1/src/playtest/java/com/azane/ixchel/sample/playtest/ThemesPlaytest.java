@@ -14,7 +14,8 @@ import java.util.List;
  * {@code -Pplaytest=themes}: the showcase opens in each built-in theme through its {@code ix-tab}s
  * without errors, shows a tooltip on the overlay surface, keeps every box (the library components'
  * parts included) where the first theme put it, and holo and cyber, whose animations and effects run
- * every frame, draw within the showcase's budget. One screenshot per theme.
+ * every frame, draw within the showcase's budget. One screenshot per theme; {@code -Precord=themes}
+ * records the walk through the four themes as {@code recordings/themes.mp4}.
  */
 public final class ThemesPlaytest {
     private static final List<String> THEMES = List.of("vanilla", "dark", "holo", "cyber");
@@ -31,41 +32,45 @@ public final class ThemesPlaytest {
     public static void register(Playtests playtests) {
         playtests.register("themes", s -> {
             s.run(ShowcaseScreen::open);
-            for (String theme : THEMES) {
-                if (!theme.equals("vanilla")) {
-                    s.run(() -> before[0] = Playtest.document());
-                    s.click(".tab-" + theme);
-                    // Fails if a tab's pick does not reach the page: the tab would select itself on the
-                    // page already open.
-                    s.waitUntil("clicking the " + theme + " tab opens another page", () -> Playtest.isOpen()
-                            && Playtest.document() != before[0], Playtest.WAIT);
-                }
-                // Fails if a tab does not open its theme's page.
-                s.waitUntil("the " + theme + " page opens", () -> Playtest.isOpen()
-                        && Playtest.query(".tab-" + theme + " .ix-tab-button.ix-selected").size() == 1, Playtest.WAIT);
-                s.expect(theme + " reports no errors", () -> Playtest.document().diagnostics().errorCount() == 0);
-                s.pause(10);
-                // Fails if a theme sets a size, margin, padding or border width: the boxes would move.
-                s.expect(theme + " leaves every box where the first theme put it", () -> {
-                    String now = boxes();
-                    if (first[0] == null) {
-                        first[0] = now;
+            // Recorded: the showcase through the four themes, the tooltip shown in each.
+            s.take("themes", t -> {
+                for (String theme : THEMES) {
+                    if (!theme.equals("vanilla")) {
+                        t.run(() -> before[0] = Playtest.document());
+                        t.click(".tab-" + theme);
+                        // Fails if a tab's pick does not reach the page: the tab would select itself on the
+                        // page already open.
+                        t.waitUntil("clicking the " + theme + " tab opens another page", () -> Playtest.isOpen()
+                                && Playtest.document() != before[0], Playtest.WAIT);
                     }
-                    return now.equals(first[0]);
-                });
-                if (theme.equals("holo") || theme.equals("cyber")) {
-                    s.run(() -> FrameTimer.screen(4096));
-                    s.pause(100);
-                    s.run(() -> FrameTimer.expect(s, theme + " showcase standing still", BUDGET_US));
+                    // Fails if a tab does not open its theme's page.
+                    t.waitUntil("the " + theme + " page opens", () -> Playtest.isOpen()
+                            && Playtest.query(".tab-" + theme + " .ix-tab-button.ix-selected").size() == 1, Playtest.WAIT);
+                    t.expect(theme + " reports no errors", () -> Playtest.document().diagnostics().errorCount() == 0);
+                    t.pause(10);
+                    // Fails if a theme sets a size, margin, padding or border width: the boxes would move.
+                    t.expect(theme + " leaves every box where the first theme put it", () -> {
+                        String now = boxes();
+                        if (first[0] == null) {
+                            first[0] = now;
+                        }
+                        return now.equals(first[0]);
+                    });
+                    if (theme.equals("holo") || theme.equals("cyber")) {
+                        t.run(() -> FrameTimer.screen(4096));
+                        t.pause(100);
+                        t.run(() -> FrameTimer.expect(t, theme + " showcase standing still", BUDGET_US));
+                    }
+                    t.hover(".tipped");
+                    t.waitUntil(theme + " shows the tooltip", () -> {
+                        Element tip = Playtest.document().topLayer().tooltip();
+                        return tip != null && tip.parent() == Playtest.query(".tipped").get(0);
+                    }, Playtest.WAIT);
+                    t.pause(10);
+                    t.shot("themes-" + theme);
+                    t.hold(1000);
                 }
-                s.hover(".tipped");
-                s.waitUntil(theme + " shows the tooltip", () -> {
-                    Element tip = Playtest.document().topLayer().tooltip();
-                    return tip != null && tip.parent() == Playtest.query(".tipped").get(0);
-                }, Playtest.WAIT);
-                s.pause(10);
-                s.shot("themes-" + theme);
-            }
+            });
             s.run(() -> {
                 first[0] = null;
                 before[0] = null;

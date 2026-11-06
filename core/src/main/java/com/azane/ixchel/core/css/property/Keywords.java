@@ -51,6 +51,19 @@ public final class Keywords {
     public enum BackgroundRepeat { REPEAT, REPEAT_X, REPEAT_Y, NO_REPEAT }
 
     /**
+     * {@code background-clip}, one per layer: the box a layer (the bottom one's for the color) is
+     * painted in, or {@code text}, all layers and the color only where the element's and its
+     * descendants' text is drawn.
+     */
+    public enum BackgroundClip { BORDER_BOX, PADDING_BOX, CONTENT_BOX, TEXT }
+
+    /** {@code mask-mode}, one per layer: both take the alpha of an image or gradient; {@code luminance} is not supported. */
+    public enum MaskMode { MATCH_SOURCE, ALPHA }
+
+    /** {@code mask-composite}, one per layer: only {@code add}, mask layers painted over each other. */
+    public enum MaskComposite { ADD }
+
+    /**
      * {@code background-blend-mode}, one keyword per layer. Only the bottom layer may {@code multiply}:
      * it is then an image tinted with the background color (the image's own alpha is kept) and the
      * color is not painted under it, so where the image is transparent the parent shows through; CSS
@@ -92,7 +105,10 @@ public final class Keywords {
      */
     public enum Content { NORMAL, NONE, EMPTY }
 
-    /** {@code border-style}; {@code none} makes the used border width 0, as in CSS. Other styles are not supported. */
+    /**
+     * {@code border-style} and {@code outline-style}; {@code none} makes the used width 0, as in CSS.
+     * Other styles are not supported.
+     */
     public enum BorderStyle { NONE, SOLID }
 
     /** {@code text-align}; text runs left to right, so {@code start} is {@code left} and {@code end} is {@code right}. */

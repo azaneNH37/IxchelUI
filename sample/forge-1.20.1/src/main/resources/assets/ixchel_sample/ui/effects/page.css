@@ -268,6 +268,105 @@ button {
   --Burn-progress: 1;
 }
 
+/* Masks: clip-path shapes, mask-image fades and gradient text, gold and blue on the opaque ground. */
+.masks .caption {
+  color: #A0A4AC;
+}
+
+.mask-row {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.mask-cell {
+  align-items: center;
+  gap: 2px;
+}
+
+.clipped {
+  width: 32px;
+  height: 32px;
+  background-color: #D0A040;
+}
+
+.clip-inset {
+  clip-path: inset(4px 6px round 6px);
+}
+
+.clip-circle {
+  clip-path: circle(closest-side);
+}
+
+.clip-ellipse {
+  clip-path: ellipse(50% 30%);
+}
+
+.clip-star {
+  clip-path: polygon(50% 0, 63% 37%, 100% 38%, 70% 61%, 81% 100%, 50% 76%, 19% 100%, 30% 61%, 0 38%, 37% 37%);
+}
+
+/* Same function and vertex count at both ends, so the shape morphs vertex by vertex. */
+.clip-morph {
+  background-image: repeating-linear-gradient(45deg, #D0A040, #D0A040 4px, #E04848 4px, #E04848 8px);
+  animation: masks-morph 2s ease-in-out infinite alternate;
+}
+
+@keyframes masks-morph {
+  from { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+  to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+.fade-list {
+  width: 64px;
+  height: 48px;
+  padding: 2px;
+  gap: 1px;
+  overflow: hidden;
+  background-color: #4890E0;
+  mask-image: linear-gradient(#000 40%, transparent);
+}
+
+.fade-row {
+  color: #FFFFFF;
+}
+
+.spot {
+  width: 32px;
+  height: 32px;
+  background-color: #D0A040;
+  mask-image: radial-gradient(closest-side, #000 50%, transparent);
+}
+
+/* A 16px item texture repeated over the box, its alpha the mask. */
+.stars {
+  width: 32px;
+  height: 32px;
+  background-image: linear-gradient(#E04848, #4890E0);
+  mask-image: url("minecraft:textures/item/nether_star.png");
+}
+
+.gradient-text {
+  align-self: flex-start;
+  font-size: 18px;
+  color: transparent;
+  background-image: linear-gradient(to right, #E04848, #4890E0);
+  background-clip: text;
+}
+
+.shine {
+  align-self: flex-start;
+  color: transparent;
+  background-image: linear-gradient(to right, #D0A040 40%, #FFFFFF 50%, #D0A040 60%);
+  background-size: 200% 100%;
+  background-clip: text;
+  animation: masks-shine 2s linear infinite;
+}
+
+@keyframes masks-shine {
+  from { background-position-x: 100%; }
+  to { background-position-x: 0%; }
+}
+
 /* The five corner shapes and a shadow, smooth and then pixel-stepped, gold on the opaque ground. */
 .shapes .caption {
   color: #A0A4AC;
@@ -335,4 +434,206 @@ button {
 /* Drawn at the largest size up to 6px where each glyph pixel covers whole screen pixels. */
 .font.small {
   font-size: 6px;
+}
+
+/* One cell per CSS feature added in CSS1, on the opaque ground so their colors read exactly. */
+.cells {
+  align-self: stretch;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.cell {
+  width: 75px;
+  align-items: center;
+  gap: 2px;
+}
+
+.cell .caption {
+  color: #A0A4AC;
+}
+
+.demo {
+  align-self: stretch;
+  height: 30px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Out past a 2px gap, its corners cut like the box's own but by a radius grown by the gap and the width. */
+.outlined {
+  width: 32px;
+  height: 14px;
+  border-radius: 3px;
+  corner-shape: bevel;
+  background-color: #D0A040;
+  outline: 2px solid #48C0E0;
+  outline-offset: 2px;
+}
+
+/* Each word once as written and once spaced, so the spacing shows as a width. */
+.spacing {
+  gap: 1px;
+  color: #FFFFFF;
+}
+
+.cjk {
+  flex-direction: row;
+  gap: 4px;
+}
+
+.spaced-latin {
+  letter-spacing: 2px;
+}
+
+.spaced-cjk {
+  letter-spacing: 3px;
+}
+
+.frame {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border: 1px solid #A0A4AC;
+}
+
+.inset {
+  position: absolute;
+  inset: 4px 10px;
+  background-color: #48C0E0;
+}
+
+.swatch {
+  width: 44px;
+  height: 24px;
+}
+
+.radial {
+  background-image: radial-gradient(circle, #FFE070, #C03020);
+}
+
+.conic {
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  background-image: conic-gradient(#E04848, #48C048, #4890E0, #E04848);
+}
+
+.repeating-linear {
+  background-image: repeating-linear-gradient(90deg, #D0A040 0 4px, #4890E0 4px 8px);
+}
+
+.repeating-radial {
+  background-image: repeating-radial-gradient(circle, #4890E0 0 3px, #F0F0F0 3px 6px);
+}
+
+/* Stripes that run sideways forever: background-position animated by keyframes. */
+.sliding {
+  background-image: linear-gradient(90deg, #D0A040 50%, #4890E0 50%);
+  background-size: 12px 100%;
+  animation: slide 1200ms linear infinite;
+}
+
+@keyframes slide {
+  from { background-position-x: 0; }
+  to { background-position-x: 12px; }
+}
+
+/* Hovered wherever the slanted box is drawn, not where its layout box is. */
+.skewed {
+  width: 36px;
+  height: 14px;
+  background-color: #D0A040;
+  transform: skewX(40deg);
+}
+
+.skewed:hover {
+  background-color: #E04848;
+}
+
+.ratio {
+  width: 42px;
+  aspect-ratio: 3 / 1;
+  background-color: #48C048;
+}
+
+/* The ported fighting game meters over a starfield. */
+.arena {
+  align-self: stretch;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background-color: #000000;
+  background-image:
+    radial-gradient(#FFFFFF, #FFFFFF33 1px, transparent 14px),
+    radial-gradient(#FFFFFF, #FFFFFF26 1px, transparent 10px),
+    radial-gradient(#FFFFFF66, #FFFFFF1A 1px, transparent 8px);
+  background-size: 130px 60px, 80px 50px, 50px 44px;
+  background-position: 0 0, 40px 12px, 15px 30px;
+}
+
+.fighter {
+  width: 40%;
+  gap: 4px;
+}
+
+.fighter.p2 {
+  align-items: flex-end;
+}
+
+.bezel {
+  align-self: stretch;
+  padding: 3px;
+  border: 1px solid #222222;
+  border-radius: 3px;
+  background-image: linear-gradient(to bottom, #FFFFFF 0%, #999999 50%, #666666 50%, #999999);
+  transform: skewX(10deg);
+}
+
+.fighter.p1 .bezel {
+  transform: scaleX(-1) skewX(10deg);
+}
+
+.meter {
+  position: relative;
+  height: 8px;
+  background-color: #00003399;
+  box-shadow: 0 0 0 1px #00000099;
+}
+
+.damage,
+.health {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+
+/* Shrinks half a second after the health bar, so the health just lost shows red for a moment. */
+.damage {
+  background-color: #990000;
+  transition: width 500ms 500ms;
+}
+
+.health {
+  background-image: linear-gradient(to right, #003399, #009999);
+  transition: width 250ms;
+}
+
+.gloss {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(110deg, transparent 0 7px, #FFFFFF33 7px 8px),
+    linear-gradient(to bottom, #FFFFFF99, transparent, #FFFFFF33);
+}
+
+.name {
+  padding: 1px 4px;
+  color: #FFFFFF;
+  background-image: linear-gradient(to right, #00000066, transparent);
+}
+
+.fighter.p2 .name {
+  background-image: linear-gradient(to left, #00000066, transparent);
 }

@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.FormattedCharSink;
 import net.minecraft.util.StringDecomposer;
 
 import java.util.HashMap;
@@ -71,6 +72,17 @@ public final class McTextMeasurer implements TextMeasurer {
         return text.isEmpty() ? FormattedCharSequence.EMPTY : sink -> StringDecomposer.iterate(text, style, sink);
     }
 
+    /** One character in a style, reused glyph by glyph where {@code letter-spacing} places each one. */
+    static final class Glyph implements FormattedCharSequence {
+        int codePoint;
+        Style style = Style.EMPTY;
+
+        @Override
+        public boolean accept(FormattedCharSink sink) {
+            return sink.accept(0, style, codePoint);
+        }
+    }
+
     private static Style[] styles(String fontId) {
         Style regular = Style.EMPTY.withFont(ResourceLocation.tryParse(fontId));
         return new Style[]{regular, regular.withBold(true)};
@@ -92,5 +104,12 @@ public final class McTextMeasurer implements TextMeasurer {
     @Override
     public float baseline(float size) {
         return VANILLA_BASELINE * crispSize(size) / VANILLA_SIZE;
+    }
+
+    /** Whole screen pixels, as glyphs at the crisp size advance by, so every glyph stays on the pixel grid. */
+    @Override
+    public float letterSpacing(float spacing) {
+        double gui = Minecraft.getInstance().getWindow().getGuiScale();
+        return (float) (Math.round(spacing * gui) / gui);
     }
 }

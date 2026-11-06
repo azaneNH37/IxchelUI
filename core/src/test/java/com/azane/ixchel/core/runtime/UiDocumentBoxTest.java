@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.runtime;
 
+import com.azane.ixchel.core.diag.UiLoadException;
 import com.azane.ixchel.core.html.HtmlElements;
 import com.azane.ixchel.core.paint.ImageMeasurer;
 import com.azane.ixchel.core.view.Translations;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Rounded corners, {@code box-shadow} and {@code border-image}. */
 class UiDocumentBoxTest {
@@ -147,5 +149,46 @@ class UiDocumentBoxTest {
                 """), HtmlElements.TAGS, Translations.NONE, null, Set.of());
         assertEquals(List.of("paint/rounded-overflow-clip@t.html:2:1"), DiagCodes.of(diag));
         assertEquals(0, diag.errorCount());
+    }
+
+    @Test
+    void aspectRatioSizesTheAutoSideAndInsetPlacesAnAbsoluteBox() {
+        UiDocument doc = load("<div class=\"a\"></div><div class=\"b\"></div><div class=\"p\"><div class=\"i\"></div></div>", """
+                .a { width: 20px; aspect-ratio: 2 / 1; background-color: #f00 }
+                .b { height: 6px; aspect-ratio: auto 3; align-self: flex-start; background-color: #0f0 }
+                .p { position: relative; width: 20px; height: 20px }
+                .i { position: absolute; inset: 2px 4px; background-color: #00f }
+                """, GoldenTest.NO_IMAGES);
+        assertEquals("""
+                rect 0 0 20 10 #FFFF0000
+                rect 0 10 18 6 #FF00FF00
+                rect 4 18 12 16 #FF0000FF""", GoldenTest.print(doc.frame(100, 100)));
+    }
+
+    @Test
+    void aspectRatioTransitionsByItsLogarithm() {
+        long[] now = {0};
+        UiDocument doc = load("<div class=\"a\"></div>", """
+                .a { width: 20px; aspect-ratio: 1; align-self: flex-start; background-color: #f00; transition: aspect-ratio 100ms linear }
+                .on { aspect-ratio: 4 }
+                """, GoldenTest.NO_IMAGES);
+        doc.clock(() -> now[0] * 1_000_000);
+        doc.frame(100, 100);
+        ((com.azane.ixchel.core.dom.Element) doc.root().children().get(0)).addClass("on");
+        doc.frame(100, 100);
+        now[0] = 50;
+        assertEquals("rect 0 0 20 10 #FFFF0000", GoldenTest.print(doc.frame(100, 100)), "halfway from 1 to 4 is 2, not 2.5");
+    }
+
+    @Test
+    void invalidAspectRatiosAndInsetsAreLoadErrors() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", """
+                .a { aspect-ratio: -1 }
+                .b { aspect-ratio: 16 9 }
+                .c { aspect-ratio: 4px }
+                .d { inset: 1px 2px 3px 4px 5px }
+                """, GoldenTest.NO_IMAGES));
+        assertEquals(List.of("css/negative-value@t.css:1:33", "css/invalid-value@t.css:2:23", "css/invalid-value@t.css:3:20",
+                "css/value-count@t.css:4:29"), DiagCodes.of(e));
     }
 }

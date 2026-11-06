@@ -48,8 +48,9 @@ public final class Playtest extends PlaytestDriver<Playtest> {
 
     private final Path dir;
 
-    Playtest(String name, Path dir) {
-        super(name, ScreenInput.INSTANCE);
+    /** @param recorder the run's recorder in a recording run, else {@code null} */
+    Playtest(String name, Path dir, Recorder recorder) {
+        super(name, ScreenInput.INSTANCE, recorder);
         this.dir = dir;
     }
 

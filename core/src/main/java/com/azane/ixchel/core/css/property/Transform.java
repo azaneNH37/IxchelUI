@@ -4,25 +4,25 @@ import java.util.List;
 
 /**
  * A computed {@code transform}: the transform functions in source order, each normalized to one of
- * three kinds. Percentages in a translation refer to the element's border box, so the matrix is built
+ * four kinds. Percentages in a translation refer to the element's border box, so the matrix is built
  * at paint time by {@link #matrix}.
  */
 public record Transform(List<Fn> functions) {
     public static final Transform NONE = new Transform(List.of());
 
-    public enum Kind { TRANSLATE, SCALE, ROTATE }
+    public enum Kind { TRANSLATE, SCALE, ROTATE, SKEW }
 
     /**
      * {@code TRANSLATE}: {@code x}, {@code y} lengths (px or %); {@code SCALE}: factors in
-     * {@code x.value()}, {@code y.value()}; {@code ROTATE}: clockwise degrees in {@code x.value()}.
+     * {@code x.value()}, {@code y.value()}; {@code ROTATE}: clockwise degrees in {@code x.value()};
+     * {@code SKEW}: degrees along x in {@code x.value()} and along y in {@code y.value()}.
      */
     public record Fn(Kind kind, Length x, Length y) {
         /** The function that changes nothing, the partner of this one when the other side is {@code none}. */
         Fn identity() {
             return switch (kind) {
-                case TRANSLATE -> new Fn(kind, Length.ZERO, Length.ZERO);
+                case TRANSLATE, ROTATE, SKEW -> new Fn(kind, Length.ZERO, Length.ZERO);
                 case SCALE -> new Fn(kind, Length.px(1), Length.px(1));
-                case ROTATE -> new Fn(kind, Length.ZERO, Length.ZERO);
             };
         }
     }
@@ -47,6 +47,8 @@ public record Transform(List<Fn> functions) {
                     float sin = (float) Math.sin(r);
                     yield new Affine(cos, sin, -sin, cos, 0, 0);
                 }
+                case SKEW -> new Affine(1, (float) Math.tan(Math.toRadians(fn.y().value())),
+                        (float) Math.tan(Math.toRadians(fn.x().value())), 1, 0, 0);
             });
         }
         return m.then(Affine.translate(-ox, -oy));

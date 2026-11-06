@@ -10,7 +10,9 @@
 //   `-Pplaytest=<name>[,<name>…]|all` (no value: `all`): the run then enters the dev world (created
 //   if missing), runs the selected playtests in order through the samples' public entry classes,
 //   writes `run/playtests/ixchel_sample/` (report.txt, a dump per failed assertion, screenshots) and
-//   quits, failing on a failed assertion. It is never packaged.
+//   quits, failing on a failed assertion. With `-Precord=<name>[,<name>…]|all` instead, the same
+//   playtests record their takes to `run/playtests/ixchel_sample/recordings/<take>.mp4` (needs
+//   ffmpeg; `-Precord.fps`, `.ffmpeg`, `.window`, `.guiScale`, `.scale`). It is never packaged.
 plugins {
     id("ixchel.java-conventions")
     id("net.neoforged.moddev.legacyforge")

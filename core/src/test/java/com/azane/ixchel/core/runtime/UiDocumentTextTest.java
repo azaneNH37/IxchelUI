@@ -248,4 +248,31 @@ class UiDocumentTextTest {
         assertEquals(List.of("css/unsupported-value@t.css:1:40", "css/unsupported-value@t.css:2:31",
                 "css/unsupported-value@t.css:3:19"), DiagCodes.of(e));
     }
+
+    @Test
+    void letterSpacingIsInheritedResolvesEmsAndWidensTheMeasuredText() {
+        // 6px glyphs + 2px: "ab cd" is 40px, so " ef" wraps in 60px; the span's 1em is its 9px font
+        assertEquals("""
+                text 0 0 9 #FFFFFFFF "ab cd" spacing 2
+                text 0 9 9 #FFFFFFFF "ef" spacing 2
+                text 0 18 9 #FFFFFFFF "ab" spacing 2
+                text 16 18 9 #FFFFFFFF "cd" spacing 9
+                text 46 18 9 #FFFFFFFF "x\"""", frame("""
+                <div>ab cd ef</div>
+                <div>ab<span class="e">cd</span><span class="n">x</span></div>
+                """, """
+                div { display: block; width: 60px; letter-spacing: 2px }
+                .e { display: inline; letter-spacing: 1em }
+                .n { display: inline; letter-spacing: normal }
+                """));
+    }
+
+    @Test
+    void letterSpacingCentersTheSpacedLineAndRejectsPercentages() {
+        assertEquals("text 7 0 9 #FFFFFFFF \"abc\" spacing -1", frame("<div>abc</div>", """
+                div { display: block; width: 29px; text-align: center; letter-spacing: -1px }
+                """));
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", ".a { letter-spacing: 10% }"));
+        assertEquals(List.of("css/unsupported-value@t.css:1:35"), DiagCodes.of(e));
+    }
 }

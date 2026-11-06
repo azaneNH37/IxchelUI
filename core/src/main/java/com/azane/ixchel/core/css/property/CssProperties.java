@@ -40,6 +40,7 @@ import static com.azane.ixchel.core.css.property.Syntaxes.color;
 import static com.azane.ixchel.core.css.property.Syntaxes.commaList;
 import static com.azane.ixchel.core.css.property.Syntaxes.easing;
 import static com.azane.ixchel.core.css.property.Syntaxes.keyword;
+import static com.azane.ixchel.core.css.property.Syntaxes.interpolatingList;
 import static com.azane.ixchel.core.css.property.Syntaxes.length;
 import static com.azane.ixchel.core.css.property.Syntaxes.lineHeight;
 import static com.azane.ixchel.core.css.property.Syntaxes.number;
@@ -89,6 +90,12 @@ public final class CssProperties {
     public static final PropertyDef<Length> MIN_HEIGHT = R.register("min-height", SIZE, Length.AUTO, false, true, true);
     public static final PropertyDef<Length> MAX_WIDTH = R.register("max-width", MAX_SIZE, Length.AUTO, false, true, true);
     public static final PropertyDef<Length> MAX_HEIGHT = R.register("max-height", MAX_SIZE, Length.AUTO, false, true, true);
+    /**
+     * The preferred width-to-height ratio of the border box: {@code auto} (0) or a ratio; a box with
+     * one size {@code auto} takes it from the other, a box with both {@code auto} sizes its block axis
+     * from its inline size. Interpolates by logarithm.
+     */
+    public static final PropertyDef<Float> ASPECT_RATIO = R.register("aspect-ratio", Syntaxes.aspectRatio(), 0f, false, true, true);
 
     public static final PropertyDef<Length> MARGIN_TOP = R.register("margin-top", MARGIN, Length.ZERO, false, true, true);
     public static final PropertyDef<Length> MARGIN_RIGHT = R.register("margin-right", MARGIN, Length.ZERO, false, true, true);
@@ -143,6 +150,25 @@ public final class CssProperties {
     public static final PropertyDef<Transform> TRANSFORM = R.register("transform", transform(), Transform.NONE, false, false, true);
     public static final PropertyDef<TransformOrigin> TRANSFORM_ORIGIN =
             R.register("transform-origin", transformOrigin(), TransformOrigin.CENTER, false, false, false);
+    /**
+     * Paints the element as a group (as {@code opacity} does) shown only inside the shape, edges
+     * antialiased; the element and its descendants are hit only inside it too. Paint-time only, after
+     * {@code filter}. Interpolates between shapes of the same function; see {@code ShapeSyntaxes}.
+     */
+    public static final PropertyDef<ClipPath> CLIP_PATH = R.register("clip-path", ShapeSyntaxes.clipPath(), ClipPath.NONE, false, false, true);
+    /**
+     * Mask layers, top first, as {@code background-image} takes them less {@code paint()}: the group
+     * (as for {@code opacity}) is multiplied by the alpha the layers paint over each other. Each is
+     * sized, placed and tiled as a background layer with {@code mask-*} at their initial values:
+     * {@code auto} size (a gradient fills the border box), at the top left corner of the border box,
+     * repeated, clipped to the border box. Not animatable; does not affect hit testing.
+     */
+    public static final PropertyDef<List<CssImage>> MASK_IMAGE =
+            R.register("mask-image", BoxSyntaxes.maskImages(), List.of(CssImage.NONE), false, false, false);
+    public static final PropertyDef<List<Keywords.MaskMode>> MASK_MODE =
+            R.register("mask-mode", BoxSyntaxes.maskMode(), List.of(Keywords.MaskMode.MATCH_SOURCE), false, false, false);
+    public static final PropertyDef<List<Keywords.MaskComposite>> MASK_COMPOSITE =
+            R.register("mask-composite", BoxSyntaxes.maskComposite(), List.of(Keywords.MaskComposite.ADD), false, false, false);
     /** Used width is 0 while the side's style is {@code none}; the initial width is CSS {@code medium}, 3px. */
     public static final PropertyDef<Length> BORDER_TOP_WIDTH = R.register("border-top-width", BORDER_WIDTH, MEDIUM, false, true, true);
     public static final PropertyDef<Length> BORDER_RIGHT_WIDTH = R.register("border-right-width", BORDER_WIDTH, MEDIUM, false, true, true);
@@ -164,10 +190,11 @@ public final class CssProperties {
      */
     public static final PropertyDef<List<CssImage>> BACKGROUND_IMAGE =
             R.register("background-image", backgroundImages(), List.of(CssImage.NONE), false, false, false);
+    /** Interpolates layer by layer, the shorter list repeated, when each pair of offsets interpolates. */
     public static final PropertyDef<List<Length>> BACKGROUND_POSITION_X =
-            R.register("background-position-x", commaList(BACKGROUND_OFFSET), List.of(Length.percent(0)), false, false, false);
+            R.register("background-position-x", interpolatingList(BACKGROUND_OFFSET), List.of(Length.percent(0)), false, false, true);
     public static final PropertyDef<List<Length>> BACKGROUND_POSITION_Y =
-            R.register("background-position-y", commaList(BACKGROUND_OFFSET), List.of(Length.percent(0)), false, false, false);
+            R.register("background-position-y", interpolatingList(BACKGROUND_OFFSET), List.of(Length.percent(0)), false, false, true);
     public static final PropertyDef<List<BackgroundSize>> BACKGROUND_SIZE =
             R.register("background-size", commaList(backgroundSize()), List.of(BackgroundSize.AUTO), false, false, false);
     public static final PropertyDef<List<BackgroundRepeat>> BACKGROUND_REPEAT =
@@ -175,6 +202,14 @@ public final class CssProperties {
     public static final PropertyDef<List<BackgroundBlendMode>> BACKGROUND_BLEND_MODE =
             R.register("background-blend-mode", commaList(keyword(BackgroundBlendMode.class)), List.of(BackgroundBlendMode.NORMAL),
                     false, false, false);
+    /**
+     * Per layer the box it is painted in, the bottom layer's also for the color; {@code text} alone
+     * paints the color and every layer only inside the glyphs of the element's text and its
+     * descendants' (in their positions and transforms, whatever their color), as a layer masked by
+     * that text. A {@code text-shadow} is not part of the clip.
+     */
+    public static final PropertyDef<List<Keywords.BackgroundClip>> BACKGROUND_CLIP =
+            R.register("background-clip", BoxSyntaxes.backgroundClip(), List.of(Keywords.BackgroundClip.BORDER_BOX), false, false, false);
     /**
      * Rounds the background, the border and {@code box-shadow}; children are not clipped to the curve,
      * an {@code overflow} clip stays rectangular. Percentages are of the border box's width (horizontal
@@ -202,6 +237,20 @@ public final class CssProperties {
             R.register("shape-rendering", keyword(Keywords.ShapeRendering.class), Keywords.ShapeRendering.AUTO, true, false, false);
     /** Shadows, top first; outer ones are not drawn under the border box, inset ones only inside the padding box. */
     public static final PropertyDef<List<BoxShadow>> BOX_SHADOW = R.register("box-shadow", boxShadow(), List.of(), false, false, true);
+    /**
+     * Drawn outside the border box, {@code outline-offset} away from it, over the element's content
+     * and children; it takes no room in layout and is not hit. It follows the border box's corner
+     * radii and shapes, grown as {@code box-shadow}'s spread grows them. Used width is 0 while the
+     * style is {@code none}; the initial width is CSS {@code medium}, 3px; the initial color is white,
+     * as for the border.
+     */
+    public static final PropertyDef<Length> OUTLINE_WIDTH = R.register("outline-width", BORDER_WIDTH, MEDIUM, false, false, true);
+    public static final PropertyDef<BorderStyle> OUTLINE_STYLE =
+            R.register("outline-style", BoxSyntaxes.outlineStyle(), BorderStyle.NONE, false, false, false);
+    public static final PropertyDef<Integer> OUTLINE_COLOR = R.register("outline-color", color(), 0xFFFFFFFF, false, false, true);
+    /** Negative moves the outline inside the border box. */
+    public static final PropertyDef<Length> OUTLINE_OFFSET =
+            R.register("outline-offset", length(false, false, true), Length.ZERO, false, false, true);
     /** Replaces the border's own drawing while it is not {@code none}; the border widths still lay out the box. */
     public static final PropertyDef<CssImage> BORDER_IMAGE_SOURCE =
             R.register("border-image-source", imageSource(), CssImage.NONE, false, false, false);
@@ -229,6 +278,13 @@ public final class CssProperties {
     public static final PropertyDef<Length> FONT_SIZE = R.register("font-size", length(true, false, false), Length.px(9), true, true, true);
     /** A factor inherits as one; a length or percentage computes to pixels of the element's font size. */
     public static final PropertyDef<LineHeight> LINE_HEIGHT = R.register("line-height", lineHeight(), LineHeight.NORMAL, true, true, true);
+    /**
+     * Inherited, a length (em resolved against the element's font size) or {@code normal} (0): added
+     * after every character of laid-out text, as measured and as drawn, at whole screen pixels like
+     * the crisp font sizes. A form control's own text is not spaced.
+     */
+    public static final PropertyDef<Length> LETTER_SPACING =
+            R.register("letter-spacing", Syntaxes.letterSpacing(), Length.ZERO, true, true, true);
     /** Bold text is wider in the vanilla font, so the weight affects layout. */
     public static final PropertyDef<FontWeight> FONT_WEIGHT = R.register("font-weight", keyword(FontWeight.class), FontWeight.NORMAL, true, true, false);
     public static final PropertyDef<FontStyle> FONT_STYLE = R.register("font-style", keyword(FontStyle.class), FontStyle.NORMAL, true, false, false);
@@ -276,6 +332,7 @@ public final class CssProperties {
             commaList(keyword(AnimationPlayState.class)), List.of(AnimationPlayState.RUNNING), false, false, false);
 
     static {
+        R.registerShorthand("inset", Shorthand.box(INSET), TOP, RIGHT, BOTTOM, LEFT);
         R.registerShorthand("margin", Shorthand.box(MARGIN), MARGIN_TOP, MARGIN_RIGHT, MARGIN_BOTTOM, MARGIN_LEFT);
         R.registerShorthand("padding", Shorthand.box(PADDING), PADDING_TOP, PADDING_RIGHT, PADDING_BOTTOM, PADDING_LEFT);
         R.registerShorthand("border-width", Shorthand.box(BORDER_WIDTH),
@@ -291,6 +348,8 @@ public final class CssProperties {
         R.registerShorthand("border-right", border(1), BORDER_RIGHT_WIDTH, BORDER_RIGHT_STYLE, BORDER_RIGHT_COLOR);
         R.registerShorthand("border-bottom", border(1), BORDER_BOTTOM_WIDTH, BORDER_BOTTOM_STYLE, BORDER_BOTTOM_COLOR);
         R.registerShorthand("border-left", border(1), BORDER_LEFT_WIDTH, BORDER_LEFT_STYLE, BORDER_LEFT_COLOR);
+        R.registerShorthand("outline", Shorthand.border(BORDER_WIDTH, BoxSyntaxes.outlineStyle(), color(), MEDIUM, BorderStyle.NONE,
+                0xFFFFFFFF, 1), OUTLINE_WIDTH, OUTLINE_STYLE, OUTLINE_COLOR);
         R.registerShorthand("gap", Shorthand.pair(GAP), ROW_GAP, COLUMN_GAP);
         R.registerShorthand("place-content", Shorthand.pair(keyword(AlignContent.class), keyword(JustifyContent.class)),
                 ALIGN_CONTENT, JUSTIFY_CONTENT);

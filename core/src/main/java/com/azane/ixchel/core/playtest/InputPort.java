@@ -18,6 +18,9 @@ public interface InputPort {
     /** Puts the host's cursor at {@code (x, y)}, the position its rendering reads for hover. */
     void pointAt(double x, double y);
 
+    /** Where the host's cursor is, {@code {x, y}}. */
+    float[] pointer();
+
     void mouseMoved(double x, double y);
 
     void mouseClicked(double x, double y, int button);

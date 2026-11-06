@@ -31,9 +31,16 @@ public final class TextShaper {
 
     /**
      * Text in one font, whitespace collapsed to single spaces; {@code nowrap}: no line breaks inside it.
-     * {@code lineHeight} is in pixels; {@code font} a font id, {@code null} for the host's default.
+     * {@code lineHeight} is in pixels; {@code font} a font id, {@code null} for the host's default;
+     * {@code spacing} ({@code letter-spacing}, in pixels) is added after every character.
      */
-    public record Run(String text, float size, boolean bold, boolean nowrap, float lineHeight, String font) implements Item {
+    public record Run(String text, float size, boolean bold, boolean nowrap, float lineHeight, String font, float spacing)
+            implements Item {
+        /** The advance of {@code s}, part of this run's text, spacing included. */
+        float width(TextMeasurer measurer, String s) {
+            float w = measurer.width(s, size, bold, font);
+            return spacing == 0 ? w : w + spacing * s.codePointCount(0, s.length());
+        }
     }
 
     /** An atomic box: the width of its margin box and how far that reaches above and below the baseline. */
@@ -135,6 +142,11 @@ public final class TextShaper {
         return measurer.baseline(size);
     }
 
+    /** The used {@code letter-spacing} for a computed one; see {@link TextMeasurer#letterSpacing}. */
+    public float letterSpacing(float spacing) {
+        return spacing == 0 ? 0 : measurer.letterSpacing(spacing);
+    }
+
     /** The advance of {@code text} on one line, unwrapped, in {@code font} ({@code null}: the default). */
     public float width(String text, float size, boolean bold, String font) {
         return measurer.width(text, size, bold, font);
@@ -187,7 +199,7 @@ public final class TextShaper {
             }
             for (int end = p.text().length() - 1; end > 0; end--) {
                 String cut = p.text().substring(0, end).stripTrailing();
-                float w = measurer.width(cut, r.size(), r.bold(), r.font());
+                float w = r.width(measurer, cut);
                 if (!cut.isEmpty() && p.x() + w + e <= maxWidth) {
                     out.add(new Piece(font, cut, p.x(), w));
                     break;
@@ -204,7 +216,7 @@ public final class TextShaper {
             if (last.text() != null && last.text().endsWith(" ")) {
                 Run r = (Run) items.get(last.item());
                 String stripped = last.text().stripTrailing();
-                last = new Piece(last.item(), stripped, last.x(), measurer.width(stripped, r.size(), r.bold(), r.font()));
+                last = new Piece(last.item(), stripped, last.x(), r.width(measurer, stripped));
                 out.set(out.size() - 1, last);
             }
             x = last.x() + last.width();
@@ -222,7 +234,7 @@ public final class TextShaper {
 
     private float ellipsis(List<Item> items, int run) {
         Run r = (Run) items.get(run);
-        return measurer.width(ELLIPSIS, r.size(), r.bold(), r.font());
+        return r.width(measurer, ELLIPSIS);
     }
 
     private List<Unit> units(List<Item> items) {
@@ -352,7 +364,7 @@ public final class TextShaper {
                 if (boundary && chunk >= 0) {
                     int first = s.codePointAt(chunk);
                     boolean brk = breakBefore(prevKind, prevChar, prevNowrap, first, r.nowrap());
-                    out.add(new Unit(i, chunk, k, measurer.width(s.substring(chunk, k), r.size(), r.bold(), r.font()), TEXT, brk));
+                    out.add(new Unit(i, chunk, k, r.width(measurer, s.substring(chunk, k)), TEXT, brk));
                     prevKind = TEXT;
                     prevChar = s.codePointBefore(k);
                     prevNowrap = r.nowrap();
@@ -372,7 +384,7 @@ public final class TextShaper {
                     while (e < s.length() && s.charAt(e) == ' ') {
                         e++;
                     }
-                    out.add(new Unit(i, k, e, measurer.width(s.substring(k, e), r.size(), r.bold(), r.font()), SPACE, false));
+                    out.add(new Unit(i, k, e, r.width(measurer, s.substring(k, e)), SPACE, false));
                     prevKind = SPACE;
                     prevNowrap = r.nowrap();
                     k = e;

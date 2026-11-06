@@ -12,7 +12,8 @@ import java.util.stream.IntStream;
 /**
  * A few stacks to draw, whether the card is faded, the tab shown and what the filter and blend tabs
  * show: one tile per filter function, the first unfiltered, and one square per blend mode; on the
- * shader tab, whether the burning card is burnt and how far the stepped card has dissolved.
+ * shader tab, whether the burning card is burnt and how far the stepped card has dissolved; on the CSS
+ * tab, each fighter's health in percent.
  */
 @UiView("ixchel_sample:ui/effects/page.html")
 final class EffectsModel extends ViewModel {
@@ -28,4 +29,6 @@ final class EffectsModel extends ViewModel {
     final Value<List<Integer>> stripes = state(IntStream.range(0, 48).boxed().toList());
     final Value<Boolean> burnt = state(false);
     final Value<Double> progress = state(0.0);
+    final Value<Integer> p1 = state(100);
+    final Value<Integer> p2 = state(100);
 }

@@ -107,7 +107,8 @@ class GoldenTest {
                     paint = argb(c.color());
                 } else {
                     var g = c.gradient();
-                    StringBuilder s = new StringBuilder("gradient " + n(g.x0()) + " " + n(g.y0()) + " " + n(g.x1()) + " " + n(g.y1()));
+                    String kind = g.kind() == com.azane.ixchel.core.paint.Gradient.Kind.LINEAR ? "" : g.kind().name().toLowerCase(Locale.ROOT) + " ";
+                    StringBuilder s = new StringBuilder("gradient " + kind + n(g.x0()) + " " + n(g.y0()) + " " + n(g.x1()) + " " + n(g.y1()));
                     for (int i = 0; i < g.offsets().length; i++) {
                         s.append(' ').append(n(g.offsets()[i])).append(':').append(argb(g.colors()[i]));
                     }
@@ -133,7 +134,8 @@ class GoldenTest {
             @Override
             public String visitText(DrawCommand.Text c) {
                 return "text " + n(c.x()) + " " + n(c.y()) + " " + n(c.size()) + " " + argb(c.color()) + " \"" + c.text() + "\""
-                        + (c.flags() != 0 ? " flags " + c.flags() : "") + (c.font() != null ? " font " + c.font() : "");
+                        + (c.flags() != 0 ? " flags " + c.flags() : "") + (c.font() != null ? " font " + c.font() : "")
+                        + (c.spacing() != 0 ? " spacing " + n(c.spacing()) : "");
             }
 
             @Override
@@ -183,8 +185,22 @@ class GoldenTest {
                 if (c.frame() != null) {
                     paints.append(" frame ").append(shape(c.frame()));
                 }
+                if (c.clip() instanceof com.azane.ixchel.core.paint.ClipShape.Box box) {
+                    paints.append(" clip ").append(shape(box.shape()));
+                } else if (c.clip() instanceof com.azane.ixchel.core.paint.ClipShape.Polygon p) {
+                    paints.append(p.evenOdd() ? " clip evenodd" : " clip polygon");
+                    for (float f : p.points()) {
+                        paints.append(' ').append(n(f));
+                    }
+                }
                 return "layer " + n(c.x()) + " " + n(c.y()) + " " + n(c.width()) + " " + n(c.height()) + " " + n(c.opacity())
-                        + filters(c.filters()) + (c.blend() == Keywords.MixBlendMode.NORMAL ? "" : " " + c.blend()) + paints;
+                        + filters(c.filters()) + (c.blend() == Keywords.MixBlendMode.NORMAL ? "" : " " + c.blend()) + paints
+                        + (c.masked() ? " masked" : "");
+            }
+
+            @Override
+            public String visitMask(DrawCommand.Mask c) {
+                return "mask";
             }
 
             @Override

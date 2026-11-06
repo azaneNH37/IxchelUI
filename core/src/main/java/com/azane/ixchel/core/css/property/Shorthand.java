@@ -88,10 +88,11 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
     }
 
     /**
-     * {@code border} ({@code sides} 4) and {@code border-top} etc. ({@code sides} 1): a width, a style
-     * and a color in any order, each at most once; omitted ones are reset to their initial values.
-     * Longhands: the {@code sides} widths, then the styles, then the colors. A number or dimension is
-     * the width, a style keyword the style, anything else the color.
+     * {@code border} ({@code sides} 4), {@code border-top} etc. and {@code outline} ({@code sides} 1):
+     * a width, a style and a color in any order, each at most once; omitted ones are reset to their
+     * initial values. Longhands: the {@code sides} widths, then the styles, then the colors. A number
+     * or dimension is the width, a CSS line style keyword (supported or not) the style, anything else
+     * the color.
      */
     public static Expander border(Syntax<Length> width, Syntax<Keywords.BorderStyle> style, Syntax<Integer> color,
                                   Length initialWidth, Keywords.BorderStyle initialStyle, int initialColor, int sides) {
@@ -116,12 +117,15 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
                     if (w == null) {
                         return null;
                     }
-                } else if (v instanceof Token t && t.is(Token.Kind.IDENT) && isBorderStyle(t.value())) {
+                } else if (v instanceof Token t && t.is(Token.Kind.IDENT) && isLineStyle(t.value())) {
                     if (s != null) {
                         diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "more than one style");
                         return null;
                     }
                     s = style.parse(one, v.pos(), diag);
+                    if (s == null) {
+                        return null;
+                    }
                 } else {
                     if (c != null) {
                         diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "more than one color");
@@ -143,9 +147,13 @@ public record Shorthand(String name, List<PropertyDef<?>> longhands, Expander ex
         };
     }
 
-    private static boolean isBorderStyle(String ident) {
-        for (Keywords.BorderStyle s : Keywords.BorderStyle.values()) {
-            if (s.name().equalsIgnoreCase(ident)) {
+    private static final List<String> LINE_STYLES = List.of("none", "hidden", "dotted", "dashed", "solid", "double", "groove",
+            "ridge", "inset", "outset", "auto");
+
+    /** Whether {@code ident} is a CSS {@code <line-style>} or {@code auto}, supported or not: the style part of a border or outline. */
+    static boolean isLineStyle(String ident) {
+        for (String s : LINE_STYLES) {
+            if (s.equalsIgnoreCase(ident)) {
                 return true;
             }
         }

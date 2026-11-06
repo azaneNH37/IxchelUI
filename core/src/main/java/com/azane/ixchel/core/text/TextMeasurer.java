@@ -16,4 +16,12 @@ public interface TextMeasurer {
 
     /** The distance from the top of a line to its baseline, at most {@link #lineHeight}. */
     float baseline(float size);
+
+    /**
+     * The spacing used for {@code letter-spacing: spacing}, both in measuring and in drawing; a host
+     * that draws glyphs on whole screen pixels rounds it to them.
+     */
+    default float letterSpacing(float spacing) {
+        return spacing;
+    }
 }

@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则），以及 TH1（主题机制与库资源显式引入，#034、#039）、RS（按资源规范重做文件种类、引用与登记，#041）；之后 TH2–TH4（形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`），再 U4（组件库）；Doc 先写接入与语言参考，其余随阶段补齐。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则），TH1（主题机制与库资源显式引入，#034、#039）、RS（按资源规范重做文件种类、引用与登记，#041）、TH2–TH4（形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`）、U4（组件库）、REC（确定性录制）、CSS1、CSS2（参考前端视效补齐 CSS，依据 `ref/S-ixchel-frontend-visual-gap-20261106.md`）；Doc 分批写，第一批（站点基建、生成的参考页与 Java API 页）已合入（#87）。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -42,7 +42,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | E1 | 完成 | S8 | 文字排版补完：行内流式排版、CJK 断行、`Component` 富文本、行内链接 |
 | E2 | 完成 | S9；S1、S6、S7 的 tooltip | 文档内富 tooltip `<ix-tooltip>`，兼容原版物品 tooltip |
 | I | 完成 | 全部场景的界面文本 | i18n：`t` 语言键与参数 |
-| Doc | 进行中 | — | 用户文档站 `docs/` 与语言参考（#045、#046）：基建完成（plume、kit 生成参考页、doclet 生成 `/java-api/` 页、名字与死链检查），手写内容待写 |
+| Doc | 进行中 | — | 用户文档站 `docs/` 与语言参考（#045、#046）：第一批（plume 基建、kit 生成参考页、doclet 生成 `/java-api/` 页、名字与死链检查）已合入（#87），手写内容分批写 |
 | T1 | 完成 | 2026-10-31 | 静态检查：`@UiTemplate`、成员表编译、原生元素声明数据、错误码、`ixchel-kit` 的 lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
 | T2 | 完成 | 2026-10-31 | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
 | U1 | 完成 | S7、S4 | `text-shadow`、`<for index>`、默认点击音、滚动条拖动与外观 |
@@ -64,9 +64,11 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | FX1 | 完成 | — | 私有图层；`opacity` 整组语义（shader 构造并入 FX2） |
 | FX2 | 完成 | — | 标准 `filter`、`backdrop-filter`、`mix-blend-mode` |
 | FX3 | 完成 | — | `.ixeffect` 具名特效与首批内置特效（`ref/SD-ixchel-ui-effects-20261102.md`，#028），结果见下文 |
-| REC | 待做 | — | playtest 动图录制：连续截帧合成 GIF/MP4；排期未定，只依赖 T2 |
+| REC | 完成 | effects、themes、quests | 确定性录制：可注入的文档时钟与游戏时间步进、逐帧钩子、ffmpeg 编码、光标与点击叠加、按元素取景与超采样，录制指令复用 playtest 脚本；结果见下文 |
+| CSS1 | 完成 | effects 页 CSS 标签 | 低难度 CSS 补齐：`outline`、`letter-spacing`、`inset`、`radial-gradient`/`conic-gradient`/`repeating-*-gradient`、`background-position` 可动画、`skew`、`aspect-ratio`；结果见下文 |
+| CSS2 | 完成 | effects 页遮罩标签 | 图层遮罩类：`clip-path`、`mask-image`、`background-clip: text`；结果见下文 |
 
-依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1 → RS → TH2、TH3（彼此独立），TH2–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → L5 → L6，L5 → TH1（`@ixchel/themes/` 走统一解析），L5 → U4（`ix-*` 组件进 core 的库）。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
+依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1 → RS → TH2、TH3（彼此独立），TH2–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → L5 → L6，L5 → TH1（`@ixchel/themes/` 走统一解析），L5 → U4（`ix-*` 组件进 core 的库）；REC 只依赖 T2，与 CSS1 互不依赖，可并行；CSS1 → CSS2（图层遮罩复用 CSS1 的渐变绘制）。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
 #### D0 改名与清理
 
@@ -464,16 +466,61 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - 已知不稳定：env "moving and turning" 帧时间 p95 预算 6000 us 在最后两次全量运行中超出（6149、6205 us），同代码单独跑 5545 us；TH4 已记录它在未改动时也会超。U4 把 env 的两根条换成了 `ix-bar`，未做改动前后的对比，不能排除有小幅影响，预算未动。glint 移动检查也有一次全量运行失败（相位问题，归 REC，见 TH1）。
   - 验收：core、kit 测试通过（新增 `UiLibraryComponentsTest` 8 项、载荷类型参数一项）；`build` 与 sample lint 零错误；最终代码 `-Pplaytest=all` 15 个 playtest 291 过 1 败（上一条的帧时间），`-Pplaytest=env` 单独 20 项全过（须 `lang:en_us`，`run/options.txt` 为 `zh_cn` 时文字断言失败）；1.21.1 客户端启动到资源加载无异常，改装界面的 `<mc-item>` 修饰未在游戏中打开查看。
 
-#### REC playtest 动图录制
+#### REC 确定性录制
 
-- 动机：原版只有单张截图，V3、V4 这类动画靠静态截图看不出全程；动图可用于文档、PR 与逐帧检查。
-- 排期：未定，与其它阶段并行的小需求，只依赖 T2。
-- 拟定方案（开工前确认）：playtest 加录制步骤（暂名 `s.record(名, 帧数)`），逐帧读回；录制期间文档用固定步长时钟（如 16.67ms），先存内存、结束后再写 PNG 序列，由 ffmpeg 合成 GIF 或 MP4。
-- 范围：仅 1.20.1 的 playtest 框架（1.21.1 无此框架）；默认不录，用参数开启；合成不进 `build`，CI 不依赖 ffmpeg。
-- 先定：步骤名与开启参数；`UiDocument.clock` 是否放开给 mc 层（现由 core 测试使用）；合成由 Gradle 任务还是手动命令完成；输出格式。
-- 已知限制：固定时钟只管文档，背后的游戏世界仍是实时的，人物走动等与动画不同步。
-- 顺带修复：effects playtest 的 glint 移动检查对相位敏感（L8 结果）。检查只取按钮上沿一行、相隔 10 tick 采样两次，glint 脉冲占周长 15% 且按墙钟 `ix_time` 移动，两次都落在上沿外即误判为未动。改为在固定时钟下按已知 `ix_time` 采样（或沿整圈边缘取样）；在此之前该项失败不视为回归。
-- 验收：一段进出动画录成动图，帧数与设定一致、逐帧位置符合缓动曲线；不开参数时 playtest 行为与耗时不变。
+- 动机：单张截图看不出 V3、V4 这类动画的全程；文档的动图、演示视频与逐帧检查需要可重复生成的录像，界面一改即可重录。做法参照 LDLib2 的 `UIRecording`（`ref/S-ixchel-frontend-visual-gap-20261106.md` §5）。
+- 已定（2026-11-06）：
+  - 录制复用 playtest 脚本：新增的录制指令（take、停顿、拟人光标移动）在普通 playtest 中为空操作或直接瞬移，断言照常；断言失败时录制同样以非 0 退出。开启参数 `-Precord=<名>[,…]`，由插件转为 `-Dixchel.record.<modid>`，与 `-Pplaytest` 互斥；默认不录，不进 `build`，CI 不依赖 ffmpeg。
+  - 时钟：文档时钟改为宿主可注入（mc 层注入游戏的时间源）；录制期间 mc 层把游戏时间源换成步进时钟，每画一帧推进 1/fps 秒，过渡、动画、`ix_time`、客户端 tick 与集成服务器一起受控，录制快于或慢于实时都不影响成片；take 外恢复墙钟并保持连续。取代原"只固定文档时钟、世界仍实时"的方案。
+  - 逐帧：加载器层提供每帧回调（画完、交换缓冲之前），录制时每帧抓一帧；普通 playtest 仍按 tick 推进。
+  - 编码：ffmpeg 子进程，原始帧经 stdin 输入，输出 MP4（可选再出 GIF）；读回先用同步 `glReadPixels`，帧耗时实测成问题再改异步。ffmpeg 路径可由属性指定，默认取 PATH。
+  - 叠加层只画在复制出的帧上：光标（输入框上为 I 形）与点击波纹；字幕、按键条、聚光灯、镜头缩放不做（后期剪辑处理）。
+  - 取景：整窗或按选择器取元素矩形加 padding；窗口尺寸与 GUI 缩放可由参数固定，大窗口高缩放输出小分辨率即超采样。
+  - 拟人光标：录制时移动按 Fitts 定律定时长、沿曲线逐帧移动，沿途元素真实悬停（hover、tooltip、`ix_mouse` 特效可见）；节奏随机数以 playtest 名为种子，两次录制结果相同。
+  - 输出：`run/playtests/<modid>/recordings/<take>.mp4`。
+  - 范围：仅 1.20.1（1.21.1 无 playtest）。
+- 先定（开工时）：1.20.1 `Util.timeSource` 是否可写及其覆盖面；每帧回调在 Forge 1.20.1 的挂点是否早于交换缓冲；集成服务器追赶视频时间的方式（1.20.1 无 `tickRateManager`）。
+- 顺带修复：effects playtest 的 glint 移动检查对相位敏感（L8 结果）。检查只取按钮上沿一行、相隔 10 tick 采样两次，glint 脉冲占周长 15% 且按墙钟 `ix_time` 移动，两次都落在上沿外即误判为未动。改为在步进时钟下按已知 `ix_time` 采样（或沿整圈边缘取样）。
+- sample：themes 陈列页依次切换四套主题、effects 页逐个标签各录一段。
+- 验收：一段进出动画录成 MP4，帧数与设定一致、逐帧位置符合缓动曲线；同一脚本录两次逐帧相同；不开参数时 playtest 行为与耗时不变；`-Pplaytest=all` 通过。
+- 结果（2026-11-07）：完成。
+  - core：`PlaytestDriver.take(name[, TakeOptions], body)`、`hold(ms)`；录制时 take 内的点击、悬停、滚动、拖拽、按键、输入改为逐帧步骤：光标沿 `CursorPath` 移动，时长与停顿由 `Pacing` 按 Fitts 定律给出、以 playtest 名为种子；take 开始时光标置于 `(0, 0)`，成片长度与上一段留下的光标位置无关。不录制时 take、hold 不加步骤，各输入步骤与之前逐一相同。新端口 `Recording`、`Pump.frames`、`InputPort.pointer`；`UiDocument.clock` 改为宿主可设。
+  - mc 1.20.1：`Recorder`（窗口 1280×720、GUI 缩放 2、60 fps，只改内存中的选项）、`GameClock`（首个 take 起替换 `Util.timeSource`，每画一帧推进 1/fps 秒，take 之间接续）、`FfmpegEncoder`（同步 `glReadPixels`，原始帧经 stdin 交给 ffmpeg 出 H.264）、`RecordingOverlay`（光标与点击波纹只画在复制出的帧上）、`Framing`（按元素取景加 padding）、`Take`（可选再出 GIF）；录制期间正午、晴天、关昼夜与天气循环，结束时恢复两条规则；进入世界后先等 40 tick。两版 `HostedDocument` 的文档时钟取 `Util::getNanos`。加载器：`IxchelForge` 的 `Pump` 加逐帧回调。插件：`-Precord` 与 `-Precord.fps/.ffmpeg/.window/.guiScale/.scale/.crf`，与 `-Pplaytest` 互斥。
+  - 先定项：1.20.1 的 `Util.timeSource` 是可写静态字段，客户端 tick、过渡、动画、`ix_time` 都经它取时间；逐帧挂点用 `RenderTickEvent` END，此时世界、HUD、屏幕与 toast 已画完，尚未 blit 与交换缓冲；1.20.1 没有 `tickRateManager`，每个 take 开始时用反射把集成服务器的下一 tick 时间对齐到视频时间。
+  - sample：effects 每个标签一段（7 段）；themes 一段（依次切换四套主题，悬停出 tooltip）；quests 详情一段。glint 移动检查改为沿整圈边缘取样，与相位无关。血条两次点击后才检查的断言改为每次点击后各查一次：录制时移到第二根血条的耗时超过伤害条 0.5 s 的延迟。
+  - playtest 运行在内存中固定 `en_us`，不写 `options.txt`：此前 `run/options.txt` 为 `zh_cn` 时，英文文字断言成片失败。只有 `language` playtest 自己切到 `zh_cn` 再切回。
+  - 验证：core 386 项测试通过，其中 `PlaytestDriverRecordingTest` 覆盖：不录制时无额外步骤；逐帧移动无跳跃、hold 恰为其帧数；起始光标不同的两次录制逐帧相同（去掉 take 开头的光标归位后此项失败）。`CursorPathTest`、`FramingTest` 通过；`build` 通过。`-Precord=effects` 连续两次，7 段帧数逐段相同（244/187/184/598/151/184/517），76 项断言全过；`-Precord=themes,quests` 两段（1474、298 帧），46 项全过。看过 effects-css 与 themes 成片（60 fps、1280×720，光标叠加、悬停、点击与主题切换可见）。`-Pplaytest=all` 15 项 314 过 3 败，3 项都是帧时间预算（env 移动转向与淡出、storage 滚动）；本机 16 GB 内存且同时运行远程桌面，未计入。
+  - 未逐帧对照成片检查位置是否符合缓动曲线；曲线本身由 `CursorPathTest` 覆盖。
+
+#### CSS1 低难度 CSS 补齐
+
+- 动机：参考前端组件时，下列特性单独补上即可解锁最多（`ref/S-ixchel-frontend-visual-gap-20261106.md` §2）；全部属于已有绘制路径（纹理入图集、2D 矩阵、行内排版）的延伸。
+- 范围：`outline`（含 `outline-offset`，跟随 `border-radius` 与 `corner-shape`，不参与布局）；`letter-spacing`（TH3 原定不做，此处改定；测量与绘制同一间距，与清晰字号取整、CJK 断行共存）；`inset` 简写；`radial-gradient`、`conic-gradient`、`repeating-linear-gradient`、`repeating-radial-gradient`；`background-position` 可动画；`skew()`/`skewX()`/`skewY()`（命中测试按逆矩阵）；`aspect-ratio`。
+- 先定（开工时）：radial 与 conic 的绘制路径（图集纹理还是解析 shader：两者不能像线性渐变那样九宫格拉伸）；radial 的形状与尺寸关键字子集；`aspect-ratio` 是否直接用 taffy 的支持；超出子集的写法照 #003 开发期报错。
+- sample：effects 页加一个标签逐项演示；可移植的 pen（§4）择其可用者做进演示。
+- 验收：core 测试覆盖解析、插值与报错码；effects playtest 每项一格截图与像素断言；`-Pplaytest=all`；1.21.1 `runClient` 冒烟。
+- 结果（2026-11-07）：完成。
+  - core：`outline-width/style/color/offset` 与 `outline` 简写（style 只支持 `none`、`solid`）；`letter-spacing` 可继承、可动画，em 按自身字号换算，百分比报错，测量、断行、省略号与绘制用同一间距，宿主把间距取整到屏幕像素；`inset` 简写；`aspect-ratio` 交给 taffy，对数插值，比值一边为 0 时按 `auto`；`background-position-x/y` 按可重复列表逐层插值；四种渐变，`repeating-conic-gradient`、颜色空间、颜色提示报 `css/unsupported-value`，repeating 铺开超过 1024 个色标报 `paint/gradient-too-many-stops`；`skew()`/`skewX()`/`skewY()`，命中沿用逆矩阵。
+  - 先定项：radial 与 conic 不入图集，由 `ShapeTessellator` 切成楔形凸片、用顶点色（弦误差不超过 0.1 GUI 像素）；`aspect-ratio` 直接用 taffy。
+  - mc（两版）：`McPainter` 在间距不为 0 时逐字形绘制；所有批次关闭面剔除，否则镜像变换会把矩形与图片剔掉。
+  - 修复：顶点落在硬色标上时取所在色段的颜色。之前 repeating 条纹糊成渐变，线性渐变也受影响。
+  - sample：effects 页"CSS"标签每项一格，并移植 pen `RockStarwind/pozBLqd` 的血条（skew、镜像、延迟收缩的伤害条、radial 星空），pen 地址写在模板注释里。
+  - 验证：core 测试覆盖解析、插值与报错码；effects playtest 用像素断言逐项检查 outline、Latin 与 CJK 的间距、inset、radial、conic、repeating、背景位置动画、aspect-ratio、skew 命中、血条；1.21.1 经临时入口截图确认 CSS 页与镜像血条，入口已删除。
+  - 已知：下划线与删除线在字间断开；表单控件自绘的文字不应用 `letter-spacing`；ModernUI 下未验证；`border-image-source` 仍不接受渐变。
+
+#### CSS2 图层遮罩
+
+- 范围：`clip-path`（`inset()`、`circle()`、`ellipse()`、`polygon()`）、`mask-image`（渐变与图片）、`background-clip: text`；走 FX1 私有图层，合成时乘遮罩。
+- 先定（开工时）：遮罩的生成方式（CPU 覆盖率纹理还是合成 shader 内解析）；`clip-path` 是否参与命中测试（标准为参与）；是否可过渡。
+- 验收：同 CSS1。
+- 结果（2026-11-07）：完成。
+  - 先定项：遮罩画进私有图层的第二张纹理，复用 `paintImage` 的路径（各种渐变与 `url()` 都能用），`composite.fsh` 合成时乘它的 alpha。`clip-path` 在合成 shader 里逐像素算有向距离，边缘抗锯齿，支持 `inset()` 圆角、`circle()`、`ellipse()`、`polygon()`（最多 64 个顶点，nonzero 与 evenodd），形状坐标经变换的逆矩阵换算。`clip-path` 参与命中，形状外的点不命中自身及后代；`mask-image` 不参与命中。两端是同一种函数且参数个数相同时 `clip-path` 可过渡（polygon 还要求顶点数与填充规则相同），否则报 `css/not-animatable`；`mask-image`、`background-clip` 不可动画。
+  - core：`ClipPath`、`ShapeSyntaxes`、`ClipShape`、`DrawCommand.Mask`，`PushLayer` 带 clip 与 masked。`background-clip` 支持 border-box、padding-box、content-box、text；text 把背景单独放进图层，用元素及后代的文字（不透明白色、不带阴影）作遮罩，文字本身仍按 `color` 再画一遍。`path()`、`url()`、`shape()`、几何盒、`mask-mode`/`mask-composite` 的非默认值、超过 64 个顶点都报 `css/unsupported-value`；`mask-size/position/repeat/clip` 固定为默认值。运行期新增 `paint/mask-image-unsized`、`paint/mask-too-many-tiles`。
+  - mc（两版）：`OffscreenLayers` 加遮罩目标、裁剪参数与 polygon 顶点；`McPainter.visitMask`；composite shader 加 `Sampler1` 与裁剪 uniform。
+  - sample：effects 页"遮罩"标签：四种 clip 形状与一格菱形到方形的变形动画、列表线性淡出、径向光斑、下界之星纹理遮罩、渐变文字、扫光文字。
+  - 验证：core `UiDocumentClipMaskTest`；effects playtest 6 项断言（每种形状内外像素、被裁掉的角不命中、线性与径向遮罩的半透明过渡、纹理遮罩逐格、渐变文字只填字形）；1.21.1 经临时入口截图，与 1.20.1 一致，入口已删除。
+  - 已知：polygon 每像素遍历全部边，大面积时的开销未测；只有第一层背景能选 `text`；文字阴影不进遮罩。
+- 另评估、不在本阶段：`z-index`（用量最高，要改绘制与命中顺序）、3D 变换（透视合成与命中）、伪元素文字与 `attr()`、`@font-face`。
 
 #### Doc 用户文档
 

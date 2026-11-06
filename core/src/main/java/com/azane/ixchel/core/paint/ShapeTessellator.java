@@ -12,8 +12,10 @@ import java.util.Map;
  * function starts or stops depending on x or y (a corner's extent, an edge's blur), into cells: a cell
  * where it depends on neither is one solid quad, where it depends on one axis a stretched strip mask,
  * and where on both (a corner) a 2D mask. Masks are keyed by the shapes relative to the cell, so a
- * corner moving or a box resizing reuses them. A gradient or a border with sides of different colors
- * further cuts the cells into convex pieces whose vertex colors interpolate exactly.
+ * corner moving or a box resizing reuses them. A linear gradient or a border with sides of different
+ * colors further cuts the cells into convex pieces whose vertex colors interpolate exactly; a radial
+ * or conic gradient cuts them into wedges around its center as well, narrow enough that each piece's
+ * straight edges and linear colors stand for the curves within a tenth of a pixel.
  *
  * <p>Blur is CSS's: a Gaussian whose standard deviation is half the blur radius, integrated exactly
  * across rows and numerically along the corners.
@@ -325,6 +327,14 @@ public final class ShapeTessellator {
     }
 
     private void gradientPieces(float[] px, float[] py, int n, Piece p, Gradient g) {
+        switch (g.kind()) {
+            case LINEAR -> linearPieces(px, py, n, p, g);
+            case RADIAL -> radialPieces(px, py, n, p, g);
+            case CONIC -> conicPieces(px, py, n, p, g);
+        }
+    }
+
+    private void linearPieces(float[] px, float[] py, int n, Piece p, Gradient g) {
         float dx = g.x1() - g.x0();
         float dy = g.y1() - g.y0();
         float len2 = dx * dx + dy * dy;
@@ -334,25 +344,196 @@ public final class ShapeTessellator {
         }
         // t(x, y) = (x * dx + y * dy - base) / len2
         float base = g.x0() * dx + g.y0() * dy;
+        bands(px, py, n, p, g, dx, dy, base, len2);
+    }
+
+    /** The ramp plane and stop span a band's vertex colors are held to, while {@link #band} is set. */
+    private float bandHa;
+    private float bandHb;
+    private float bandBase;
+    private float bandScale;
+    private int bandSpan;
+    private boolean band;
+
+    /**
+     * Cuts the polygon at each offset {@code o} along the lines {@code ha x + hb y = base + o * scale},
+     * the ramp growing toward {@code (ha, hb)}, and emits the bands between them, each colored by its
+     * own pair of stops so a vertex on a hard stop takes its band's side.
+     */
+    private void bands(float[] px, float[] py, int n, Piece p, Gradient g, float ha, float hb, float base, float scale) {
+        // Offsets the polygon does not reach cut nothing: skip those below it, stop at the first above.
+        float lo = Float.POSITIVE_INFINITY;
+        float hi = Float.NEGATIVE_INFINITY;
+        for (int i = 0; i < n; i++) {
+            float t = (ha * px[i] + hb * py[i] - base) / scale;
+            lo = Math.min(lo, t);
+            hi = Math.max(hi, t);
+        }
         float[] rx = px;
         float[] ry = py;
         int k = n;
         float[] offsets = g.offsets();
+        band = true;
+        bandHa = ha;
+        bandHb = hb;
+        bandBase = base;
+        bandScale = scale;
+        // The last stop at or below the part of the polygon not yet emitted.
+        int below = -1;
         for (int i = 0; i < offsets.length && k >= 3; i++) {
-            // t <= o: dx * x + dy * y - (base + o * len2) <= 0
-            float c = -(base + offsets[i] * len2);
-            float[][] below = clip(rx, ry, k, dx, dy, c);
-            if (below[0].length >= 3) {
-                emit(below[0], below[1], below[0].length, p, 0, g);
+            if (offsets[i] <= lo) {
+                below = i;
+                continue;
             }
-            float[][] above = clip(rx, ry, k, -dx, -dy, -c);
+            if (offsets[i] >= hi) {
+                break;
+            }
+            // t <= o: ha * x + hb * y - (base + o * scale) <= 0
+            float c = -(base + offsets[i] * scale);
+            float[][] part = clip(rx, ry, k, ha, hb, c);
+            if (part[0].length >= 3) {
+                bandSpan = below;
+                emit(part[0], part[1], part[0].length, p, 0, g);
+            }
+            float[][] above = clip(rx, ry, k, -ha, -hb, -c);
             rx = above[0];
             ry = above[1];
             k = rx.length;
+            below = i;
         }
         if (k >= 3) {
+            bandSpan = below;
             emit(rx, ry, k, p, 0, g);
         }
+        band = false;
+    }
+
+    /** How far, in GUI pixels, a wedge's chord may stand inside the curve it stands for. */
+    private static final float CHORD_TOLERANCE = 0.1f;
+    private static final int MIN_WEDGES = 8;
+    private static final int MAX_WEDGES = 512;
+    /** Wedges per turn of a conic ramp, besides a cut at each stop. */
+    private static final int CONIC_WEDGES = 128;
+
+    /**
+     * An elliptical ramp: the plane around the center is cut into wedges narrow enough that a chord
+     * across one stands for the ellipse within {@link #CHORD_TOLERANCE}, each wedge into bands at the
+     * offsets along chords, as a linear ramp is. Vertex colors are the ramp's exact color there.
+     */
+    private void radialPieces(float[] px, float[] py, int n, Piece p, Gradient g) {
+        float cx = g.x0();
+        float cy = g.y0();
+        float rx = g.x1();
+        float ry = g.y1();
+        if (!(rx > 0) || !(ry > 0)) {
+            emit(px, py, n, p, g.colors()[g.colors().length - 1], null);
+            return;
+        }
+        float far = 0;
+        for (int i = 0; i < n; i++) {
+            far = Math.max(far, g.at(px[i], py[i]));
+        }
+        float reach = far * Math.max(rx, ry);
+        int wedges = reach <= CHORD_TOLERANCE ? MIN_WEDGES
+                : (int) Math.ceil(Math.PI / Math.acos(1 - CHORD_TOLERANCE / reach));
+        wedges = Math.max(MIN_WEDGES, Math.min(MAX_WEDGES, wedges));
+        double step = 2 * Math.PI / wedges;
+        float cosHalf = (float) Math.cos(step / 2);
+        for (int w = 0; w < wedges; w++) {
+            double a = w * step;
+            double b = a + step;
+            // In the ellipse's unit coordinates u = (x - cx) / rx, v = (y - cy) / ry.
+            float[][] poly = wedge(px, py, n, cx, cy, rx, ry, (float) Math.cos(a), (float) Math.sin(a),
+                    (float) Math.cos(b), (float) Math.sin(b));
+            if (poly == null) {
+                continue;
+            }
+            float mu = (float) Math.cos(a + step / 2);
+            float mv = (float) Math.sin(a + step / 2);
+            // t <= o along the chord: mu * u + mv * v <= o * cosHalf, in x and y.
+            float ha = mu / rx;
+            float hb = mv / ry;
+            bands(poly[0], poly[1], poly[0].length, p, g, ha, hb, ha * cx + hb * cy, cosHalf);
+        }
+    }
+
+    /**
+     * {@code poly} cut to the wedge from the direction {@code (ua, va)} to {@code (ub, vb)} in the unit
+     * coordinates of an ellipse centered at {@code (cx, cy)} with radii {@code rx}, {@code ry}; the
+     * wedge turns the way y grows from x. {@code null} when nothing is left.
+     */
+    private static float[][] wedge(float[] px, float[] py, int n, float cx, float cy, float rx, float ry,
+                                   float ua, float va, float ub, float vb) {
+        // cross(a, p) >= 0: va * u - ua * v <= 0; cross(p, b) >= 0: -vb * u + ub * v <= 0.
+        float[][] poly = clip(px, py, n, va / rx, -ua / ry, -va * cx / rx + ua * cy / ry);
+        if (poly[0].length < 3) {
+            return null;
+        }
+        poly = clip(poly[0], poly[1], poly[0].length, -vb / rx, ub / ry, vb * cx / rx - ub * cy / ry);
+        return poly[0].length < 3 ? null : poly;
+    }
+
+    /** The ramp positions and stop span a conic piece's vertex colors are held to, while {@link #conic} is set. */
+    private float conicLo;
+    private float conicHi;
+    private int conicSpan;
+    private boolean conic;
+
+    /**
+     * A conic ramp: the turn is cut into {@link #CONIC_WEDGES} wedges and at every stop, each wedge
+     * emitted whole with the colors of its vertices' angles, held to the wedge so a vertex on the seam
+     * or at the center takes the wedge's side.
+     */
+    private void conicPieces(float[] px, float[] py, int n, Piece p, Gradient g) {
+        float[] offsets = g.offsets();
+        float[] cuts = new float[CONIC_WEDGES + offsets.length + 1];
+        int k = 0;
+        for (int i = 0; i <= CONIC_WEDGES; i++) {
+            cuts[k++] = i / (float) CONIC_WEDGES;
+        }
+        for (float o : offsets) {
+            if (o > 0 && o < 1) {
+                cuts[k++] = o;
+            }
+        }
+        Arrays.sort(cuts, 0, k);
+        float cx = g.x0();
+        float cy = g.y0();
+        conic = true;
+        for (int i = 0; i + 1 < k; i++) {
+            float lo = cuts[i];
+            float hi = cuts[i + 1];
+            if (hi - lo < 1e-6f) {
+                continue;
+            }
+            // Clockwise from up, screen y down: direction (sin, -cos), which is (x, y) turning the way y grows.
+            double a = g.x1() + lo * 2 * Math.PI;
+            double b = g.x1() + hi * 2 * Math.PI;
+            float[][] poly = wedge(px, py, n, cx, cy, 1, 1, (float) Math.sin(a), (float) -Math.cos(a),
+                    (float) Math.sin(b), (float) -Math.cos(b));
+            if (poly == null) {
+                continue;
+            }
+            conicLo = lo;
+            conicHi = hi;
+            conicSpan = g.span(lo);
+            emit(poly[0], poly[1], poly[0].length, p, 0, g);
+        }
+        conic = false;
+    }
+
+    /** The conic ramp position of a vertex of the current wedge. */
+    private float conicAt(Gradient g, float x, float y) {
+        if (Math.abs(x - g.x0()) < 1e-3f && Math.abs(y - g.y0()) < 1e-3f) {
+            return (conicLo + conicHi) / 2;
+        }
+        float t = g.at(x, y);
+        if (t < conicLo - 0.5f) {
+            t += 1;
+        } else if (t > conicHi + 0.5f) {
+            t -= 1;
+        }
+        return Math.max(conicLo, Math.min(conicHi, t));
     }
 
     /**
@@ -437,7 +618,16 @@ public final class ShapeTessellator {
         if (size + STRIDE > buffer.length) {
             buffer = Arrays.copyOf(buffer, buffer.length * 2);
         }
-        int c = g == null ? color : g.color(g.at(x, y));
+        int c;
+        if (g == null) {
+            c = color;
+        } else if (conic) {
+            c = g.color(conicAt(g, x, y), conicSpan);
+        } else if (band) {
+            c = g.color((bandHa * x + bandHb * y - bandBase) / bandScale, bandSpan);
+        } else {
+            c = g.color(g.at(x, y));
+        }
         if (p.scale < 1) {
             c = Math.round((c >>> 24) * p.scale) << 24 | c & 0xFFFFFF;
         }

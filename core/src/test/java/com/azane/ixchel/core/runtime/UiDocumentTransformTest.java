@@ -56,8 +56,46 @@ class UiDocumentTransformTest {
     @Test
     void anUnsupportedTransformFunctionIsReportedAtItsPosition() {
         UiLoadException e = assertThrows(UiLoadException.class, () ->
-                load("<div class=\"r\"></div>", ".r { transform: rotate(10deg) skew(5deg) }", null));
+                load("<div class=\"r\"></div>", ".r { transform: rotate(10deg) rotateX(5deg) }", null));
         assertEquals(List.of("css/unsupported-value@t.css:1:44"), DiagCodes.of(e));
+    }
+
+    @Test
+    void skewShearsThePaintAndTheHitAreaAlike() {
+        UiDocument doc = load("<div class=\"x\"></div><div class=\"y\"></div>", """
+                .x { width: 20px; height: 10px; background-color: #fff; transform: skewX(45deg); transform-origin: 0 0 }
+                .y { width: 10px; height: 10px; background-color: #fff; transform: skew(0, 45deg); transform-origin: 0 0 }
+                """, null);
+        assertEquals("""
+                transform 1 0 1 1 0 0
+                rect 0 0 20 10 #FFFFFFFF
+                untransform
+                transform 1 1 0 1 0 0
+                rect 0 10 10 10 #FFFFFFFF
+                untransform""", GoldenTest.print(doc.frame(100, 100)));
+        Element x = (Element) doc.root().children().get(0);
+        Element y = (Element) doc.root().children().get(1);
+        assertSame(x, doc.events().hitTest(25, 8), "right of the layout box, inside the sheared one: local (17, 8)");
+        assertSame(doc.root(), doc.events().hitTest(3, 8), "inside the layout box, left of the sheared one: local (-5, 8)");
+        assertSame(y, doc.events().hitTest(8, 25), "below y's layout box, inside the sheared one: (8, 17) unsheared");
+        assertSame(doc.root(), doc.events().hitTest(2, 11), "inside y's layout box, above the sheared one: (2, 9) unsheared");
+    }
+
+    @Test
+    void skewInterpolatesAngleByAngle() {
+        long[] now = {0};
+        UiDocument doc = load("<div class=\"s\"></div>", """
+                .s { width: 10px; height: 10px; background-color: #fff; transform: skewX(0deg); transform-origin: 0 0;
+                     transition: transform 100ms linear }
+                .on { transform: skew(60deg, 20deg) }
+                """, null);
+        doc.clock(() -> now[0] * 1_000_000);
+        doc.frame(100, 100);
+        ((Element) doc.root().children().get(0)).addClass("on");
+        doc.frame(100, 100);
+        now[0] = 50;
+        // halfway: skew(30deg, 10deg)
+        assertEquals("transform 1 0.17632698 0.57735026 1 0 0", GoldenTest.print(doc.frame(100, 100)).lines().findFirst().orElseThrow());
     }
 
     static final class Pan extends ViewModel {

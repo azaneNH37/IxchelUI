@@ -11,7 +11,9 @@
           <ix-tab class="filters-tab" value="filters" t:label="ixchel_sample.effects.filters"></ix-tab>
           <ix-tab class="blend-tab" value="blend" t:label="ixchel_sample.effects.blend"></ix-tab>
           <ix-tab class="shaders-tab" value="shaders" t:label="ixchel_sample.effects.shaders"></ix-tab>
+          <ix-tab class="masks-tab" value="masks" t:label="ixchel_sample.effects.masks"></ix-tab>
           <ix-tab class="shapes-tab" value="shapes" t:label="ixchel_sample.effects.shapes"></ix-tab>
+          <ix-tab class="css-tab" value="css" t:label="ixchel_sample.effects.css"></ix-tab>
         </ix-tabs>
       </div>
 
@@ -113,6 +115,60 @@
         </div>
       </div>
 
+      <div class="page" bind:class:shown="tab == 'masks'">
+        <span class="section" t="ixchel_sample.effects.clip_paths"></span>
+        <div class="ground masks">
+          <div class="mask-row">
+            <div class="mask-cell">
+              <div class="clipped clip-inset"></div>
+              <span class="caption" t="ixchel_sample.effects.clip_inset"></span>
+            </div>
+            <div class="mask-cell">
+              <div class="clipped clip-circle"></div>
+              <span class="caption" t="ixchel_sample.effects.clip_circle"></span>
+            </div>
+            <div class="mask-cell">
+              <div class="clipped clip-ellipse"></div>
+              <span class="caption" t="ixchel_sample.effects.clip_ellipse"></span>
+            </div>
+            <div class="mask-cell">
+              <div class="clipped clip-star"></div>
+              <span class="caption" t="ixchel_sample.effects.clip_polygon"></span>
+            </div>
+            <div class="mask-cell">
+              <div class="clipped clip-morph"></div>
+              <span class="caption" t="ixchel_sample.effects.clip_morph"></span>
+            </div>
+          </div>
+        </div>
+        <span class="section" t="ixchel_sample.effects.mask_images"></span>
+        <div class="ground masks">
+          <div class="mask-row">
+            <div class="mask-cell">
+              <div class="fade-list">
+                <for each="filters" as="f" key="f">
+                  <div class="fade-row"><span bind:text="f"></span></div>
+                </for>
+              </div>
+              <span class="caption" t="ixchel_sample.effects.mask_fade"></span>
+            </div>
+            <div class="mask-cell">
+              <div class="spot"></div>
+              <span class="caption" t="ixchel_sample.effects.mask_radial"></span>
+            </div>
+            <div class="mask-cell">
+              <div class="stars"></div>
+              <span class="caption" t="ixchel_sample.effects.mask_image"></span>
+            </div>
+          </div>
+        </div>
+        <span class="section" t="ixchel_sample.effects.text_clip"></span>
+        <div class="ground masks">
+          <div class="gradient-text" t="ixchel_sample.effects.gradient_text"></div>
+          <div class="shine" t="ixchel_sample.effects.shine_text"></div>
+        </div>
+      </div>
+
       <div class="page" bind:class:shown="tab == 'shapes'">
         <span class="section" t="ixchel_sample.effects.corner_shapes"></span>
         <div class="ground shapes">
@@ -143,6 +199,86 @@
           <span class="font upper" t="ixchel_sample.effects.font_sample"></span>
           <span class="font codes">§c§l</span>
           <span class="font small" t="ixchel_sample.effects.font_sample"></span>
+        </div>
+      </div>
+
+      <div class="page" bind:class:shown="tab == 'css'">
+        <span class="section" t="ixchel_sample.effects.css_cells"></span>
+        <div class="ground cells">
+          <div class="cell">
+            <div class="demo"><div class="outlined"></div></div>
+            <span class="caption" t="ixchel_sample.effects.css_outline"></span>
+          </div>
+          <div class="cell">
+            <div class="demo spacing">
+              <span class="plain-latin" t="ixchel_sample.effects.css_latin"></span>
+              <span class="spaced-latin" t="ixchel_sample.effects.css_latin"></span>
+              <div class="cjk">
+                <span class="plain-cjk" t="ixchel_sample.effects.css_cjk"></span>
+                <span class="spaced-cjk" t="ixchel_sample.effects.css_cjk"></span>
+              </div>
+            </div>
+            <span class="caption" t="ixchel_sample.effects.css_letter_spacing"></span>
+          </div>
+          <div class="cell">
+            <div class="demo"><div class="frame"><div class="inset"></div></div></div>
+            <span class="caption" t="ixchel_sample.effects.css_inset"></span>
+          </div>
+          <div class="cell">
+            <div class="demo"><div class="swatch radial"></div></div>
+            <span class="caption" t="ixchel_sample.effects.css_radial"></span>
+          </div>
+          <div class="cell">
+            <div class="demo"><div class="swatch conic"></div></div>
+            <span class="caption" t="ixchel_sample.effects.css_conic"></span>
+          </div>
+          <div class="cell">
+            <div class="demo"><div class="swatch repeating-linear"></div></div>
+            <span class="caption" t="ixchel_sample.effects.css_repeating_linear"></span>
+          </div>
+          <div class="cell">
+            <div class="demo"><div class="swatch repeating-radial"></div></div>
+            <span class="caption" t="ixchel_sample.effects.css_repeating_radial"></span>
+          </div>
+          <div class="cell">
+            <div class="demo"><div class="swatch sliding"></div></div>
+            <span class="caption" t="ixchel_sample.effects.css_position"></span>
+          </div>
+          <div class="cell">
+            <div class="demo"><div class="skewed"></div></div>
+            <span class="caption" t="ixchel_sample.effects.css_skew"></span>
+          </div>
+          <div class="cell">
+            <div class="demo"><div class="ratio"></div></div>
+            <span class="caption" t="ixchel_sample.effects.css_aspect_ratio"></span>
+          </div>
+        </div>
+        <!-- Ported from https://codepen.io/RockStarwind/pen/pozBLqd (CSS Fighting Game Health Meters):
+             skewed meters, player 1 mirrored, a damage bar that shrinks after a delay, a radial
+             starfield. Without clip-path the frame is a padded box; repeating-conic highlights become
+             repeating-linear ones. Clicking a meter takes a fifth of its health. -->
+        <span class="section" t="ixchel_sample.effects.css_pen"></span>
+        <div class="arena">
+          <div class="fighter p1">
+            <div class="bezel">
+              <div class="meter p1" on:click="p1 = (p1 + 100) % 120">
+                <div class="damage" bind:style:width="p1 + '%'"></div>
+                <div class="health" bind:style:width="p1 + '%'"></div>
+                <div class="gloss"></div>
+              </div>
+            </div>
+            <span class="name" t="ixchel_sample.effects.css_player_1"></span>
+          </div>
+          <div class="fighter p2">
+            <div class="bezel">
+              <div class="meter p2" on:click="p2 = (p2 + 100) % 120">
+                <div class="damage" bind:style:width="p2 + '%'"></div>
+                <div class="health" bind:style:width="p2 + '%'"></div>
+                <div class="gloss"></div>
+              </div>
+            </div>
+            <span class="name" t="ixchel_sample.effects.css_player_2"></span>
+          </div>
         </div>
       </div>
     </div>

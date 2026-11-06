@@ -99,12 +99,57 @@ class ShapeTessellatorTest {
 
     @Test
     void gradientFillInterpolatesAcrossItsStops() {
-        Gradient g = new Gradient(0, 0, 10, 0, new float[]{0, 0.5f, 1}, new int[]{0xFFFF0000, 0xFF00FF00, 0xFF0000FF});
+        Gradient g = Gradient.linear(0, 0, 10, 0, new float[]{0, 0.5f, 1}, new int[]{0xFFFF0000, 0xFF00FF00, 0xFF0000FF});
         DrawCommand.Fill f = new DrawCommand.Fill(new RoundRect(0, 0, 10, 4, RoundRect.Radii.ZERO), 0, 0, 10, 4, 0, g, false);
         assertEquals(0xFFFF0000, at(f, 0, 2));
         assertEquals(0xFF808000, at(f, 2.5f, 2), "halfway to the middle stop");
         assertEquals(0xFF00FF00, at(f, 5, 2));
         assertEquals(0xFF0000FF, at(f, 10, 2));
+    }
+
+    /** Two-color stripes 4px wide, hard stops between them, repeated across 16px. */
+    private static final float[] STRIPE_OFFSETS = {0, 0.25f, 0.25f, 0.5f, 0.5f, 0.75f, 0.75f, 1};
+    private static final int[] STRIPE_COLORS = {0xFFFF0000, 0xFFFF0000, 0xFF0000FF, 0xFF0000FF,
+            0xFFFF0000, 0xFFFF0000, 0xFF0000FF, 0xFF0000FF};
+
+    @Test
+    void hardStopsKeepEachBandItsOwnColor() {
+        Gradient g = Gradient.linear(0, 0, 16, 0, STRIPE_OFFSETS, STRIPE_COLORS);
+        DrawCommand.Fill f = new DrawCommand.Fill(new RoundRect(0, 0, 16, 4, RoundRect.Radii.ZERO), 0, 0, 16, 4, 0, g, false);
+        for (float x = 0.5f; x < 16; x += 1) {
+            assertEquals(((int) x / 4) % 2 == 0 ? 0xFFFF0000 : 0xFF0000FF, at(f, x, 2), "at x = " + x);
+        }
+    }
+
+    @Test
+    void radialHardStopsDrawSharpRings() {
+        Gradient g = new Gradient(Gradient.Kind.RADIAL, 20, 20, 16, 16, STRIPE_OFFSETS, STRIPE_COLORS);
+        DrawCommand.Fill f = new DrawCommand.Fill(new RoundRect(0, 0, 40, 40, RoundRect.Radii.ZERO), 0, 0, 40, 40, 0, g, false);
+        for (int a = 0; a < 360; a += 7) {
+            for (float r = 0.5f; r < 16; r += 1) {
+                if (Math.abs(r % 4 - 2) > 1.6f) {
+                    continue;
+                }
+                float x = 20 + r * (float) Math.cos(Math.toRadians(a));
+                float y = 20 + r * (float) Math.sin(Math.toRadians(a));
+                assertEquals(((int) r / 4) % 2 == 0 ? 0xFFFF0000 : 0xFF0000FF, at(f, x, y), "at radius " + r + ", " + a + "°");
+            }
+        }
+    }
+
+    @Test
+    void conicHardStopsDrawSharpSectors() {
+        Gradient g = new Gradient(Gradient.Kind.CONIC, 20, 20, 0, 0, STRIPE_OFFSETS, STRIPE_COLORS);
+        DrawCommand.Fill f = new DrawCommand.Fill(new RoundRect(0, 0, 40, 40, RoundRect.Radii.ZERO), 0, 0, 40, 40, 0, g, false);
+        for (int a = 2; a < 360; a += 4) {
+            if (a % 90 < 2 || a % 90 > 88) {
+                continue;
+            }
+            double t = Math.toRadians(a);
+            float x = 20 + 10 * (float) Math.sin(t);
+            float y = 20 - 10 * (float) Math.cos(t);
+            assertEquals((a / 90) % 2 == 0 ? 0xFFFF0000 : 0xFF0000FF, at(f, x, y), "at " + a + "°");
+        }
     }
 
     @Test

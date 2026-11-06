@@ -46,7 +46,8 @@ import java.util.Map;
  * so paint order is kept. Drawn elements are drawn by their {@link ElementPainter}.
  *
  * <p>Fills, borders and shadows are {@link ShapeTessellator} meshes over the host's mask atlas
- * ({@link MaskTexture}), drawn with face culling off since their quads' winding varies. An image with a
+ * ({@link MaskTexture}). Every batch is drawn with face culling off: a mesh's winding varies, and a
+ * mirroring transform ({@code scaleX(-1)}) turns rectangles and images around. An image with a
  * forced filter sets its texture's filters for its draw and restores them after.
  *
  * <p>Native drawings go through vanilla and write depth above the level they draw at. Each command
@@ -84,6 +85,7 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
     private final Map<String, ElementPainter<?>> painters;
     private final Map<String, ResourceLocation> textures = new HashMap<>();
     private final Matrix4f textMatrix = new Matrix4f();
+    private final McTextMeasurer.Glyph glyph = new McTextMeasurer.Glyph();
     private final Matrix4f local = new Matrix4f();
     private final Deque<Affine> outer = new ArrayDeque<>();
     private GuiGraphics graphics;
@@ -286,16 +288,31 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         float scale = McTextMeasurer.crispSize(c.size(), gui) / VANILLA_SIZE;
         float x = (float) (Math.round(c.x() * gui) / gui);
         float y = (float) (Math.round(c.y() * gui) / gui);
-        FormattedCharSequence text = McTextMeasurer.sequence(c.text(), style(c));
+        Style style = style(c);
+        FormattedCharSequence text = McTextMeasurer.sequence(c.text(), style);
+        int glyphs = c.spacing() == 0 ? 0 : c.text().codePointCount(0, c.text().length());
         float z = 0;
         // Measuring is only needed once something is raised.
         if (!layers.isEmpty()) {
-            z = level(x, y, x + font.width(text) * scale, y + scale * VANILLA_SIZE);
+            z = level(x, y, x + font.width(text) * scale + glyphs * c.spacing(), y + scale * VANILLA_SIZE);
         }
         begin(Batch.TEXT, null);
         textMatrix.set(pose).translate(x, y, z).scale(scale, scale, 1);
-        font.drawInBatch(text, 0, 0, c.color(), false, textMatrix, graphics.bufferSource(),
-                Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
+        if (glyphs == 0) {
+            font.drawInBatch(text, 0, 0, c.color(), false, textMatrix, graphics.bufferSource(),
+                    Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
+            return null;
+        }
+        // letter-spacing: each glyph where the text before it ends, as McTextMeasurer measures it.
+        float step = c.spacing() / scale;
+        float advance = 0;
+        glyph.style = style;
+        for (int i = 0; i < c.text().length(); i += Character.charCount(glyph.codePoint)) {
+            glyph.codePoint = c.text().codePointAt(i);
+            font.drawInBatch(glyph, advance, 0, c.color(), false, textMatrix, graphics.bufferSource(),
+                    Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
+            advance += font.getSplitter().stringWidth(glyph) + step;
+        }
         return null;
     }
 
@@ -380,6 +397,16 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
             by1 = Math.min(by1, clips[o + 3]);
         }
         offscreen.push(bx0, by0, bx1, by1, c, transform, pointerX, pointerY, time);
+        layerScissor();
+        return null;
+    }
+
+    /** Draws what follows, up to the layer's end, onto its mask. */
+    @Override
+    public Void visitMask(DrawCommand.Mask c) {
+        flush();
+        graphics.flush();
+        offscreen.mask();
         layerScissor();
         return null;
     }
@@ -605,20 +632,12 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
 
     private void flush() {
         switch (batch) {
-            case COLOR -> draw();
+            case COLOR, SHAPE -> draw();
             case TEXTURE -> {
                 if (filter == DrawCommand.Image.Filter.AUTO) {
                     draw();
                 } else {
                     drawFiltered();
-                }
-            }
-            case SHAPE -> {
-                boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
-                RenderSystem.disableCull();
-                draw();
-                if (cull) {
-                    RenderSystem.enableCull();
                 }
             }
             case TEXT -> graphics.flush();
@@ -630,9 +649,15 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         filter = DrawCommand.Image.Filter.AUTO;
     }
 
+    /** Draws the pending quads with face culling off, then puts culling back as it was. */
     private void draw() {
+        boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        RenderSystem.disableCull();
         BufferUploader.drawWithShader(buffer.buildOrThrow());
         buffer = null;
+        if (cull) {
+            RenderSystem.enableCull();
+        }
     }
 
     /** Draws the texture batch with {@link #filter} as its texture's filters, then restores them. */

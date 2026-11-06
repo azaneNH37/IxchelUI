@@ -38,7 +38,11 @@ class TextShaperTest {
     }
 
     private static TextShaper.Run run(String text) {
-        return new TextShaper.Run(text, 9, false, false, 10, null);
+        return new TextShaper.Run(text, 9, false, false, 10, null, 0);
+    }
+
+    private static TextShaper.Run spaced(String text, float spacing) {
+        return new TextShaper.Run(text, 9, false, false, 10, null, spacing);
     }
 
     @Test
@@ -63,7 +67,7 @@ class TextShaperTest {
     @Test
     void runsBreakAcrossFontsAndNowrapRunsStayWhole() {
         TextShaper shaper = new TextShaper(ONE_PER_CHAR);
-        List<TextShaper.Item> items = List.of(run("aa "), new TextShaper.Run("bb cc", 9, true, true, 10, null), run(" dd"));
+        List<TextShaper.Item> items = List.of(run("aa "), new TextShaper.Run("bb cc", 9, true, true, 10, null, 0), run(" dd"));
         // the bold nowrap run is 10px wide and cannot break inside
         assertEquals(List.of("aa", "bb cc", "dd"), lines(shaper.layout(items, 9, 10, 8)));
         assertEquals(List.of("aa |bb cc| dd"), lines(shaper.layout(items, 9, 10, 100)));
@@ -97,5 +101,36 @@ class TextShaperTest {
         List<TextShaper.Piece> cut = shaper.ellipsize(line, items, 4);
         assertEquals(List.of("ab", TextShaper.ELLIPSIS), cut.stream().map(TextShaper.Piece::text).toList());
         assertEquals(2, cut.get(1).x());
+    }
+
+    @Test
+    void letterSpacingFollowsEveryCharacterInMeasuringAndBreaking() {
+        TextShaper shaper = new TextShaper(ONE_PER_CHAR);
+        List<TextShaper.Item> items = List.of(spaced("ab cd", 2));
+        assertEquals(15, shaper.layout(items, 9, 10, Float.POSITIVE_INFINITY).width(), "5 characters of 1px, each followed by 2px");
+        TextShaper.Paragraph p = shaper.layout(items, 9, 10, 10);
+        assertEquals(List.of("ab", "cd"), lines(p));
+        assertEquals(6, p.width(), "the dropped space takes its spacing with it");
+        assertEquals(List.of(0f, 6f), shaper.layout(List.of(spaced("ab", 2), run("cd")), 9, 10, 100).lines().get(0).pieces()
+                .stream().map(TextShaper.Piece::x).toList());
+    }
+
+    @Test
+    void letterSpacedCjkStillBreaksBetweenCharactersAndKeepsClosingPunctuation() {
+        TextShaper shaper = new TextShaper(ONE_PER_CHAR);
+        List<TextShaper.Item> items = List.of(spaced("今天天气很好。", 1));
+        assertEquals(List.of("今天天", "气很", "好。"), lines(shaper.layout(items, 9, 10, 6)));
+        assertEquals(4, shaper.minContentWidth(items), "好。 cannot break and is two spaced characters");
+    }
+
+    @Test
+    void ellipsisIsPlacedAfterTheSpacedText() {
+        TextShaper shaper = new TextShaper(ONE_PER_CHAR);
+        List<TextShaper.Item> items = List.of(spaced("ab cdef", 1));
+        TextShaper.Line line = shaper.layout(items, 9, 10, Float.POSITIVE_INFINITY).lines().get(0);
+        List<TextShaper.Piece> cut = shaper.ellipsize(line, items, 8);
+        assertEquals(List.of("ab", TextShaper.ELLIPSIS), cut.stream().map(TextShaper.Piece::text).toList());
+        assertEquals(4, cut.get(1).x());
+        assertEquals(2, cut.get(1).width());
     }
 }

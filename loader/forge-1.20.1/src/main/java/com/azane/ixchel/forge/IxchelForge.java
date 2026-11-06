@@ -2,6 +2,7 @@ package com.azane.ixchel.forge;
 
 import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.binding.ViewModel;
+import com.azane.ixchel.core.playtest.Pump;
 import com.azane.ixchel.mc.UiHud;
 import com.azane.ixchel.mc.document.ExitingDocuments;
 import com.azane.ixchel.mc.playtest.Playtests;
@@ -106,32 +107,49 @@ public final class IxchelForge {
 
     /**
      * Installs the host's in-game playtests ({@link Playtests}): with {@code -Dixchel.playtest.<modid>=<name>[,…]|all}
-     * a development client runs them unattended and quits; without it, nothing is registered. Call
-     * once from the client side of the host's constructor, typically in a development-only mod.
+     * a development client runs them unattended and quits, with {@code -Dixchel.record.<modid>=…}
+     * it records their takes; without either, nothing is registered. Call once from the client side
+     * of the host's constructor, typically in a development-only mod.
      *
      * <pre>{@code
      * IxchelForge.installPlaytests("examplemod", playtests -> playtests.resetPlayer().register("panel", PanelPlaytest::run));
      * }</pre>
      */
     public static void installPlaytests(String modid, Consumer<Playtests> playtests) {
-        Playtests.install(modid, IxchelForge::pump, playtests);
+        Playtests.install(modid, PUMP, playtests);
     }
 
-    /** Calls {@code frame} at the end of each client tick that follows a drawn frame. */
-    private static void pump(Runnable frame) {
-        boolean[] drawn = {false};
-        MinecraftForge.EVENT_BUS.addListener((TickEvent.RenderTickEvent e) -> {
-            if (e.phase == TickEvent.Phase.END) {
-                drawn[0] = true;
-            }
-        });
-        MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e) -> {
-            if (e.phase == TickEvent.Phase.END && drawn[0]) {
-                drawn[0] = false;
-                frame.run();
-            }
-        });
-    }
+    /**
+     * Ticks at the end of each client tick that follows a drawn frame. Frames at the end of each
+     * render tick: {@code Minecraft.runTick} posts it after {@code GameRenderer.render} drew the world,
+     * HUD, screen and toasts, and before it blits the main target to the window and swaps buffers.
+     */
+    private static final Pump PUMP = new Pump() {
+        @Override
+        public void start(Runnable tick) {
+            boolean[] drawn = {false};
+            MinecraftForge.EVENT_BUS.addListener((TickEvent.RenderTickEvent e) -> {
+                if (e.phase == TickEvent.Phase.END) {
+                    drawn[0] = true;
+                }
+            });
+            MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e) -> {
+                if (e.phase == TickEvent.Phase.END && drawn[0]) {
+                    drawn[0] = false;
+                    tick.run();
+                }
+            });
+        }
+
+        @Override
+        public void frames(Runnable frame) {
+            MinecraftForge.EVENT_BUS.addListener((TickEvent.RenderTickEvent e) -> {
+                if (e.phase == TickEvent.Phase.END) {
+                    frame.run();
+                }
+            });
+        }
+    };
 
     static String layerId(String pagePath) {
         return pagePath.endsWith(".html") ? pagePath.substring(0, pagePath.length() - 5) : pagePath;

@@ -19,7 +19,7 @@ import java.util.List;
 public sealed interface DrawCommand
         permits DrawCommand.Rect, DrawCommand.Fill, DrawCommand.Border, DrawCommand.Shadow, DrawCommand.Text,
         DrawCommand.Image, DrawCommand.Custom, DrawCommand.Paint, DrawCommand.PushClip, DrawCommand.PopClip,
-        DrawCommand.PushTransform, DrawCommand.PopTransform, DrawCommand.PushLayer, DrawCommand.PopLayer,
+        DrawCommand.PushTransform, DrawCommand.PopTransform, DrawCommand.PushLayer, DrawCommand.Mask, DrawCommand.PopLayer,
         DrawCommand.Backdrop {
 
     <R> R accept(Visitor<R> v);
@@ -50,6 +50,8 @@ public sealed interface DrawCommand
         R visitPopTransform(PopTransform c);
 
         R visitPushLayer(PushLayer c);
+
+        R visitMask(Mask c);
 
         R visitPopLayer(PopLayer c);
 
@@ -117,7 +119,8 @@ public sealed interface DrawCommand
     }
 
     /**
-     * A box effect ({@code background-image: paint()}) filling {@code shape}, the border box, clipped to
+     * A box effect ({@code background-image: paint()}) filling {@code shape}, the layer's
+     * {@code background-clip} box (the border box by default), clipped to
      * its rounded corners. {@code values} are the effect's params as {@link com.azane.ixchel.core.effect.Effects#values}
      * packs them; the host compiles the effect, draws nothing when it does not compile, and owns the
      * time and pointer inputs.
@@ -132,9 +135,12 @@ public sealed interface DrawCommand
     /**
      * {@code (x, y)} is the top-left of a line of the text's font; {@code size} is the font size in GUI
      * pixels. {@code flags} are {@link StyledText}'s: bold, italic, underline, strikethrough, obfuscated.
-     * {@code font} is a font id, {@code null} for the host's default font.
+     * {@code font} is a font id, {@code null} for the host's default font. {@code spacing} (GUI pixels,
+     * already rounded by the host's {@code TextMeasurer}) is added after every character, so each glyph
+     * starts where the text before it, measured with the same spacing, ends.
      */
-    record Text(float x, float y, float size, int color, String text, int flags, String font) implements DrawCommand {
+    record Text(float x, float y, float size, int color, String text, int flags, String font, float spacing)
+            implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
             return v.visitText(this);
@@ -196,19 +202,25 @@ public sealed interface DrawCommand
     }
 
     /**
-     * Draws the commands up to the matching {@link PopLayer} on their own transparent layer, then runs
-     * {@code filters} over it in order and composites the result at {@code opacity} with {@code blend}.
-     * The rectangle, in the coordinates current at this command (an outer transform maps it too),
-     * bounds everything they draw and what the filters spread it to; the host may clip it further to
-     * the current clip and the screen.
+     * Draws the commands up to the matching {@link PopLayer} (or {@link Mask}) on their own transparent
+     * layer, then runs {@code filters} over it in order and composites the result at {@code opacity}
+     * with {@code blend}. The rectangle, in the coordinates current at this command (an outer
+     * transform maps it too), bounds everything they draw and what the filters spread it to; the host
+     * may clip it further to the current clip and the screen.
      *
      * <p>{@code paints} hold the layer effects of the {@link Filter.Kind#PAINT} filters, in order.
      * {@code frame} is the element's border box and {@code transform} its own transform ({@code null}
      * if none), which applies inside the layer: an effect's element-local position at a point of the
      * layer is that point mapped back through {@code transform}, relative to the frame's corner.
+     *
+     * <p>{@code clip} ({@code clip-path}), when not {@code null}, is a shape in the coordinates inside
+     * {@code transform}: the filtered layer is composited only inside it, antialiased. With
+     * {@code masked}, a {@link Mask} follows the layer's commands, and the filtered layer is
+     * multiplied by the alpha of what the commands after it draw.
      */
     record PushLayer(float x, float y, float width, float height, float opacity, List<Filter> filters,
-                     Keywords.MixBlendMode blend, List<LayerPaint> paints, RoundRect frame, Affine transform)
+                     Keywords.MixBlendMode blend, List<LayerPaint> paints, RoundRect frame, Affine transform,
+                     ClipShape clip, boolean masked)
             implements DrawCommand {
         @Override
         public <R> R accept(Visitor<R> v) {
@@ -218,6 +230,19 @@ public sealed interface DrawCommand
 
     /** A layer effect of a {@link PushLayer}, its params packed as for {@link Paint}. */
     record LayerPaint(Effect effect, float[] values) {
+    }
+
+    /**
+     * Ends the commands of a {@code masked} {@link PushLayer}; those from here to its {@link PopLayer}
+     * draw its mask, on a transparent layer of the same rectangle, which only its alpha is taken from.
+     */
+    record Mask() implements DrawCommand {
+        public static final Mask INSTANCE = new Mask();
+
+        @Override
+        public <R> R accept(Visitor<R> v) {
+            return v.visitMask(this);
+        }
     }
 
     record PopLayer() implements DrawCommand {

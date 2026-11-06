@@ -1,8 +1,10 @@
 package com.azane.ixchel.mc.paint;
 
 import com.azane.ixchel.core.css.property.Affine;
+import com.azane.ixchel.core.css.property.ClipPath;
 import com.azane.ixchel.core.css.property.Filter;
 import com.azane.ixchel.core.css.property.Keywords;
+import com.azane.ixchel.core.paint.ClipShape;
 import com.azane.ixchel.core.paint.DrawCommand;
 import com.azane.ixchel.core.paint.RoundRect;
 import com.mojang.blaze3d.pipeline.TextureTarget;
@@ -16,10 +18,13 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import org.joml.Matrix4f;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
+import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,9 +33,11 @@ import java.util.List;
  * a region of the window in physical pixels, drawn into a pooled {@link TextureTarget} with depth:
  * the viewport is moved so that the GUI projection lands the region on the target's origin, so the
  * commands inside draw exactly as they would on the parent. Draws inside blend with separate alpha
- * factors, which leaves premultiplied color on the cleared target; {@link #filter} runs the group's
- * filters over it and {@link #composite} draws the result back onto the parent at the group's
- * opacity with its blend mode.
+ * factors, which leaves premultiplied color on the cleared target; a masked layer's mask is drawn the
+ * same way onto a second target ({@link #mask}). {@link #filter} runs the group's filters over it and
+ * {@link #composite} draws the result back onto the parent inside its {@code clip-path} shape, times
+ * the mask's alpha, at the group's opacity with its blend mode: the shape is tested per pixel in the
+ * composite program, so its edge is antialiased at any transform.
  *
  * <p>Entering and leaving keep the parent's framebuffer binding and viewport, so a layer opened while
  * another mod's target is bound returns there. Targets, the filter passes' included, are shared by the
@@ -73,10 +80,17 @@ final class OffscreenLayers {
         List<DrawCommand.LayerPaint> paints;
         RoundRect frame;
         float time;
-        /** GUI pixels back into the frame's coordinates; {@code null} for a transform no point reaches. */
+        /**
+         * GUI pixels back into the coordinates inside the element's transform, those of the frame and
+         * the clip; {@code null} for a transform no point reaches.
+         */
         Affine toLocal;
         /** The pointer in the frame's coordinates; NaN for none. */
         float mouseX, mouseY;
+        /** The {@code clip-path} shape, in {@link #toLocal}'s coordinates; {@code null} for none. */
+        ClipShape clip;
+        /** The layer's mask once {@link #mask} started it; {@code null} for none. */
+        Target mask;
         /** What {@link #composite} draws: the target, or the last filter pass's output. */
         Target result;
         int parentFbo;
@@ -89,6 +103,8 @@ final class OffscreenLayers {
 
     private final List<Layer> layers = new ArrayList<>();
     private int depth;
+    /** A clip polygon's vertices for the composite program's {@code Points}, x then y. */
+    private final FloatBuffer points = BufferUtils.createFloatBuffer(2 * ClipPath.MAX_POINTS);
 
     boolean active() {
         return depth > 0;
@@ -130,14 +146,18 @@ final class OffscreenLayers {
         l.paints = c.paints();
         l.frame = c.frame();
         l.time = time;
-        if (c.frame() != null) {
+        l.clip = c.clip();
+        if (c.frame() != null || c.clip() != null) {
             l.toLocal = (c.transform() == null ? outer : outer.then(c.transform())).invert();
+        }
+        if (c.frame() != null) {
             boolean reached = l.toLocal != null && !Float.isNaN(pointerX);
             l.mouseX = reached ? l.toLocal.x(pointerX, pointerY) - c.frame().x() : Float.NaN;
             l.mouseY = reached ? l.toLocal.y(pointerX, pointerY) - c.frame().y() : Float.NaN;
         }
         l.target = null;
         l.result = null;
+        l.mask = null;
         if (right <= left || top <= bottom) {
             return;
         }
@@ -160,6 +180,24 @@ final class OffscreenLayers {
         l.target.fbo.clear(Minecraft.ON_OSX);
         l.target.fbo.bindWrite(false);
         RenderSystem.viewport(-l.x, -l.y, window.getWidth(), h);
+    }
+
+    /**
+     * Starts the innermost layer's mask ({@code DrawCommand.Mask}): draws that follow go onto a cleared
+     * target of the layer's region, whose alpha {@link #composite} multiplies the layer by. The caller
+     * applies the clip again, which this turns off.
+     */
+    void mask() {
+        Layer l = layers.get(depth - 1);
+        if (!l.visible()) {
+            return;
+        }
+        Window window = Minecraft.getInstance().getWindow();
+        l.mask = acquire(l.width, l.height, true);
+        RenderSystem.disableScissor();
+        l.mask.fbo.clear(Minecraft.ON_OSX);
+        l.mask.fbo.bindWrite(false);
+        RenderSystem.viewport(-l.x, -l.y, window.getWidth(), window.getHeight());
     }
 
     /** Closes the innermost layer and binds its parent again; the caller composites it, then {@link #release}s it. */
@@ -208,19 +246,33 @@ final class OffscreenLayers {
 
     /**
      * Draws the closed layer {@code l} onto the bound target at its opacity with its blend mode, at
-     * depth {@code z} of {@code pose}. The layer holds premultiplied color. {@code multiply} drops
-     * the term for where the target is transparent; {@code darken} and {@code lighten} are the MIN
-     * and MAX equations, the layer put over white for MIN so that its transparent part changes
-     * nothing, which for partly covered pixels is close to, not exactly, the CSS result.
+     * depth {@code z} of {@code pose}, only inside its clip shape (antialiased) and times its mask's
+     * alpha. The layer holds premultiplied color. {@code multiply} drops the term for where the
+     * target is transparent; {@code darken} and {@code lighten} are the MIN and MAX equations, the
+     * layer put over white for MIN so that its transparent part changes nothing, which for partly
+     * covered pixels is close to, not exactly, the CSS result.
      */
     void composite(Layer l, Matrix4f pose, float z, FilterShaders shaders) {
         Target t = l.result;
+        if (l.clip != null && l.toLocal == null) {
+            return; // a singular transform: no point of the shape shows
+        }
         float u1 = l.width / (float) t.fbo.width;
         float v1 = l.height / (float) t.fbo.height;
         ShaderInstance shader = shaders.composite;
         shader.safeGetUniform("Opacity").set(l.opacity);
         shader.safeGetUniform("Under").set(l.blend == Keywords.MixBlendMode.DARKEN ? 1f : 0f);
+        shader.safeGetUniform("Masked").set(l.mask != null ? 1f : 0f);
+        shader.setSampler("Sampler1", (l.mask != null ? l.mask : t).fbo.getColorTextureId());
+        if (l.mask != null) {
+            shader.safeGetUniform("MaskScale").set(t.fbo.width / (float) l.mask.fbo.width, t.fbo.height / (float) l.mask.fbo.height);
+        }
+        int points = clip(l, t, shader);
         FilterShaders.apply(shader, t.fbo.getColorTextureId());
+        if (points > 0) {
+            // Arrays are not uniforms a program definition can declare; set on the bound program.
+            GL20.glUniform2fv(GL20.glGetUniformLocation(shader.getId(), "Points"), this.points);
+        }
         RenderSystem.enableBlend();
         GlStateManager.SourceFactor one = GlStateManager.SourceFactor.ONE;
         GlStateManager.DestFactor rest = GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA;
@@ -254,6 +306,45 @@ final class OffscreenLayers {
             l.target = null;
         }
         l.result = null;
+        if (l.mask != null) {
+            release(l.mask);
+            l.mask = null;
+        }
+    }
+
+    /**
+     * Sets the clip uniforms of {@code shader} for {@code l}, whose image is in {@code t}: the shape,
+     * and the map from texture coordinates to the shape's coordinates. Returns the polygon's vertex
+     * count, left in {@link #points} to upload once the program is bound; 0 for none.
+     */
+    private int clip(Layer l, Target t, ShaderInstance shader) {
+        if (l.clip == null) {
+            shader.safeGetUniform("ClipKind").set(0f);
+            return 0;
+        }
+        Window window = Minecraft.getInstance().getWindow();
+        float s = (float) window.getGuiScale();
+        // Texture coordinates to window pixels (y up) to GUI pixels (y down), then back through the transforms.
+        Affine tex = new Affine(t.fbo.width / s, 0, 0, -t.fbo.height / s, l.x / s, (window.getHeight() - l.y) / s);
+        Affine m = l.toLocal.then(tex);
+        shader.safeGetUniform("LocalX").set(m.a(), m.c(), m.e());
+        shader.safeGetUniform("LocalY").set(m.b(), m.d(), m.f());
+        if (l.clip instanceof ClipShape.Box box) {
+            RoundRect r = box.shape();
+            RoundRect.Radii q = r.radii();
+            shader.safeGetUniform("ClipKind").set(1f);
+            shader.safeGetUniform("Box").set(r.x(), r.y(), r.width(), r.height());
+            shader.safeGetUniform("RadiiTop").set(q.topLeftX(), q.topLeftY(), q.topRightX(), q.topRightY());
+            shader.safeGetUniform("RadiiBottom").set(q.bottomRightX(), q.bottomRightY(), q.bottomLeftX(), q.bottomLeftY());
+            return 0;
+        }
+        ClipShape.Polygon p = (ClipShape.Polygon) l.clip;
+        int n = p.points().length / 2;
+        shader.safeGetUniform("ClipKind").set(p.evenOdd() ? 3f : 2f);
+        shader.safeGetUniform("PointCount").set((float) n);
+        points.clear();
+        points.put(p.points()).flip();
+        return n;
     }
 
     /**

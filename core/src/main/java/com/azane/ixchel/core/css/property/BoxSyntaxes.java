@@ -25,19 +25,111 @@ final class BoxSyntaxes {
     private BoxSyntaxes() {
     }
 
-    /** {@code background-image}: comma-separated {@code none}, {@code url()} or {@code linear-gradient()}, top layer first. */
+    /** Where an image is used: what it may be besides {@code none} and {@code url()}. */
+    private enum Use {
+        /** Also gradients and {@code paint()}. */
+        BACKGROUND,
+        /** Also gradients. */
+        MASK,
+        BORDER
+    }
+
+    /** {@code background-image}: comma-separated {@code none}, {@code url()}, gradients or {@code paint()}, top layer first. */
     static Syntax<List<CssImage>> backgroundImages() {
         return Syntaxes.commaList((value, pos, diag) -> {
             ComponentValue v = single(value, pos, diag);
-            return v == null ? null : image(v, true, diag);
+            return v == null ? null : image(v, Use.BACKGROUND, diag);
         });
+    }
+
+    /** {@code mask-image}: comma-separated {@code none}, {@code url()} or gradients, top layer first. */
+    static Syntax<List<CssImage>> maskImages() {
+        return Syntaxes.commaList((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            return v == null ? null : image(v, Use.MASK, diag);
+        });
+    }
+
+    /**
+     * {@code background-clip}: per layer {@code border-box}, {@code padding-box} or {@code content-box};
+     * or {@code text} alone, which clips every layer and the color to the element's text.
+     */
+    static Syntax<List<Keywords.BackgroundClip>> backgroundClip() {
+        Syntax<List<Keywords.BackgroundClip>> list = Syntaxes.commaList(Syntaxes.keyword(Keywords.BackgroundClip.class));
+        return (value, pos, diag) -> {
+            List<Keywords.BackgroundClip> clips = list.parse(value, pos, diag);
+            if (clips != null && clips.size() > 1 && clips.contains(Keywords.BackgroundClip.TEXT)) {
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, pos, "background-clip: text is supported only for all layers at once",
+                        "write background-clip: text alone");
+                return null;
+            }
+            return clips;
+        };
+    }
+
+    /** {@code mask-mode}: per layer {@code match-source} or {@code alpha}, which are the same for images and gradients. */
+    static Syntax<List<Keywords.MaskMode>> maskMode() {
+        return Syntaxes.commaList((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            if (v == null) {
+                return null;
+            }
+            if (v instanceof Token t && t.isIdent("luminance")) {
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "mask-mode: luminance is not supported", "use alpha");
+                return null;
+            }
+            Keywords.MaskMode m = Syntaxes.keywordOf(v, Keywords.MaskMode.class);
+            if (m == null) {
+                diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected match-source or alpha");
+            }
+            return m;
+        });
+    }
+
+    /** {@code mask-composite}: per layer {@code add}, the only operator supported. */
+    static Syntax<List<Keywords.MaskComposite>> maskComposite() {
+        return Syntaxes.commaList((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            if (v == null) {
+                return null;
+            }
+            if (v instanceof Token t && (t.isIdent("subtract") || t.isIdent("intersect") || t.isIdent("exclude"))) {
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "mask-composite: " + t.value() + " is not supported", "use add");
+                return null;
+            }
+            Keywords.MaskComposite m = Syntaxes.keywordOf(v, Keywords.MaskComposite.class);
+            if (m == null) {
+                diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected add");
+            }
+            return m;
+        });
+    }
+
+    /**
+     * {@code outline-style}: {@code none} or {@code solid}; the other CSS line styles and {@code auto}
+     * are reported as unsupported.
+     */
+    static Syntax<Keywords.BorderStyle> outlineStyle() {
+        Syntax<Keywords.BorderStyle> keyword = Syntaxes.keyword(Keywords.BorderStyle.class);
+        return (value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            if (v == null) {
+                return null;
+            }
+            if (v instanceof Token t && t.is(Token.Kind.IDENT) && Shorthand.isLineStyle(t.value())
+                    && Syntaxes.keywordOf(t, Keywords.BorderStyle.class) == null) {
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "outline-style '" + t.value() + "' is not supported", "use solid");
+                return null;
+            }
+            return keyword.parse(value, pos, diag);
+        };
     }
 
     /** {@code border-image-source}: {@code none} or {@code url()}. */
     static Syntax<CssImage> imageSource() {
         return (value, pos, diag) -> {
             ComponentValue v = single(value, pos, diag);
-            return v == null ? null : image(v, false, diag);
+            return v == null ? null : image(v, Use.BORDER, diag);
         };
     }
 
@@ -69,10 +161,10 @@ final class BoxSyntaxes {
      * An image source: {@code none}, a {@code url()}, quoted or not, naming an image by resource
      * location, e.g. {@code url("minecraft:textures/gui/icons.png")}, or a sprite of the host's
      * texture atlas by {@link Syntaxes#SPRITE} and the sprite's resource location, e.g.
-     * {@code url("sprite:minecraft:block/water_still")}; with {@code background}, also
-     * {@code linear-gradient()} and {@code paint(name)}, a box effect of the document.
+     * {@code url("sprite:minecraft:block/water_still")}; in a background or a mask, also the
+     * gradients, and in a background {@code paint(name)}, a box effect of the document.
      */
-    private static CssImage image(ComponentValue v, boolean background, Diagnostics diag) {
+    private static CssImage image(ComponentValue v, Use use, Diagnostics diag) {
         if (v instanceof Token t) {
             if (t.isIdent("none")) {
                 return CssImage.NONE;
@@ -96,19 +188,27 @@ final class BoxSyntaxes {
                 return null;
             }
             if (name.endsWith("-gradient")) {
-                if (!background) {
+                if (use == Use.BORDER) {
                     diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "a gradient is not supported here", "use url()");
                     return null;
                 }
-                if (name.equals("linear-gradient")) {
-                    return linearGradient(f, diag);
-                }
-                diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "'" + name + "()' is not supported", "use linear-gradient()");
-                return null;
+                return switch (name) {
+                    case "linear-gradient" -> linearGradient(f, false, diag);
+                    case "repeating-linear-gradient" -> linearGradient(f, true, diag);
+                    case "radial-gradient" -> radialGradient(f, false, diag);
+                    case "repeating-radial-gradient" -> radialGradient(f, true, diag);
+                    case "conic-gradient" -> conicGradient(f, diag);
+                    default -> {
+                        diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "'" + name + "()' is not supported",
+                                "use linear-gradient(), radial-gradient(), conic-gradient() or a repeating linear or radial one");
+                        yield null;
+                    }
+                };
             }
             if (name.equals("paint")) {
-                if (!background) {
-                    diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "paint() is only supported in background-image", "use url()");
+                if (use != Use.BACKGROUND) {
+                    diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "paint() is only supported in background-image",
+                            use == Use.MASK ? "use url() or a gradient" : "use url()");
                     return null;
                 }
                 List<ComponentValue> args = significant(f.args());
@@ -119,15 +219,19 @@ final class BoxSyntaxes {
                 return null;
             }
         }
-        diag.report(PropertyCode.INVALID_VALUE, v.pos(), background ? "expected none, url(), linear-gradient() or paint()" : "expected none or url()");
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), switch (use) {
+            case BACKGROUND -> "expected none, url(), a gradient or paint()";
+            case MASK -> "expected none, url() or a gradient";
+            case BORDER -> "expected none or url()";
+        });
         return null;
     }
 
     /**
-     * {@code linear-gradient([<angle> | to <side or corner>,] <color> [<length-percentage>{1,2}], ...)}
-     * with at least two color stops; color hints are not supported.
+     * {@code [repeating-]linear-gradient([<angle> | to <side or corner>,] <color> [<length-percentage>{1,2}], ...)}
+     * with at least two color stops; color hints and color interpolation methods are not supported.
      */
-    private static CssImage linearGradient(ComponentValue.Function f, Diagnostics diag) {
+    private static CssImage linearGradient(ComponentValue.Function f, boolean repeating, Diagnostics diag) {
         List<List<ComponentValue>> items = splitCommas(f.args(), f.pos(), diag);
         if (items == null) {
             return null;
@@ -137,6 +241,9 @@ final class BoxSyntaxes {
         int cornerY = 0;
         int first = 0;
         List<ComponentValue> head = items.get(0);
+        if (interpolationMethod(head, diag)) {
+            return null;
+        }
         if (head.get(0) instanceof Token to && to.isIdent("to")) {
             first = 1;
             if (head.size() < 2 || head.size() > 3) {
@@ -181,10 +288,210 @@ final class BoxSyntaxes {
             angle = a;
             first = 1;
         }
-        List<CssImage.LinearGradient.Stop> stops = new ArrayList<>();
+        List<CssImage.Stop> stops = stops(f, items, first, false, diag);
+        return stops == null ? null : new CssImage.LinearGradient(angle, cornerX, cornerY, stops, repeating);
+    }
+
+    /**
+     * {@code [repeating-]radial-gradient([<shape> || <size>] [at <position>], <color> [<length-percentage>{1,2}], ...)}:
+     * the shape {@code circle} or {@code ellipse}; the size a keyword ({@code closest-side},
+     * {@code farthest-side}, {@code closest-corner}, {@code farthest-corner}, the default), a length
+     * (a circle's radius) or two lengths or percentages (an ellipse's radii); the position one or two
+     * of a length, a percentage or {@code left}, {@code center}, {@code right}, {@code top},
+     * {@code bottom}, as {@code transform-origin} takes them. Without a shape, one length makes a
+     * circle, otherwise it is an ellipse.
+     */
+    private static CssImage radialGradient(ComponentValue.Function f, boolean repeating, Diagnostics diag) {
+        List<List<ComponentValue>> items = splitCommas(f.args(), f.pos(), diag);
+        if (items == null) {
+            return null;
+        }
+        List<ComponentValue> head = items.get(0);
+        if (interpolationMethod(head, diag)) {
+            return null;
+        }
+        Boolean circle = null;
+        CssImage.Extent extent = null;
+        List<ComponentValue> sizes = new ArrayList<>(2);
+        Length cx = Length.percent(50);
+        Length cy = Length.percent(50);
+        int first = 0;
+        if (isRadialHead(head.get(0))) {
+            first = 1;
+            int at = head.size();
+            int lastSize = -2;
+            for (int k = 0; k < head.size(); k++) {
+                ComponentValue v = head.get(k);
+                if (v instanceof Token t && t.isIdent("at")) {
+                    at = k;
+                    break;
+                }
+                if (v instanceof Token t && (t.isIdent("circle") || t.isIdent("ellipse"))) {
+                    if (circle != null) {
+                        diag.report(PropertyCode.REPEATED_COMPONENT, t.pos(), "the shape is given twice");
+                        return null;
+                    }
+                    circle = t.isIdent("circle");
+                    continue;
+                }
+                CssImage.Extent e = extentOf(v);
+                if (e != null) {
+                    if (extent != null || !sizes.isEmpty()) {
+                        diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "the size is given twice");
+                        return null;
+                    }
+                    extent = e;
+                    continue;
+                }
+                if (isLengthToken(v) || v instanceof Token p && p.is(Token.Kind.PERCENTAGE)) {
+                    if (extent != null || sizes.size() == 2 || !sizes.isEmpty() && lastSize != k - 1) {
+                        diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "the size is given twice");
+                        return null;
+                    }
+                    sizes.add(v);
+                    lastSize = k;
+                    continue;
+                }
+                if (v instanceof Token t && (t.isIdent("contain") || t.isIdent("cover"))) {
+                    diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "'" + t.value() + "' is an old size keyword",
+                            "use closest-side or farthest-corner");
+                    return null;
+                }
+                diag.report(PropertyCode.FUNCTION_ARGUMENTS, v.pos(),
+                        "expected circle or ellipse, a size (closest-side, farthest-side, closest-corner, farthest-corner or lengths) or 'at'");
+                return null;
+            }
+            if (at < head.size()) {
+                List<ComponentValue> position = head.subList(at + 1, head.size());
+                if (position.isEmpty()) {
+                    diag.report(PropertyCode.FUNCTION_ARGUMENTS, head.get(at).pos(), "expected a position after 'at'");
+                    return null;
+                }
+                TransformOrigin o = Syntaxes.transformOrigin().parse(position, position.get(0).pos(), diag);
+                if (o == null) {
+                    return null;
+                }
+                cx = o.x();
+                cy = o.y();
+            }
+        }
+        Length rx = null;
+        Length ry = null;
+        if (!sizes.isEmpty()) {
+            if (circle == null) {
+                circle = sizes.size() == 1;
+            }
+            if (circle && sizes.size() != 1 || !circle && sizes.size() != 2) {
+                diag.report(PropertyCode.FUNCTION_ARGUMENTS, sizes.get(0).pos(),
+                        circle ? "a circle takes one radius" : "an ellipse takes two radii");
+                return null;
+            }
+            rx = lengthOf(sizes.get(0), !circle, false, false, diag);
+            ry = circle ? rx : lengthOf(sizes.get(1), true, false, false, diag);
+            if (rx == null || ry == null) {
+                return null;
+            }
+            extent = CssImage.Extent.EXPLICIT;
+        }
+        List<CssImage.Stop> stops = stops(f, items, first, false, diag);
+        return stops == null ? null : new CssImage.RadialGradient(circle != null && circle,
+                extent == null ? CssImage.Extent.FARTHEST_CORNER : extent, rx, ry, cx, cy, stops, repeating);
+    }
+
+    private static boolean isRadialHead(ComponentValue v) {
+        if (isLengthToken(v) || v instanceof Token p && p.is(Token.Kind.PERCENTAGE)) {
+            return true;
+        }
+        return v instanceof Token t && (t.isIdent("circle") || t.isIdent("ellipse") || t.isIdent("at") || t.isIdent("contain")
+                || t.isIdent("cover") || extentOf(t) != null);
+    }
+
+    private static CssImage.Extent extentOf(ComponentValue v) {
+        if (!(v instanceof Token t) || !t.is(Token.Kind.IDENT)) {
+            return null;
+        }
+        return switch (t.value().toLowerCase(Locale.ROOT)) {
+            case "closest-side" -> CssImage.Extent.CLOSEST_SIDE;
+            case "farthest-side" -> CssImage.Extent.FARTHEST_SIDE;
+            case "closest-corner" -> CssImage.Extent.CLOSEST_CORNER;
+            case "farthest-corner" -> CssImage.Extent.FARTHEST_CORNER;
+            default -> null;
+        };
+    }
+
+    /**
+     * {@code conic-gradient([from <angle>] [at <position>], <color> [<angle> | <percentage>]{0,2}, ...)}:
+     * the position as {@code radial-gradient()} takes it.
+     */
+    private static CssImage conicGradient(ComponentValue.Function f, Diagnostics diag) {
+        List<List<ComponentValue>> items = splitCommas(f.args(), f.pos(), diag);
+        if (items == null) {
+            return null;
+        }
+        List<ComponentValue> head = items.get(0);
+        if (interpolationMethod(head, diag)) {
+            return null;
+        }
+        float from = 0;
+        Length cx = Length.percent(50);
+        Length cy = Length.percent(50);
+        int first = 0;
+        if (head.get(0) instanceof Token t && (t.isIdent("from") || t.isIdent("at"))) {
+            first = 1;
+            int k = 0;
+            if (t.isIdent("from")) {
+                if (head.size() < 2) {
+                    diag.report(PropertyCode.FUNCTION_ARGUMENTS, t.pos(), "expected an angle after 'from'");
+                    return null;
+                }
+                Float a = Syntaxes.angle(head.get(1), diag);
+                if (a == null) {
+                    return null;
+                }
+                from = a;
+                k = 2;
+            }
+            if (k < head.size()) {
+                if (!(head.get(k) instanceof Token at && at.isIdent("at")) || k + 1 == head.size()) {
+                    diag.report(PropertyCode.FUNCTION_ARGUMENTS, head.get(k).pos(), "expected 'at' and a position");
+                    return null;
+                }
+                List<ComponentValue> position = head.subList(k + 1, head.size());
+                TransformOrigin o = Syntaxes.transformOrigin().parse(position, position.get(0).pos(), diag);
+                if (o == null) {
+                    return null;
+                }
+                cx = o.x();
+                cy = o.y();
+            }
+        }
+        List<CssImage.Stop> stops = stops(f, items, first, true, diag);
+        return stops == null ? null : new CssImage.ConicGradient(from, cx, cy, stops);
+    }
+
+    /** Whether {@code head} starts with {@code in}, a color interpolation method, which is reported as unsupported. */
+    private static boolean interpolationMethod(List<ComponentValue> head, Diagnostics diag) {
+        for (ComponentValue v : head) {
+            if (v instanceof Token t && t.isIdent("in")) {
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "color interpolation methods are not supported",
+                        "gradients interpolate in premultiplied sRGB");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The color stops {@code items[first..]}: a color and at most two positions each, at least two
+     * stops; {@code angular} takes angles and percentages of the turn instead of lengths and
+     * percentages of the line. Color hints are not supported.
+     */
+    private static List<CssImage.Stop> stops(ComponentValue.Function f, List<List<ComponentValue>> items, int first,
+                                             boolean angular, Diagnostics diag) {
+        List<CssImage.Stop> stops = new ArrayList<>();
         for (int i = first; i < items.size(); i++) {
             List<ComponentValue> s = items.get(i);
-            if (s.size() == 1 && (isLengthToken(s.get(0)) || s.get(0) instanceof Token p && p.is(Token.Kind.PERCENTAGE))) {
+            if (s.size() == 1 && (isLengthToken(s.get(0)) || isAngle(s.get(0)) || s.get(0) instanceof Token p && p.is(Token.Kind.PERCENTAGE))) {
                 diag.report(PropertyCode.UNSUPPORTED_VALUE, s.get(0).pos(), "color hints are not supported", "give the color stop a color");
                 return null;
             }
@@ -197,21 +504,34 @@ final class BoxSyntaxes {
                 return null;
             }
             if (s.size() == 1) {
-                stops.add(new CssImage.LinearGradient.Stop(color, null));
+                stops.add(new CssImage.Stop(color, null));
             }
             for (int k = 1; k < s.size(); k++) {
-                Length p = lengthOf(s.get(k), true, false, true, diag);
+                Length p = angular ? turnOf(s.get(k), diag) : lengthOf(s.get(k), true, false, true, diag);
                 if (p == null) {
                     return null;
                 }
-                stops.add(new CssImage.LinearGradient.Stop(color, p));
+                stops.add(new CssImage.Stop(color, p));
             }
         }
         if (stops.size() < 2) {
-            diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), "linear-gradient() needs at least two color stops");
+            diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), f.name() + "() needs at least two color stops");
             return null;
         }
-        return new CssImage.LinearGradient(angle, cornerX, cornerY, List.copyOf(stops));
+        return List.copyOf(stops);
+    }
+
+    /** A conic stop position: a percentage, or an angle as its percentage of the turn. */
+    private static Length turnOf(ComponentValue v, Diagnostics diag) {
+        if (v instanceof Token t && t.is(Token.Kind.PERCENTAGE)) {
+            return Length.percent((float) t.number());
+        }
+        if (!isAngle(v)) {
+            diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected an angle or a percentage");
+            return null;
+        }
+        Float a = Syntaxes.angle(v, diag);
+        return a == null ? null : Length.percent(a / 3.6f);
     }
 
     private static boolean isAngle(ComponentValue v) {
@@ -595,7 +915,7 @@ final class BoxSyntaxes {
                         diag.report(PropertyCode.REPEATED_COMPONENT, v.pos(), "the source is given twice");
                         return null;
                     }
-                    source = image(v, false, diag);
+                    source = image(v, Use.BORDER, diag);
                     if (source == null) {
                         return null;
                     }

@@ -70,6 +70,13 @@ public final class PlaytestRun<S extends PlaytestDriver<S>> {
         return false;
     }
 
+    /** In a recording run, once per drawn frame: runs the current playtest's frame steps (see {@link PlaytestDriver#take}). */
+    public void frame() {
+        if (current != null) {
+            current.frame();
+        }
+    }
+
     /** Playtests finished so far. */
     public int finished() {
         return finished.size();

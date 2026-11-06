@@ -14,6 +14,9 @@ import java.lang.reflect.Field;
 final class ScreenInput implements InputPort {
     static final ScreenInput INSTANCE = new ScreenInput();
 
+    /** In a recording run, the recorder whose takes show each press; otherwise {@code null}. */
+    Recorder recorder;
+
     private ScreenInput() {
     }
 
@@ -63,12 +66,22 @@ final class ScreenInput implements InputPort {
     }
 
     @Override
+    public float[] pointer() {
+        Minecraft mc = Minecraft.getInstance();
+        double scale = mc.getWindow().getGuiScale();
+        return new float[]{(float) (mc.mouseHandler.xpos() / scale), (float) (mc.mouseHandler.ypos() / scale)};
+    }
+
+    @Override
     public void mouseMoved(double x, double y) {
         screen().mouseMoved(x, y);
     }
 
     @Override
     public void mouseClicked(double x, double y, int button) {
+        if (recorder != null) {
+            recorder.pressed(x, y, button);
+        }
         screen().mouseClicked(x, y, button);
     }
 

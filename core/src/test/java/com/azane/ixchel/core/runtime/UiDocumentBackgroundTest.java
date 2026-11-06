@@ -190,7 +190,7 @@ class UiDocumentBackgroundTest {
     void unsupportedBackgroundValuesAreLoadErrors() {
         UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div class=\"a\"></div>", """
                 .a { background-image: url("Minecraft:Textures/x.png") }
-                .b { background-image: url(x:a.png), radial-gradient(red, blue) }
+                .b { background-image: url(x:a.png), radial-gradient(cover, red, blue) }
                 .c { background-image: linear-gradient(red) }
                 .d { background-image: url("") }
                 .e { background-size: cover }
@@ -198,14 +198,95 @@ class UiDocumentBackgroundTest {
                 .g { background-size: 1px 2px 3px }
                 .h { background-position: left top }
                 .i { background-repeat: space }
-                .j { transition: background-position-x 1s }
+                .j { transition: background-image 1s }
                 .k { background-image: linear-gradient(red, 50%, blue) }
                 .l { background-image: linear-gradient(to left left, red, blue) }
                 """, GoldenTest.NO_IMAGES));
-        assertEquals(List.of("css/invalid-resource-location@t.css:1:41", "css/unsupported-value@t.css:2:38",
+        assertEquals(List.of("css/invalid-resource-location@t.css:1:41", "css/unsupported-value@t.css:2:54",
                 "css/function-arguments@t.css:3:24", "css/invalid-resource-location@t.css:4:28", "css/unsupported-value@t.css:5:23",
                 "css/negative-value@t.css:6:23", "css/value-count@t.css:7:31", "css/invalid-value@t.css:8:27",
                 "css/invalid-value@t.css:9:25", "css/not-animatable@t.css:10:18", "css/unsupported-value@t.css:11:45",
                 "css/function-arguments@t.css:12:48"), DiagCodes.of(e));
+    }
+
+    @Test
+    void radialGradientSizesItsEndingShapeToTheBox() {
+        UiDocument doc = load("<div class=\"e\"></div><div class=\"c\"></div><div class=\"x\"></div>", """
+                .e { width: 20px; height: 10px; background-image: radial-gradient(#f00, #00f) }
+                .c { width: 20px; height: 10px; background-image: radial-gradient(circle closest-side at 5px 50%, #f00, #00f) }
+                .x { width: 20px; height: 10px; background-image: radial-gradient(10px 50% at right top, #f00 0 20%, #00f) }
+                """, GoldenTest.NO_IMAGES);
+        String[] lines = frame(doc).split("\n");
+        // farthest-corner ellipse: the closest-side ellipse grown by sqrt(2), so it passes through the corners
+        assertEquals("fill 0 0 20 10 clip 0 0 20 10 gradient radial 10 5 14.142136 7.071068 0:#FFFF0000 1:#FF0000FF", lines[0]);
+        assertEquals("fill 0 10 20 10 clip 0 10 20 10 gradient radial 5 15 5 5 0:#FFFF0000 1:#FF0000FF", lines[1]);
+        // a percentage stop is of the horizontal radius; the ramp ends at the box's farthest corner
+        assertEquals("fill 0 20 20 10 clip 0 20 20 10 gradient radial 20 20 10 5 0:#FFFF0000 0.2:#FFFF0000 1:#FF0000FF", lines[2]);
+    }
+
+    @Test
+    void conicGradientTurnsClockwiseFromItsStartAngle() {
+        UiDocument doc = load("<div></div>", """
+                div { width: 20px; height: 10px; background-image: conic-gradient(from 90deg at 0 100%, #f00, #00f 90deg, #0f0) }
+                """, GoldenTest.NO_IMAGES);
+        assertEquals("fill 0 0 20 10 clip 0 0 20 10 gradient conic 0 10 1.5707964 0 0:#FFFF0000 0.25:#FF0000FF 1:#FF00FF00",
+                frame(doc));
+    }
+
+    @Test
+    void repeatingGradientsRepeatTheirStopsAcrossTheBox() {
+        UiDocument doc = load("<div class=\"l\"></div><div class=\"r\"></div><div class=\"z\"></div>", """
+                .l { width: 8px; height: 4px; background-image: repeating-linear-gradient(90deg, #000 2px, #fff 6px) }
+                .r { width: 8px; height: 8px; background-image: repeating-radial-gradient(circle 4px, #000, #fff 2px) }
+                .z { width: 8px; height: 8px; background-image: repeating-linear-gradient(#000 3px, #fff 3px) }
+                """, GoldenTest.NO_IMAGES);
+        String[] lines = frame(doc).split("\n");
+        // the 4px period starts at 2px, so one repeat reaches back over the box's start and two cover its end
+        assertEquals("fill 0 0 8 4 clip 0 0 8 4 gradient 0 2 8 2 -0.25:#FF000000 0.25:#FFFFFFFF 0.25:#FF000000 0.75:#FFFFFFFF"
+                + " 0.75:#FF000000 1.25:#FFFFFFFF", lines[0]);
+        // the ramp reaches the corners, sqrt(2) radii out
+        assertEquals("fill 0 4 8 8 clip 0 4 8 8 gradient radial 4 8 4 4 0:#FF000000 0.5:#FFFFFFFF 0.5:#FF000000 1:#FFFFFFFF"
+                + " 1:#FF000000 1.5:#FFFFFFFF", lines[1]);
+        assertEquals("fill 0 12 8 8 clip 0 12 8 8 gradient 4 12 4 20 0:#FF808080", lines[2], "a zero period paints the average");
+    }
+
+    @Test
+    void aRepeatingGradientWithTooManyStopsIsReportedAndNotDrawn() {
+        UiDocument doc = load("<div></div>", """
+                div { width: 100px; height: 4px; background-image: repeating-linear-gradient(90deg, #000 0, #fff 0.1px) }
+                """, GoldenTest.NO_IMAGES);
+        assertEquals("", frame(doc));
+        assertEquals(List.of("paint/gradient-too-many-stops@t.html:2:1"), DiagCodes.of(doc.diagnostics()));
+    }
+
+    @Test
+    void backgroundPositionTransitionsLayerByLayer() {
+        long[] now = {0};
+        UiDocument doc = load("<div></div>", """
+                div { width: 10px; height: 10px; background-image: url(x:a.png); background-size: 10px 10px;
+                      background-repeat: no-repeat; background-position: 0 0; transition: background-position 100ms linear }
+                .on { background-position: 10px -4px }
+                """, GoldenTest.NO_IMAGES);
+        doc.clock(() -> now[0] * 1_000_000);
+        frame(doc);
+        ((Element) doc.root().children().get(0)).addClass("on");
+        frame(doc);
+        now[0] = 50;
+        assertEquals("image 5 0 5 8 x:a.png uv 0 0.2 0.5 1 #FFFFFFFF", frame(doc));
+    }
+
+    @Test
+    void unsupportedGradientSyntaxIsALoadErrorAtItsPosition() {
+        UiLoadException e = assertThrows(UiLoadException.class, () -> load("<div></div>", """
+                .a { background-image: repeating-conic-gradient(red, blue) }
+                .b { background-image: radial-gradient(in oklab, red, blue) }
+                .c { background-image: conic-gradient(red 5px, blue) }
+                .d { background-image: radial-gradient(circle 1px 2px, red, blue) }
+                .e { background-image: radial-gradient(circle, red, 40%, blue) }
+                .f { border-image-source: radial-gradient(red, blue) }
+                """, GoldenTest.NO_IMAGES));
+        assertEquals(List.of("css/unsupported-value@t.css:1:37", "css/unsupported-value@t.css:2:40",
+                "css/invalid-value@t.css:3:43", "css/function-arguments@t.css:4:47", "css/unsupported-value@t.css:5:53",
+                "css/unsupported-value@t.css:6:27"), DiagCodes.of(e));
     }
 }

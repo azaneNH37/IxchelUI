@@ -197,6 +197,100 @@ public final class Syntaxes {
     }
 
     /**
+     * {@link #commaList} whose lists interpolate item by item with {@code item}'s interpolation, as a
+     * CSS repeatable list: lists of different lengths are first repeated to their least common
+     * multiple. {@code null} when any pair of items does not interpolate.
+     */
+    public static <T> Syntax<List<T>> interpolatingList(Syntax<T> item) {
+        Syntax<List<T>> list = commaList(item);
+        return interpolating(list, (from, to, p) -> {
+            int a = from.size();
+            int b = to.size();
+            int n = a / gcd(a, b) * b;
+            List<T> out = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                T v = item.interpolate(from.get(i % a), to.get(i % b), p);
+                if (v == null) {
+                    return null;
+                }
+                out.add(v);
+            }
+            return List.copyOf(out);
+        }, item.numberUnit());
+    }
+
+    private static int gcd(int a, int b) {
+        return b == 0 ? a : gcd(b, a % b);
+    }
+
+    /** {@code letter-spacing}: {@code normal} (0) or a length in px, negative allowed; interpolates. */
+    public static Syntax<Length> letterSpacing() {
+        return interpolating((value, pos, diag) -> {
+            ComponentValue v = single(value, pos, diag);
+            if (v == null) {
+                return null;
+            }
+            if (v instanceof Token t && t.isIdent("normal")) {
+                return Length.ZERO;
+            }
+            if (v instanceof Token t && t.is(Token.Kind.PERCENTAGE)) {
+                diag.report(PropertyCode.UNSUPPORTED_VALUE, t.pos(), "a percentage letter-spacing is not supported", "use em");
+                return null;
+            }
+            return lengthOf(v, false, false, true, diag);
+        }, (a, b, p) -> Length.mix(a, b, p, false), "px");
+    }
+
+    /**
+     * {@code aspect-ratio}: {@code auto} (0), a positive number, or {@code <width> / <height>};
+     * {@code auto} with a ratio is the ratio, as for every non-replaced box. A ratio with a zero
+     * side is degenerate, which CSS treats as {@code auto}. Two ratios interpolate by their logarithm,
+     * as CSS does; {@code auto} does not interpolate.
+     */
+    public static Syntax<Float> aspectRatio() {
+        return interpolating((value, pos, diag) -> {
+            List<ComponentValue> parts = new ArrayList<>(significant(value));
+            if (parts.size() > 1 && parts.get(0) instanceof Token t && t.isIdent("auto")) {
+                parts.remove(0);
+            } else if (parts.size() > 1 && parts.get(parts.size() - 1) instanceof Token t && t.isIdent("auto")) {
+                parts.remove(parts.size() - 1);
+            }
+            if (parts.size() == 1 && parts.get(0) instanceof Token t && t.isIdent("auto")) {
+                return 0f;
+            }
+            Float w = ratioSide(parts.get(0), diag);
+            if (w == null) {
+                return null;
+            }
+            float h = 1;
+            if (parts.size() > 1) {
+                if (parts.size() != 3 || !(parts.get(1) instanceof Token slash && slash.isDelim('/'))) {
+                    diag.report(PropertyCode.INVALID_VALUE, parts.get(1).pos(), "expected auto, a number or <width> / <height>");
+                    return null;
+                }
+                Float s = ratioSide(parts.get(2), diag);
+                if (s == null) {
+                    return null;
+                }
+                h = s;
+            }
+            return w == 0 || h == 0 ? 0f : w / h;
+        }, (a, b, p) -> a <= 0 || b <= 0 ? null : (float) Math.exp(mix((float) Math.log(a), (float) Math.log(b), p)), "");
+    }
+
+    private static Float ratioSide(ComponentValue v, Diagnostics diag) {
+        if (v instanceof Token t && t.is(Token.Kind.NUMBER)) {
+            if (t.number() < 0) {
+                diag.report(PropertyCode.NEGATIVE_VALUE, t.pos(), "negative value not allowed");
+                return null;
+            }
+            return (float) t.number();
+        }
+        diag.report(PropertyCode.INVALID_VALUE, v.pos(), "expected auto, a number or <width> / <height>");
+        return null;
+    }
+
+    /**
      * {@code transition-property}: {@code none} (an empty list), or comma-separated {@code all},
      * animatable longhands and shorthands whose longhands are all animatable, kept as written.
      */
@@ -419,9 +513,10 @@ public final class Syntaxes {
 
     /**
      * {@code transform}: {@code none} or a list of {@code translate()}, {@code translateX()},
-     * {@code translateY()}, {@code scale()}, {@code scaleX()}, {@code scaleY()} and {@code rotate()}
-     * (angles in {@code deg}, {@code rad}, {@code grad} or {@code turn}). Two lists interpolate function
-     * by function when their kinds match, a missing side counting as {@code none}; others jump.
+     * {@code translateY()}, {@code scale()}, {@code scaleX()}, {@code scaleY()}, {@code rotate()},
+     * {@code skew()}, {@code skewX()} and {@code skewY()} (angles in {@code deg}, {@code rad},
+     * {@code grad} or {@code turn}). Two lists interpolate function by function when their kinds
+     * match, a missing side counting as {@code none}; others jump. 3D functions are not supported.
      */
     public static Syntax<Transform> transform() {
         return interpolating((value, pos, diag) -> {
@@ -453,7 +548,7 @@ public final class Syntaxes {
                 args.add(a);
             }
         }
-        int max = name.equals("translate") || name.equals("scale") ? 2 : 1;
+        int max = name.equals("translate") || name.equals("scale") || name.equals("skew") ? 2 : 1;
         if (args.isEmpty() || args.size() > max) {
             diag.report(PropertyCode.FUNCTION_ARGUMENTS, f.pos(), name + "() takes " + (max == 2 ? "1 or 2 values" : "1 value"));
             return null;
@@ -482,9 +577,19 @@ public final class Syntaxes {
                 Float deg = angle(args.get(0), diag);
                 return deg == null ? null : new Transform.Fn(Transform.Kind.ROTATE, Length.px(deg), Length.ZERO);
             }
+            case "skew", "skewx", "skewy" -> {
+                Float a = angle(args.get(0), diag);
+                Float b = args.size() == 2 ? angle(args.get(1), diag) : Float.valueOf(0);
+                if (a == null || b == null) {
+                    return null;
+                }
+                return name.equals("skewy")
+                        ? new Transform.Fn(Transform.Kind.SKEW, Length.ZERO, Length.px(a))
+                        : new Transform.Fn(Transform.Kind.SKEW, Length.px(a), Length.px(b));
+            }
             default -> {
                 diag.report(PropertyCode.UNSUPPORTED_VALUE, f.pos(), "unsupported transform function '" + f.name() + "'",
-                        "use translate, translateX, translateY, scale, scaleX, scaleY or rotate");
+                        "use translate, translateX, translateY, scale, scaleX, scaleY, rotate, skew, skewX or skewY");
                 return null;
             }
         }

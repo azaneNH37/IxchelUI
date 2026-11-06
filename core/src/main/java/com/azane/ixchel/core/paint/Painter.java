@@ -41,7 +41,7 @@ import java.util.Set;
  * Turns the laid-out tree into draw commands in document order (later commands paint on top): per
  * element the outer {@code box-shadow}s, the background color, the background layers bottom to top,
  * the inset shadows, the border (or the border image in its place), the content, then its
- * {@code ::before} box, its children and its {@code ::after} box; with
+ * {@code ::before} box, its children, its {@code ::after} box and last its {@code outline}; with
  * a multiplying bottom image layer the color tints it instead of painting under it. An image layer
  * becomes one {@link DrawCommand.Image} per visible tile, already clipped to the border box, so the
  * host only draws texture regions; a gradient layer one {@link DrawCommand.Fill} per tile, clipped
@@ -49,16 +49,20 @@ import java.util.Set;
  * only); the top and bottom sides cover the corners. With a rounded corner the background color is
  * a {@link DrawCommand.Fill} and the border one {@link DrawCommand.Border}.
  *
- * <p>{@code opacity} below 1, a {@code filter} or a {@code mix-blend-mode} other than {@code normal}
- * paint the element as a group: its commands, transform included, go between a
- * {@link DrawCommand.PushLayer} and a {@link DrawCommand.PopLayer}, and the host filters what they
- * drew and composites it at that opacity with that blend mode, so overlapping descendants and native
- * elements are treated as one. The layer's rectangle bounds what its commands draw (see
- * {@link DisplayList.Bounds}) grown by how far the filters spread it. A {@code backdrop-filter} is a
+ * <p>{@code opacity} below 1, a {@code filter}, a {@code mix-blend-mode} other than {@code normal}, a
+ * {@code clip-path} or a {@code mask-image} paint the element as a group: its commands, transform
+ * included, go between a {@link DrawCommand.PushLayer} and a {@link DrawCommand.PopLayer}, and the
+ * host filters what they drew and composites it inside the clip shape, times the mask, at that
+ * opacity with that blend mode, so overlapping descendants and native elements are treated as one.
+ * The mask layers follow a {@link DrawCommand.Mask} in the same layer. The layer's rectangle bounds
+ * what its commands draw (see {@link DisplayList.Bounds}) grown by how far the filters spread it, cut
+ * to the clip shape and (with a mask) the border box. A {@code backdrop-filter} is a
  * {@link DrawCommand.Backdrop} before the element's box. An element with opacity 0 paints nothing but
- * still takes pointer events, as in CSS.
+ * still takes pointer events, as in CSS. {@code background-clip: text} puts the background alone on
+ * a layer masked by the text.
  *
- * <p>A {@code paint()} background layer is one {@link DrawCommand.Paint} over the border box, whatever
+ * <p>A {@code paint()} background layer is one {@link DrawCommand.Paint} over its clip box (the border
+ * box unless {@code background-clip} says otherwise), whatever
  * the layer's size, position and repeat; a {@code -ix-paint()} filter becomes one of the layer's
  * {@link DrawCommand.LayerPaint}s. An effect name the document does not link, or of the other kind,
  * reaches here only through {@code var()} or a binding; it is reported once and the layer or filter
@@ -174,7 +178,7 @@ public final class Painter implements PaintFacet.Context {
                     paintElement(child, dy, out);
                 }
             } else {
-                paintText((TextNode) c, e.computed(), dy, out);
+                paintText((TextNode) c, e.computed(), dy, out, false);
             }
         }
         if (e.after() != null) {
@@ -190,17 +194,20 @@ public final class Painter implements PaintFacet.Context {
         }
         List<Filter> filters = cs.get(CssProperties.FILTER);
         Keywords.MixBlendMode blend = cs.get(CssProperties.MIX_BLEND_MODE);
-        boolean group = opacity < 1 || !filters.isEmpty() || blend != Keywords.MixBlendMode.NORMAL;
+        LayoutBox b = e.box();
+        ClipShape clip = ClipShape.of(cs.get(CssProperties.CLIP_PATH), b.x(), b.y() - dy, b.width(), b.height());
+        boolean masked = hasImage(cs.get(CssProperties.MASK_IMAGE));
+        boolean group = opacity < 1 || !filters.isEmpty() || blend != Keywords.MixBlendMode.NORMAL || clip != null || masked;
         int start = out.size();
         if (group) {
             out.add(DrawCommand.PopLayer.INSTANCE); // replaced by the layer once its bounds are known
         }
-        LayoutBox b = e.box();
         Affine m = Transform.of(cs, b.x(), b.y() - dy, b.width(), b.height());
         if (m != null) {
             out.add(new DrawCommand.PushTransform(m));
         }
         paintBox(e, cs, dy, group, out);
+        paintOutline(cs, b, b.y() - dy, out);
         if (m != null) {
             out.add(DrawCommand.PopTransform.INSTANCE);
         }
@@ -214,6 +221,22 @@ public final class Painter implements PaintFacet.Context {
             for (int i = 0; i < filters.size(); i++) {
                 spread += filters.get(i).reach();
             }
+            r[0] -= spread;
+            r[1] -= spread;
+            r[2] += spread;
+            r[3] += spread;
+            // What the clip and the mask (painted in the border box) leave, padded for antialiased edges.
+            if (clip != null) {
+                float[] c = clip.bounds();
+                intersect(r, m, c[0] - 1, c[1] - 1, c[2] + 1, c[3] + 1);
+            }
+            if (masked) {
+                intersect(r, m, b.x() - 1, b.y() - dy - 1, b.x() + b.width() + 1, b.y() - dy + b.height() + 1);
+            }
+            if (!(r[2] > r[0] && r[3] > r[1])) {
+                out.truncate(start);
+                return;
+            }
             List<DrawCommand.LayerPaint> paints = List.of();
             RoundRect frame = null;
             for (int i = 0; i < filters.size(); i++) {
@@ -224,10 +247,46 @@ public final class Painter implements PaintFacet.Context {
                     break;
                 }
             }
-            out.set(start, new DrawCommand.PushLayer(r[0] - spread, r[1] - spread, r[2] - r[0] + 2 * spread,
-                    r[3] - r[1] + 2 * spread, opacity, filters, blend, paints, frame, m));
+            if (masked) {
+                out.add(DrawCommand.Mask.INSTANCE);
+                if (m != null) {
+                    out.add(new DrawCommand.PushTransform(m));
+                }
+                paintMask(e, cs, b, new RoundRect(b.x(), b.y() - dy, b.width(), b.height(), radii(cs, b.width(), b.height())), out);
+                if (m != null) {
+                    out.add(DrawCommand.PopTransform.INSTANCE);
+                }
+            }
+            out.set(start, new DrawCommand.PushLayer(r[0], r[1], r[2] - r[0], r[3] - r[1], opacity, filters, blend, paints, frame, m,
+                    clip, masked));
             out.add(DrawCommand.PopLayer.INSTANCE);
         }
+    }
+
+    /** Whether {@code images} has a layer other than {@code none}. */
+    private static boolean hasImage(List<CssImage> images) {
+        for (int i = 0; i < images.size(); i++) {
+            if (images.get(i) != CssImage.NONE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Cuts {@code r}, {@code {x0, y0, x1, y1}}, to the box of the local rectangle through {@code m} ({@code null} for none). */
+    private static void intersect(float[] r, Affine m, float ax, float ay, float bx, float by) {
+        if (m != null) {
+            float px = m.x(ax, ay), py = m.y(ax, ay), qx = m.x(bx, ay), qy = m.y(bx, ay);
+            float sx = m.x(ax, by), sy = m.y(ax, by), tx = m.x(bx, by), ty = m.y(bx, by);
+            ax = Math.min(Math.min(px, qx), Math.min(sx, tx));
+            ay = Math.min(Math.min(py, qy), Math.min(sy, ty));
+            bx = Math.max(Math.max(px, qx), Math.max(sx, tx));
+            by = Math.max(Math.max(py, qy), Math.max(sy, ty));
+        }
+        r[0] = Math.max(r[0], ax);
+        r[1] = Math.max(r[1], ay);
+        r[2] = Math.min(r[2], bx);
+        r[3] = Math.min(r[3], by);
     }
 
     /** {@code filters} without the {@code -ix-paint()}s that name no usable effect; the others' effects go to {@code paints}. */
@@ -272,7 +331,11 @@ public final class Painter implements PaintFacet.Context {
             out.add(new DrawCommand.Backdrop(border, backdrop, grouped));
         }
         paintShadows(cs, b, border, false, out);
-        paintBackground(e, cs, b, border, out);
+        if (cs.get(CssProperties.BACKGROUND_CLIP).get(0) == Keywords.BackgroundClip.TEXT) {
+            paintTextClippedBackground(e, cs, b, border, dy, out);
+        } else {
+            paintBackground(e, cs, b, border, out);
+        }
         paintShadows(cs, b, border, true, out);
         if (!paintBorderImage(e, cs, b, y, out)) {
             paintBorder(cs, b, border, y, out);
@@ -295,16 +358,73 @@ public final class Painter implements PaintFacet.Context {
         out.add(DrawCommand.PopClip.INSTANCE);
     }
 
+    /**
+     * {@code background-clip: text}: the background on its own layer, masked by the element's text
+     * and its descendants' drawn opaque, without their shadows.
+     */
+    private void paintTextClippedBackground(Element e, ComputedStyle cs, LayoutBox b, RoundRect border, float dy, DisplayList out) {
+        int start = out.size();
+        out.add(DrawCommand.PopLayer.INSTANCE); // replaced by the layer once its bounds are known
+        paintBackground(e, cs, b, border, out);
+        float[] r = bounds.of(out, start + 1, out.size());
+        if (r == null) {
+            out.truncate(start);
+            return;
+        }
+        out.set(start, new DrawCommand.PushLayer(r[0], r[1], r[2] - r[0], r[3] - r[1], 1, List.of(), Keywords.MixBlendMode.NORMAL,
+                List.of(), null, null, null, true));
+        out.add(DrawCommand.Mask.INSTANCE);
+        if (e.type().facet(PaintFacet.KEY).paintChildren()) {
+            paintTextMask(e, dy, out);
+        }
+        out.add(DrawCommand.PopLayer.INSTANCE);
+    }
+
+    /** The text of {@code e}'s children and their descendants, opaque white, through their transforms and overflow clips. */
+    private void paintTextMask(Element e, float dy, DisplayList out) {
+        LayoutBox b = e.box();
+        boolean clipped = e.computed().get(CssProperties.OVERFLOW) != Keywords.Overflow.VISIBLE;
+        if (clipped) {
+            out.add(new DrawCommand.PushClip(b.x() + b.borderLeft(), b.y() - dy + b.borderTop(),
+                    b.width() - b.borderLeft() - b.borderRight(), b.height() - b.borderTop() - b.borderBottom()));
+        }
+        float childY = clipped ? dy + e.scrollTop() : dy;
+        List<Node> children = e.children();
+        for (int i = 0; i < children.size(); i++) {
+            Node n = children.get(i);
+            if (n instanceof Element c) {
+                ComputedStyle cs = c.computed();
+                if (c.rendersInTopLayer() || cs.get(CssProperties.DISPLAY) == Keywords.Display.NONE
+                        || !c.type().facet(PaintFacet.KEY).paintChildren()) {
+                    continue;
+                }
+                LayoutBox cb = c.box();
+                Affine m = Transform.of(cs, cb.x(), cb.y() - childY, cb.width(), cb.height());
+                if (m != null) {
+                    out.add(new DrawCommand.PushTransform(m));
+                }
+                paintTextMask(c, childY, out);
+                if (m != null) {
+                    out.add(DrawCommand.PopTransform.INSTANCE);
+                }
+            } else {
+                paintText((TextNode) n, e.computed(), childY, out, true);
+            }
+        }
+        if (clipped) {
+            out.add(DrawCommand.PopClip.INSTANCE);
+        }
+    }
 
     /** One line of a control's text, over the shadow of {@code cs}'s {@code text-shadow}. */
     public void text(DisplayList out, ComputedStyle cs, float x, float y, float size, int color, String text) {
         TextShadow shadow = cs.get(CssProperties.TEXT_SHADOW);
         int s = shadow.color();
         if (s >>> 24 != 0) {
-            out.add(new DrawCommand.Text(x + shadow.x(), y + shadow.y(), size, s, text, 0, null));
+            out.add(new DrawCommand.Text(x + shadow.x(), y + shadow.y(), size, s, text, 0, null, 0));
         }
         if (color >>> 24 != 0) {
-            out.add(new DrawCommand.Text(x, y, size, color, text, 0, null));
+            out.add(new DrawCommand.Text(x, y, size, color, text, 0, null, 0));
         }
     }
 
@@ -358,6 +478,42 @@ public final class Painter implements PaintFacet.Context {
         }
         float ratio = radius / s;
         return radius + s * (ratio >= 1 ? 1 : 1 + (ratio - 1) * (ratio - 1) * (ratio - 1));
+    }
+
+    /**
+     * {@code outline}: a ring {@code outline-width} wide around the border box grown by
+     * {@code outline-offset}, its corners following the box's as a shadow's spread grows them; four
+     * rectangles when they are square.
+     */
+    private void paintOutline(ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
+        if (cs.get(CssProperties.OUTLINE_STYLE) == Keywords.BorderStyle.NONE) {
+            return;
+        }
+        float w = cs.get(CssProperties.OUTLINE_WIDTH).value();
+        int color = cs.get(CssProperties.OUTLINE_COLOR);
+        if (w <= 0 || color >>> 24 == 0) {
+            return;
+        }
+        RoundRect border = new RoundRect(b.x(), y, b.width(), b.height(), radii(cs, b.width(), b.height()));
+        RoundRect outer = spread(border, cs.get(CssProperties.OUTLINE_OFFSET).value() + w);
+        float ow = outer.width();
+        float oh = outer.height();
+        if (ow <= 0 || oh <= 0) {
+            return;
+        }
+        if (!outer.radii().isZero()) {
+            out.add(new DrawCommand.Border(outer, w, w, w, w, color, color, color, color, crisp(cs)));
+            return;
+        }
+        float side = Math.min(w, oh / 2);
+        rect(out, outer.x(), outer.y(), ow, side, color);
+        rect(out, outer.x(), outer.y() + oh - side, ow, side, color);
+        float middle = oh - 2 * side;
+        if (middle > 0) {
+            float across = Math.min(w, ow / 2);
+            rect(out, outer.x(), outer.y() + side, across, middle, color);
+            rect(out, outer.x() + ow - across, outer.y() + side, across, middle, color);
+        }
     }
 
     /**
@@ -625,12 +781,14 @@ public final class Painter implements PaintFacet.Context {
     }
 
     /**
-     * The background color, then the layers bottom to top. With the bottom layer an image that
-     * multiplies, the color tints it instead of painting under it.
+     * The background color, then the layers bottom to top, each inside its {@code background-clip}
+     * box (the color in the bottom layer's). With the bottom layer an image that multiplies, the color
+     * tints it instead of painting under it.
      */
     private void paintBackground(Element e, ComputedStyle cs, LayoutBox b, RoundRect border, DisplayList out) {
         List<CssImage> images = cs.get(CssProperties.BACKGROUND_IMAGE);
         List<Keywords.BackgroundBlendMode> blends = cs.get(CssProperties.BACKGROUND_BLEND_MODE);
+        List<Keywords.BackgroundClip> clips = cs.get(CssProperties.BACKGROUND_CLIP);
         int bottom = images.size() - 1;
         for (int i = 0; i < bottom; i++) {
             if (layer(blends, i) == Keywords.BackgroundBlendMode.MULTIPLY && images.get(i) != CssImage.NONE) {
@@ -641,10 +799,24 @@ public final class Painter implements PaintFacet.Context {
         boolean multiply = layer(blends, bottom) == Keywords.BackgroundBlendMode.MULTIPLY
                 && images.get(bottom) instanceof CssImage.Url;
         if (!multiply) {
-            fill(out, border, bg, crisp(cs));
+            fill(out, clipBox(layer(clips, bottom), b, border), bg, crisp(cs));
         }
+        float originW = b.width() - b.borderLeft() - b.borderRight();
+        float originH = b.height() - b.borderTop() - b.borderBottom();
         for (int i = bottom; i >= 0; i--) {
-            paintLayer(e, cs, b, border, i, multiply && i == bottom ? 0xFF000000 | bg : OPAQUE_WHITE, out);
+            CssImage image = images.get(i);
+            RoundRect area = clipBox(layer(clips, i), b, border);
+            if (image instanceof CssImage.Paint p) {
+                Effect effect = effect(e, p.effect(), Effect.Kind.BOX);
+                if (effect != null && area.width() > 0 && area.height() > 0) {
+                    out.add(new DrawCommand.Paint(area, effect, effects.values(effect, cs)));
+                }
+                continue;
+            }
+            paintImage(e, cs, image, i, false, layer(cs.get(CssProperties.BACKGROUND_SIZE), i),
+                    layer(cs.get(CssProperties.BACKGROUND_REPEAT), i), layer(cs.get(CssProperties.BACKGROUND_POSITION_X), i),
+                    layer(cs.get(CssProperties.BACKGROUND_POSITION_Y), i), border.x() + b.borderLeft(), border.y() + b.borderTop(),
+                    originW, originH, area, multiply && i == bottom ? 0xFF000000 | bg : OPAQUE_WHITE, out);
         }
     }
 
@@ -659,37 +831,55 @@ public final class Painter implements PaintFacet.Context {
         }
     }
 
+    /** The border box, padding box or content box as a shape; {@code text} paints in the border box, under a mask. */
+    private static RoundRect clipBox(Keywords.BackgroundClip clip, LayoutBox b, RoundRect border) {
+        return switch (clip) {
+            case BORDER_BOX, TEXT -> border;
+            case PADDING_BOX -> border.inset(b.borderTop(), b.borderRight(), b.borderBottom(), b.borderLeft());
+            case CONTENT_BOX -> border.inset(b.borderTop() + b.paddingTop(), b.borderRight() + b.paddingRight(),
+                    b.borderBottom() + b.paddingBottom(), b.borderLeft() + b.paddingLeft());
+        };
+    }
+
     /**
-     * CSS Backgrounds 3 with the initial {@code background-origin} and {@code background-clip}: layer
-     * {@code i} is sized and positioned in the padding box and tiles out to the border box edges. A
-     * gradient has no natural size, so an {@code auto} side is the padding box's. {@code tint}
-     * multiplies an image's texels.
+     * The {@code mask-image} layers bottom to top, painted over each other in the border box: as
+     * background layers with {@code mask-size: auto}, {@code mask-position: 0 0} in the border box,
+     * {@code mask-repeat: repeat} and {@code mask-clip: border-box}.
      */
-    private void paintLayer(Element e, ComputedStyle cs, LayoutBox b, RoundRect border, int i, int tint, DisplayList out) {
-        CssImage image = cs.get(CssProperties.BACKGROUND_IMAGE).get(i);
-        if (image instanceof CssImage.Paint p) {
-            Effect effect = effect(e, p.effect(), Effect.Kind.BOX);
-            if (effect != null && b.width() > 0 && b.height() > 0) {
-                out.add(new DrawCommand.Paint(border, effect, effects.values(effect, cs)));
-            }
-            return;
+    private void paintMask(Element e, ComputedStyle cs, LayoutBox b, RoundRect border, DisplayList out) {
+        List<CssImage> images = cs.get(CssProperties.MASK_IMAGE);
+        for (int i = images.size() - 1; i >= 0; i--) {
+            paintImage(e, cs, images.get(i), i, true, BackgroundSize.AUTO, Keywords.BackgroundRepeat.REPEAT, Length.ZERO, Length.ZERO,
+                    border.x(), border.y(), border.width(), border.height(), border, OPAQUE_WHITE, out);
         }
-        float areaW = b.width() - b.borderLeft() - b.borderRight();
-        float areaH = b.height() - b.borderTop() - b.borderBottom();
-        if (image == CssImage.NONE || areaW <= 0 || areaH <= 0) {
+    }
+
+    /**
+     * CSS Backgrounds 3 for one image layer ({@code mask}: of {@code mask-image}): sized and
+     * positioned in the origin box {@code (originX, originY, originW, originH)}, tiled out to the
+     * edges of {@code area}, the clip box, and clipped to it. A gradient has no natural size, so an
+     * {@code auto} side is the origin box's. {@code tint} multiplies an image's texels.
+     */
+    private void paintImage(Element e, ComputedStyle cs, CssImage image, int i, boolean mask, BackgroundSize size,
+                            Keywords.BackgroundRepeat repeat, Length positionX, Length positionY, float originX, float originY,
+                            float originW, float originH, RoundRect area, int tint, DisplayList out) {
+        if (image == CssImage.NONE || originW <= 0 || originH <= 0) {
             return;
         }
         String src = image instanceof CssImage.Url u ? u.src() : null;
-        BackgroundSize size = layer(cs.get(CssProperties.BACKGROUND_SIZE), i);
-        float w = side(size.width(), areaW);
-        float h = side(size.height(), areaH);
+        float w = side(size.width(), originW);
+        float h = side(size.height(), originH);
         if (src == null) {
-            w = Float.isNaN(w) ? areaW : w;
-            h = Float.isNaN(h) ? areaH : h;
+            w = Float.isNaN(w) ? originW : w;
+            h = Float.isNaN(h) ? originH : h;
         } else if (Float.isNaN(w) || Float.isNaN(h)) {
             ImageMeasurer.Size natural = images.naturalSize(src);
             if (natural == null) {
-                report(e, PaintCode.BACKGROUND_IMAGE_UNSIZED, "cannot load background image '" + src + "' to size it (background-size: auto)");
+                if (mask) {
+                    report(e, PaintCode.MASK_IMAGE_UNSIZED, "cannot load mask image '" + src + "' to size it");
+                } else {
+                    report(e, PaintCode.BACKGROUND_IMAGE_UNSIZED, "cannot load background image '" + src + "' to size it (background-size: auto)");
+                }
                 return;
             }
             if (natural.width() <= 0 || natural.height() <= 0) {
@@ -707,15 +897,14 @@ public final class Painter implements PaintFacet.Context {
         if (w <= 0 || h <= 0) {
             return;
         }
-        Keywords.BackgroundRepeat repeat = layer(cs.get(CssProperties.BACKGROUND_REPEAT), i);
         boolean repeatX = repeat == Keywords.BackgroundRepeat.REPEAT || repeat == Keywords.BackgroundRepeat.REPEAT_X;
         boolean repeatY = repeat == Keywords.BackgroundRepeat.REPEAT || repeat == Keywords.BackgroundRepeat.REPEAT_Y;
-        float left = b.x();
-        float top = border.y();
-        float right = left + b.width();
-        float bottom = top + b.height();
-        float x0 = left + b.borderLeft() + offset(layer(cs.get(CssProperties.BACKGROUND_POSITION_X), i), areaW - w);
-        float y0 = top + b.borderTop() + offset(layer(cs.get(CssProperties.BACKGROUND_POSITION_Y), i), areaH - h);
+        float left = area.x();
+        float top = area.y();
+        float right = left + area.width();
+        float bottom = top + area.height();
+        float x0 = originX + offset(positionX, originW - w);
+        float y0 = originY + offset(positionY, originH - h);
         int columns = 1;
         int rows = 1;
         if (repeatX) {
@@ -727,8 +916,13 @@ public final class Painter implements PaintFacet.Context {
             rows = (int) Math.ceil((bottom - y0) / h);
         }
         if ((long) columns * rows > MAX_TILES) {
-            report(e, PaintCode.BACKGROUND_TOO_MANY_TILES, "background layer " + (i + 1) + " would repeat " + (long) columns * rows
-                    + " times (at most " + MAX_TILES + "); use a larger background-size");
+            if (mask) {
+                report(e, PaintCode.MASK_TOO_MANY_TILES, "mask layer " + (i + 1) + " would repeat " + (long) columns * rows
+                        + " times (at most " + MAX_TILES + ")");
+            } else {
+                report(e, PaintCode.BACKGROUND_TOO_MANY_TILES, "background layer " + (i + 1) + " would repeat " + (long) columns * rows
+                        + " times (at most " + MAX_TILES + "); use a larger background-size");
+            }
             return;
         }
         DrawCommand.Image.Filter filter = filter(cs);
@@ -751,9 +945,9 @@ public final class Painter implements PaintFacet.Context {
                     out.add(new DrawCommand.Image(cx0, cy0, cx1 - cx0, cy1 - cy0, src,
                             (cx0 - tx) / w, (cy0 - ty) / h, (cx1 - tx) / w, (cy1 - ty) / h, tint, filter));
                 } else {
-                    Gradient g = gradient((CssImage.LinearGradient) image, tx, ty, w, h);
+                    Gradient g = gradient(e, (CssImage.Gradient) image, tx, ty, w, h);
                     if (g != null) {
-                        out.add(new DrawCommand.Fill(border, cx0, cy0, cx1 - cx0, cy1 - cy0, 0, g, crisp));
+                        out.add(new DrawCommand.Fill(area, cx0, cy0, cx1 - cx0, cy1 - cy0, 0, g, crisp));
                     }
                 }
             }
@@ -762,13 +956,28 @@ public final class Painter implements PaintFacet.Context {
 
     /** Steps inserted between two stops whose premultiplied blend differs from a straight one. */
     private static final int PREMULTIPLIED_STEPS = 8;
+    /** Bounds the stops a repeating gradient spreads over its tile, so a tiny period cannot stall a frame. */
+    private static final int MAX_RAMP = 1024;
+
+    /** {@code g} drawn in the tile {@code (x, y, w, h)}; {@code null} when it draws nothing. */
+    private Gradient gradient(Element e, CssImage.Gradient g, float x, float y, float w, float h) {
+        if (g instanceof CssImage.LinearGradient l) {
+            return linear(e, l, x, y, w, h);
+        }
+        if (g instanceof CssImage.RadialGradient r) {
+            return radial(e, r, x, y, w, h);
+        }
+        CssImage.ConicGradient c = (CssImage.ConicGradient) g;
+        Ramp ramp = ramp(e, c.stops(), 1, false, 0, 1);
+        return ramp == null ? null : new Gradient(Gradient.Kind.CONIC, x + c.centerX().resolve(w), y + c.centerY().resolve(h),
+                (float) Math.toRadians(c.from()), 0, ramp.offsets, ramp.colors);
+    }
 
     /**
-     * {@code g} drawn in the tile {@code (x, y, w, h)} (CSS Images 3 §3.1): the gradient line runs
-     * through the center at the angle, long enough that the end stops' lines pass through the corners.
-     * Omitted stop positions are spread evenly, out-of-order ones raised to the largest before them.
+     * CSS Images 3 §3.1: the gradient line runs through the tile's center at the angle, long enough
+     * that the end stops' lines pass through the corners.
      */
-    private Gradient gradient(CssImage.LinearGradient g, float x, float y, float w, float h) {
+    private Gradient linear(Element e, CssImage.LinearGradient g, float x, float y, float w, float h) {
         double angle = Float.isNaN(g.angle()) ? Math.atan2(g.cornerX() * h, -g.cornerY() * w) : Math.toRadians(g.angle());
         float dx = (float) Math.sin(angle);
         float dy = (float) -Math.cos(angle);
@@ -776,7 +985,80 @@ public final class Painter implements PaintFacet.Context {
         if (len <= 0) {
             return null;
         }
-        List<CssImage.LinearGradient.Stop> stops = g.stops();
+        Ramp ramp = ramp(e, g.stops(), len, g.repeating(), 0, 1);
+        if (ramp == null) {
+            return null;
+        }
+        float cx = x + w / 2;
+        float cy = y + h / 2;
+        return Gradient.linear(cx - dx * len / 2, cy - dy * len / 2, cx + dx * len / 2, cy + dy * len / 2, ramp.offsets, ramp.colors);
+    }
+
+    /**
+     * CSS Images 3 §3.2: the ending shape around the center, sized to its keyword against the tile's
+     * sides and corners; an ellipse sized to a corner keeps the aspect ratio its side keyword gives.
+     * Stop lengths and percentages are along the horizontal ray, out to the ending shape.
+     */
+    private Gradient radial(Element e, CssImage.RadialGradient g, float x, float y, float w, float h) {
+        float cx = x + g.centerX().resolve(w);
+        float cy = y + g.centerY().resolve(h);
+        float left = Math.abs(cx - x);
+        float right = Math.abs(x + w - cx);
+        float top = Math.abs(cy - y);
+        float bottom = Math.abs(y + h - cy);
+        float rx;
+        float ry;
+        switch (g.extent()) {
+            case EXPLICIT -> {
+                rx = g.radiusX().resolve(w);
+                ry = g.circle() ? rx : g.radiusY().resolve(h);
+            }
+            case CLOSEST_SIDE, FARTHEST_SIDE -> {
+                boolean closest = g.extent() == CssImage.Extent.CLOSEST_SIDE;
+                rx = closest ? Math.min(left, right) : Math.max(left, right);
+                ry = closest ? Math.min(top, bottom) : Math.max(top, bottom);
+                if (g.circle()) {
+                    rx = ry = closest ? Math.min(rx, ry) : Math.max(rx, ry);
+                }
+            }
+            default -> {
+                boolean closest = g.extent() == CssImage.Extent.CLOSEST_CORNER;
+                float sx = closest ? Math.min(left, right) : Math.max(left, right);
+                float sy = closest ? Math.min(top, bottom) : Math.max(top, bottom);
+                if (g.circle()) {
+                    rx = ry = (float) Math.hypot(sx, sy);
+                } else {
+                    rx = sx * (float) Math.sqrt(2);
+                    ry = sy * (float) Math.sqrt(2);
+                }
+            }
+        }
+        if (!(rx > 0) || !(ry > 0)) {
+            // A degenerate ending shape: the last color everywhere, or the average of a repeating one (CSS Images 3 §3.2.3).
+            int color = g.repeating() ? average(g.stops()) : g.stops().get(g.stops().size() - 1).color();
+            return Gradient.linear(cx, cy, cx, cy, new float[]{0}, new int[]{color});
+        }
+        float far = 0;
+        for (int corner = 0; corner < 4; corner++) {
+            float u = ((corner & 1) == 0 ? x : x + w) - cx;
+            float v = ((corner & 2) == 0 ? y : y + h) - cy;
+            far = Math.max(far, (float) Math.hypot(u / rx, v / ry));
+        }
+        Ramp ramp = ramp(e, g.stops(), rx, g.repeating(), 0, far);
+        return ramp == null ? null : new Gradient(Gradient.Kind.RADIAL, cx, cy, rx, ry, ramp.offsets, ramp.colors);
+    }
+
+    /** A gradient's stops as ramp positions and colors. */
+    private record Ramp(float[] offsets, int[] colors) {
+    }
+
+    /**
+     * The ramp of {@code stops} along a line {@code len} pixels long: omitted positions are spread
+     * evenly, out-of-order ones raised to the largest before them (CSS Images 3 §3.5). A
+     * {@code repeating} ramp repeats its first to last stop over {@code [from, to]}; when they
+     * coincide it is one color, the stops' average. {@code null} after reporting too many stops.
+     */
+    private Ramp ramp(Element e, List<CssImage.Stop> stops, float len, boolean repeating, float from, float to) {
         int n = stops.size();
         float[] at = new float[n];
         for (int i = 0; i < n; i++) {
@@ -814,20 +1096,62 @@ public final class Painter implements PaintFacet.Context {
         offsets[k] = at[0];
         colors[k++] = stops.get(0).color();
         for (int i = 1; i < n; i++) {
-            int from = stops.get(i - 1).color();
-            int to = stops.get(i).color();
-            boolean straight = (from >>> 24) == (to >>> 24) || (from & 0xFFFFFF) == (to & 0xFFFFFF);
+            int a = stops.get(i - 1).color();
+            int b = stops.get(i).color();
+            boolean straight = (a >>> 24) == (b >>> 24) || (a & 0xFFFFFF) == (b & 0xFFFFFF);
             int steps = straight ? 1 : PREMULTIPLIED_STEPS;
             for (int s = 1; s <= steps; s++) {
                 float p = s / (float) steps;
                 offsets[k] = at[i - 1] + (at[i] - at[i - 1]) * p;
-                colors[k++] = s == steps ? to : premultipliedMix(from, to, p);
+                colors[k++] = s == steps ? b : premultipliedMix(a, b, p);
             }
         }
-        float cx = x + w / 2;
-        float cy = y + h / 2;
-        return new Gradient(cx - dx * len / 2, cy - dy * len / 2, cx + dx * len / 2, cy + dy * len / 2,
-                Arrays.copyOf(offsets, k), Arrays.copyOf(colors, k));
+        if (!repeating) {
+            return new Ramp(Arrays.copyOf(offsets, k), Arrays.copyOf(colors, k));
+        }
+        float period = at[n - 1] - at[0];
+        if (!(period > 1e-6f)) {
+            return new Ramp(new float[]{0}, new int[]{average(stops)});
+        }
+        long first = (long) Math.floor((from - at[0]) / period);
+        long last = (long) Math.ceil((to - at[0]) / period);
+        long count = Math.max(1, last - first) * k;
+        if (count > MAX_RAMP) {
+            report(e, PaintCode.GRADIENT_TOO_MANY_STOPS, "a repeating gradient would repeat " + count + " stops across its box (at most "
+                    + MAX_RAMP + "); make the repeated span longer");
+            return null;
+        }
+        float[] ro = new float[(int) count];
+        int[] rc = new int[ro.length];
+        int r = 0;
+        for (long q = first; q < Math.max(first + 1, last); q++) {
+            for (int i = 0; i < k; i++) {
+                ro[r] = offsets[i] + q * period;
+                rc[r++] = colors[i];
+            }
+        }
+        return new Ramp(ro, rc);
+    }
+
+    /** The stops' colors averaged in premultiplied ARGB, each stop weighted alike. */
+    private static int average(List<CssImage.Stop> stops) {
+        float a = 0;
+        float[] c = new float[3];
+        for (CssImage.Stop s : stops) {
+            float alpha = (s.color() >>> 24) / 255f;
+            a += alpha;
+            for (int i = 0; i < 3; i++) {
+                c[i] += (s.color() >> (16 - 8 * i) & 0xFF) * alpha;
+            }
+        }
+        if (a <= 0) {
+            return 0;
+        }
+        int out = Math.round(a / stops.size() * 255) << 24;
+        for (int i = 0; i < 3; i++) {
+            out |= Math.round(Math.min(255, c[i] / a)) << (16 - 8 * i);
+        }
+        return out;
     }
 
     private static float maxDefined(float[] at, int end) {
@@ -875,9 +1199,10 @@ public final class Painter implements PaintFacet.Context {
     /**
      * Draws a text node's fragments as layout placed them, in its parent's color unless a styled span
      * has its own; bold and italic come from the parent, decorations from every element up to and
-     * including the box holding the paragraph, and a span adds its own.
+     * including the box holding the paragraph, and a span adds its own. For a {@code mask}, opaque
+     * white whatever the color, without the shadow.
      */
-    private void paintText(TextNode t, ComputedStyle parent, float dy, DisplayList out) {
+    private void paintText(TextNode t, ComputedStyle parent, float dy, DisplayList out, boolean mask) {
         List<LayoutEngine.TextFragment> fragments = layout.fragments(t);
         if (fragments.isEmpty()) {
             return;
@@ -899,9 +1224,9 @@ public final class Painter implements PaintFacet.Context {
                 break; // the box holding the paragraph; inline elements have line fragments
             }
         }
-        int base = parent.get(CssProperties.COLOR);
+        int base = mask ? OPAQUE_WHITE : parent.get(CssProperties.COLOR);
         TextShadow shadow = parent.get(CssProperties.TEXT_SHADOW);
-        int shadowColor = shadow.color();
+        int shadowColor = mask ? 0 : shadow.color();
         StyledText styled = t.styled();
         for (int i = 0; i < fragments.size(); i++) {
             LayoutEngine.TextFragment f = fragments.get(i);
@@ -909,16 +1234,17 @@ public final class Painter implements PaintFacet.Context {
             int own = flags;
             if (f.span() >= 0) {
                 StyledText.Span s = styled.spans().get(f.span());
-                if (s.color() != 0) {
+                if (s.color() != 0 && !mask) {
                     color = s.color();
                 }
                 own |= s.flags();
             }
             if (shadowColor >>> 24 != 0) {
-                out.add(new DrawCommand.Text(f.x() + shadow.x(), f.y() - dy + shadow.y(), f.size(), shadowColor, f.text(), own, f.font()));
+                out.add(new DrawCommand.Text(f.x() + shadow.x(), f.y() - dy + shadow.y(), f.size(), shadowColor, f.text(), own, f.font(),
+                        f.spacing()));
             }
             if (color >>> 24 != 0) {
-                out.add(new DrawCommand.Text(f.x(), f.y() - dy, f.size(), color, f.text(), own, f.font()));
+                out.add(new DrawCommand.Text(f.x(), f.y() - dy, f.size(), color, f.text(), own, f.font(), f.spacing()));
             }
         }
     }

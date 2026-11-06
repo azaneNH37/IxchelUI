@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -106,7 +107,11 @@ public abstract class IxchelExtension {
      * mod {@code playtestModId}, compiled on every {@code check}. With
      * {@code -Pplaytest=<name>[,<name>…]|all} (no value: {@code all}) the playtest mod is loaded,
      * client runs start from the playtest source set and {@code ixchel.playtest.<modId>} carries the
-     * selection.
+     * selection. {@code -Precord=<name>[,<name>…]|all} does the same as a recording run
+     * ({@code ixchel.record.<modId>}): the selected playtests' takes become videos, which needs
+     * ffmpeg; {@code -Precord.fps}, {@code .ffmpeg}, {@code .window} ({@code <w>x<h>}),
+     * {@code .guiScale}, {@code .scale} and {@code .crf} become {@code ixchel.recording.*}. The two
+     * exclude each other.
      */
     public void playtests(String playtestModId) {
         if (modId == null) {
@@ -120,16 +125,31 @@ public abstract class IxchelExtension {
         modDev.addModdingDependenciesTo(playtest);
         project.getTasks().named("check", t -> t.dependsOn(playtest.getClassesTaskName()));
 
-        Provider<String> selection = project.getProviders().gradleProperty("playtest");
-        if (!selection.isPresent()) {
+        Provider<String> tested = project.getProviders().gradleProperty("playtest");
+        Provider<String> recorded = project.getProviders().gradleProperty("record");
+        if (tested.isPresent() && recorded.isPresent()) {
+            throw new GradleException("-Pplaytest and -Precord exclude each other");
+        }
+        if (!tested.isPresent() && !recorded.isPresent()) {
             return;
         }
+        Map<String, String> properties = new LinkedHashMap<>();
+        if (tested.isPresent()) {
+            properties.put("ixchel.playtest." + modId, tested.get().isEmpty() ? "all" : tested.get());
+        } else {
+            properties.put("ixchel.record." + modId, recorded.get().isEmpty() ? "all" : recorded.get());
+            for (String setting : List.of("fps", "ffmpeg", "window", "guiScale", "scale", "crf")) {
+                Provider<String> value = project.getProviders().gradleProperty("record." + setting);
+                if (value.isPresent()) {
+                    properties.put("ixchel.recording." + setting, value.get());
+                }
+            }
+        }
         modDev.getMods().register(playtestModId, m -> m.sourceSet(playtest));
-        Map<String, String> property = Map.of("ixchel.playtest." + modId, selection.get().isEmpty() ? "all" : selection.get());
         modDev.getRuns().configureEach(run -> {
             Provider<Boolean> client = run.getType().map("client"::equals).orElse(false);
             run.getSourceSet().set(client.map(c -> c ? playtest : main));
-            run.getSystemProperties().putAll(client.map(c -> c ? property : Map.of()));
+            run.getSystemProperties().putAll(client.map(c -> c ? properties : Map.of()));
         });
     }
 

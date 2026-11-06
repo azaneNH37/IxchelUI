@@ -1,6 +1,7 @@
 package com.azane.ixchel.core.event;
 
 import com.azane.ixchel.core.css.property.Affine;
+import com.azane.ixchel.core.css.property.ClipPath;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Transform;
@@ -12,6 +13,7 @@ import com.azane.ixchel.core.dom.TopLayer;
 import com.azane.ixchel.core.dom.UiEvent;
 import com.azane.ixchel.core.layout.LayoutEngine;
 import com.azane.ixchel.core.layout.Scrollbar;
+import com.azane.ixchel.core.paint.ClipShape;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -693,6 +695,11 @@ public final class EventDispatcher {
             float lx = inverse.x(x, y);
             y = inverse.y(x, y);
             x = lx;
+        }
+        // clip-path clips the element and its descendants for hit testing as for painting.
+        ClipPath clip = e.computed().get(CssProperties.CLIP_PATH);
+        if (clip != ClipPath.NONE && !ClipShape.of(clip, b.x(), b.y(), b.width(), b.height()).contains(x, y)) {
+            return null;
         }
         // An inline element is hit on its line rectangles only, not across its bounding box.
         boolean inside = b.contains(x, y);
