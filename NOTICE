@@ -7,9 +7,23 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 This notice applies to every file in this repository except those under
-meta/, which are not licensed (see meta/LICENSE). A mod that shades
-Ixchel UI keeps this file and LICENSE in its jar (the com.azane.ixchel
-Gradle plugin does) and tells its users where the source above is.
+meta/, which are not licensed (see meta/LICENSE), and the fonts below. A
+mod that shades Ixchel UI keeps this file and LICENSE in its jar (the
+com.azane.ixchel Gradle plugin does) and tells its users where the source
+above is.
+
+-------------------------------------------------------------------------
+
+Ixchel UI's core jar carries two fonts, unmodified, each under the SIL
+Open Font License 1.1, whose text is next to it in
+com/azane/ixchel/core/library/ui/fonts/:
+
+- orbitron.ttf: Orbitron, Copyright 2018 The Orbitron Project Authors
+  (https://github.com/theleagueof/orbitron), with Reserved Font Name
+  "Orbitron"; license in orbitron-OFL.txt.
+- share-tech-mono.ttf: Share Tech Mono, Copyright (c) 2012, Carrois Type
+  Design, Ralph du Carrois, with Reserved Font Name 'Share'; license in
+  share-tech-mono-OFL.txt.
 
 -------------------------------------------------------------------------
 

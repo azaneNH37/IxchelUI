@@ -17,12 +17,12 @@ import java.util.Map;
 public final class MaskAtlas {
     public static final int SIZE = 1024;
     /** Largest mask side in texels, padding excluded; callers stay below it. */
-    static final int MAX_MASK = 256;
+    public static final int MAX_MASK = 256;
     /** Texel coordinate (both axes) of an opaque texel's center. */
-    static final float OPAQUE = 2;
+    public static final float OPAQUE = 2;
 
     /** Fills {@code out[j * width + i]} with the coverage of texel {@code (i, j)}, 0 to 1. */
-    interface Baker {
+    public interface Baker {
         void bake(float[] out, int width, int height);
     }
 
@@ -85,9 +85,10 @@ public final class MaskAtlas {
 
     /**
      * The top-left texel of the mask for {@code key}, baking it when new; {@code width} and
-     * {@code height} are at most {@link #MAX_MASK}. May reset the atlas (see the class comment).
+     * {@code height} are at most {@link #MAX_MASK}. May reset the atlas (see the class comment). Beside
+     * the tessellator's shapes, the host bakes the glyphs of the fonts it rasterizes itself here.
      */
-    int[] region(Object key, int width, int height, Baker baker) {
+    public int[] region(Object key, int width, int height, Baker baker) {
         int[] r = regions.get(key);
         if (r != null) {
             return r;

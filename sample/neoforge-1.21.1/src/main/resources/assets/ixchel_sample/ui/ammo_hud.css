@@ -1,5 +1,10 @@
 @stylesheet;
 
+@font-face {
+  font-family: "Share Tech Mono";
+  src: url("@ixchel/fonts/share-tech-mono.ttf");
+}
+
 .hand {
   position: absolute;
   right: 20px;
@@ -35,7 +40,9 @@
   align-items: flex-start;
 }
 
+/* Counts read like a readout in the bundled monospace font. */
 .ammo {
+  font-family: "Share Tech Mono";
   font-size: 18px;
   color: #FFFFFF;
 }
@@ -43,6 +50,10 @@
 .side {
   margin-left: 2px;
   align-items: flex-start;
+}
+
+.reserve {
+  font-family: "Share Tech Mono";
 }
 
 .reserve,

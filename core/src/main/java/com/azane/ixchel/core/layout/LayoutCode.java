@@ -12,7 +12,7 @@ public enum LayoutCode implements DiagCode {
     INLINE_BOX_PROPERTY("layout/inline-box-property", Severity.ERROR,
             "A display: inline element sets box properties inline elements do not support; use display: inline-block."),
     UNKNOWN_FONT("layout/unknown-font", Severity.WARNING,
-            "font-family names a font the host does not have (fonts come from resource packs, so only the running game checks); the next one, or the default font, is used.");
+            "font-family names a font the game does not have: no @font-face of that name, and no resource pack font of that id (or the font file fails to load), which only the running game checks; the next one, or the default font, is used.");
 
     private final String id;
     private final Severity severity;

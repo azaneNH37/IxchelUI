@@ -41,6 +41,7 @@ import com.azane.ixchel.core.text.TextMeasurer;
 import com.azane.ixchel.core.text.TextShaper;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -179,13 +180,24 @@ public final class UiDocument {
             style.restyle(p.root);
             presence.styled();
             diag.throwIfErrors();
-            LayoutEngine layout = new LayoutEngine(new TextShaper(measurer), p.effects.registry(), diag);
+            LayoutEngine layout = new LayoutEngine(new TextShaper(measurer, fontFaces(p.loaded)), p.effects.registry(), diag);
             return new UiDocument(p.root, p.loaded.files(), diag, style, layout, bindings, images, p.effects, animations,
                     transitions, topLayer, presence, documentUnit);
         } catch (RuntimeException ex) {
             bindings.close();
             throw ex;
         }
+    }
+
+    /** The font file of each {@code @font-face} family; of two of the same name, the one in the higher layer. */
+    private static Map<String, String> fontFaces(Linker.Loaded loaded) {
+        Map<String, String> out = new HashMap<>();
+        for (Linker.Layer l : loaded.layers()) {
+            for (ParsedSheet.FontFace f : l.sheet().sheet().fontFaces()) {
+                out.put(f.family(), f.src());
+            }
+        }
+        return out;
     }
 
     /** Lints a document without anything hosted. */

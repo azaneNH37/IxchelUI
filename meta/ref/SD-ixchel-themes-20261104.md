@@ -154,6 +154,7 @@ TH1 的基底只给 L3 已有的词汇穿外观（`.ix-panel`、`.ix-title`、`b
 - 装了 ModernUI（MUI，默认开启 Modern Text Engine）时的两处差异，Ixchel 不处理，写 Doc 时挪入用户文档（操作指南"加字体"与主题页）。依据读 MUI-MC 1.20.1（core 3.12.0）、1.21.1（core 3.13.0）分支源码，未在装 MUI 的实例中实测：
   - 默认字体被替换：`minecraft:default` 去掉原版 `ascii`、`accented`、`nonlatin_european` 点阵与空格 provider，接上 MUI 选定的 TTF（默认 Inter，再回退系统字体）；`minecraft:uniform` 不加载 unifont，同样绑到该 TTF（`TextLayoutEngine` 474-494、564-585、726-735）。布局不错（测量与绘制都经 MUI），但"CSS `9px` = 原版点阵 1 倍"不再成立，`crisp-edges` 主题里形状是阶梯、文字是平滑字。像素风只对 MUI 不替换的 bitmap 字体保证（`minecraft:alt`、宿主 bitmap 字体）。
   - 字体参数与回退：资源包 `ttf` provider 的 `size`、`oversample`、`shift`、`skip` 被忽略，统一按 `baseFontSize`（8）排版（870-886），同一页面装与不装 MUI 字号不同；不存在、加载失败或为空的 font id 不画缺字方框，而是落到 MUI 默认字体（`getFontCollection` 1205-1214）。`font-family` 列表靠 `hasFont`（字体 JSON 是否存在）选第一个，JSON 存在而 MUI 没加载时选中的是它、实际画 MUI 默认字体，后面的候选轮不到，也不报 `layout/unknown-font`。按 MUI 实际加载结果判断需要调用其内部类（`TextLayoutEngine`，无公开 API、跨版本变化），故不做。
+- 内置字体（FT，2026-11-07）：`@font-face` 给库内或项目内的 `.ttf`/`.otf` 起名，`font-family` 按名引用；mc 层自行栅格化进遮罩图集，缺字成段回退到默认字体。实现与出入见路线图 FT 结果。装 MUI 时内置字体的字形不经 `Font`，不受上两条影响；回退段受第一条影响（[推断]，未实测）。
 
 #### 5.4 内置特效
 
@@ -224,7 +225,7 @@ TH1 的基底只给 L3 已有的词汇穿外观（`.ix-panel`、`.ix-title`、`b
 | 形状 | `radius: 1px`，`notch`，`crisp-edges`；面板斜面各 1px | `3px` 圆角 | 控件 `2px` 圆角，面板直角（括号与面板角重合） | 直角，`crisp-edges` |
 | 动效 | `0ms` | `120ms ease-out` | `150ms ease-out` | `90ms linear`；条填充 `400ms steps(8)` |
 | 常驻动画与特效 | 无 | 无 | 框线呼吸 2.5s、扫描线下扫 4s、闪烁 7s、标题 `Chromatic` 偏移每 6s 跳开两次；`scaleY` 进场 | `.ix-busy` 条纹平移 |
-| 字体 | `minecraft:default` | `minecraft:default` | `minecraft:default` | `minecraft:default` |
+| 字体 | `minecraft:default` | `minecraft:default` | 正文 `minecraft:default`，标题 Orbitron（内置，FT） | 正文 `minecraft:default`，标题 Share Tech Mono（内置，FT） |
 
 颜色为初值，按陈列页截图再调。
 

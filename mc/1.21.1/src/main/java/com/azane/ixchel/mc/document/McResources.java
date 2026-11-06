@@ -4,6 +4,7 @@ import com.azane.ixchel.core.binding.compile.Bindings;
 import com.azane.ixchel.core.binding.ViewModel;
 import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.runtime.UiDocument;
+import com.azane.ixchel.core.library.Library;
 import com.azane.ixchel.core.runtime.UiHosting;
 import com.azane.ixchel.core.view.TagRegistry;
 import com.azane.ixchel.core.view.Translations;
@@ -16,6 +17,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.server.packs.resources.Resource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -71,7 +73,8 @@ final class McResources {
             String ns = id.substring(0, colon);
             String path = id.substring(colon + 1);
             return ns.equals(hostModId) ? read(resources, path) : readPacked(resources, ResourceLocation.fromNamespaceAndPath(ns, path));
-        }, tags, translations(), new McTextMeasurer(Minecraft.getInstance().font, resources), new McImageMeasurer(resources), model, TEXT,
+        }, tags, translations(), new McTextMeasurer(Minecraft.getInstance().font, resources, id -> Library.isLibrary(id)
+                ? hosting.library().bytes(id) : bytes(resources, ResourceLocation.tryParse(id))), new McImageMeasurer(resources), model, TEXT,
                 hosting);
         String host = name("");
         List<String> files = new ArrayList<>();
@@ -93,6 +96,19 @@ final class McResources {
     private static String readPacked(ResourceManager resources, ResourceLocation id) {
         try (InputStream in = resources.getResourceOrThrow(id).open()) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException("cannot read " + id, e);
+        }
+    }
+
+    /** The bytes of a packed resource, such as a font file; {@code null} if there is none. */
+    private static byte[] bytes(ResourceManager resources, ResourceLocation id) {
+        Optional<Resource> resource = id == null ? Optional.empty() : resources.getResource(id);
+        if (resource.isEmpty()) {
+            return null;
+        }
+        try (InputStream in = resource.get().open()) {
+            return in.readAllBytes();
         } catch (IOException e) {
             throw new UncheckedIOException("cannot read " + id, e);
         }

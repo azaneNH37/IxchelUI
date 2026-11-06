@@ -6,6 +6,7 @@ import com.azane.ixchel.core.dom.StyledText;
 import com.azane.ixchel.core.effect.Effect;
 import com.azane.ixchel.core.paint.DisplayList;
 import com.azane.ixchel.core.paint.DrawCommand;
+import com.azane.ixchel.core.paint.MaskAtlas;
 import com.azane.ixchel.core.paint.RoundRect;
 import com.azane.ixchel.core.paint.ShapeTessellator;
 import com.azane.ixchel.core.view.ElementPayload;
@@ -308,6 +309,10 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         if ((c.color() & 0xFC000000) == 0) {
             return null;
         }
+        Face face = c.font() != null && Face.isFace(c.font()) ? Face.get(c.font()) : null;
+        if (face != null) {
+            return faceText(c, face);
+        }
         // At the size it was measured at, from a screen pixel's corner: each glyph pixel covers whole screen pixels.
         double gui = Minecraft.getInstance().getWindow().getGuiScale();
         float scale = McTextMeasurer.crispSize(c.size(), gui) / VANILLA_SIZE;
@@ -321,24 +326,135 @@ public final class McPainter implements DrawCommand.Visitor<Void> {
         if (!layers.isEmpty()) {
             z = level(x, y, x + font.width(text) * scale + glyphs * c.spacing(), y + scale * VANILLA_SIZE);
         }
+        vanillaText(c, c.text(), style, x, z);
+        return null;
+    }
+
+    /** {@code text}, part of {@code c}, in {@code style} from {@code x}, a whole screen pixel. */
+    private void vanillaText(DrawCommand.Text c, String text, Style style, float x, float z) {
+        double gui = Minecraft.getInstance().getWindow().getGuiScale();
+        float scale = McTextMeasurer.crispSize(c.size(), gui) / VANILLA_SIZE;
+        float y = (float) (Math.round(c.y() * gui) / gui);
         begin(Batch.TEXT, null);
         textMatrix.set(pose).translate(x, y, z).scale(scale, scale, 1);
-        if (glyphs == 0) {
-            font.drawInBatch(text, 0, 0, c.color(), false, textMatrix, graphics.bufferSource(),
+        if (c.spacing() == 0) {
+            font.drawInBatch(McTextMeasurer.sequence(text, style), 0, 0, c.color(), false, textMatrix, graphics.bufferSource(),
                     Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
-            return null;
+            return;
         }
         // letter-spacing: each glyph where the text before it ends, as McTextMeasurer measures it.
         float step = c.spacing() / scale;
         float advance = 0;
         glyph.style = style;
-        for (int i = 0; i < c.text().length(); i += Character.charCount(glyph.codePoint)) {
-            glyph.codePoint = c.text().codePointAt(i);
+        for (int i = 0; i < text.length(); i += Character.charCount(glyph.codePoint)) {
+            glyph.codePoint = text.codePointAt(i);
             font.drawInBatch(glyph, advance, 0, c.color(), false, textMatrix, graphics.bufferSource(),
                     Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
             advance += font.getSplitter().stringWidth(glyph) + step;
         }
+    }
+
+    /**
+     * {@code c} in {@code face}: each glyph a quad over its mask in the atlas, on whole screen pixels
+     * as {@link McTextMeasurer#faceWidth} measures it, the runs the face lacks in the default font.
+     * Bold draws each glyph again a glyph pixel to the right, italic slants it a quarter about the
+     * baseline; underline and strikethrough are bars where the vanilla font draws them.
+     */
+    private Void faceText(DrawCommand.Text c, Face face) {
+        double gui = Minecraft.getInstance().getWindow().getGuiScale();
+        boolean bold = (c.flags() & StyledText.BOLD) != 0;
+        int p = McTextMeasurer.glyphPixels(c.size(), gui);
+        int px = 9 * p;
+        long left = Math.round(c.x() * gui);
+        long top = Math.round(c.y() * gui);
+        long baseline = top + 7L * p;
+        float z = 0;
+        if (!layers.isEmpty()) {
+            int glyphs = c.spacing() == 0 ? 0 : c.text().codePointCount(0, c.text().length());
+            float x = (float) (left / gui);
+            z = level(x, (float) (top / gui), x + McTextMeasurer.faceWidth(font, face, c.text(), c.size(), bold, gui)
+                    + glyphs * c.spacing(), (float) ((top + px) / gui));
+        }
+        int argb = c.color();
+        double spacing = c.spacing() * gui;
+        double pen = left;
+        Style fallback = STYLES[c.flags()];
+        for (int i = 0; i < c.text().length(); ) {
+            int cp = c.text().codePointAt(i);
+            int g = face.glyph(cp);
+            if (g == 0) {
+                int end = face.fallbackEnd(c.text(), i);
+                String run = c.text().substring(i, end);
+                vanillaText(c, run, fallback, (float) (pen / gui), z);
+                pen += McTextMeasurer.faceWidth(font, face, run, c.size(), bold, gui) * gui
+                        + spacing * run.codePointCount(0, run.length());
+                i = end;
+                continue;
+            }
+            int[] m = face.metrics(g, px);
+            int w = m[3] - m[1];
+            int h = m[4] - m[2];
+            if (w > 0 && h > 0 && w <= MaskAtlas.MAX_MASK && h <= MaskAtlas.MAX_MASK) {
+                int[] r = masks.atlas.region(face.atlasKey(g, px), w, h, (out, ww, hh) -> face.bake(g, px, out, ww, hh));
+                // After the region: baking it may have reset the atlas and drawn the batch.
+                begin(Batch.SHAPE, masks.upload());
+                glyphQuad(pen + m[1], baseline + m[2], w, h, r, baseline, c.flags(), argb, z, gui);
+                if (bold) {
+                    glyphQuad(pen + m[1] + p, baseline + m[2], w, h, r, baseline, c.flags(), argb, z, gui);
+                }
+            }
+            double advance = m[0] + (bold ? p : 0);
+            if ((c.flags() & StyledText.UNDERLINE) != 0) {
+                bar(pen, top + 8L * p, advance, p, argb, z, gui);
+            }
+            if ((c.flags() & StyledText.STRIKETHROUGH) != 0) {
+                bar(pen, top + Math.round(3.5 * p), advance, p, argb, z, gui);
+            }
+            pen += advance + spacing;
+            i += Character.charCount(cp);
+        }
         return null;
+    }
+
+    /** A glyph's mask at {@code r} drawn {@code w} by {@code h} screen pixels from {@code (x, y)}, slanted when italic. */
+    private void glyphQuad(double x, double y, int w, int h, int[] r, long baseline, int flags, int argb, float z, double gui) {
+        boolean italic = (flags & StyledText.ITALIC) != 0;
+        float x0 = (float) (x / gui);
+        float x1 = (float) ((x + w) / gui);
+        float y0 = (float) (y / gui);
+        float y1 = (float) ((y + h) / gui);
+        float slantTop = italic ? (float) ((baseline - y) * 0.25 / gui) : 0;
+        float slantBottom = italic ? (float) ((baseline - y - h) * 0.25 / gui) : 0;
+        float u0 = (float) r[0] / MaskAtlas.SIZE;
+        float v0 = (float) r[1] / MaskAtlas.SIZE;
+        float u1 = (float) (r[0] + w) / MaskAtlas.SIZE;
+        float v1 = (float) (r[1] + h) / MaskAtlas.SIZE;
+        int a = argb >>> 24;
+        int red = (argb >> 16) & 0xFF;
+        int green = (argb >> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        buffer.vertex(pose, x0 + slantTop, y0, z).color(red, green, blue, a).uv(u0, v0).endVertex();
+        buffer.vertex(pose, x0 + slantBottom, y1, z).color(red, green, blue, a).uv(u0, v1).endVertex();
+        buffer.vertex(pose, x1 + slantBottom, y1, z).color(red, green, blue, a).uv(u1, v1).endVertex();
+        buffer.vertex(pose, x1 + slantTop, y0, z).color(red, green, blue, a).uv(u1, v0).endVertex();
+    }
+
+    /** A solid bar {@code w} by {@code h} screen pixels from {@code (x, y)}, through the atlas's opaque texel. */
+    private void bar(double x, double y, double w, int h, int argb, float z, double gui) {
+        begin(Batch.SHAPE, masks.upload());
+        float x0 = (float) (x / gui);
+        float x1 = (float) ((x + w) / gui);
+        float y0 = (float) (y / gui);
+        float y1 = (float) ((y + h) / gui);
+        float t = MaskAtlas.OPAQUE / MaskAtlas.SIZE;
+        int a = argb >>> 24;
+        int red = (argb >> 16) & 0xFF;
+        int green = (argb >> 8) & 0xFF;
+        int blue = argb & 0xFF;
+        buffer.vertex(pose, x0, y0, z).color(red, green, blue, a).uv(t, t).endVertex();
+        buffer.vertex(pose, x0, y1, z).color(red, green, blue, a).uv(t, t).endVertex();
+        buffer.vertex(pose, x1, y1, z).color(red, green, blue, a).uv(t, t).endVertex();
+        buffer.vertex(pose, x1, y0, z).color(red, green, blue, a).uv(t, t).endVertex();
     }
 
     /** @throws IllegalStateException for a kind without a painter, or a payload value of another type */

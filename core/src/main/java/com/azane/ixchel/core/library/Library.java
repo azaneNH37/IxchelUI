@@ -32,7 +32,7 @@ public final class Library {
      * public.
      *
      * @param prefix {@code ""} or ending in {@code /}
-     * @param dir    a directory of only views, css and effects, relative to the anchor's package, ending in {@code /}
+     * @param dir    a directory of views, css, effects and fonts, relative to the anchor's package, ending in {@code /}
      */
     public record Root(String prefix, Class<?> anchor, String dir) {
         public Root {
@@ -86,15 +86,42 @@ public final class Library {
      * @throws IllegalArgumentException if {@code id} does not start with {@value #PREFIX}
      */
     public String read(String id) {
+        Root r = root(id);
+        if (r == null) {
+            return null;
+        }
+        String rest = r.dir + id.substring(PREFIX.length() + r.prefix.length());
+        return TEXTS.computeIfAbsent(r.anchor.getName() + "/" + rest, k -> Optional.ofNullable(load(r.anchor, rest)))
+                .orElse(null);
+    }
+
+    /**
+     * The bytes of the library file {@code id}, such as a font, read again on each call; {@code null}
+     * if no root has it.
+     *
+     * @throws IllegalArgumentException if {@code id} does not start with {@value #PREFIX}
+     */
+    public byte[] bytes(String id) {
+        Root r = root(id);
+        if (r == null) {
+            return null;
+        }
+        try (InputStream in = r.anchor.getResourceAsStream(r.dir + id.substring(PREFIX.length() + r.prefix.length()))) {
+            return in == null ? null : in.readAllBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** The root of the library file {@code id}, the one with the longest matching prefix; {@code null} for none. */
+    private Root root(String id) {
         if (!isLibrary(id)) {
             throw new IllegalArgumentException("'" + id + "' is not a library file");
         }
         String path = id.substring(PREFIX.length());
         for (Root r : roots) {
             if (path.startsWith(r.prefix)) {
-                String rest = r.dir + path.substring(r.prefix.length());
-                return TEXTS.computeIfAbsent(r.anchor.getName() + "/" + rest, k -> Optional.ofNullable(load(r.anchor, rest)))
-                        .orElse(null);
+                return r;
             }
         }
         return null;

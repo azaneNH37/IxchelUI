@@ -130,7 +130,7 @@ final class GameClock {
     }
 
     /** The field under its Mojang name (development) or its SRG name (a reobfuscated game). */
-    private static Field field(Class<?> owner, String... names) {
+    static Field field(Class<?> owner, String... names) {
         for (String name : names) {
             try {
                 Field f = owner.getDeclaredField(name);

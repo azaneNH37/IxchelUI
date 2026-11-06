@@ -733,7 +733,7 @@ public final class LayoutEngine {
         List<String> family = cs.get(CssProperties.FONT_FAMILY);
         String font = shaper.font(family);
         float spacing = shaper.letterSpacing(cs.get(CssProperties.LETTER_SPACING).value());
-        if (!family.isEmpty() && !family.get(0).equals(font)) {
+        if (!family.isEmpty() && !shaper.fontId(family.get(0)).equals(font)) {
             reportMissingFonts(t.parent(), family, font);
         }
         StyledText styled = t.styled();
@@ -757,10 +757,10 @@ public final class LayoutEngine {
         };
     }
 
-    /** Reports the ids in {@code family} before {@code used} (null: the default font), which the host lacks. */
+    /** Reports the names in {@code family} before the one of {@code used} (null: the default font), which the host lacks. */
     private void reportMissingFonts(Element e, List<String> family, String used) {
         for (String f : family) {
-            if (f.equals(used)) {
+            if (shaper.fontId(f).equals(used)) {
                 return;
             }
             if (reportedFonts.add(f)) {

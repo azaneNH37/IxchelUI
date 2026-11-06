@@ -204,6 +204,44 @@ class UiDocumentTextTest {
     }
 
     @Test
+    void fontFaceNamesAFileRelativeToItsSheetAndAFaceTheHostCannotLoadFallsThrough() {
+        // The host has the file fonts/o.ttf (5px glyphs) and minecraft:uniform (4px); not fonts/x.ttf.
+        com.azane.ixchel.core.text.TextMeasurer fonts = new com.azane.ixchel.core.text.TextMeasurer() {
+            @Override
+            public boolean hasFont(String font) {
+                return font.equals("fonts/o.ttf") || font.equals("minecraft:uniform");
+            }
+
+            @Override
+            public float width(String text, float size, boolean bold, String font) {
+                return text.length() * ("fonts/o.ttf".equals(font) ? 5 : "minecraft:uniform".equals(font) ? 4 : 6);
+            }
+
+            @Override
+            public float lineHeight(float size) {
+                return 9;
+            }
+
+            @Override
+            public float baseline(float size) {
+                return 7;
+            }
+        };
+        UiDocument doc = UiDocument.load(GoldenTest.linked("<div>ab<span class=\"x\">cd</span></div>"), "t.html",
+                GoldenTest.sheet("""
+                        @font-face { font-family: "Orb"; src: url("fonts/o.ttf") }
+                        @font-face { font-family: X; src: url(./fonts/x.ttf) }
+                        div { display: block; font-family: "Orb", uniform }
+                        .x { font-family: X, uniform }
+                        """),
+                com.azane.ixchel.core.html.HtmlElements.TAGS, fonts, GoldenTest.NO_IMAGES);
+        assertEquals("""
+                text 0 0 9 #FFFFFFFF "ab" font fonts/o.ttf
+                text 10 0 9 #FFFFFFFF "cd" font minecraft:uniform""", GoldenTest.print(doc.frame(100, 100)));
+        assertEquals(List.of("layout/unknown-font@t.html:2:8"), DiagCodes.of(doc.diagnostics()));
+    }
+
+    @Test
     void inlineElementWithABoxPropertyIsAnError() {
         UiDocument doc = load("<div>a <span class=\"p\">b</span></div>", "div { display: block } .p { padding: 2px }");
         doc.frame(100, 100);

@@ -9,7 +9,7 @@ import java.util.Locale;
 
 /**
  * CSS Syntax Level 3 §5 parser restricted to what IxchelUI supports: qualified rules whose blocks hold
- * declarations and nested rules (CSS Nesting), {@code @keyframes}, the file's kind,
+ * declarations and nested rules (CSS Nesting), {@code @keyframes}, {@code @font-face}, the file's kind,
  * {@code @stylesheet;} or {@code @partial;} as its first statement ({@link ParsedSheet#kind()}), and
  * its {@code @link "<href>" [as <alias>];} lines before every rule ({@link ParsedSheet#links()}).
  * Whether the file must declare a kind and what it may link are the caller's to check. Other at-rules
@@ -32,11 +32,12 @@ public final class CssParser {
     private final List<Token> tokens;
     private final Diagnostics diag;
     private final List<ParsedSheet.Keyframes> keyframes = new ArrayList<>();
+    private final List<ParsedSheet.FontFace> fontFaces = new ArrayList<>();
     private final List<ParsedSheet.Link> links = new ArrayList<>();
     private ParsedSheet.Kind kind;
     /** Whether a statement came before: the kind must be the first. */
     private boolean sawStatement;
-    /** Whether a rule or {@code @keyframes} came before: links must precede them. */
+    /** Whether a rule, {@code @keyframes} or {@code @font-face} came before: links must precede them. */
     private boolean sawRule;
     private int i;
     private boolean warnedUnclosed;
@@ -54,7 +55,8 @@ public final class CssParser {
     public static ParsedSheet parseStylesheet(String source, SourcePos start, Diagnostics diag) {
         CssParser p = new CssParser(CssTokenizer.tokenize(source, start, diag), diag);
         List<Rule> rules = p.ruleList();
-        return new ParsedSheet(p.kind, List.copyOf(p.links), List.copyOf(rules), List.copyOf(p.keyframes));
+        return new ParsedSheet(p.kind, List.copyOf(p.links), List.copyOf(rules), List.copyOf(p.keyframes),
+                List.copyOf(p.fontFaces));
     }
 
     /** For a `style="..."` attribute; positions are offset so line 1 col 1 of `source` maps to `start`. */
@@ -115,7 +117,7 @@ public final class CssParser {
         }
     }
 
-    /** A top-level at-rule: {@code @keyframes}, the kind and the links are read, the rest skipped. */
+    /** A top-level at-rule: {@code @keyframes}, {@code @font-face}, the kind and the links are read, the rest skipped. */
     private void atRule() {
         Token at = peek();
         boolean first = !sawStatement;
@@ -126,6 +128,11 @@ public final class CssParser {
         }
         if (at.value().equals("link")) {
             linkRule();
+            return;
+        }
+        if (at.value().equalsIgnoreCase("font-face")) {
+            sawRule = true;
+            fontFace();
             return;
         }
         if (!at.value().equalsIgnoreCase("keyframes")) {
@@ -226,6 +233,81 @@ public final class CssParser {
         } else {
             links.add(new ParsedSheet.Link(href, alias, at.pos()));
         }
+    }
+
+    /**
+     * {@code @font-face { font-family: <name>; src: url(<href>); }}, nothing else: the name is one
+     * string or identifier without {@code :}, which marks a Minecraft font id, and the file a
+     * {@code .ttf} or {@code .otf}.
+     */
+    private void fontFace() {
+        Token at = take();
+        List<ComponentValue> prelude = new ArrayList<>();
+        while (!peek().is(Token.Kind.LBRACE)) {
+            if (peek().is(Token.Kind.EOF) || peek().is(Token.Kind.SEMICOLON)) {
+                diag.report(CssSyntaxCode.EXPECTED_BLOCK, at.pos(), "expected '{' after @" + at.value());
+                take();
+                return;
+            }
+            prelude.add(componentValue());
+        }
+        List<ComponentValue> block = simpleBlock().contents();
+        if (!trim(prelude).isEmpty()) {
+            diag.report(CssSyntaxCode.INVALID_FONT_FACE, at.pos(), "@font-face takes no prelude");
+            return;
+        }
+        String family = null;
+        String src = null;
+        boolean valid = true;
+        for (Rule.Declaration d : declarationList(block, null, null)) {
+            List<ComponentValue> value = trim(d.value());
+            switch (d.name().toLowerCase(Locale.ROOT)) {
+                case "font-family" -> {
+                    family = value.size() == 1 && value.get(0) instanceof Token t
+                            && (t.is(Token.Kind.STRING) || t.is(Token.Kind.IDENT))
+                            && !t.value().isEmpty() && t.value().indexOf(':') < 0 ? t.value() : null;
+                    if (family == null) {
+                        diag.report(CssSyntaxCode.INVALID_FONT_FACE, d.pos(),
+                                "expected one name without ':', such as font-family: \"Orbitron\"");
+                        valid = false;
+                    }
+                }
+                case "src" -> {
+                    src = value.size() == 1 ? url(value.get(0)) : null;
+                    if (src == null || !(src.endsWith(".ttf") || src.endsWith(".otf"))) {
+                        diag.report(CssSyntaxCode.INVALID_FONT_FACE, d.pos(),
+                                "expected one url() of a .ttf or .otf file, such as src: url(\"fonts/orbitron.ttf\")");
+                        valid = false;
+                    }
+                }
+                default -> {
+                    diag.report(CssSyntaxCode.INVALID_FONT_FACE, d.pos(), "unsupported @font-face descriptor '"
+                            + d.name() + "'", "only font-family and src are read");
+                    valid = false;
+                }
+            }
+        }
+        if (valid && (family == null || src == null)) {
+            diag.report(CssSyntaxCode.INVALID_FONT_FACE, at.pos(), "@font-face needs font-family and src");
+            valid = false;
+        }
+        if (valid) {
+            fontFaces.add(new ParsedSheet.FontFace(family, src, at.pos()));
+        }
+    }
+
+    /** The address of {@code url(...)}, quoted or not; {@code null} for anything else. */
+    private static String url(ComponentValue v) {
+        if (v instanceof Token t && t.is(Token.Kind.URL)) {
+            return t.value();
+        }
+        if (v instanceof ComponentValue.Function f && f.name().equalsIgnoreCase("url")) {
+            List<ComponentValue> args = trim(f.args());
+            if (args.size() == 1 && args.get(0) instanceof Token s && s.is(Token.Kind.STRING)) {
+                return s.value();
+            }
+        }
+        return null;
     }
 
     /** {@code @keyframes name { selectors { declarations } … }}. */

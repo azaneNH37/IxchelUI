@@ -1,14 +1,21 @@
 /*
  * The holographic look: dark translucent panels projected over a blurred world in a cyan glow. Bright
  * corner brackets hold each panel while its full frame breathes in and out, half there; a scan line
- * sweeps down over faint scanlines, the panel flickers now and then, and titles glow in capitals with
- * their colors split, jumping apart for a moment. Panels open out from a line as a screen enters.
+ * sweeps down over faint scanlines, the panel flickers now and then, and titles glow in capitals, in
+ * Orbitron, with their colors split, jumping apart for a moment. Panels open out from a line as a
+ * screen enters.
  */
 @partial;
 @link "base.css";
 @link "@ixchel/effects/chromatic.ixeffect";
 
+@font-face {
+    font-family: "Orbitron";
+    src: url("@ixchel/fonts/orbitron.ttf");
+}
+
 :root {
+    --ix-title-font: "Orbitron";
     --ix-panel-bg: #04121CB0;
     --ix-panel-shadow: inset 0 0 0 1px #6EDCFF30, 0 0 12px #6EDCFF30;
     --ix-panel-backdrop: blur(3px);

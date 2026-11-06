@@ -90,6 +90,8 @@ public final class TextShaper {
     }
 
     private final TextMeasurer measurer;
+    /** The font file each {@code @font-face} family names. */
+    private final Map<String, String> faces;
     private final Map<List<Item>, List<Unit>> units = new HashMap<>();
     private final Map<Key, Paragraph> paragraphs = new HashMap<>();
     /** Each {@code font-family} list's used font, {@link #DEFAULT_FONT} for none. */
@@ -97,7 +99,13 @@ public final class TextShaper {
     private static final String DEFAULT_FONT = "";
 
     public TextShaper(TextMeasurer measurer) {
+        this(measurer, Map.of());
+    }
+
+    /** @param faces the font file id of each {@code @font-face} family of the document */
+    public TextShaper(TextMeasurer measurer, Map<String, String> faces) {
         this.measurer = measurer;
+        this.faces = Map.copyOf(faces);
     }
 
     /**
@@ -152,7 +160,19 @@ public final class TextShaper {
         return measurer.width(text, size, bold, font);
     }
 
-    /** The first of {@code family} ({@code font-family}) the host has; {@code null} for its default font. */
+    /**
+     * The font id a {@code font-family} name stands for: the file of the {@code @font-face} of that
+     * name, otherwise a Minecraft font id, in the {@code minecraft} namespace when it names none.
+     */
+    public String fontId(String name) {
+        String face = faces.get(name);
+        if (face != null) {
+            return face;
+        }
+        return name.indexOf(':') < 0 ? "minecraft:" + name : name;
+    }
+
+    /** The id of the first of {@code family} ({@code font-family}) the host has; {@code null} for its default font. */
     public String font(List<String> family) {
         if (family.isEmpty()) {
             return null;
@@ -161,8 +181,9 @@ public final class TextShaper {
         if (font == null) {
             font = DEFAULT_FONT;
             for (String f : family) {
-                if (measurer.hasFont(f)) {
-                    font = f;
+                String id = fontId(f);
+                if (measurer.hasFont(id)) {
+                    font = id;
                     break;
                 }
             }

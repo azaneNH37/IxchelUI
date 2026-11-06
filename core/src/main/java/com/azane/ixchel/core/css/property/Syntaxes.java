@@ -329,8 +329,9 @@ public final class Syntaxes {
     }
 
     /**
-     * {@code font-family}: comma-separated Minecraft font ids, each a string or written bare as
-     * {@code namespace:path} or {@code path}; a missing namespace is {@code minecraft}. Kept as full ids.
+     * {@code font-family}: comma-separated font names, each a string or written bare as
+     * {@code namespace:path} or {@code path}. A name without a namespace is an {@code @font-face}
+     * family or, failing that, a {@code minecraft} font id; the document resolves it. Kept as written.
      */
     public static Syntax<List<String>> fontFamily() {
         return commaList((value, pos, diag) -> {
@@ -342,14 +343,15 @@ public final class Syntaxes {
                     && value.get(2) instanceof Token path && path.is(Token.Kind.IDENT)) {
                 id = ns.value() + ":" + path.value();
             }
-            if (id == null || id.startsWith(SPRITE)) {
-                diag.report(PropertyCode.INVALID_VALUE, pos, "expected a font id such as minecraft:uniform or \"mod:path\"");
+            if (id == null || id.isEmpty() || id.startsWith(SPRITE)) {
+                diag.report(PropertyCode.INVALID_VALUE, pos, "expected a font name such as \"Orbitron\", or a font id such as minecraft:uniform or \"mod:path\"");
                 return null;
             }
-            if (resourceLocation(id, pos, diag) == null) {
+            // A name without a namespace is an @font-face family or a minecraft: font, which only the document knows.
+            if (id.indexOf(':') >= 0 && resourceLocation(id, pos, diag) == null) {
                 return null;
             }
-            return id.indexOf(':') < 0 ? "minecraft:" + id : id;
+            return id;
         });
     }
 

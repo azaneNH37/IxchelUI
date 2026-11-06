@@ -1,14 +1,21 @@
 /*
  * The amber look, after a spaceship HUD: near-black panels framed by a thin amber line, square and on
- * the pixel grid; everything in one amber, titles glowing; wells and bars hatched with dark diagonal
- * stripes, a bar's charge laid over them half see-through and moving in steps like a readout; outlined
- * buttons that fill with amber when pressed, and moving amber stripes on what is busy.
+ * the pixel grid; everything in one amber, titles glowing in Share Tech Mono; wells and bars hatched
+ * with dark diagonal stripes, a bar's charge laid over them half see-through and moving in steps like
+ * a readout; outlined buttons that fill with amber when pressed, and moving amber stripes on what is
+ * busy.
  */
 @partial;
 @link "base.css";
 @link "@ixchel/effects/stripes.ixeffect";
 
+@font-face {
+    font-family: "Share Tech Mono";
+    src: url("@ixchel/fonts/share-tech-mono.ttf");
+}
+
 :root {
+    --ix-title-font: "Share Tech Mono";
     shape-rendering: crisp-edges;
     --ix-panel-bg: #050402E8;
     --ix-panel-shadow: inset 0 0 0 1px #F5AF19;

@@ -4,6 +4,16 @@
 @link "@ixchel/effects/dissolve.ixeffect" as Burn;
 @link "spotlight.ixeffect";
 
+@font-face {
+  font-family: "Orbitron";
+  src: url("@ixchel/fonts/orbitron.ttf");
+}
+
+@font-face {
+  font-family: "Share Tech Mono";
+  src: url("@ixchel/fonts/share-tech-mono.ttf");
+}
+
 .screen {
   width: 100%;
   height: 100%;
@@ -413,8 +423,15 @@ button {
   box-shadow: 0 0 6px #FFFFFF;
 }
 
-/* One sample sentence in the default font, two Minecraft fonts and upper case. */
+/* One sample sentence in the default font, two Minecraft fonts and upper case; beside them the two
+   bundled fonts, whose missing Chinese falls back to the default font. */
 .fonts {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.font-column {
   align-items: flex-start;
   gap: 2px;
 }
@@ -434,6 +451,17 @@ button {
 /* Drawn at the largest size up to 6px where each glyph pixel covers whole screen pixels. */
 .font.small {
   font-size: 6px;
+}
+
+.font.orbitron {
+  font-family: "Orbitron";
+  font-size: 18px;
+}
+
+.font.mono {
+  font-family: "Share Tech Mono";
+  font-size: 18px;
+  text-decoration: underline;
 }
 
 /* One cell per CSS feature added in CSS1, on the opaque ground so their colors read exactly. */

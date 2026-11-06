@@ -349,10 +349,25 @@ public final class Linker {
                 }
             }
             Aliases built = aliases.build();
-            sheet = new Sheet(id, built.rewrite(parsed, diag), built);
+            sheet = new Sheet(id, built.rewrite(withFontIds(id, parsed), diag), built);
         }
         sheets.put(id, sheet);
         return sheet;
+    }
+
+    /** {@code parsed} with each {@code @font-face} src resolved from {@code id} to a file id; one that cannot be is reported and dropped. */
+    private ParsedSheet withFontIds(String id, ParsedSheet parsed) {
+        if (parsed.fontFaces().isEmpty()) {
+            return parsed;
+        }
+        List<ParsedSheet.FontFace> faces = new ArrayList<>(parsed.fontFaces().size());
+        for (ParsedSheet.FontFace f : parsed.fontFaces()) {
+            String file = id(id, f.src(), f.pos());
+            if (file != null) {
+                faces.add(new ParsedSheet.FontFace(f.family(), file, f.pos()));
+            }
+        }
+        return new ParsedSheet(parsed.kind(), parsed.links(), parsed.rules(), parsed.keyframes(), List.copyOf(faces));
     }
 
     private void effect(String id, String href, SourcePos at) {

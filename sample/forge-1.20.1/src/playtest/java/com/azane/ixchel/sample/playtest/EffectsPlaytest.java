@@ -302,8 +302,20 @@ public final class EffectsPlaytest {
                     float plain = width(".font.plain");
                     return width(".font.uniform") != plain && width(".font.alt") != plain && width(".font.upper") > plain;
                 });
-                t.expect("minecraft:uniform and minecraft:alt are fonts the game has", () ->
+                t.expect("minecraft:uniform, minecraft:alt and the bundled fonts are fonts the game has", () ->
                         Playtest.document().diagnostics().entries().stream().noneMatch(d -> d.code().id().equals("layout/unknown-font")));
+                // Fails if a bundled font does not reach measuring: both lines would take the default font's width.
+                t.expect("the two bundled fonts lay the same line out apart", () -> {
+                    float orbitron = width(".font.orbitron");
+                    return orbitron > 0 && orbitron != width(".font.mono");
+                });
+                // Fails if the face's glyphs, or the Chinese it lacks, are not drawn: part of the line stays dark.
+                t.expect("a bundled font draws its glyphs, and the Chinese it lacks in the default font", () -> {
+                    LayoutBox b = Playtest.box(".font.orbitron");
+                    try (NativeImage image = screenshot()) {
+                        return lit(image, b, 0, 0.5f) > 10 && lit(image, b, 0.8f, 1) > 10;
+                    }
+                });
                 // Fails if a § is read as a formatting code when measuring: the line would take no room.
                 t.expect("a § is text, measured as drawn", () -> width(".font.codes") > 0);
                 // Fails if small text is measured at the size written rather than drawn at a crisp one: its
@@ -572,6 +584,21 @@ public final class EffectsPlaytest {
 
     private static NativeImage screenshot() {
         return Screenshot.takeScreenshot(Minecraft.getInstance().getMainRenderTarget());
+    }
+
+    /** The screen pixels in {@code b}, between the fractions {@code from} and {@code to} of its width, lit like text. */
+    private static int lit(NativeImage image, LayoutBox b, float from, float to) {
+        double s = Minecraft.getInstance().getWindow().getGuiScale();
+        int n = 0;
+        for (int y = (int) (b.y() * s); y < (int) ((b.y() + b.height()) * s); y++) {
+            for (int x = (int) ((b.x() + b.width() * from) * s); x < (int) ((b.x() + b.width() * to) * s); x++) {
+                int[] c = rgb(image.getPixelRGBA(x, y));
+                if (c[0] > 120 && c[1] > 120 && c[2] > 120) {
+                    n++;
+                }
+            }
+        }
+        return n;
     }
 
     /** The color of {@code image} at GUI point {@code (x, y)}, ABGR. */

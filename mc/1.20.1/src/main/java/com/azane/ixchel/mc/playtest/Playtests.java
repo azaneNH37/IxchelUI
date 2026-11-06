@@ -4,7 +4,10 @@ import com.azane.ixchel.core.api.HostApi;
 import com.azane.ixchel.core.playtest.Pump;
 import com.azane.ixchel.core.playtest.PlaytestRun;
 import com.mojang.logging.LogUtils;
+import com.mojang.text2speech.Narrator;
+import net.minecraft.client.GameNarrator;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.NarratorStatus;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.tutorial.TutorialSteps;
@@ -102,6 +105,8 @@ public final class Playtests {
         Minecraft mc = Minecraft.getInstance();
         // In a fresh game directory the first screen would ask about accessibility, not the title screen.
         mc.options.onboardAccessibility = false;
+        // Not saved; off before the game makes its narrator, see silenceNarrator.
+        mc.options.narrator().set(NarratorStatus.OFF);
         // Not saved: the developer's own language stays in options.txt.
         mc.options.languageCode = "en_us";
         if (mc.getLanguageManager() != null) {
@@ -162,6 +167,7 @@ public final class Playtests {
         if (mc.player == null) {
             if (!worldOpened && mc.screen instanceof TitleScreen title) {
                 worldOpened = true;
+                silenceNarrator(mc);
                 if (recorder != null) {
                     recorder.prepareWindow();
                 }
@@ -179,6 +185,20 @@ public final class Playtests {
         if (run.tick()) {
             done = true;
             finish(mc);
+        }
+    }
+
+    /**
+     * Replaces the narrator with the speech library's silent one: an unattended run never speaks, and
+     * the system speech library cannot stall it, nor its shutdown. Its status was turned off in memory
+     * before the game made it, so the game did not ask, in a blocking dialog, whether to go on without
+     * a speech library that failed to start.
+     */
+    private static void silenceNarrator(Minecraft mc) {
+        try {
+            GameClock.field(GameNarrator.class, "narrator", "f_93313_").set(mc.getNarrator(), Narrator.EMPTY);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(e);
         }
     }
 

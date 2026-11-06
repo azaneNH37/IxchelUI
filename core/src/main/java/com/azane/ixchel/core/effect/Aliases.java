@@ -113,7 +113,7 @@ public final class Aliases {
             }
             keyframes.add(new ParsedSheet.Keyframes(k.name(), frames, k.pos()));
         }
-        return new ParsedSheet(sheet.kind(), sheet.links(), rules, keyframes);
+        return new ParsedSheet(sheet.kind(), sheet.links(), rules, keyframes, sheet.fontFaces());
     }
 
     /** {@code declarations} with the aliases they write as internal names; unknown ones are reported and kept. */

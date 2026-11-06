@@ -289,8 +289,10 @@ public final class CssProperties {
     public static final PropertyDef<FontWeight> FONT_WEIGHT = R.register("font-weight", keyword(FontWeight.class), FontWeight.NORMAL, true, true, false);
     public static final PropertyDef<FontStyle> FONT_STYLE = R.register("font-style", keyword(FontStyle.class), FontStyle.NORMAL, true, false, false);
     /**
-     * Minecraft font ids ({@code minecraft:uniform}), the first one the host has is used; empty (the
-     * initial value) is the host's default font. A bound {@code Component}'s own font wins over it.
+     * Font names, each an {@code @font-face} family of the document or a Minecraft font id
+     * ({@code minecraft:uniform}; {@code uniform} without a face of that name); the first one the host
+     * has is used; empty (the initial value) is the host's default font. A bound {@code Component}'s
+     * own font wins over it.
      */
     public static final PropertyDef<List<String>> FONT_FAMILY =
             R.register("font-family", Syntaxes.fontFamily(), List.of(), true, true, false);

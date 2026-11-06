@@ -68,7 +68,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | CSS1 | 完成 | effects 页 CSS 标签 | 低难度 CSS 补齐：`outline`、`letter-spacing`、`inset`、`radial-gradient`/`conic-gradient`/`repeating-*-gradient`、`background-position` 可动画、`skew`、`aspect-ratio`；结果见下文 |
 | CSS2 | 完成 | effects 页遮罩标签 | 图层遮罩类：`clip-path`、`mask-image`、`background-clip: text`；结果见下文 |
 | TH5 | 完成 | themes | 主题重做：`holo` 按 CodePen 参考重做，`cyber` 换成 `amber`（飞船 HUD）；结果见下文 |
-| FT | 待做 | effects 页、themes | 内置字体：库自带 OFL 字体与 `@font-face`，缺字回退，兼容 ModernUI；见下文 |
+| FT | 完成 | effects 页、themes | 内置字体：库自带 OFL 字体与 `@font-face`，缺字回退，兼容 ModernUI；结果见下文 |
 
 依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1 → RS → TH2、TH3（彼此独立），TH2–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → L5 → L6，L5 → TH1（`@ixchel/themes/` 走统一解析），L5 → U4（`ix-*` 组件进 core 的库）；REC 只依赖 T2，与 CSS1 互不依赖，可并行；CSS1 → CSS2（图层遮罩复用 CSS1 的渐变绘制）。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
@@ -540,6 +540,14 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 - 动机：主题与展示需要非 MC 字体；内置主题不能带固定命名空间的 `assets/`（#001）。
 - 先定（开工时）：字体文件放 classpath，由 mc 层自建字形来源与 `FontSet`，不经资源包；CSS 侧 `@font-face`；缺字回退到 MC 默认字体，测量与绘制同一套回退；装 ModernUI 时的行为；只收 SIL OFL 字体，原样内置不做子集，授权文本随 jar 带上。
 - 验收：两版各显示一种内置字体；中英混排缺字回退正确；装与不装 MUI 排版一致或差异写明；`-Pplaytest=all`；1.21.1 冒烟。
+- 结果（2026-11-07）：完成；与先定的出入是不建 `FontSet`。
+  - core：`@font-face { font-family; src: url() }` 只收这两个描述符，`src` 为 `.ttf`/`.otf`，名字不含 `:`；不合规报 `css/invalid-font-face` 并跳过。`src` 与 `@link` 同样解析（库 `@ixchel/fonts/...` 或相对本 css 文件）。`font-family` 中不带命名空间的名字先找本文档的 `@font-face`，再当 `minecraft:` 字体 id；`layout/unknown-font` 按解析后的 id 判断。`Library` 新增按 id 读字节。
+  - 库字体：`@ixchel/fonts/orbitron.ttf`、`share-tech-mono.ttf`，原样内置，OFL 文本放在同目录（`*-OFL.txt`），`NOTICE` 写明。
+  - mc 层（两版同一份 `Face`）：用 LWJGL STB 自己栅格化，字形按"每字形像素占整数个物理像素"的字号烘焙进每宿主一张的遮罩图集（`MaskAtlas.region` 对宿主开放），绘制为整物理像素对齐的四边形；粗体错开一个字形像素再画一遍，斜体错切，下划线与删除线位置同原版。字体缺的字成段交给 `Font` 测量与绘制，两边走同一条路径。不建 `FontSet` 的原因：构造与 `reload` 两版不同（1.20.1 STB、1.21.1 FreeType），且 `Font` 正是 MUI 的 mixin 对象；自绘绕开两者，并复用现有图集。
+  - 主题：`holo` 标题用 Orbitron，`amber` 标题用 Share Tech Mono（`--ix-title-font`）。sample：effects 页"形状与文字"页签加两种字体的中英混排样例；1.21.1 弹药 HUD 的数字改用 Share Tech Mono。
+  - ModernUI：未在装 MUI 的实例实测。[推断] 内置字体的字形不经 `Font`，MUI 不影响；缺字段经 `Font`，装 MUI 时画成 MUI 的默认字体，测量同样经 MUI，排版仍一致。
+  - 验证：core、kit 测试与 `build`（含两版 lint）通过；`-Pplaytest=effects` 78 项、`themes` 21 项通过，截图逐张查看；1.21.1 经临时入口打开含两种字体的页面截图，中英回退正确，入口已删。`-Pplaytest=all` 15 项 317 断言通过、2 项失败，均为 env、storage 的帧时间预算；同一会话中不含 FT 的 `de8238e` 跑 env、storage 同样超预算、数值相当（storage 中位 13.0 ms 对 13.8 ms），判定为本机负载，预算未动。
+  - 同批：playtest 运行时在原版造 narrator 之前把 `narrator` 选项设为 OFF，并在进世界前把 `GameNarrator.narrator` 换成 `Narrator.EMPTY`；无人值守运行时系统语音库初始化失败会弹阻塞对话框卡住测试。
 
 #### Doc 用户文档
 

@@ -147,4 +147,19 @@ class CssParserTest {
         assertEquals(new SourcePos("hud.html", 5, 19), decls.get(0).value().get(0).pos());
         assertEquals(List.of("css/missing-colon@hud.html:6:16"), DiagCodes.of(diag));
     }
+
+    @Test
+    void fontFaceWithoutOneNameAndOneFontFileIsAnErrorAndSkipped() {
+        Diagnostics diag = new Diagnostics();
+        ParsedSheet sheet = CssParser.parseStylesheet("""
+                @font-face { font-family: "A"; src: url("a.png") }
+                @font-face { font-family: "a:b"; src: url("b.ttf") }
+                @font-face { font-family: "C"; src: url("c.otf"); font-weight: bold }
+                @font-face { src: url("d.ttf") }
+                @font-face { font-family: E; src: url(e.ttf) }
+                """, "t.css", diag);
+        assertEquals(List.of(new ParsedSheet.FontFace("E", "e.ttf", new SourcePos("t.css", 5, 1))), sheet.fontFaces());
+        assertEquals(List.of("css/invalid-font-face@t.css:1:32", "css/invalid-font-face@t.css:2:14",
+                "css/invalid-font-face@t.css:3:51", "css/invalid-font-face@t.css:4:1"), DiagCodes.of(diag));
+    }
 }
