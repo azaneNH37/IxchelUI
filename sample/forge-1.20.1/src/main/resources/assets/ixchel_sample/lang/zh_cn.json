@@ -111,6 +111,8 @@
   "ixchel_sample.quests.state.open": "进行中",
   "ixchel_sample.quests.state.locked": "未解锁：先完成前置任务",
 
+  "ixchel_sample.storage.most": "存量最多",
+  "ixchel_sample.storage.total": "物品总数",
   "ixchel_sample.storage.search": "搜索，@模组",
   "ixchel_sample.storage.sort_by": "排序方式",
   "ixchel_sample.storage.ascending": "升序",
