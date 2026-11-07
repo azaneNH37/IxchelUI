@@ -1,31 +1,51 @@
 <link href="terminal.css"/>
 <link href="@ixchel/mc/player-inventory.html"/>
 <link href="@ixchel/mc/tooltip-lines.html"/>
+<link href="@ixchel/components/bar.html"/>
 <page>
   <div class="ix-panel">
-    <div class="header">
-      <span class="ix-title" t="item.ixchel_sample.storage_terminal"></span>
-      <span class="summary" bind:text="shown.size + ' / ' + contents.size"></span>
-    </div>
-    <div class="tools">
-      <input class="search" bind:value="query" t:placeholder="ixchel_sample.storage.search" maxlength="50"/>
-      <button class="sort" t:title="ixchel_sample.storage.sort_by" on:click="cycleSort"><span bind:text="sortLabel"></span></button>
-      <button class="direction" on:click="descending = !descending"><if test="descending"><span t="ixchel_sample.storage.descending"></span></if><else><span t="ixchel_sample.storage.ascending"></span></else></button>
-    </div>
-    <!-- Clicks on the grid store the carried stack (right: one of it); on a cell they take when nothing is carried. -->
-    <div class="view" bind:scrolltop="scroll" on:click="store" on:click.right="storeOne">
-      <div class="content" bind:style:height="contentHeight" bind:style:padding-top="padTop">
-        <div class="rows">
-          <for each="visibleCells" as="c" key="c.id"><div class="cell"
-               on:click.left="take(c)" on:click.right="takeHalf(c)" on:click.left.shift="toInventory(c)">
-            <mc-item class="icon" bind:item="c.stack"><span class="count" bind:text="c.count"></span></mc-item>
-          </div></for>
+    <div class="network">
+      <div class="header">
+        <span class="ix-title" t="item.ixchel_sample.storage_terminal"></span>
+        <span class="summary" bind:text="shown.size + ' / ' + contents.size"></span>
+      </div>
+      <div class="tools">
+        <input class="search" bind:value="query" t:placeholder="ixchel_sample.storage.search" maxlength="50"/>
+        <button class="sort" t:title="ixchel_sample.storage.sort_by" on:click="cycleSort"><span bind:text="sortLabel"></span></button>
+        <button class="direction" on:click="descending = !descending"><if test="descending"><span t="ixchel_sample.storage.descending"></span></if><else><span t="ixchel_sample.storage.ascending"></span></else></button>
+      </div>
+      <!-- Clicks on the grid store the carried stack (right: one of it); on a cell they take when nothing is carried. -->
+      <div class="view" bind:scrolltop="scroll" on:click="store" on:click.right="storeOne">
+        <div class="content" bind:style:height="contentHeight" bind:style:padding-top="padTop">
+          <div class="rows">
+            <for each="visibleCells" as="c" key="c.id"><div class="cell"
+                 on:click.left="take(c)" on:click.right="takeHalf(c)" on:click.left.shift="toInventory(c)">
+              <mc-item class="icon" bind:item="c.stack"><span class="count" bind:text="c.count"></span></mc-item>
+            </div></for>
+          </div>
         </div>
       </div>
     </div>
-    <!-- Three of the four inventory rows in view; the wheel scrolls to the hotbar. Ixchel draws the items, clipped. -->
-    <div class="inventory">
-      <mc-player-inventory bind:menu="menu"></mc-player-inventory>
+    <div class="side">
+      <span class="label" t="ixchel_sample.storage.most"></span>
+      <div class="stats">
+        <div class="hero"><mc-item class="model" bind:item="hero" spin="60"></mc-item></div>
+        <div class="top">
+          <for each="top" as="r" key="r.id"><div class="top-row">
+            <mc-item class="top-icon" bind:item="r.stack"></mc-item>
+            <div class="top-text">
+              <div class="top-line"><span class="top-name" bind:text="r.name"></span><span class="top-count" bind:text="r.count"></span></div>
+              <ix-bar class="share" bind:value="r.share" bind:max="1"></ix-bar>
+            </div>
+          </div></for>
+        </div>
+      </div>
+      <div class="total"><span t="ixchel_sample.storage.total"></span><span class="total-count" bind:text="totalText"></span></div>
+      <span class="label" t="container.inventory"></span>
+      <!-- Three of the four inventory rows in view; the wheel scrolls to the hotbar. Ixchel draws the items, clipped. -->
+      <div class="inventory">
+        <mc-player-inventory bind:menu="menu"></mc-player-inventory>
+      </div>
     </div>
   </div>
 </page>

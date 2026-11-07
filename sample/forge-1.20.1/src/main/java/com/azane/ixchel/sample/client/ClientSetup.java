@@ -3,12 +3,15 @@ package com.azane.ixchel.sample.client;
 import com.azane.ixchel.core.runtime.UiRegistry;
 import com.azane.ixchel.mc.UiRegistries;
 import com.azane.ixchel.sample.IxchelSampleMod;
+import com.azane.ixchel.sample.boss.BossHud;
 import com.azane.ixchel.sample.character.CharacterScreen;
 import com.azane.ixchel.sample.client.index.SampleIndex;
 import com.azane.ixchel.sample.config.ConfigScreen;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
+import com.azane.ixchel.sample.reel.ReelBanner;
+import com.azane.ixchel.sample.spell.SpellWheel;
 import com.azane.ixchel.sample.storage.TerminalScreen;
 import com.azane.ixchel.sample.tooltips.GaugeElement;
 import com.azane.ixchel.sample.waypoints.WaypointsScreen;
@@ -44,11 +47,14 @@ public final class ClientSetup {
         }));
         EnvHud.register(modBus);
         LootScreens.register(modBus);
+        BossHud.register(modBus);
+        ReelBanner.register(modBus);
         ConfigScreen.registerFactory(context);
         KEYS.put(KeyBindings.INDEX, SampleIndex::open);
         KEYS.put(KeyBindings.CHARACTER, CharacterScreen::open);
         KEYS.put(KeyBindings.LOOT_LIST, LootScreens::openList);
         KEYS.put(KeyBindings.WAYPOINTS, WaypointsScreen::open);
+        KEYS.put(KeyBindings.SPELL, SpellWheel::open);
         MinecraftForge.EVENT_BUS.addListener(ClientSetup::onClientTick);
     }
 

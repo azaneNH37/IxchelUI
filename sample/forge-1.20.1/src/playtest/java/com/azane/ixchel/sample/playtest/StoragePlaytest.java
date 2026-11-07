@@ -44,6 +44,10 @@ public final class StoragePlaytest {
      */
     private static final double SCROLL_BUDGET_US = 14000;
     private static final int HIDDEN_BELOW = -1000;
+    /** Stored in more stacks than the one every kind has, most first: the side column's list. */
+    private static final Item[] EXTRA = {Items.REDSTONE, Items.IRON_INGOT, Items.OAK_LOG, Items.GLOWSTONE_DUST};
+    private static final int[] EXTRA_STACKS = {40, 25, 14, 8};
+    private static final List<String> MOST = List.of("Redstone Dust", "Iron Ingot", "Oak Log", "Glowstone Dust");
 
     private static final List<BlockPos> chests = new ArrayList<>();
     /** Kinds placed in the chests, and how many of them are from minecraft. */
@@ -54,19 +58,7 @@ public final class StoragePlaytest {
 
     public static void register(Playtests playtests) {
         playtests.register("storage", s -> {
-            s.server(StoragePlaytest::fill);
-            s.server(p -> p.getInventory().setItem(0, new ItemStack(ModItems.STORAGE_TERMINAL.get())));
-            s.waitUntil("terminal in the hand", () -> {
-                var player = Minecraft.getInstance().player;
-                player.getInventory().selected = 0;
-                return player.getMainHandItem().is(ModItems.STORAGE_TERMINAL.get());
-            }, Playtest.WAIT);
-            // The real right-click path: the client uses the item, the server opens the menu.
-            s.run(() -> Minecraft.getInstance().gameMode.useItem(Minecraft.getInstance().player, InteractionHand.MAIN_HAND));
-            // Fails if the scan misses chests, the first sync is not a full snapshot, or the view has errors.
-            s.waitUntil("terminal open without errors, every kind synced", () -> Playtest.menu(TerminalMenu.class) != null
-                    && Playtest.document().diagnostics().errorCount() == 0
-                    && Playtest.text(".summary").equals(kinds[0] + " / " + kinds[0]), 40);
+            setUp(s);
             s.run(() -> s.record("every item fits the chests: " + kinds[0] + " kinds",
                     kinds[0] == BuiltInRegistries.ITEM.size() - 1 && kinds[0] > 1000));
             // Fails if the grid builds a cell per entry instead of only the rows in view.
@@ -74,8 +66,14 @@ public final class StoragePlaytest {
                     + view().maxScrollTop(), Playtest.query(".cell").size() == BUILT_CELLS
                     && view().maxScrollTop() == rows(kinds[0]) * CELL - 6 * CELL));
             s.expect("every inventory slot placed", () -> Playtest.query("mc-slot").size() == 36);
+            // Fails if the side column does not rank the kinds by their total count.
+            s.expect("the most stored kinds, most first, with the total", () ->
+                    Playtest.texts(".top-name").equals(MOST) && Playtest.text(".top-count").equals("2.6k"));
             s.hover(".cell mc-item");
             s.shot("storage-open");
+            s.take("storage", StoragePlaytest::showcase);
+            s.waitUntil("the showcase leaves the grid at the top, unfiltered", () -> view().scrollTop() == 0
+                    && Playtest.text(".summary").equals(kinds[0] + " / " + kinds[0]), Playtest.WAIT);
 
             // Fails if the built rows do not follow the scroll offset (a blank or stale view).
             s.scroll(".view", -1);
@@ -130,8 +128,8 @@ public final class StoragePlaytest {
             s.waitUntil("by count, ascending: a single stack first", () -> Playtest.text(".sort span").equals("Count")
                     && Playtest.text(".count").equals("1"), Playtest.WAIT);
             s.click(".direction");
-            s.waitUntil("by count, descending: a full 64 first", () -> Playtest.text(".direction span").equals("Desc")
-                    && Playtest.text(".count").equals("64"), Playtest.WAIT);
+            s.waitUntil("by count, descending: the 41 stacks of redstone first", () -> Playtest.text(".direction span").equals("Desc")
+                    && Playtest.text(".count").equals("2.6k"), Playtest.WAIT);
             s.click(".sort");
             s.waitUntil("by mod, descending: minecraft first", () -> Playtest.text(".sort span").equals("Mod")
                     && mod(shownStacks().get(0)).equals("minecraft"), Playtest.WAIT);
@@ -191,11 +189,54 @@ public final class StoragePlaytest {
             s.shot("storage-inventory");
             s.run(() -> Playtest.hoverAt(0, 0));
 
-            // Moving the terminal out of the hand closes the menu.
-            s.server(p -> p.getInventory().setItem(0, ItemStack.EMPTY));
-            s.waitUntil("terminal out of the hand: the screen closes", () -> Playtest.menu(TerminalMenu.class) == null, 40);
-            s.server(StoragePlaytest::clear);
+            tearDown(s);
         });
+    }
+
+    /** Setup, showcase and teardown, for the reel. */
+    static void scene(Playtest s) {
+        setUp(s);
+        showcase(s);
+        tearDown(s);
+    }
+
+    private static void setUp(Playtest s) {
+        s.server(StoragePlaytest::fill);
+        s.server(p -> p.getInventory().setItem(0, new ItemStack(ModItems.STORAGE_TERMINAL.get())));
+        s.waitUntil("terminal in the hand", () -> {
+            var player = Minecraft.getInstance().player;
+            player.getInventory().selected = 0;
+            return player.getMainHandItem().is(ModItems.STORAGE_TERMINAL.get());
+        }, Playtest.WAIT);
+        // The real right-click path: the client uses the item, the server opens the menu.
+        s.run(() -> Minecraft.getInstance().gameMode.useItem(Minecraft.getInstance().player, InteractionHand.MAIN_HAND));
+        // Fails if the scan misses chests, the first sync is not a full snapshot, or the view has errors.
+        s.waitUntil("terminal open without errors, every kind synced", () -> Playtest.menu(TerminalMenu.class) != null
+                && Playtest.document().diagnostics().errorCount() == 0
+                && Playtest.text(".summary").equals(kinds[0] + " / " + kinds[0]), 40);
+    }
+
+    private static void showcase(Playtest t) {
+        t.hold(1500);
+        for (int i = 0; i < 24; i++) {
+            t.scroll(".view", -1);
+        }
+        t.hold(600);
+        t.click(".search");
+        t.type("diamond");
+        t.hold(1500);
+        t.key(GLFW.GLFW_KEY_A, Keys.MOD_CTRL);
+        t.type("@ixchel_sample");
+        t.hold(1500);
+        t.key(GLFW.GLFW_KEY_A, Keys.MOD_CTRL);
+        t.key(GLFW.GLFW_KEY_BACKSPACE);
+        t.hold(800);
+    }
+
+    private static void tearDown(Playtest s) {
+        s.server(p -> p.getInventory().setItem(0, ItemStack.EMPTY));
+        s.waitUntil("terminal out of the hand: the screen closes", () -> Playtest.menu(TerminalMenu.class) == null, 40);
+        s.server(StoragePlaytest::clear);
     }
 
     /** Two layers of chests, 7 by 7, under the player, filled with a full stack of every item in registry order. */
@@ -231,6 +272,18 @@ public final class StoragePlaytest {
             kinds[0]++;
             if (BuiltInRegistries.ITEM.getKey(item).getNamespace().equals("minecraft")) {
                 kinds[1]++;
+            }
+        }
+        // More stacks of a few, for the most stored list.
+        for (int i = 0; i < EXTRA.length; i++) {
+            for (int n = 0; n < EXTRA_STACKS[i]; n++) {
+                if (slot == 27) {
+                    slot = 0;
+                    chest++;
+                }
+                if (chest < chests.size() && l.getBlockEntity(chests.get(chest)) instanceof ChestBlockEntity be) {
+                    be.setItem(slot++, new ItemStack(EXTRA[i], 64));
+                }
             }
         }
     }

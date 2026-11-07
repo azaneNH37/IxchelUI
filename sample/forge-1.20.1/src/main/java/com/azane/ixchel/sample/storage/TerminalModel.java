@@ -44,6 +44,12 @@ final class TerminalModel extends ViewModel {
     record Tile(int id, StoredItem item, ItemStack stack, String count) {
     }
 
+    /** One of the most stored kinds; {@code share}: its count as a part of the first one's, 0 to 1. */
+    record Top(int id, ItemStack stack, String name, String count, double share) {
+    }
+
+    static final int TOP = 4;
+
     private final int containerId;
 
     final Cell<AbstractContainerMenu> menu;
@@ -60,6 +66,10 @@ final class TerminalModel extends ViewModel {
     final Derived<Integer> contentHeight;
     final Derived<Integer> padTop;
     final Derived<Component> sortLabel;
+    final Derived<List<Top>> top;
+    final Derived<String> totalText;
+    /** The most stored kind, turning over the list. */
+    final Derived<ItemStack> hero;
 
     final Action<Void> cycleSort = action(() -> sortKey.set(SortKey.values()[(sortKey.get().ordinal() + 1) % SortKey.values().length]));
     final Action<Tile> take = action((Tile c) -> take(c, TakePacket.Mode.STACK));
@@ -80,6 +90,9 @@ final class TerminalModel extends ViewModel {
         contentHeight = derive(shown, s -> rows(s.size()) * CELL);
         padTop = derive(scroll, s -> s / CELL * CELL);
         sortLabel = derive(sortKey, SortKey::label);
+        top = derive(contents, TerminalModel::top);
+        hero = derive(top, l -> l.isEmpty() ? ItemStack.EMPTY : l.get(0).stack());
+        totalText = derive(contents, c -> abbreviate(c.stream().mapToLong(Entry::value).sum()));
         // A new search starts at the top.
         subscribe(query, () -> scroll.set(0));
     }
@@ -136,6 +149,17 @@ final class TerminalModel extends ViewModel {
         List<Tile> out = new ArrayList<>(to - from);
         for (Entry<StoredItem, Long> e : shown.subList(from, to)) {
             out.add(new Tile(e.id(), e.identity(), e.identity().stack(), abbreviate(e.value())));
+        }
+        return out;
+    }
+
+    private static List<Top> top(List<Entry<StoredItem, Long>> all) {
+        List<Entry<StoredItem, Long>> most = all.stream()
+                .sorted(Comparator.<Entry<StoredItem, Long>>comparingLong(Entry::value).reversed()).limit(TOP).toList();
+        List<Top> out = new ArrayList<>(most.size());
+        for (Entry<StoredItem, Long> e : most) {
+            out.add(new Top(e.id(), e.identity().stack(), e.identity().name(), abbreviate(e.value()),
+                    e.value() / (double) most.get(0).value()));
         }
         return out;
     }

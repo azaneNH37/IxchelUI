@@ -72,9 +72,13 @@ final class ScreenInput implements InputPort {
         return new float[]{(float) (mc.mouseHandler.xpos() / scale), (float) (mc.mouseHandler.ypos() / scale)};
     }
 
+    /** With no screen open (a take of a HUD) there is nothing to hover: {@link #pointAt} placed the cursor. */
     @Override
     public void mouseMoved(double x, double y) {
-        screen().mouseMoved(x, y);
+        Screen s = Minecraft.getInstance().screen;
+        if (s != null) {
+            s.mouseMoved(x, y);
+        }
     }
 
     @Override

@@ -1,0 +1,59 @@
+<link href="bench.css"/>
+<link href="@ixchel/components/search.html"/>
+<link href="@ixchel/components/tabs.html"/>
+<link href="@ixchel/components/tab.html"/>
+<link href="@ixchel/components/stepper.html"/>
+<link href="@ixchel/components/bar.html"/>
+<page>
+  <div class="ix-panel bench">
+    <div class="head">
+      <span class="ix-title" t="ixchel_sample.workbench.title"></span>
+      <span class="ix-muted tagline" t="ixchel_sample.workbench.tagline"></span>
+    </div>
+    <div class="cols">
+      <div class="left">
+        <ix-search class="search" bind:value="query" t:placeholder="ixchel_sample.workbench.search"></ix-search>
+        <ix-tabs class="cats" bind:value="category">
+          <ix-tab class="cat-all" value="all" t:label="ixchel_sample.workbench.all"></ix-tab>
+          <ix-tab class="cat-tools" value="tools" t:label="ixchel_sample.workbench.tools"></ix-tab>
+          <ix-tab class="cat-devices" value="devices" t:label="ixchel_sample.workbench.devices"></ix-tab>
+          <ix-tab class="cat-wonders" value="wonders" t:label="ixchel_sample.workbench.wonders"></ix-tab>
+        </ix-tabs>
+        <div class="ix-well list">
+          <for each="shown" as="r" key="r.id"><div class="ix-row recipe" bind:class:ix-selected="r.id == selected"
+               bind:class:short="!r.craftable" on:click="selected = r.id; times = 1">
+            <mc-item class="icon" bind:item="r.result" decorations="none"></mc-item>
+            <span class="name" bind:text="r.name"></span>
+            <span class="ready"></span>
+          </div></for>
+          <empty><span class="ix-muted none" t="ixchel_sample.workbench.none"></span></empty>
+        </div>
+      </div>
+      <div class="right">
+        <div class="top">
+          <div class="info">
+            <span class="result-name" bind:text="current.name"></span>
+            <span class="ix-muted yield" bind:text="current.max > 0 ? '×' + current.yield + '   max ' + current.max : '×' + current.yield"></span>
+          </div>
+          <ix-stepper class="times" bind:value="times" bind:min="1" bind:max="current.max < 1 ? 1 : current.max"></ix-stepper>
+          <button class="craft" bind:class:ix-busy="phase == 'busy'" bind:class:ix-done="phase == 'done'"
+                  bind:disabled="!canCraft" on:click="craft" t="ixchel_sample.workbench.craft"></button>
+        </div>
+        <div class="stage" bind:class:assembling="phase == 'busy'" bind:class:flash="phase == 'done'">
+          <div class="ring outer"></div>
+          <div class="ring inner"></div>
+          <mc-item class="model" bind:item="current.result" spin="50"></mc-item>
+          <ix-bar class="charge" bind:value="progress" bind:max="100"></ix-bar>
+        </div>
+        <div class="mats">
+          <for each="materials" as="m" key="m.index"><div class="mat" bind:class:ix-invalid="!m.enough">
+            <mc-item-cycle class="icon" bind:items="m.options" interval="900" decorations="none"></mc-item-cycle>
+            <span class="mat-name" bind:text="m.name"></span>
+            <span class="count" bind:text="m.have + ' / ' + m.need"></span>
+            <ix-bar class="mat-bar" bind:value="m.have" bind:max="m.need"></ix-bar>
+          </div></for>
+        </div>
+      </div>
+    </div>
+  </div>
+</page>

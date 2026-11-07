@@ -1,0 +1,33 @@
+<link href="wheel.css"/>
+<link href="@ixchel/components/bar.html"/>
+<page>
+  <div class="wheel">
+    <div class="ring outer">
+      <for each="outerRunes" as="r" key="r.id"><span class="rune" bind:style:left="r.left" bind:style:top="r.top"
+            bind:style:transform="'rotate(' + r.turn + 'deg)'" bind:text="r.glyph"></span></for>
+    </div>
+    <div class="ring inner">
+      <for each="innerRunes" as="r" key="r.id"><span class="rune" bind:style:left="r.left" bind:style:top="r.top"
+            bind:style:transform="'rotate(' + r.turn + 'deg)'" bind:text="r.glyph"></span></for>
+    </div>
+    <div class="needle" bind:class:shown="wheel.selected >= 0" bind:style:transform="'rotate(' + wheel.angle + 'deg)'"></div>
+    <for each="wheel.sectors" as="s" key="s.index"><div class="sector" bind:style:left="s.left" bind:style:top="s.top"
+         bind:class:selected="s.selected" bind:class:ix-invalid="!s.affordable" bind:class:cooling="s.seconds != ''"
+         on:click="pick(s)">
+      <div class="cooldown" bind:style:--Cooldown-progress="s.cooldown"></div>
+      <mc-item class="icon" bind:item="s.icon"></mc-item>
+      <span class="cost" bind:text="s.cost"></span>
+      <span class="seconds" bind:text="s.seconds"></span>
+      <div class="hit"></div>
+    </div></for>
+    <div class="core">
+      <for each="wheel.sectors" as="s" key="s.index"><div class="readout" bind:class:shown="s.selected">
+        <span class="name ix-title" bind:class:blocked="wheel.blocked" bind:text="s.name"></span>
+        <span class="price" t="ixchel_sample.spell.cost"><span bind:text="s.cost"></span></span>
+      </div></for>
+      <span class="hint" bind:class:shown="wheel.selected < 0" t="ixchel_sample.spell.hint"></span>
+      <ix-bar class="mana" bind:value="wheel.mana" bind:max="manaMax"></ix-bar>
+      <span class="mana-text" bind:text="wheel.manaText"></span>
+    </div>
+  </div>
+</page>

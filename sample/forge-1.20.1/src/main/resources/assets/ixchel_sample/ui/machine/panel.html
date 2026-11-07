@@ -2,49 +2,89 @@
 <link href="@ixchel/mc/player-inventory.html"/>
 <link href="@ixchel/mc/tooltip-lines.html"/>
 <link href="@ixchel/components/bar.html"/>
+<link href="@ixchel/components/tabs.html"/>
+<link href="@ixchel/components/tab.html"/>
+<link href="@ixchel/components/cycle.html"/>
+<link href="@ixchel/components/stepper.html"/>
 <page>
-  <div class="ix-panel" state:sidesOpen="false">
-    <div class="header">
-      <span class="ix-title" t="block.ixchel_sample.powered_stonecutter"></span>
-      <span class="status" bind:class:bad="statusBad" bind:text="statusText"></span>
-    </div>
-    <div class="body">
-      <ix-bar class="bar energy" bind:value="machine.energy" bind:max="energyCapacity" dir="up" bind:title="energyText"></ix-bar>
-      <ix-bar class="bar tank" bind:value="machine.water" bind:max="waterCapacity" dir="up" bind:title="waterText"
-              bind:style:--water-tint="waterColor"></ix-bar>
-      <div class="feed">
-        <mc-slot class="slot" bind:menuslot="waterSlot" t:title="ixchel_sample.machine.water_slot"></mc-slot>
-        <div class="flame">
-          <div class="flame-fill" bind:style:height="flameHeight" bind:style:background-position-y="flameY"></div>
-        </div>
-        <mc-slot class="slot" bind:menuslot="fuelSlot" t:title="ixchel_sample.machine.fuel_slot"></mc-slot>
+  <div class="ix-panel">
+    <div class="machine">
+      <div class="header">
+        <span class="ix-title" t="block.ixchel_sample.powered_stonecutter"></span>
+        <span class="status" bind:class:bad="statusBad" bind:class:ix-busy="running" bind:class:jammed="outputFull"
+              bind:text="statusText"></span>
       </div>
-      <div class="work">
-        <div class="io">
-          <mc-slot class="slot" bind:menuslot="inputSlot"></mc-slot>
-          <div class="arrow">
-            <div class="arrow-fill" bind:style:width="arrowWidth"></div>
+      <ix-tabs class="tabs" bind:value="tab">
+        <ix-tab class="tab-run" value="run" t:label="ixchel_sample.machine.tab.run"></ix-tab>
+        <ix-tab class="tab-config" value="config" t:label="ixchel_sample.machine.tab.config"></ix-tab>
+        <ix-tab class="tab-upgrades" value="upgrades" t:label="ixchel_sample.machine.tab.upgrades"></ix-tab>
+      </ix-tabs>
+      <div class="page run" bind:class:shown="tab == 'run'">
+        <div class="energy-wrap">
+          <ix-bar class="bar energy" bind:value="machine.energy" bind:max="energyCapacity" dir="up"></ix-bar>
+          <ix-tooltip class="energy-tip">
+            <span class="tip-title" t="ixchel_sample.machine.energy"></span>
+            <span bind:text="energyText"></span>
+          </ix-tooltip>
+        </div>
+        <ix-bar class="bar tank" bind:value="machine.water" bind:max="waterCapacity" dir="up" bind:title="waterText"
+                bind:style:--water-tint="waterColor"></ix-bar>
+        <div class="feed">
+          <mc-slot class="slot" bind:menuslot="waterSlot" t:title="ixchel_sample.machine.water_slot"></mc-slot>
+          <div class="burn ix-well" bind:class:ix-invalid="outOfEnergy" bind:style:--Cooldown-progress="fuelLeft">
+            <mc-slot class="slot" bind:menuslot="fuelSlot" t:title="ixchel_sample.machine.fuel_slot"></mc-slot>
           </div>
-          <mc-slot class="slot output" bind:menuslot="outputSlot"></mc-slot>
         </div>
-        <div class="recipes">
-          <for each="recipes" as="r" key="r.index"><div class="recipe" bind:class:ix-selected="r.selected" bind:title="r.name"
-               on:click="pick(r)">
-            <mc-item class="icon" bind:item="r.icon"></mc-item>
-          </div></for><empty><span class="hint" t="ixchel_sample.machine.no_recipes"></span></empty>
+        <div class="work">
+          <div class="io">
+            <mc-slot class="slot" bind:menuslot="inputSlot"></mc-slot>
+            <ix-bar class="progress" bind:class:jammed="outputFull" bind:value="machine.progress" bind:max="cutTicks"></ix-bar>
+            <mc-slot class="slot output" bind:menuslot="outputSlot"></mc-slot>
+          </div>
+          <div class="recipes">
+            <for each="recipes" as="r" key="r.index"><div class="recipe" bind:class:ix-selected="r.selected" bind:title="r.name"
+                 on:click="pick(r)">
+              <mc-item class="icon" bind:item="r.icon"></mc-item>
+            </div></for><empty><span class="hint" t="ixchel_sample.machine.no_recipes"></span></empty>
+          </div>
         </div>
       </div>
+      <!-- Any edit in here sends the settings, if they changed: the switch's and the typed priority's
+           input events bubble here; the cycle's and the stepper's buttons set their value on click.
+           A click listener here would consume the switch's click and so stop it toggling. -->
+      <div class="page config" bind:class:shown="tab == 'config'" on:input="applyConfig">
+        <div class="setting">
+          <span class="label" t="ixchel_sample.machine.redstone_mode"></span>
+          <ix-cycle class="redstone" bind:value="redstone" bind:options="redstoneOptions"
+                    on:click="applyConfig" on:click.right="applyConfig"></ix-cycle>
+        </div>
+        <div class="setting">
+          <span class="label" t="ixchel_sample.machine.auto_output"></span>
+          <input type="checkbox" class="ix-switch auto-output" bind:checked="autoOutput"/>
+        </div>
+        <div class="setting">
+          <span class="label" t="ixchel_sample.machine.priority"></span>
+          <ix-stepper class="priority" bind:value="priority" bind:min="0" bind:max="priorityMax"
+                      on:click="applyConfig"></ix-stepper>
+        </div>
+        <div class="sides">
+          <for each="sideRows" as="s" key="s.side"><div class="side ix-row" on:click="cycleSide(s)">
+            <span class="face" bind:text="s.face"></span>
+            <span class="mode" bind:class:input="s.input" bind:class:output="s.output" bind:text="s.mode"></span>
+          </div></for>
+        </div>
+      </div>
+      <div class="page upgrades" bind:class:shown="tab == 'upgrades'">
+        <for each="upgrades" as="u" key="u.id"><div class="upgrade ix-well">
+          <mc-item-cycle class="upgrade-icon" bind:items="u.items" interval="800"></mc-item-cycle>
+          <div class="upgrade-text">
+            <span class="upgrade-name" bind:text="u.name"></span>
+            <span class="upgrade-effect" bind:text="u.effect"></span>
+          </div>
+        </div></for>
+      </div>
     </div>
-    <div class="buttons">
-      <button class="redstone" on:click="cycleRedstone"><span bind:text="redstoneLabel"></span></button>
-      <button class="sides-toggle" bind:class:ix-selected="sidesOpen" on:click="sidesOpen = !sidesOpen" t="ixchel_sample.machine.sides"></button>
-    </div>
-    <mc-player-inventory bind:menu="menu"></mc-player-inventory>
-    <div class="sides" bind:class:open="sidesOpen">
-      <for each="sideRows" as="s" key="s.side"><div class="side" on:click="cycleSide(s)">
-        <span class="face" bind:text="s.face"></span>
-        <span class="mode" bind:class:input="s.input" bind:class:output="s.output" bind:text="s.mode"></span>
-      </div></for>
-    </div>
+    <div class="ix-divider"></div>
+    <mc-player-inventory class="inventory" bind:menu="menu"></mc-player-inventory>
   </div>
 </page>

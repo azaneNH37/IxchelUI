@@ -1,12 +1,19 @@
-/* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. */
+/* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. The network
+   on the left; on the right the most stored kinds and the player's inventory. */
 @stylesheet;
 @link "../themes/container.css";
 @link "../common/slot.css";
 
 .ix-panel {
   margin: auto;
-  width: 186px;
+  flex-direction: row;
+  gap: 10px;
   padding: 8px;
+}
+
+.network,
+.side {
+  width: 170px;
 }
 
 .header {
@@ -85,6 +92,105 @@ button {
   font-size: 6px;
   white-space: nowrap;
   color: #FFFFFF;
+}
+
+.label {
+  color: var(--ix-text-dim);
+  margin-bottom: 2px;
+}
+
+.stats {
+  flex-direction: row;
+  gap: 4px;
+  height: 64px;
+  padding: 3px;
+  background-color: #4A4A4A;
+  border: 1px solid #373737;
+}
+
+.hero {
+  width: 44px;
+  align-items: center;
+  justify-content: center;
+}
+
+.model {
+  width: 36px;
+  height: 36px;
+}
+
+.top {
+  flex-grow: 1;
+  flex-shrink: 1;
+  justify-content: space-between;
+}
+
+.top-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 3px;
+  height: 15px;
+}
+
+.top-row:-ix-absent {
+  opacity: 0;
+}
+
+.top-row {
+  transition: opacity 300ms;
+}
+
+.top-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.top-text {
+  flex-grow: 1;
+  flex-shrink: 1;
+  gap: 1px;
+}
+
+.top-line {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 2px;
+}
+
+.top-name {
+  flex-shrink: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 6px;
+  color: #FFFFFF;
+}
+
+.top-count {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 6px;
+  color: #FFFF80;
+}
+
+.share {
+  height: 2px;
+}
+
+.share::part(fill) {
+  background-color: #80FF20;
+  transition: flex-basis 400ms ease-out;
+}
+
+.total {
+  flex-direction: row;
+  justify-content: space-between;
+  margin: 3px 0 4px 0;
+  color: var(--ix-text-dim);
+}
+
+.total-count {
+  color: var(--ix-text);
 }
 
 /* Three rows of 18px; the wheel scrolls to the hotbar. */
