@@ -126,13 +126,20 @@ public final class Painter implements PaintFacet.Context {
     }
 
     @Override
-    public float textWidth(String text, float size) { return layout.textWidth(text, size); }
+    public float textWidth(String text, ComputedStyle cs) { return layout.textWidth(text, cs); }
 
     @Override
     public float lineHeight(ComputedStyle cs) { return layout.lineHeight(cs); }
 
     @Override
     public float fontHeight(float size) { return layout.fontHeight(size); }
+
+    @Override
+    public RoundRect contentShape(Element e, float y) {
+        LayoutBox b = e.box();
+        RoundRect border = new RoundRect(b.x(), y, b.width(), b.height(), radii(e.computed(), b.width(), b.height()));
+        return clipBox(Keywords.BackgroundClip.CONTENT_BOX, b, border);
+    }
 
     /** Clears {@code out} and paints the children of the implicit root into it, then the top layer's entries. */
     public void paint(Element root, TopLayer top, DisplayList out) {
@@ -416,15 +423,16 @@ public final class Painter implements PaintFacet.Context {
         }
     }
 
-    /** One line of a control's text, over the shadow of {@code cs}'s {@code text-shadow}. */
+    /** One line of a control's text in the font of {@code cs}, over the shadow of its {@code text-shadow}. */
     public void text(DisplayList out, ComputedStyle cs, float x, float y, float size, int color, String text) {
         TextShadow shadow = cs.get(CssProperties.TEXT_SHADOW);
+        String font = layout.font(cs);
         int s = shadow.color();
         if (s >>> 24 != 0) {
-            out.add(new DrawCommand.Text(x + shadow.x(), y + shadow.y(), size, s, text, 0, null, 0));
+            out.add(new DrawCommand.Text(x + shadow.x(), y + shadow.y(), size, s, text, 0, font, 0));
         }
         if (color >>> 24 != 0) {
-            out.add(new DrawCommand.Text(x, y, size, color, text, 0, null, 0));
+            out.add(new DrawCommand.Text(x, y, size, color, text, 0, font, 0));
         }
     }
 

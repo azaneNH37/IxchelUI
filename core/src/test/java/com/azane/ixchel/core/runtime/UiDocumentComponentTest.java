@@ -251,7 +251,7 @@ class UiDocumentComponentTest {
         assertEquals(0xFFAAAAAA, doc.querySelectorAll(".muted").get(0).computed().get(CssProperties.COLOR));
         Element b = doc.querySelectorAll("button").get(0);
         assertEquals(0xFFFF0000, b.computed().get(CssProperties.BACKGROUND_COLOR), "a component's rule beats the theme");
-        assertEquals(0xFFFFFF55, b.computed().get(CssProperties.COLOR), "the theme's tokens reach inside");
+        assertEquals(0xFFD8BC52, b.computed().get(CssProperties.COLOR), "the theme's tokens reach inside");
         assertEquals(0xFF0000FF, doc.querySelectorAll("ui-btn").get(0).computed().get(CssProperties.COLOR));
 
         m.accent.set("#ff0");

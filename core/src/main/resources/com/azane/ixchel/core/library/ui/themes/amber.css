@@ -1,13 +1,15 @@
 /*
  * The amber look, after a spaceship HUD: near-black panels framed by a thin amber line, square and on
- * the pixel grid; everything in one amber, titles glowing in Share Tech Mono; wells and bars hatched
- * with dark diagonal stripes, a bar's charge laid over them half see-through and moving in steps like
- * a readout; outlined buttons that fill with amber when pressed, and moving amber stripes on what is
- * busy.
+ * the pixel grid; everything in one amber, in Share Tech Mono, titles glowing; bars filled like a fuel
+ * tube, thin wound lines drifting towards the charge's edge; outlined buttons that fill with amber when
+ * pressed, and moving amber stripes on what is busy.
  */
 @partial;
 @link "base.css";
 @link "@ixchel/effects/stripes.ixeffect";
+@link "@ixchel/effects/helix.ixeffect";
+@link "@ixchel/effects/reticle.ixeffect";
+@link "@ixchel/effects/cooldown.ixeffect";
 
 @font-face {
     font-family: "Share Tech Mono";
@@ -15,12 +17,12 @@
 }
 
 :root {
+    font-family: "Share Tech Mono";
     --ix-title-font: "Share Tech Mono";
     shape-rendering: crisp-edges;
     --ix-panel-bg: #050402E8;
     --ix-panel-shadow: inset 0 0 0 1px #F5AF19;
-    --ix-well-bg: #000000C0;
-    --ix-well-image: repeating-linear-gradient(100deg, transparent 0, transparent 10px, #262626 10px, #262626 13px);
+    --ix-well-bg: #00000060;
     --ix-well-shadow: inset 0 0 0 1px #F5AF1980;
     --ix-well-border: #F5AF1980;
     --ix-control-bg: #F5AF1910;
@@ -46,6 +48,16 @@
     --ix-radius: 0;
     --ix-duration: 90ms;
     --ix-easing: linear;
+    --Cooldown-color: #F5AF1960;
+}
+
+/* A panel is a map under a targeting reticle: guide lines through the pointer, a see-through square
+   on it and breathing corner brackets round it, beneath the panel's content. */
+.ix-panel {
+    background-image: paint(Reticle);
+    --Reticle-line: #F5AF1930;
+    --Reticle-square: #F5AF1950;
+    --Reticle-mark: #FFC94D;
 }
 
 /* Pressed, a button fills with amber. Lit controls glow. */
@@ -61,10 +73,35 @@ button:focus {
     filter: drop-shadow(0 0 3px #F5AF19);
 }
 
-/* A bar's charge lets the hatching through and moves like a readout. */
+/* A bar's charge is fuel in a tube: a bright, nearly solid amber over thin pale lines wound round the
+   tube drifting towards a bright leading edge; the track's direction class orients both. What was just
+   lost lingers behind it as a faint red-orange trail. */
 .ix-bar-fill {
-    background-color: #F5AF19A0;
-    transition: flex-basis 400ms steps(8, end);
+    --Helix-color: #FFF4D0;
+    --Helix-fill: transparent;
+    background-color: transparent;
+    background-image: linear-gradient(#FFB828C8, #FFB828C8), paint(Helix);
+    box-shadow: inset -1px 0 0 #FFF4D0;
+    transition: flex-basis 300ms ease-out;
+}
+
+.ix-bar-trail {
+    background-color: #F1571150;
+}
+
+.ix-bar-left > .ix-bar-fill {
+    --Helix-dir: 1;
+    box-shadow: inset 1px 0 0 #FFF4D0;
+}
+
+.ix-bar-up > .ix-bar-fill {
+    --Helix-dir: 2;
+    box-shadow: inset 0 1px 0 #FFF4D0;
+}
+
+.ix-bar-down > .ix-bar-fill {
+    --Helix-dir: 3;
+    box-shadow: inset 0 -1px 0 #FFF4D0;
 }
 
 .ix-busy, .ix-busy:hover, .ix-busy:focus, .ix-busy:active {

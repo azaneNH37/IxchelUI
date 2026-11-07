@@ -70,6 +70,8 @@ class EffectParserTest {
         assertEquals(Effect.Kind.LAYER, parseOk("@ixchel/effects/glitch.ixeffect").kind());
         assertEquals(Effect.Kind.BOX, parseOk("@ixchel/effects/cooldown.ixeffect").kind());
         assertEquals(Effect.Kind.BOX, parseOk("@ixchel/effects/stripes.ixeffect").kind());
+        assertEquals(Effect.Kind.BOX, parseOk("@ixchel/effects/helix.ixeffect").kind());
+        assertEquals(Effect.Kind.BOX, parseOk("@ixchel/effects/reticle.ixeffect").kind());
     }
 
     private static Effect parseOk(String id) {

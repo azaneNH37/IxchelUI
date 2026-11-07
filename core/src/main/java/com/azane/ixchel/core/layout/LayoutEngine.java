@@ -44,6 +44,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -115,6 +116,8 @@ public final class LayoutEngine {
         /** As an atomic box: its size and baseline as last laid out on its own; {@code null} to lay it out again. */
         TextShaper.Box atom;
         float fontSize;
+        /** A measured box's font id, {@code null} for the default font. */
+        String font;
         float lineHeight;
         /**
          * A block container with block-level children: the anonymous blocks holding the inline content
@@ -467,9 +470,19 @@ public final class LayoutEngine {
         return cs.get(CssProperties.LINE_HEIGHT).resolve(size, shaper.lineHeight(size));
     }
 
-    /** The advance of {@code text} on one line, in a regular-weight font. */
-    public float textWidth(String text, float fontSize) {
-        return shaper.width(text, fontSize, false, null);
+    /** The font id {@code cs}'s {@code font-family} uses; {@code null} for the default font. */
+    public String font(ComputedStyle cs) {
+        return shaper.font(cs.get(CssProperties.FONT_FAMILY));
+    }
+
+    /** The advance of {@code text} on one line, regular weight, in the font size and family of {@code cs}. */
+    public float textWidth(String text, ComputedStyle cs) {
+        return textWidth(text, cs.get(CssProperties.FONT_SIZE).value(), font(cs));
+    }
+
+    /** The advance of {@code text} on one line, regular weight, in {@code font} ({@code null}: the default). */
+    public float textWidth(String text, float fontSize, String font) {
+        return shaper.width(text, fontSize, false, font);
     }
 
     /** {@code null} for a text node that is not laid out: whitespace-only text between flex items. */
@@ -497,9 +510,11 @@ public final class LayoutEngine {
             if (behavior.measured()) {
                 float size = e.computed().get(CssProperties.FONT_SIZE).value();
                 float lh = lineHeight(e.computed());
-                if (size != slot.fontSize || lh != slot.lineHeight) {
+                String font = font(e.computed());
+                if (size != slot.fontSize || lh != slot.lineHeight || !Objects.equals(font, slot.font)) {
                     slot.fontSize = size;
                     slot.lineHeight = lh;
+                    slot.font = font;
                     tree.markDirty(slot.id);
                     changed = true;
                 }
@@ -855,7 +870,7 @@ public final class LayoutEngine {
     /** The intrinsic measure contract is installed once for the node, not allocated per query. */
     private MeasureFunc intrinsicMeasure(Slot slot, LayoutFacet behavior) {
         return (known, available) -> new FloatSize(
-                Float.isNaN(known.width) ? behavior.width(slot.labels, slot.fontSize, shaper) : known.width,
+                Float.isNaN(known.width) ? behavior.width(slot.labels, slot.fontSize, slot.font, shaper) : known.width,
                 Float.isNaN(known.height) ? slot.lineHeight : known.height);
     }
 

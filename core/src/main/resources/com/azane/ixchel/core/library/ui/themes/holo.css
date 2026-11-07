@@ -8,6 +8,7 @@
 @partial;
 @link "base.css";
 @link "@ixchel/effects/chromatic.ixeffect";
+@link "@ixchel/effects/cooldown.ixeffect";
 
 @font-face {
     font-family: "Orbitron";
@@ -15,6 +16,7 @@
 }
 
 :root {
+    font-family: "Orbitron";
     --ix-title-font: "Orbitron";
     --ix-panel-bg: #04121CB0;
     --ix-panel-shadow: inset 0 0 0 1px #6EDCFF30, 0 0 12px #6EDCFF30;
@@ -46,6 +48,7 @@
     --ix-radius: 2px;
     --ix-duration: 150ms;
     --ix-easing: ease-out;
+    --Cooldown-color: #6EDCFF60;
 }
 
 /* On top the scan line, then the four corner brackets (two strokes each), under them the scanlines.
@@ -96,6 +99,11 @@ button:disabled {
 
 .ix-bar-fill {
     box-shadow: 0 0 4px #6EDCFFA0;
+}
+
+/* The trail is a faint afterimage of the charge. */
+.ix-bar-trail {
+    background-color: #A8E8FF38;
 }
 
 /* A badge is a status tag: outlined, not filled. */

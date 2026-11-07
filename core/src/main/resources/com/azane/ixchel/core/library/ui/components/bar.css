@@ -17,6 +17,22 @@ ix-bar {
   corner-shape: inherit;
 }
 
+.ix-bar-right {
+  flex-direction: row;
+}
+
+.ix-bar-left {
+  flex-direction: row-reverse;
+}
+
+.ix-bar-up {
+  flex-direction: column-reverse;
+}
+
+.ix-bar-down {
+  flex-direction: column;
+}
+
 .ix-bar-fill,
 .ix-bar-trail {
   flex-grow: 0;

@@ -1,5 +1,6 @@
 package com.azane.ixchel.core.event;
 
+import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Facet;
 import com.azane.ixchel.core.dom.UiEvent;
@@ -33,7 +34,8 @@ public interface InteractionFacet {
         void open(Element e);
         void close(Element e);
         Clipboard clipboard();
-        float textWidth(String text, float size);
+        /** The advance of {@code text} on one line in the font size and family of {@code cs}. */
+        float textWidth(String text, ComputedStyle cs);
         default void input(Element e) { dispatch(UiEvent.of(UiEvent.Type.INPUT, e)); }
         default void change(Element e) { dispatch(UiEvent.of(UiEvent.Type.CHANGE, e)); }
         default void commit(Element e) { input(e); change(e); }

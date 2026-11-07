@@ -1,13 +1,17 @@
 <!-- A bar filled by value / max from one side (dir: right, left, up, down). The trail is a second fill
      that follows more slowly, hidden until a theme or page shows ::part(trail). Fill textures are the
-     page's: ::part(fill) { background-image: … } anchored at the bar's start. -->
+     page's: ::part(fill) { background-image: … } anchored at the bar's start. Both fills sit in a track
+     classed by the direction, ix-bar-right, ix-bar-left, ix-bar-up or ix-bar-down, for a theme to draw
+     the fill's leading edge or orient its texture. -->
 <link href="bar.css"/>
 <component name="ix-bar" params="value max dir='right'">
-  <div class="ix-bar-track" bind:style:flex-direction="dir == 'left' ? 'row-reverse' : dir == 'up' ? 'column-reverse' : dir == 'down' ? 'column' : 'row'">
+  <div class="ix-bar-track" bind:class:ix-bar-right="dir == 'right'" bind:class:ix-bar-left="dir == 'left'"
+       bind:class:ix-bar-up="dir == 'up'" bind:class:ix-bar-down="dir == 'down'">
     <div class="ix-bar-trail" part="trail"
          bind:style:flex-basis="(max <= 0 || value <= 0 ? 0 : value >= max ? 100 : value * 100.0 / max) + '%'"></div>
   </div>
-  <div class="ix-bar-track" bind:style:flex-direction="dir == 'left' ? 'row-reverse' : dir == 'up' ? 'column-reverse' : dir == 'down' ? 'column' : 'row'">
+  <div class="ix-bar-track" bind:class:ix-bar-right="dir == 'right'" bind:class:ix-bar-left="dir == 'left'"
+       bind:class:ix-bar-up="dir == 'up'" bind:class:ix-bar-down="dir == 'down'">
     <div class="ix-bar-fill" part="fill"
          bind:style:flex-basis="(max <= 0 || value <= 0 ? 0 : value >= max ? 100 : value * 100.0 / max) + '%'"></div>
   </div>

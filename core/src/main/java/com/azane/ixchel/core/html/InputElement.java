@@ -53,7 +53,7 @@ final class InputElement {
             switch (e.control().kind()) {
                 case TEXT, NUMBER -> paintInput(e, e.computed(), e.box(), y, out, context);
                 case CHECKBOX -> paintCheckbox(e, e.computed(), e.box(), y, out, context);
-                case RADIO -> paintRadio(e, e.computed(), e.box(), y, out);
+                case RADIO -> paintRadio(e, e.computed(), y, out, context);
                 case RANGE -> paintRange(e.control(), e.computed(), e.box(), y, out, context);
                 default -> throw new IllegalStateException("not an input control");
             }
@@ -132,9 +132,9 @@ final class InputElement {
         float lh = context.lineHeight(cs);
         int color = cs.get(CssProperties.COLOR);
         boolean focused = e.hasState(Element.FOCUS);
-        float caretX = context.textWidth(v.substring(0, f.caret()), size);
+        float caretX = context.textWidth(v.substring(0, f.caret()), cs);
         // Room for the 1px caret after the last character; no empty space past the end while scrolled.
-        float scroll = Math.min(f.scrollX(), Math.max(0, context.textWidth(v, size) + 1 - cw));
+        float scroll = Math.min(f.scrollX(), Math.max(0, context.textWidth(v, cs) + 1 - cw));
         if (caretX + 1 - scroll > cw) {
             scroll = caretX + 1 - cw;
         }
@@ -147,8 +147,8 @@ final class InputElement {
         String placeholder = e.attribute("placeholder");
         if (!v.isEmpty()) {
             if (focused && f.hasSelection()) {
-                float x0 = Math.round(tx + context.textWidth(v.substring(0, f.selectionStart()), size));
-                float x1 = Math.round(tx + context.textWidth(v.substring(0, f.selectionEnd()), size));
+                float x0 = Math.round(tx + context.textWidth(v.substring(0, f.selectionStart()), cs));
+                float x1 = Math.round(tx + context.textWidth(v.substring(0, f.selectionEnd()), cs));
                 context.rect(out, x0, ty, x1 - x0, lh, SELECTION_COLOR);
             }
             context.text(out, cs, tx, glyphY, size, color, v);
@@ -168,16 +168,15 @@ final class InputElement {
         }
     }
 
-    /** A checked radio fills its content box as a round dot; the ring is the element's own border. */
-    private static void paintRadio(Element e, ComputedStyle cs, LayoutBox b, float y, DisplayList out) {
-        float w = b.contentWidth();
-        float h = b.contentHeight();
-        if (!e.control().checked() || w <= 0 || h <= 0) return;
-        float rx = w / 2;
-        float ry = h / 2;
-        RoundRect dot = new RoundRect(b.x() + b.borderLeft() + b.paddingLeft(), y + b.borderTop() + b.paddingTop(), w, h,
-                new RoundRect.Radii(rx, ry, rx, ry, rx, ry, rx, ry, RoundRect.Corners.ROUND));
-        out.add(new DrawCommand.Fill(dot, dot.x(), dot.y(), w, h, cs.get(CssProperties.ACCENT_COLOR), null,
+    /**
+     * A checked radio fills its content box as a dot, its corners the ring's reduced by the border and
+     * padding: round on a round radio, square on a square one. The ring is the element's own border.
+     */
+    private static void paintRadio(Element e, ComputedStyle cs, float y, DisplayList out, PaintFacet.Context context) {
+        if (!e.control().checked()) return;
+        RoundRect dot = context.contentShape(e, y);
+        if (dot.width() <= 0 || dot.height() <= 0) return;
+        out.add(new DrawCommand.Fill(dot, dot.x(), dot.y(), dot.width(), dot.height(), cs.get(CssProperties.ACCENT_COLOR), null,
                 cs.get(CssProperties.SHAPE_RENDERING) == Keywords.ShapeRendering.CRISP_EDGES));
     }
 
@@ -236,14 +235,14 @@ final class InputElement {
     private static void placeCaret(Element e, float x, boolean extend, InteractionFacet.Actions a) {
         TextField field = e.textField();
         LayoutBox b = e.box();
-        float size = e.computed().get(CssProperties.FONT_SIZE).value();
+        ComputedStyle cs = e.computed();
         float at = x - (b.x() + b.borderLeft() + b.paddingLeft()) + field.scrollX();
         String v = field.value();
         int best = 0;
         float distance = Math.abs(at);
         for (int i = 0; i < v.length();) {
             i = Character.offsetByCodePoints(v, i, 1);
-            float d = Math.abs(a.textWidth(v.substring(0, i), size) - at);
+            float d = Math.abs(a.textWidth(v.substring(0, i), cs) - at);
             if (d >= distance) break;
             best = i;
             distance = d;

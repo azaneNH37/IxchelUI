@@ -1,0 +1,35 @@
+// A targeting reticle following the pointer over the box, on the GUI pixel grid: guide lines through
+// it to the box's edges, a see-through square at its centre and corner brackets breathing round it.
+// Nothing while the pointer is off the box.
+kind box;
+param line   { syntax: <color>;  inherits: true;  initial-value: #ffffff30; } // the guide lines
+param square { syntax: <color>;  inherits: true;  initial-value: #ffffff40; }
+param mark   { syntax: <color>;  inherits: true;  initial-value: #ffffffc0; } // the brackets
+param size   { syntax: <length>; inherits: true;  initial-value: 5px; }       // the square's side
+param near   { syntax: <length>; inherits: true;  initial-value: 6px; }       // brackets' half side, breathed in
+param far    { syntax: <length>; inherits: true;  initial-value: 8px; }       // and breathed out
+param arm    { syntax: <length>; inherits: true;  initial-value: 3px; }       // one bracket stroke
+param gap    { syntax: <length>; inherits: true;  initial-value: 10px; }      // guide lines stop this far from the pointer
+param period { syntax: <number>; inherits: true;  initial-value: 1.6; }       // seconds per breath
+
+vec4 effect(IxBox b) {
+    if (ix_mouse_inside < 0.5) {
+        return vec4(0.0);
+    }
+    // Whole GUI pixels from the pointer's pixel; lengths arrive in physical pixels.
+    vec2 d = abs(floor(b.pos / ix_scale) - floor(ix_mouse / ix_scale));
+    float r = max(d.x, d.y);
+    float breath = 0.5 + 0.5 * sin(6.2831853 * ix_time / max(period, 0.1));
+    float h = floor(mix(near, far, breath) / ix_scale + 0.5);
+    float a = max(floor(arm / ix_scale + 0.5), 1.0);
+    if (r == h && min(d.x, d.y) >= h - a) {
+        return mark * mix(0.55, 1.0, breath);
+    }
+    if (r <= floor(size / ix_scale * 0.5)) {
+        return square;
+    }
+    if (min(d.x, d.y) == 0.0 && r > floor(gap / ix_scale + 0.5)) {
+        return line;
+    }
+    return vec4(0.0);
+}

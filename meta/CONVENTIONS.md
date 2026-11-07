@@ -39,3 +39,6 @@
 - `Slot.x/y` 是槽位内部 16×16 物品区左上角，布局结果写回它；隐藏槽位须 `isActive=false` 且 `x=y=-2000`（REI 高亮不检查 `isActive`），见 `ref/SDG-ixchel-container-slot-integration-20261026.md`
 - `Slot.x/y` 用反射写入，不用 AT/mixin (#008)
 - 接管 vanilla 绘制/交互且可能与其它 mod 冲突的增强，默认关闭，以宿主 API 参数开启 (#009)
+
+## 开发期检查
+- 游戏运行时跑 sample 的 `ixchelLint` 须加 `-x :<sample>:createMinecraftArtifacts`：运行中的游戏锁住产物 jar，该任务会失败；lint 不编译 GLSL，特效着色器错误只在游戏内暴露

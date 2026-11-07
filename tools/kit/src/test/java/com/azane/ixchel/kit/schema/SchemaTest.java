@@ -85,10 +85,11 @@ class SchemaTest {
 
         // unlinked.ixeffect has an invalid header, so it is not offered.
         assertEquals(List.of("@ixchel/effects/chromatic.ixeffect", "@ixchel/effects/cooldown.ixeffect", "@ixchel/effects/dissolve.ixeffect",
-                        "@ixchel/effects/glint.ixeffect", "@ixchel/effects/glitch.ixeffect", "@ixchel/effects/stripes.ixeffect",
+                        "@ixchel/effects/glint.ixeffect", "@ixchel/effects/glitch.ixeffect", "@ixchel/effects/helix.ixeffect",
+                        "@ixchel/effects/reticle.ixeffect", "@ixchel/effects/stripes.ixeffect",
                         "kitfixture:ui/fx/glow.ixeffect"),
                 schema.effects().stream().map(Schema.Effect::href).toList());
-        Schema.Effect glow = schema.effects().get(6);
+        Schema.Effect glow = schema.effects().get(8);
         assertEquals("box", glow.kind());
         assertEquals("Glow", glow.alias());
         assertEquals(List.of(new Schema.EffectParam("--Glow-tint", "<color>", true, "#ff000080"),

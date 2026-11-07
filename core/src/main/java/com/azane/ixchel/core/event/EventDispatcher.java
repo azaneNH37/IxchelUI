@@ -2,6 +2,7 @@ package com.azane.ixchel.core.event;
 
 import com.azane.ixchel.core.css.property.Affine;
 import com.azane.ixchel.core.css.property.ClipPath;
+import com.azane.ixchel.core.css.property.ComputedStyle;
 import com.azane.ixchel.core.css.property.CssProperties;
 import com.azane.ixchel.core.css.property.Keywords;
 import com.azane.ixchel.core.css.property.Transform;
@@ -160,7 +161,7 @@ public final class EventDispatcher {
         @Override public void open(Element e) { top.open(e); }
         @Override public void close(Element e) { top.close(e); }
         @Override public Clipboard clipboard() { return clipboard; }
-        @Override public float textWidth(String text, float size) { return layout.textWidth(text, size); }
+        @Override public float textWidth(String text, ComputedStyle cs) { return layout.textWidth(text, cs); }
     };
 
     /**

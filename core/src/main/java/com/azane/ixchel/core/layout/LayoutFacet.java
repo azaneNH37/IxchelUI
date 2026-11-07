@@ -11,5 +11,6 @@ public interface LayoutFacet {
     default boolean measured() { return false; }
     default boolean layoutChildren() { return true; }
     default String measureKey(Element e) { return ""; }
-    default float width(String key, float fontSize, TextShaper text) { return 0; }
+    /** The intrinsic width for {@code key} in {@code font} ({@code null}: the default font). */
+    default float width(String key, float fontSize, String font, TextShaper text) { return 0; }
 }

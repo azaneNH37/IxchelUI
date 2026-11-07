@@ -1,0 +1,24 @@
+// Thin lines wound round a tube seen from the side, drifting along it towards `dir`, on the GUI pixel
+// grid, over a faint fill; lines and fill dim from the tube's middle to its sides. A bar fill's charge.
+kind box;
+param color { syntax: <color>;  inherits: true;  initial-value: #ffffffe0; } // the lines
+param fill  { syntax: <color>;  inherits: true;  initial-value: #ffffff30; } // between the lines
+param gap   { syntax: <length>; inherits: true;  initial-value: 5px; }       // line to line, along the tube
+param line  { syntax: <length>; inherits: true;  initial-value: 1px; }
+param speed { syntax: <number>; inherits: true;  initial-value: 1; }         // gaps per second
+param edge  { syntax: <number>; inherits: true;  initial-value: 0.3; }       // brightness at the sides
+param dir   { syntax: <number>; inherits: true;  initial-value: 0; }         // filling 0 right, 1 left, 2 up, 3 down
+
+vec4 effect(IxBox b) {
+    vec2 p = ix_snap(b.pos);
+    bool across_y = dir < 1.5;
+    float along = dir < 0.5 ? p.x : dir < 1.5 ? b.size.x - p.x : dir < 2.5 ? b.size.y - p.y : p.y;
+    float width = across_y ? b.size.y : b.size.x;
+    float t = clamp((across_y ? p.y : p.x) / max(width, 1.0), 0.0, 1.0) * 2.0 - 1.0;
+    // A helix seen from the side: each turn bends as it goes round, steepest at the middle.
+    float wound = asin(t) / 1.5707963 * width * 0.5;
+    float g = max(gap, 1.0);
+    float phase = mod(along + wound - ix_time * speed * g, g);
+    float shade = mix(edge, 1.0, 1.0 - t * t);
+    return (phase < line ? color : fill) * shade;
+}

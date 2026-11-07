@@ -242,6 +242,44 @@ class UiDocumentTextTest {
     }
 
     @Test
+    void inputAndSelectDrawAndMeasureTheirTextInTheInheritedFont() {
+        // minecraft:uniform has 4px glyphs, the default font 6px.
+        com.azane.ixchel.core.text.TextMeasurer fonts = new com.azane.ixchel.core.text.TextMeasurer() {
+            @Override
+            public boolean hasFont(String font) {
+                return font.equals("minecraft:uniform");
+            }
+
+            @Override
+            public float width(String text, float size, boolean bold, String font) {
+                return text.length() * ("minecraft:uniform".equals(font) ? 4 : 6);
+            }
+
+            @Override
+            public float lineHeight(float size) {
+                return 9;
+            }
+
+            @Override
+            public float baseline(float size) {
+                return 7;
+            }
+        };
+        UiDocument doc = UiDocument.load(GoldenTest.linked("""
+                <div><input placeholder="ab"/><select><option>abcdef</option></select></div>"""), "t.html",
+                GoldenTest.sheet("div { display: flex; flex-direction: column; align-items: flex-start; font-family: uniform }"),
+                com.azane.ixchel.core.html.HtmlElements.TAGS, fonts, GoldenTest.NO_IMAGES);
+        // The select's label box is its widest option in that font: 6 glyphs of 4px, not 6px.
+        assertEquals("""
+                clip 4 3 92 9
+                text 4 3 9 #80E0E0E0 "ab" font minecraft:uniform
+                clip 4 18 24 9
+                text 4 18 9 #FFE0E0E0 "abcdef" font minecraft:uniform""",
+                GoldenTest.print(doc.frame(200, 100)).lines().filter(l -> l.startsWith("clip") || l.startsWith("text"))
+                        .collect(java.util.stream.Collectors.joining("\n")));
+    }
+
+    @Test
     void inlineElementWithABoxPropertyIsAnError() {
         UiDocument doc = load("<div>a <span class=\"p\">b</span></div>", "div { display: block } .p { padding: 2px }");
         doc.frame(100, 100);

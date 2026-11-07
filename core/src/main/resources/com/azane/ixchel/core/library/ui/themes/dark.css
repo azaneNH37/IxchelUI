@@ -1,9 +1,12 @@
 /*
  * The dark overlay look: translucent near-black panels over a blurred world, thin light edges, small
- * rounded corners, white text and yellow titles, short eased transitions.
+ * rounded corners, white text and yellow titles, short eased transitions. Filled blocks (bars, badges,
+ * checks) take a softer gold than the titles, so they do not glare; a bar's trail and a cooldown's
+ * shade are faint white.
  */
 @partial;
 @link "base.css";
+@link "@ixchel/effects/cooldown.ixeffect";
 
 :root {
     --ix-panel-bg: #101418E0;
@@ -27,7 +30,7 @@
     --ix-title: #FFFF55;
     --ix-text-muted: #AAAAAA;
     --ix-text-dim: #777777;
-    --ix-accent: #FFFF55;
+    --ix-accent: #D8BC52;
     --ix-on-accent: #202020;
     --ix-positive: #55FF55;
     --ix-negative: #FF5555;
@@ -35,4 +38,9 @@
     --ix-radius: 3px;
     --ix-duration: 120ms;
     --ix-easing: ease-out;
+    --Cooldown-color: #FFFFFF40;
+}
+
+.ix-bar-trail {
+    background-color: #FFFFFF30;
 }

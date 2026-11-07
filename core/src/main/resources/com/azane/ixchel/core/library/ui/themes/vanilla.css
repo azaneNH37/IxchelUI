@@ -1,10 +1,12 @@
 /*
  * The vanilla container look: light gray panels framed in black with a white and gray bevel, gray
  * slots sunk the other way, buttons whose bevel flips when pressed, dark text, pixel-stepped shapes
- * and no transitions.
+ * and no transitions. A state the view model sets tints the fill and leaves the frame and bevel alone:
+ * red for invalid, green for done, slow dark stripes for busy.
  */
 @partial;
 @link "base.css";
+@link "@ixchel/effects/stripes.ixeffect";
 
 :root {
     shape-rendering: crisp-edges;
@@ -13,14 +15,14 @@
     --ix-well-bg: #8B8B8B;
     --ix-well-shadow: inset 1px 1px 0 #373737, inset -1px -1px 0 #FFFFFF;
     --ix-slot-shadow: inset 1px 1px 0 #373737, inset -1px -1px 0 #FFFFFF;
-    --ix-well-border: #373737;
-    --ix-control-bg: #A0A0A0;
-    --ix-control-shadow: inset 1px 1px 0 #DBDBDB, inset -1px -1px 0 #555555;
+    --ix-well-border: #A0A0A0;
+    --ix-control-bg: #6F6F6F;
+    --ix-control-shadow: inset 1px 1px 0 #AAAAAA, inset -1px -2px 0 #565656;
     --ix-control-border: #000000;
     --ix-overlay-bg: #100010F0;
     --ix-overlay-border: #5000FF50;
     --ix-overlay-text: #FFFFFF;
-    --ix-hover: #FFFFFF40;
+    --ix-hover: #FFFFFF10;
     --ix-active: #00000020;
     --ix-selected: #E0E0E0;
     --ix-selected-text: #202020;
@@ -41,10 +43,104 @@
     --ix-easing: linear;
 }
 
+/* Buttons, fields, wells and slots are square, as in the game's textures; only panels keep the
+   stepped corner. A button is the widget texture: black outline, a light top-left edge, a two pixel
+   shadow at the bottom, white text with its shadow; hovered or focused, the outline turns white. */
+button, input, select, .ix-well, mc-slot {
+    border-radius: 0;
+}
+
+/* The bevel takes its colors from the face: an edge lighter and a shadow darker than it, in the face's
+   own hue, so a tinted button still reads as the same raised block. A state sets the face and both. */
+button {
+    --vanilla-face: #6F6F6F;
+    --vanilla-light: #AAAAAA;
+    --vanilla-dark: #565656;
+    background-color: var(--vanilla-face);
+    box-shadow: inset 1px 1px 0 var(--vanilla-light), inset -1px -2px 0 var(--vanilla-dark);
+    color: #FFFFFF;
+    text-shadow: 1px 1px 0 #3F3F3F;
+}
+
+button:hover {
+    border-color: #FFFFFF;
+}
+
 button:active {
-    box-shadow: inset 1px 1px 0 #555555, inset -1px -1px 0 #DBDBDB;
+    box-shadow: inset 1px 2px 0 var(--vanilla-dark), inset -1px -1px 0 var(--vanilla-light);
 }
 
 button:disabled {
+    background-color: #2C2C2C;
     box-shadow: none;
+    color: #A0A0A0;
+}
+
+/* Selected: a light block with dark text. */
+button.ix-selected {
+    --vanilla-face: #D8D8D8;
+    --vanilla-light: #FFFFFF;
+    --vanilla-dark: #9A9A9A;
+    color: var(--ix-selected-text);
+    text-shadow: none;
+}
+
+button.ix-invalid {
+    --vanilla-face: #8A5555;
+    --vanilla-light: #C17777;
+    --vanilla-dark: #613C3C;
+}
+
+button.ix-done {
+    --vanilla-face: #557A55;
+    --vanilla-light: #77AB77;
+    --vanilla-dark: #3C553C;
+}
+
+/* Busy: an ochre block under slow dark stripes. */
+button.ix-busy {
+    --vanilla-face: #7A6E52;
+    --vanilla-light: #AB9A73;
+    --vanilla-dark: #554D39;
+}
+
+/* A field is the game's edit box: black, outlined in light gray, white when focused. A slider has no
+   box of its own, only its track and thumb. */
+input:not([type=range]), select {
+    background-color: #000000;
+    color: #E0E0E0;
+}
+
+/* A switch's knob is a small light block with a shaded bottom-right edge, square like the rest. */
+input.ix-switch::before {
+    background-color: #FFFFFF;
+    border-radius: 0;
+    box-shadow: inset -1px -1px 0 #8B8B8B;
+}
+
+/* A state keeps the outline: black on a button, white once hovered or focused; gray on a field. */
+button.ix-invalid, button.ix-done {
+    border-color: var(--ix-control-border);
+}
+
+input.ix-invalid, input.ix-done, select.ix-invalid, select.ix-done {
+    border-color: var(--ix-well-border);
+}
+
+.ix-invalid:focus, .ix-done:focus, button.ix-invalid:hover, button.ix-done:hover {
+    border-color: var(--ix-focus);
+}
+
+input.ix-invalid, select.ix-invalid {
+    background-color: #3A1010;
+}
+
+input.ix-done, select.ix-done {
+    background-color: #103A10;
+}
+
+.ix-busy, .ix-busy:hover, .ix-busy:focus, .ix-busy:active {
+    background-image: paint(Stripes);
+    --Stripes-color: #00000020;
+    --Stripes-speed: 0.25;
 }

@@ -60,9 +60,9 @@ public final class DisplayList {
      * text.
      */
     static final class Bounds implements DrawCommand.Visitor<Void> {
-        /** The width of {@code text} at font size {@code size}, as layout measures it. */
+        /** The width of {@code text} at font size {@code size} in {@code font} ({@code null}: the default), as layout measures it. */
         interface TextWidth {
-            float width(String text, float size);
+            float width(String text, float size, String font);
         }
 
         private static final float PAD = 1;
@@ -162,7 +162,7 @@ public final class DisplayList {
             // Bold glyphs are drawn twice, one font pixel apart; a quarter of the size covers it.
             float extra = (c.flags() & StyledText.BOLD) != 0 ? c.size() / 4 : 0;
             float spacing = c.spacing() * c.text().codePointCount(0, c.text().length());
-            return add(c.x(), c.y(), c.x() + textWidth.width(c.text(), c.size()) + spacing + extra, c.y() + c.size());
+            return add(c.x(), c.y(), c.x() + textWidth.width(c.text(), c.size(), c.font()) + spacing + extra, c.y() + c.size());
         }
 
         @Override

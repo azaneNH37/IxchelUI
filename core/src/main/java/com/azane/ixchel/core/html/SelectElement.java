@@ -73,9 +73,9 @@ final class SelectElement {
             }
             return labels.toString();
         }
-        @Override public float width(String labels, float size, TextShaper text) {
+        @Override public float width(String labels, float size, String font, TextShaper text) {
             float width = 0;
-            for (String label : labels.split("\n", -1)) width = Math.max(width, text.width(label, size, false, null));
+            for (String label : labels.split("\n", -1)) width = Math.max(width, text.width(label, size, false, font));
             return width + ARROW_SPACE;
         }
     };

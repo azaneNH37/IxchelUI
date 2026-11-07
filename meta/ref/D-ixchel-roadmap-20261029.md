@@ -69,6 +69,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | CSS2 | 完成 | effects 页遮罩标签 | 图层遮罩类：`clip-path`、`mask-image`、`background-clip: text`；结果见下文 |
 | TH5 | 完成 | themes | 主题重做：`holo` 按 CodePen 参考重做，`cyber` 换成 `amber`（飞船 HUD）；结果见下文 |
 | FT | 完成 | effects 页、themes | 内置字体：库自带 OFL 字体与 `@font-face`，缺字回退，兼容 ModernUI；结果见下文 |
+| TH6 | 完成 | themes | 主题打磨：四套主题在游戏内逐项调色；输入框跟随继承字体，单选点随外框圆角，`ix-bar` 方向类，库特效 `helix`、`reticle`；结果见下文 |
 
 依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1 → RS → TH2、TH3（彼此独立），TH2–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → L5 → L6，L5 → TH1（`@ixchel/themes/` 走统一解析），L5 → U4（`ix-*` 组件进 core 的库）；REC 只依赖 T2，与 CSS1 互不依赖，可并行；CSS1 → CSS2（图层遮罩复用 CSS1 的渐变绘制）。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
@@ -548,6 +549,17 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - ModernUI：未在装 MUI 的实例实测。[推断] 内置字体的字形不经 `Font`，MUI 不影响；缺字段经 `Font`，装 MUI 时画成 MUI 的默认字体，测量同样经 MUI，排版仍一致。
   - 验证：core、kit 测试与 `build`（含两版 lint）通过；`-Pplaytest=effects` 78 项、`themes` 21 项通过，截图逐张查看；1.21.1 经临时入口打开含两种字体的页面截图，中英回退正确，入口已删。`-Pplaytest=all` 15 项 317 断言通过、2 项失败，均为 env、storage 的帧时间预算；同一会话中不含 FT 的 `de8238e` 跑 env、storage 同样超预算、数值相当（storage 中位 13.0 ms 对 13.8 ms），判定为本机负载，预算未动。
   - 同批：playtest 运行时在原版造 narrator 之前把 `narrator` 选项设为 OFF，并在进世界前把 `GameNarrator.narrator` 换成 `Narrator.EMPTY`；无人值守运行时系统语音库初始化失败会弹阻塞对话框卡住测试。
+
+#### TH6 主题打磨
+
+- 动机：TH5 与 FT 之后在游戏内看陈列页，逐项调四套主题的观感。
+- 做法：主题副本放 sample 陈列页下热重载调色（库文件不热重载），调完合回 core，副本删除。
+- 结果（2026-11-07）：完成。
+  - core：`input`、`select` 的文字按继承的 `font-family` 绘制与测量（原先固定 MC 默认字体，主题在 `:root` 设字体后输入框不跟随）；单选框选中点按外框的 `border-radius` 减去边框与内边距取角（`PaintFacet.Context.contentShape`），外框方则点方；默认 `50%` 仍为圆点。`base` 给 radio 的是控件圆角，所以 `dark`、`holo` 的点随之由圆变为圆角方块内的方点。
+  - `ix-bar`：两个轨道按 `dir` 带类 `ix-bar-right/left/up/down`（取代 `bind:style:flex-direction`）；组件参数不留在外壳上，主题写 `ix-bar[dir=up]` 选不中，只能用这些类。
+  - 库特效：`helix`（box，管子上缠绕的细线沿 `dir` 流动，中间亮两侧暗）、`reticle`（box，跟随指针的准星：引导线、中心方块、呼吸的四角括号，指针不在盒内时不画）。
+  - 主题：四套都链接 `cooldown`、在 `:root` 设可继承的 `--Cooldown-color`，并给 `.ix-bar-trail` 上色；`holo`、`amber` 在 `:root` 设字体（Orbitron、Share Tech Mono）。`dark` 强调色改 `#D8BC52`（标题与焦点仍 `#FFFF55`）。`amber` 去掉内凹斜纹，条的填充为实色叠 `Helix`、前沿 1px 亮边、`300ms ease-out`，所有 `.ix-panel` 背景画 `Reticle`。`vanilla` 按 1.20.1 贴图取值重做，见主题文档 §6.3。
+  - 验证：core、kit 测试通过；sample lint 0 错；未跑 `-Pplaytest=themes`（游戏运行中锁住产物），截图与布局断言待补。
 
 #### Doc 用户文档
 

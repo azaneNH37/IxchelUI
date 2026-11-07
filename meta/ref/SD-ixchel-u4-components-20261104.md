@@ -140,7 +140,7 @@ sample 中已重复手写的控件：tabs（character、effects）、竖向能�
 | `ix-tabs` | `params="value"` | — | 外层，`provide:tabs="value"`；使用方传可写路径 |
 | `ix-tab` | `params="value label" uses="tabs"` | `button` | 标签头，`t:label` 翻译；选中加 `.ix-selected` |
 | `ix-tab-panel` | `params="value" uses="tabs"` | — | `<if test="tabs == value"><slot>`：切换时面板内局部状态重建；要保留状态的页面照旧用 `bind:class:shown` |
-| `ix-bar` | `params="value max dir='right'"` | `fill`、`trail` | 比例在组件内 `value * 1.0 / max`（防整除）；`dir` 取 `up\|down\|left\|right`；贴图填充由页面写 `::part(fill)` 背景，不设参数；`trail` 为掉血拖尾，用更慢的 `transition`，默认不显示，主题或页面打开。填充缩进 `--ix-bar-inset`（默认 `1px`，避开主题画在外壳上的框；无框的条设 `0px`），并继承外壳的 `border-radius`、`corner-shape`：引擎只有矩形裁剪，所以满格时与外壳同形，未满时末端也按同样的角切 |
+| `ix-bar` | `params="value max dir='right'"` | `fill`、`trail` | 比例在组件内 `value * 1.0 / max`（防整除）；`dir` 取 `up\|down\|left\|right`，两个轨道随之带类 `ix-bar-<dir>`（TH6）：组件参数不留在外壳上，主题按方向写样式只能选这些类，`ix-bar[dir=…]` 选不中；贴图填充由页面写 `::part(fill)` 背景，不设参数；`trail` 为掉血拖尾，用更慢的 `transition`，默认不显示，主题或页面打开。填充缩进 `--ix-bar-inset`（默认 `1px`，避开主题画在外壳上的框；无框的条设 `0px`），并继承外壳的 `border-radius`、`corner-shape`：引擎只有矩形裁剪，所以满格时与外壳同形，未满时末端也按同样的角切 |
 | `ix-stepper` | `params="value min max step=1"` | `dec`、`input`、`inc` | −/+ 按钮加数字输入，`on:click.shift` ×10，`?:` 夹取 |
 | `ix-cycle` | `params="value options"` | `button` | 原版 CycleButton：左键下一项、右键上一项；当前项用 `<for index>` 嵌 `<if test="i == value">` |
 | `ix-pager` | `params="page count"` | `prev`、`label`、`next` | 上一页 / 页码 / 下一页，首末页禁用 |
