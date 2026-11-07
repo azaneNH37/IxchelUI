@@ -1,0 +1,19 @@
+<link href="banner.css"/>
+<page>
+  <div class="stage">
+    <for each="cards" as="c" key="c.key"><div class="card" bind:class:amber="c.theme == 'amber'"
+         bind:class:dark="c.theme == 'dark'" bind:class:vanilla="c.theme == 'vanilla'" bind:class:arcane="c.theme == 'arcane'">
+      <div class="mark"></div>
+      <div class="text">
+        <div class="meta">
+          <span class="brand" translate="no">IXCHEL UI</span>
+          <span class="counter" bind:text="c.counter"></span>
+          <span class="theme" bind:text="c.theme"></span>
+        </div>
+        <span class="title" bind:text="c.title"></span>
+        <span class="subtitle" bind:text="c.subtitle"></span>
+      </div>
+      <div class="sweep"></div>
+    </div></for>
+  </div>
+</page>
