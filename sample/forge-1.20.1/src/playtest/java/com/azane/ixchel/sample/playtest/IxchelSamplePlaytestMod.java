@@ -42,6 +42,7 @@ public final class IxchelSamplePlaytestMod {
             SpellPlaytest.register(playtests);
             BossPlaytest.register(playtests);
             ArcanePlaytest.register(playtests);
+            ReelPlaytest.register(playtests);
         });
     }
 }

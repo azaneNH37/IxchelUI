@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则），TH1（主题机制与库资源显式引入，#034、#039）、RS（按资源规范重做文件种类、引用与登记，#041）、TH2–TH4（形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`）、U4（组件库）、REC（确定性录制）、CSS1、CSS2（参考前端视效补齐 CSS，依据 `ref/S-ixchel-frontend-visual-gap-20261106.md`）、TH5（`holo` 重做、`cyber` 换成 `amber`）；下一步 FT（内置字体）；Doc 分批写，第一批（站点基建、生成的参考页与 Java API 页）已合入（#87）。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则），TH1（主题机制与库资源显式引入，#034、#039）、RS（按资源规范重做文件种类、引用与登记，#041）、TH2–TH4（形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`）、U4（组件库）、REC（确定性录制）、CSS1、CSS2（参考前端视效补齐 CSS，依据 `ref/S-ixchel-frontend-visual-gap-20261106.md`）、TH5（`holo` 重做、`cyber` 换成 `amber`）、FT（内置字体）、TH6（主题打磨）、SC（展示样例与总录像）；Doc 分批写，第一批（站点基建、生成的参考页与 Java API 页）已合入（#87）。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -70,6 +70,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | TH5 | 完成 | themes | 主题重做：`holo` 按 CodePen 参考重做，`cyber` 换成 `amber`（飞船 HUD）；结果见下文 |
 | FT | 完成 | effects 页、themes | 内置字体：库自带 OFL 字体与 `@font-face`，缺字回退，兼容 ModernUI；结果见下文 |
 | TH6 | 完成 | themes | 主题打磨：四套主题在游戏内逐项调色；输入框跟随继承字体，单选点随外框圆角，`ix-bar` 方向类，库特效 `helix`、`reticle`；结果见下文 |
+| SC | 完成 | workbench、machine、loot、spell、boss、storage、arcane | 展示样例：七个样例各配一套主题，`<mc-item spin>` 3D 转动（仅 1.20.1），`ReelBanner` 标题条与 `-Precord=reel` 总录像；结果见下文 |
 
 依赖：D0 → L1 → D → L2 → E1 → E2；L3、I、Doc、T1、T2 都依赖 L2，彼此及与 E 互不依赖，可并行或互换；Doc 分两步：接入与语言参考先写，其余随 U1–V3 补齐；U1 → U2（共用指针按住状态）；V1 落地路径 C 图集（#029）；V3 → V4；U1–V3 → U4；FX1 → FX2 → FX3，FX3 依赖 L3 的 `var()` 与 V3 的 `@keyframes`，与 Doc 互不依赖；FX3 → TH1 → RS → TH2、TH3（彼此独立），TH2–TH3 → TH4 → U4（U4 组件的主题规则写进四套主题）；L2 → L4 → L5 → L6，L5 → TH1（`@ixchel/themes/` 走统一解析），L5 → U4（`ix-*` 组件进 core 的库）；REC 只依赖 T2，与 CSS1 互不依赖，可并行；CSS1 → CSS2（图层遮罩复用 CSS1 的渐变绘制）。0–C 的结果见场景文档 §3。T3（对外发布）随 Doc，T4（编辑器）及之后见工具文档 §10。
 
@@ -559,7 +560,19 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - `ix-bar`：两个轨道按 `dir` 带类 `ix-bar-right/left/up/down`（取代 `bind:style:flex-direction`）；组件参数不留在外壳上，主题写 `ix-bar[dir=up]` 选不中，只能用这些类。
   - 库特效：`helix`（box，管子上缠绕的细线沿 `dir` 流动，中间亮两侧暗）、`reticle`（box，跟随指针的准星：引导线、中心方块、呼吸的四角括号，指针不在盒内时不画）。
   - 主题：四套都链接 `cooldown`、在 `:root` 设可继承的 `--Cooldown-color`，并给 `.ix-bar-trail` 上色；`holo`、`amber` 在 `:root` 设字体（Orbitron、Share Tech Mono）。`dark` 强调色改 `#D8BC52`（标题与焦点仍 `#FFFF55`）。`amber` 去掉内凹斜纹，条的填充为实色叠 `Helix`、前沿 1px 亮边、`300ms ease-out`，所有 `.ix-panel` 背景画 `Reticle`。`vanilla` 按 1.20.1 贴图取值重做，见主题文档 §6.3。
-  - 验证：core、kit 测试通过；sample lint 0 错；未跑 `-Pplaytest=themes`（游戏运行中锁住产物），截图与布局断言待补。
+  - 验证：core、kit 测试通过；sample lint 0 错；未跑 `-Pplaytest=themes`（游戏运行中锁住产物），截图与布局断言待补。SC 阶段的全量运行中 holo、amber 的"每个盒子留在第一套主题的位置"失败，与两套主题在 `:root` 设字体改变文字宽度相符，未查。
+
+#### SC 展示样例
+
+- 动机：给接入方 mod 团队看库能做出的前端效果；每个样例对应一套主题，录成视频。
+- 已定（2026-11-07，用户）：七个样例与主题——工作台 holo、机器 amber、掉落物 HUD amber、法术轮盘 holo、Boss 血条 dark、储存终端 vanilla、魔法树（holo 只改变量与面板括号，换成紫色）；3D 旋转物品只在 1.20.1（1.21.1 没有 playtest 环境）；总录像一条，样例之间插标题条。
+- 结果（2026-11-07）：完成。
+  - mc 1.20.1：`<mc-item spin="度/秒">`（`<mc-item-cycle>` 同）改画模型，像物品展示框那样前倾，按游戏时间绕竖轴转动，录制时逐帧转；不画数量与耐久。
+  - sample：新包 `workbench`（`Workbench`，搜索、分类标签、3D 成品、服务端合成）、`spell`（`SpellWheel`，按住 R 显示，指针方向选扇区，法力与冷却）、`boss`（`BossHud`，带 `ixchel_boss` 标签的最近生物经 `Network.BOSS` 快照下发；伤害拖尾、阶段刻度、护盾、增益扫光、阶段标题 `Glitch`）、`arcane`（`ArcaneTree`，纯客户端，节点学会后子节点以 `Dissolve` 烧现）、`reel`（`ReelBanner`，画在屏幕与 HUD 之上的标题条）。机器重做为 amber，三个标签页与背包并排；掉落物 HUD 改为 amber 的括号准星、附近列表与拾取提示；储存终端改为两列，右列为存量最多的种类与转动的首项模型。
+  - playtest：各样例拆成 `setUp`/`showcase`/`tearDown`，单项 playtest 在两者之间做自己的检查；`ReelPlaytest`（`-Precord=reel`）把七段串成一条录像，段前 `ReelBanner.show`。`reel` 也在 `all` 中，兼作"七段连跑、互相清理干净"的检查。
+  - 顺带修复：workbench 点分类标签后不等列表刷新就按文字点配方，首次运行会点空（`hold` 只在录制时等待）；改为等列表变为六项。
+  - 验证：sample lint 0 错；七个样例的 playtest 单独与连跑通过；`-Precord=reel` 72 项全过，录像 2 分 11 秒、七张标题卡齐全；`-Pplaytest=all` 20 项 456 过 4 败：themes 的 holo、amber 布局一致检查（见 TH6，本阶段未动主题），loot 拾取后 20 tick 内的提示检查两项（此前单独与连跑均过，疑为全量运行下的时序，待查）。
+  - 已知：loot 列表录制中偶有整帧屏幕未画（约 450 帧中 4 帧，只剩世界与 HUD），疑与 HUD 进场的离屏图层有关，未查明；储存终端面板底部多 18px 空白，等于背包滚动容器的溢出高度（72 − 54），core 布局单测复现不出，疑在 `UiContainerScreen` 的面板测量。
 
 #### Doc 用户文档
 

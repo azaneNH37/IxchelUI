@@ -26,37 +26,54 @@ public final class ArcanePlaytest {
 
     public static void register(Playtests playtests) {
         playtests.register("arcane", s -> {
-            s.run(ArcaneTree::open);
-            s.waitUntil("the tree opens", Playtest::isOpen, Playtest.WAIT);
+            setUp(s);
             s.expect("the tree reports no errors", () -> Playtest.document().diagnostics().errorCount() == 0);
             s.expect("the core learned, four arts open, eight sealed, seven points", () ->
                     count(".node.learned") == 1 && count(".node.open") == 4 && count(".node.sealed") == 8
                             && Playtest.text(".points span").equals("7"));
-            s.take("arcane", t -> {
-                t.hold(1500);
-                // Fails if a sealed art can be picked.
-                t.clickNth(".node .hit", BLINK);
-                t.expect("a sealed art is not picked", () -> count(".node.ix-selected") == 0);
-                learn(t, EMBER, "Ember", "6");
-                t.expect("Ember opens Inferno and Meteor", () -> count(".node.open") == 5 && count(".node.sealed") == 6);
-                t.hold(1600);
-                learn(t, INFERNO, "Inferno", "4");
-                t.hold(900);
-                learn(t, TIDE, "Tide", "3");
-                t.hold(1600);
-                learn(t, FROST, "Frost", "1");
-                t.hold(900);
-                // Fails if the learn button ignores the points left.
-                t.clickNth(".node .hit", MENDING);
-                t.expect("Mending costs 2 with 1 left: it cannot be learned", () ->
-                        Playtest.text(".detail .name").equals("Mending") && Playtest.query(".learn").get(0).hasState(Element.DISABLED));
-                t.hold(1200);
-                learn(t, GALE, "Gale", "0");
-                t.expect("Gale opens Blink and Storm", () -> count(".node.open") == 5 && count(".node.learned") == 6);
-                t.hold(2200);
-            });
-            s.run(() -> Minecraft.getInstance().setScreen(null));
+            s.take("arcane", ArcanePlaytest::showcase);
+            tearDown(s);
         });
+    }
+
+    /** Setup, showcase and teardown, for the reel. */
+    static void scene(Playtest s) {
+        setUp(s);
+        showcase(s);
+        tearDown(s);
+    }
+
+    private static void setUp(Playtest s) {
+        s.run(ArcaneTree::open);
+        s.waitUntil("the tree opens", Playtest::isOpen, Playtest.WAIT);
+    }
+
+    private static void showcase(Playtest t) {
+        t.hold(1500);
+        // Fails if a sealed art can be picked.
+        t.clickNth(".node .hit", BLINK);
+        t.expect("a sealed art is not picked", () -> count(".node.ix-selected") == 0);
+        learn(t, EMBER, "Ember", "6");
+        t.expect("Ember opens Inferno and Meteor", () -> count(".node.open") == 5 && count(".node.sealed") == 6);
+        t.hold(1600);
+        learn(t, INFERNO, "Inferno", "4");
+        t.hold(900);
+        learn(t, TIDE, "Tide", "3");
+        t.hold(1600);
+        learn(t, FROST, "Frost", "1");
+        t.hold(900);
+        // Fails if the learn button ignores the points left.
+        t.clickNth(".node .hit", MENDING);
+        t.expect("Mending costs 2 with 1 left: it cannot be learned", () ->
+                Playtest.text(".detail .name").equals("Mending") && Playtest.query(".learn").get(0).hasState(Element.DISABLED));
+        t.hold(1200);
+        learn(t, GALE, "Gale", "0");
+        t.expect("Gale opens Blink and Storm", () -> count(".node.open") == 5 && count(".node.learned") == 6);
+        t.hold(2200);
+    }
+
+    private static void tearDown(Playtest s) {
+        s.run(() -> Minecraft.getInstance().setScreen(null));
     }
 
     /** Picks the art at {@code index} and learns it, leaving {@code points}. */
