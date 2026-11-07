@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.loot;
 
+import net.minecraft.Util;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
@@ -11,46 +12,44 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Pickup toasts, the radar HUD's log: one row per item type whose count in the inventory grew,
- * merged while it keeps growing, gone {@value #SHOW_MS} ms after the last change. {@link #read} runs
- * in a source: the list instance only changes when a toast is added, updated or expired, so
- * bindings stay idle in between.
+ * Pickup toasts, the loot HUD's log: one row per item type whose count in the inventory grew, merged
+ * while it keeps growing, gone {@value #SHOW_MS} ms after the last change; at most {@value #MAX}, the
+ * oldest going first. {@link #read} runs in a source: the list instance only changes when a toast is
+ * added, merged or expired, so bindings stay idle in between. Time is {@link Util#getMillis()}, which
+ * a recording steps frame by frame.
  */
 final class PickupToasts {
     static final long SHOW_MS = 3000;
-    static final long FADE_MS = 600;
+    static final int MAX = 5;
 
-    record Toast(int id, ItemStack stack, int count, String text, boolean fading) {
-        static Toast of(int id, ItemStack stack, int count, boolean fading) {
-            return new Toast(id, stack, count, "+" + count + " " + stack.getHoverName().getString(), fading);
+    /**
+     * @param counts the merged count, alone: the page keys the count text on it, so a merge re-creates
+     *               it and its bump animation plays again
+     * @param shown  when the toast was last added to or merged, alone: keys the lifetime sweep the same way
+     */
+    record Toast(int id, ItemStack stack, String name, List<Integer> counts, List<Long> shown) {
+        int count() {
+            return counts.get(0);
         }
     }
 
     private final Map<Item, Integer> counts = new HashMap<>();
     private final Map<Item, Integer> ids = new HashMap<>();
     private final List<Toast> live = new ArrayList<>();
-    private final List<Long> shownAt = new ArrayList<>();
     private List<Toast> current = List.of();
     private int nextId;
     private boolean primed;
 
     List<Toast> read(LocalPlayer p) {
-        long now = System.currentTimeMillis();
+        long now = Util.getMillis();
         boolean changed = diff(p.getInventory(), now);
-        for (int i = live.size() - 1; i >= 0; i--) {
-            long age = now - shownAt.get(i);
-            Toast t = live.get(i);
-            if (age >= SHOW_MS) {
-                live.remove(i);
-                shownAt.remove(i);
-                ids.remove(t.stack().getItem());
-                changed = true;
-            } else if (!t.fading() && age >= SHOW_MS - FADE_MS) {
-                live.set(i, Toast.of(t.id(), t.stack(), t.count(), true));
-                changed = true;
-            }
+        changed |= live.removeIf(t -> now - t.shown().get(0) >= SHOW_MS);
+        while (live.size() > MAX) {
+            live.remove(0);
+            changed = true;
         }
         if (changed) {
+            ids.keySet().retainAll(live.stream().map(t -> t.stack().getItem()).toList());
             current = List.copyOf(live);
         }
         return current;
@@ -81,15 +80,14 @@ final class PickupToasts {
         return changed;
     }
 
+    /** A merge moves the toast to the newest end, where the eye already is. */
     private void add(Item item, int gained, long now) {
         int total = gained;
         Integer id = ids.get(item);
         if (id != null) {
             for (int i = 0; i < live.size(); i++) {
                 if (live.get(i).id() == id) {
-                    total += live.get(i).count();
-                    live.remove(i);
-                    shownAt.remove(i);
+                    total += live.remove(i).count();
                     break;
                 }
             }
@@ -97,7 +95,7 @@ final class PickupToasts {
             id = nextId++;
             ids.put(item, id);
         }
-        live.add(Toast.of(id, new ItemStack(item), total, false));
-        shownAt.add(now);
+        ItemStack stack = new ItemStack(item);
+        live.add(new Toast(id, stack, stack.getHoverName().getString(), List.of(total), List.of(now)));
     }
 }

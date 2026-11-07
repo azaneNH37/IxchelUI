@@ -1,15 +1,26 @@
 <link href="hud.css"/>
 <page>
-  <div class="radar">
-    <for each="labels" as="l" key="l.id"><span class="label" bind:style:left="l.left" bind:style:top="l.top" bind:style:color="l.color" bind:text="l.text"></span></for>
-    <for each="edges" as="e" key="e.sector"><div class="edge" bind:style:left="e.left" bind:style:top="e.top">
-      <div class="arrow" bind:style:transform="'rotate(' + (e.sector * 45 - 45) + 'deg)'"></div>
-      <span class="count" bind:text="e.count"></span>
+  <div class="hud">
+    <for each="marks" as="m" key="m.id"><div class="mark" bind:style:left="m.left" bind:style:top="m.top"
+         bind:style:width="m.size" bind:style:height="m.size">
+      <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+      <span class="tag" bind:style:color="m.color" bind:text="m.tag"></span>
     </div></for>
+    <div class="near ix-panel" bind:class:empty="nothingNear">
+      <span class="near-title ix-title" t="ixchel_sample.loot.nearby"></span>
+      <for each="near" as="n" key="n.id"><div class="near-row">
+        <mc-item class="near-icon" bind:item="n.stack"></mc-item>
+        <span class="near-name" bind:style:color="n.color" bind:text="n.name"></span>
+        <span class="near-distance" bind:text="n.distance"></span>
+        <div class="near-arrow" bind:style:transform="'rotate(' + (n.heading - 45) + 'deg)'"></div>
+      </div></for>
+    </div>
     <div class="toasts">
-      <for each="toasts" as="t" key="t.id"><div class="toast" bind:class:fading="t.fading">
-        <mc-item class="icon" bind:item="t.stack"></mc-item>
-        <span class="text" bind:text="t.text"></span>
+      <for each="toasts" as="t" key="t.id"><div class="toast">
+        <for each="t.shown" as="s" key="s"><div class="life"></div></for>
+        <mc-item class="toast-icon" bind:item="t.stack"></mc-item>
+        <span class="toast-name" bind:text="t.name"></span>
+        <for each="t.counts" as="c" key="c"><span class="toast-count" bind:text="'+' + c"></span></for>
       </div></for>
     </div>
   </div>
