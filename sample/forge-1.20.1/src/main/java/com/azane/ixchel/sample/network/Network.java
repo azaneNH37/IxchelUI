@@ -15,6 +15,7 @@ import com.azane.ixchel.sample.storage.StorePacket;
 import com.azane.ixchel.sample.storage.StoredItem;
 import com.azane.ixchel.sample.storage.TakePacket;
 import com.azane.ixchel.sample.storage.TerminalMenu;
+import com.azane.ixchel.sample.workbench.CraftPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -79,6 +80,7 @@ public final class Network {
         toServer(TakePacket.class, TakePacket::encode, TakePacket::decode, TakePacket::handle);
         toServer(StorePacket.class, StorePacket::encode, StorePacket::decode, StorePacket::handle);
         toServer(ClaimQuestPacket.class, ClaimQuestPacket::encode, ClaimQuestPacket::decode, ClaimQuestPacket::handle);
+        toServer(CraftPacket.class, CraftPacket::encode, CraftPacket::decode, CraftPacket::handle);
     }
 
     public static void sendToServer(Object packet) {

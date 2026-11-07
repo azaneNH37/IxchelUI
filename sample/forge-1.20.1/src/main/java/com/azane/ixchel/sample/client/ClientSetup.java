@@ -9,6 +9,7 @@ import com.azane.ixchel.sample.config.ConfigScreen;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
+import com.azane.ixchel.sample.reel.ReelBanner;
 import com.azane.ixchel.sample.storage.TerminalScreen;
 import com.azane.ixchel.sample.tooltips.GaugeElement;
 import com.azane.ixchel.sample.waypoints.WaypointsScreen;
@@ -44,6 +45,7 @@ public final class ClientSetup {
         }));
         EnvHud.register(modBus);
         LootScreens.register(modBus);
+        ReelBanner.register(modBus);
         ConfigScreen.registerFactory(context);
         KEYS.put(KeyBindings.INDEX, SampleIndex::open);
         KEYS.put(KeyBindings.CHARACTER, CharacterScreen::open);
