@@ -80,8 +80,6 @@
   "ixchel_sample.machine.water_slot": "水桶：1000 mB",
   "ixchel_sample.machine.fuel_slot": "燃料",
   "ixchel_sample.machine.no_recipes": "在左侧槽位放入要切割的方块。",
-  "ixchel_sample.machine.sides": "面配置",
-  "ixchel_sample.machine.redstone": "红石：%s",
   "ixchel_sample.machine.redstone.ignored": "忽略",
   "ixchel_sample.machine.redstone.high": "需要信号",
   "ixchel_sample.machine.redstone.low": "需要无信号",
@@ -367,5 +365,19 @@
   "ixchel_sample.reel.storage.title": "储存终端",
   "ixchel_sample.reel.storage.subtitle": "容器菜单 · 虚拟滚动、搜索、排序",
   "ixchel_sample.reel.arcane.title": "奥术树",
-  "ixchel_sample.reel.arcane.subtitle": "界面 · 改色主题、节点解锁"
+  "ixchel_sample.reel.arcane.subtitle": "界面 · 改色主题、节点解锁",
+
+  "ixchel_sample.machine.tab.run": "运行",
+  "ixchel_sample.machine.tab.config": "配置",
+  "ixchel_sample.machine.tab.upgrades": "升级",
+  "ixchel_sample.machine.energy": "能量",
+  "ixchel_sample.machine.redstone_mode": "红石",
+  "ixchel_sample.machine.auto_output": "自动输出",
+  "ixchel_sample.machine.priority": "优先级",
+  "ixchel_sample.machine.upgrade.speed": "速度",
+  "ixchel_sample.machine.upgrade.speed.effect": "切得更快，耗能更多",
+  "ixchel_sample.machine.upgrade.efficiency": "效率",
+  "ixchel_sample.machine.upgrade.efficiency.effect": "每次切割耗能更少",
+  "ixchel_sample.machine.upgrade.capacity": "容量",
+  "ixchel_sample.machine.upgrade.capacity.effect": "更大的缓存"
 }

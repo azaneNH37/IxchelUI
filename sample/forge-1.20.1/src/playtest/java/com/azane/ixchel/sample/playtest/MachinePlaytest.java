@@ -17,10 +17,11 @@ import net.minecraft.world.level.block.Blocks;
 
 /**
  * {@code -Pplaytest=machine}: places a powered stonecutter, fills it by quick moves, picks a recipe and
- * waits for the server to cut; then the redstone mode and the side configuration, each a click whose
- * intent the server applies and replicates back; then vanilla slot behavior on the laid-out slots
- * (real-cursor hover, a refused slot, panel vs outside clicks). With {@code -Pslotcompat} this runs
- * next to JEI or EMI and Mouse Tweaks.
+ * waits for the server to cut; then the config page (redstone mode, auto-output, priority, sides),
+ * whose intents the server applies: the status follows the mode, a reopened menu starts from the
+ * settings; then vanilla slot behavior on the laid-out slots (real-cursor hover, a refused slot,
+ * panel vs outside clicks). With {@code -Pslotcompat} this runs next to JEI or EMI and Mouse Tweaks.
+ * {@code -Precord=machine} records the run page working, the config page and the upgrades.
  */
 public final class MachinePlaytest {
     private static final BlockPos[] at = {BlockPos.ZERO};
@@ -68,38 +69,74 @@ public final class MachinePlaytest {
                                 && Playtest.query(".recipe").size() >= 4, Playtest.WAIT)
                 .expect("empty bucket left in the water slot", () -> menu().getSlot(MachineMenu.WATER_SLOT).getItem().is(Items.BUCKET))
                 .shot("machine-ready")
-                .click(".recipe")
-                .waitUntil("first recipe selected, working", () -> Playtest.query(".recipe.ix-selected").size() == 1
-                        && Playtest.text(".status").equals("Working"), Playtest.WAIT)
-                .hover(".tank")
-                .shot("machine-working")
-                .waitUntilServer("the server cuts a stone", p -> {
-                    Container machine = MachineScreen.contents(p.level(), at[0]);
-                    return machine != null && !machine.getItem(MachineMenu.OUTPUT).isEmpty()
-                            && machine.getItem(MachineMenu.INPUT).getCount() == 2;
-                }, 100)
-                // The server reopens the machine over its open screen: the new screen's model watches
-                // before the old one's closes, and the old close must not end the new watch.
-                .run(() -> previous[0] = menu())
-                .server(MachineScreen::placeAndOpen)
-                .waitUntil("reopened over itself: the new screen still receives state", () -> menu() != null
-                        && menu() != previous[0] && Playtest.text(".status").equals("Working"), Playtest.WAIT)
-                .click(".redstone")
-                .waitUntil("needs a signal: stops", () -> Playtest.text(".redstone span").equals("Redstone: Needs signal")
-                        && Playtest.text(".status").equals("Redstone off"), Playtest.WAIT)
-                // Each click sets the mode after the replicated one, so a click before the snapshot
-                // arrives repeats the last mode instead of skipping one.
-                .click(".redstone")
-                .waitUntil("needs no signal: works", () -> Playtest.text(".redstone span").equals("Redstone: Needs no signal")
-                        && Playtest.text(".status").equals("Working"), Playtest.WAIT)
-                .click(".redstone")
-                .waitUntil("back to ignored: works again", () -> Playtest.text(".redstone span").equals("Redstone: Ignored")
-                        && Playtest.text(".status").equals("Working"), Playtest.WAIT)
-                .click(".sides-toggle")
-                .waitUntil("side panel slides out to its full width", () -> Playtest.box(".sides").width() == 80, Playtest.WAIT)
-                .click(".side")
-                .waitUntil("down side cycles to input", () -> Playtest.text(".mode").equals("Input"), Playtest.WAIT)
-                .shot("machine-sides")
+                // Recorded: the machine working, its config page and upgrades, and a jam.
+                .take("machine", t -> t
+                    .hold(600)
+                    .click(".recipe")
+                    .waitUntil("first recipe selected, working", () -> Playtest.query(".recipe.ix-selected").size() == 1
+                            && Playtest.text(".status").equals("Working"), Playtest.WAIT)
+                    .hover(".tank")
+                    .shot("machine-working")
+                    .hold(1500)
+                    .waitUntilServer("the server cuts a stone", p -> {
+                        Container machine = MachineScreen.contents(p.level(), at[0]);
+                        return machine != null && !machine.getItem(MachineMenu.OUTPUT).isEmpty()
+                                && machine.getItem(MachineMenu.INPUT).getCount() == 2;
+                    }, 100)
+                    // The server reopens the machine over its open screen: the new screen's model watches
+                    // before the old one's closes, and the old close must not end the new watch.
+                    .run(() -> previous[0] = menu())
+                    .server(MachineScreen::placeAndOpen)
+                    .waitUntil("reopened over itself: the new screen still receives state", () -> menu() != null
+                            && menu() != previous[0] && Playtest.text(".status").equals("Working"), Playtest.WAIT)
+                    .hold(800)
+                    .click(".tab-config .ix-tab-button")
+                    .waitUntil("config page shown, run page hidden", () -> Playtest.query(".config.shown").size() == 1
+                            && Playtest.query(".run.shown").isEmpty(), Playtest.WAIT)
+                    .click(".redstone .ix-cycle-button")
+                    .waitUntil("needs a signal: stops", () -> Playtest.text(".redstone span").equals("Needs signal")
+                            && Playtest.text(".status").equals("Redstone off"), Playtest.WAIT)
+                    .hold(700)
+                    .click(".redstone .ix-cycle-button")
+                    .waitUntil("needs no signal: works", () -> Playtest.text(".redstone span").equals("Needs no signal")
+                            && Playtest.text(".status").equals("Working"), Playtest.WAIT)
+                    .hold(700)
+                    // A right click steps back.
+                    .click(".redstone .ix-cycle-button", 1)
+                    .click(".redstone .ix-cycle-button", 1)
+                    .waitUntil("back to ignored: works again", () -> Playtest.text(".redstone span").equals("Ignored")
+                            && Playtest.text(".status").equals("Working"), Playtest.WAIT)
+                    .click(".auto-output")
+                    .waitUntil("auto-output switched on", () -> Playtest.query(".auto-output").get(0).control().checked(), Playtest.WAIT)
+                    .click(".priority .ix-stepper-inc")
+                    .click(".priority .ix-stepper-inc")
+                    .click(".side")
+                    .waitUntil("down side cycles to input", () -> Playtest.text(".mode").equals("Input"), Playtest.WAIT)
+                    .hold(700)
+                    // Fails if a setting never reaches the server: the reopened menu starts from the server's.
+                    .run(() -> previous[0] = menu())
+                    .server(MachineScreen::placeAndOpen)
+                    .waitUntil("reopened with auto-output on and priority 2", () -> menu() != null && menu() != previous[0]
+                            && Playtest.query(".auto-output").get(0).control().checked()
+                            && Playtest.query(".priority .ix-stepper-input").get(0).control().value().equals("2"), Playtest.WAIT)
+                    .click(".tab-config .ix-tab-button")
+                    .shot("machine-config")
+                    .hold(1000)
+                    .click(".tab-upgrades .ix-tab-button")
+                    .waitUntil("upgrades page shown", () -> Playtest.query(".upgrades.shown .upgrade").size() == 3, Playtest.WAIT)
+                    .hold(1800)
+                    .click(".tab-run .ix-tab-button")
+                    // Another item in the output jams the machine; the status glitches. The input is topped
+                    // up and the recipe picked again first: a recorded run holds long enough to cut it all.
+                    .server(p -> MachineScreen.contents(p.level(), at[0]).setItem(MachineMenu.INPUT, new ItemStack(Items.STONE, 16)))
+                    .click(".recipe")
+                    .server(p -> MachineScreen.contents(p.level(), at[0]).setItem(MachineMenu.OUTPUT, new ItemStack(Items.DIRT)))
+                    .waitUntil("output full: jammed", () -> Playtest.text(".status").equals("Output full")
+                            && Playtest.query(".status.jammed").size() == 1, Playtest.WAIT)
+                    .hold(1500)
+                    .server(p -> MachineScreen.contents(p.level(), at[0]).setItem(MachineMenu.OUTPUT, ItemStack.EMPTY))
+                    .waitUntil("output cleared: works", () -> Playtest.text(".status").equals("Working"), Playtest.WAIT)
+                    .hold(800))
                 // Carrying the bars: the output slot refuses them, a click on the panel keeps them, a click
                 // outside drops them.
                 .run(() -> Playtest.clickSlot(MachineMenu.HOTBAR_START + BARS))

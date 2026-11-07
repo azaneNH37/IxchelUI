@@ -80,8 +80,6 @@
   "ixchel_sample.machine.water_slot": "Water bucket: 1000 mB",
   "ixchel_sample.machine.fuel_slot": "Fuel",
   "ixchel_sample.machine.no_recipes": "Put a block to cut in the left slot.",
-  "ixchel_sample.machine.sides": "Sides",
-  "ixchel_sample.machine.redstone": "Redstone: %s",
   "ixchel_sample.machine.redstone.ignored": "Ignored",
   "ixchel_sample.machine.redstone.high": "Needs signal",
   "ixchel_sample.machine.redstone.low": "Needs no signal",
@@ -367,5 +365,19 @@
   "ixchel_sample.reel.storage.title": "Storage terminal",
   "ixchel_sample.reel.storage.subtitle": "Container menu · virtual scroll, search, sort",
   "ixchel_sample.reel.arcane.title": "Arcane tree",
-  "ixchel_sample.reel.arcane.subtitle": "Screen · a theme restyled, nodes unlocking"
+  "ixchel_sample.reel.arcane.subtitle": "Screen · a theme restyled, nodes unlocking",
+
+  "ixchel_sample.machine.tab.run": "Run",
+  "ixchel_sample.machine.tab.config": "Config",
+  "ixchel_sample.machine.tab.upgrades": "Upgrades",
+  "ixchel_sample.machine.energy": "Energy",
+  "ixchel_sample.machine.redstone_mode": "Redstone",
+  "ixchel_sample.machine.auto_output": "Auto-output",
+  "ixchel_sample.machine.priority": "Priority",
+  "ixchel_sample.machine.upgrade.speed": "Speed",
+  "ixchel_sample.machine.upgrade.speed.effect": "Cuts faster, burns more",
+  "ixchel_sample.machine.upgrade.efficiency": "Efficiency",
+  "ixchel_sample.machine.upgrade.efficiency.effect": "Less energy per cut",
+  "ixchel_sample.machine.upgrade.capacity": "Capacity",
+  "ixchel_sample.machine.upgrade.capacity.effect": "Bigger buffers"
 }

@@ -52,9 +52,12 @@ public final class MachineBlock extends BaseEntityBlock {
         return InteractionResult.CONSUME;
     }
 
-    /** Opens the machine's menu; the client reads the block position from the open packet. */
+    /** Opens the machine's menu; the open packet carries the block position and the settings. */
     static void open(ServerPlayer player, MachineBlockEntity be) {
-        NetworkHooks.openScreen(player, be, be.getBlockPos());
+        NetworkHooks.openScreen(player, be, buf -> {
+            buf.writeBlockPos(be.getBlockPos());
+            be.config().encode(buf);
+        });
     }
 
     @Override
