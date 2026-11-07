@@ -47,22 +47,7 @@ public final class LootPlaytest {
     public static void register(Playtests playtests) {
         playtests.register("loot", s -> {
             UiHud hud = LootScreens.hud();
-            s.server(p -> {
-                ServerLevel l = p.serverLevel();
-                l.getEntitiesOfClass(ItemEntity.class, new AABB(-40, -70, -40, 40, -40, 40)).forEach(Entity::discard);
-                drop(l, 0.5, -3.5, new ItemStack(Items.COBBLESTONE, 12));
-                drop(l, 0.5, -5.5, new ItemStack(Items.EXPERIENCE_BOTTLE));
-                drop(l, 0.5, -9.5, new ItemStack(Items.GOLDEN_APPLE, 2));
-                drop(l, 0.5, 5.5, new ItemStack(Items.ENCHANTED_GOLDEN_APPLE));
-                p.teleportTo(l, 0.5, -60, 0.5, 180, 0);
-            });
-            s.run(() -> hud.show(true));
-            // Fails if drops are not scanned or projected, or the nearby arrows do not point at them.
-            s.waitUntil("three brackets in view; nearby list nearest first, the one behind pointed back",
-                    () -> Playtest.query(hud, ".mark").size() == 3
-                    && Playtest.texts(hud, ".near-name").equals(List.of(
-                    "Cobblestone x12", "Enchanted Golden Apple", "Bottle o' Enchanting", "Golden Apple x2"))
-                    && sectors(Playtest.query(hud, ".near-arrow")).equals(List.of(0, 4, 0, 0)), Playtest.WAIT);
+            setUp(s);
             s.expect("brackets tagged with name and count", () -> Playtest.texts(hud, ".mark .tag")
                     .containsAll(List.of("Cobblestone x12", "Bottle o' Enchanting", "Golden Apple x2")));
             s.expect("nearby distances", () -> Playtest.texts(hud, ".near-distance")
@@ -76,23 +61,7 @@ public final class LootPlaytest {
             s.shot("loot-hud");
             // Recorded: the player looks round (brackets slide, the nearby arrows turn), then picks things
             // up; the toasts are gone again before the list's assertions.
-            s.take("loot", t -> {
-                t.hold(1000);
-                for (int i = 1; i <= 80; i++) {
-                    float yaw = 180 + (float) (35 * Math.sin(i * Math.PI / 40));
-                    t.run(() -> place(Minecraft.getInstance().player.getX(), yaw));
-                }
-                t.server(p -> p.getInventory().add(new ItemStack(Items.IRON_INGOT, 3)));
-                t.hold(500);
-                t.server(p -> p.getInventory().add(new ItemStack(Items.GOLD_INGOT, 2)));
-                t.hold(500);
-                t.server(p -> p.getInventory().add(new ItemStack(Items.IRON_INGOT, 4)));
-                t.hold(400);
-                t.server(p -> p.getInventory().add(new ItemStack(Items.DIAMOND)));
-                t.hold(400);
-                t.server(p -> p.getInventory().add(new ItemStack(Items.IRON_INGOT, 2)));
-                t.hold(3600);
-            });
+            s.take("loot", LootPlaytest::showcase);
             s.run(() -> place(Minecraft.getInstance().player.getX(), 180));
             s.waitUntil("no toasts left", () -> Playtest.query(hud, ".toast").isEmpty(), 100);
             s.run(LootScreens::openList);
@@ -158,18 +127,74 @@ public final class LootPlaytest {
             s.run(() -> FrameTimer.expect(s, "list reordering every tick", BUDGET_US));
             s.expect("list still nearest first", LootPlaytest::sorted);
             s.shot("loot-moving");
-            s.run(() -> {
-                Minecraft.getInstance().setScreen(null);
-                hud.show(false);
-            });
-            s.server(p -> {
-                p.serverLevel().getEntitiesOfClass(ItemEntity.class, new AABB(-40, -70, -40, 40, -40, 40))
-                        .forEach(Entity::discard);
-                // The toast items, so later playtests start from the inventory they expect.
-                List<Item> gained = List.of(Items.STICK, Items.FLINT, Items.COAL, Items.CLAY_BALL, Items.BRICK,
-                        Items.IRON_INGOT, Items.GOLD_INGOT, Items.DIAMOND);
-                p.getInventory().clearOrCountMatchingItems(st -> gained.contains(st.getItem()), -1, p.inventoryMenu.getCraftSlots());
-            });
+            tearDown(s);
+        });
+    }
+
+    /** Setup, showcase and teardown, for the reel: the HUD, then a look at the list. */
+    static void scene(Playtest s) {
+        setUp(s);
+        showcase(s);
+        s.run(() -> place(Minecraft.getInstance().player.getX(), 180));
+        s.run(LootScreens::openList);
+        s.waitUntil("the list opens", Playtest::isOpen, Playtest.WAIT);
+        s.hold(2500);
+        tearDown(s);
+    }
+
+    /** Four drops round the player in a dark spot, the HUD shown and tracking them. */
+    private static void setUp(Playtest s) {
+        UiHud hud = LootScreens.hud();
+        s.server(p -> {
+            ServerLevel l = p.serverLevel();
+            l.getEntitiesOfClass(ItemEntity.class, new AABB(-40, -70, -40, 40, -40, 40)).forEach(Entity::discard);
+            drop(l, 0.5, -3.5, new ItemStack(Items.COBBLESTONE, 12));
+            drop(l, 0.5, -5.5, new ItemStack(Items.EXPERIENCE_BOTTLE));
+            drop(l, 0.5, -9.5, new ItemStack(Items.GOLDEN_APPLE, 2));
+            drop(l, 0.5, 5.5, new ItemStack(Items.ENCHANTED_GOLDEN_APPLE));
+            p.teleportTo(l, 0.5, -60, 0.5, 180, 0);
+        });
+        s.run(() -> hud.show(true));
+        // Fails if drops are not scanned or projected, or the nearby arrows do not point at them.
+        s.waitUntil("three brackets in view; nearby list nearest first, the one behind pointed back",
+                () -> Playtest.query(hud, ".mark").size() == 3
+                && Playtest.texts(hud, ".near-name").equals(List.of(
+                "Cobblestone x12", "Enchanted Golden Apple", "Bottle o' Enchanting", "Golden Apple x2"))
+                && sectors(Playtest.query(hud, ".near-arrow")).equals(List.of(0, 4, 0, 0)), Playtest.WAIT);
+    }
+
+    /** The player looks round (brackets slide, the nearby arrows turn), then picks things up. */
+    private static void showcase(Playtest t) {
+        t.hold(1000);
+        for (int i = 1; i <= 80; i++) {
+            float yaw = 180 + (float) (35 * Math.sin(i * Math.PI / 40));
+            t.run(() -> place(Minecraft.getInstance().player.getX(), yaw));
+        }
+        t.server(p -> p.getInventory().add(new ItemStack(Items.IRON_INGOT, 3)));
+        t.hold(500);
+        t.server(p -> p.getInventory().add(new ItemStack(Items.GOLD_INGOT, 2)));
+        t.hold(500);
+        t.server(p -> p.getInventory().add(new ItemStack(Items.IRON_INGOT, 4)));
+        t.hold(400);
+        t.server(p -> p.getInventory().add(new ItemStack(Items.DIAMOND)));
+        t.hold(400);
+        t.server(p -> p.getInventory().add(new ItemStack(Items.IRON_INGOT, 2)));
+        t.hold(3600);
+    }
+
+    /** The HUD hidden, the drops and the items gained gone. */
+    private static void tearDown(Playtest s) {
+        s.run(() -> {
+            Minecraft.getInstance().setScreen(null);
+            LootScreens.hud().show(false);
+        });
+        s.server(p -> {
+            p.serverLevel().getEntitiesOfClass(ItemEntity.class, new AABB(-40, -70, -40, 40, -40, 40))
+                    .forEach(Entity::discard);
+            // The toast items, so later playtests start from the inventory they expect.
+            List<Item> gained = List.of(Items.STICK, Items.FLINT, Items.COAL, Items.CLAY_BALL, Items.BRICK,
+                    Items.IRON_INGOT, Items.GOLD_INGOT, Items.DIAMOND);
+            p.getInventory().clearOrCountMatchingItems(st -> gained.contains(st.getItem()), -1, p.inventoryMenu.getCraftSlots());
         });
     }
 

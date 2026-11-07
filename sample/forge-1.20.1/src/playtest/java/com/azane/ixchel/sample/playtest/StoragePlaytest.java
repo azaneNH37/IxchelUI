@@ -58,19 +58,7 @@ public final class StoragePlaytest {
 
     public static void register(Playtests playtests) {
         playtests.register("storage", s -> {
-            s.server(StoragePlaytest::fill);
-            s.server(p -> p.getInventory().setItem(0, new ItemStack(ModItems.STORAGE_TERMINAL.get())));
-            s.waitUntil("terminal in the hand", () -> {
-                var player = Minecraft.getInstance().player;
-                player.getInventory().selected = 0;
-                return player.getMainHandItem().is(ModItems.STORAGE_TERMINAL.get());
-            }, Playtest.WAIT);
-            // The real right-click path: the client uses the item, the server opens the menu.
-            s.run(() -> Minecraft.getInstance().gameMode.useItem(Minecraft.getInstance().player, InteractionHand.MAIN_HAND));
-            // Fails if the scan misses chests, the first sync is not a full snapshot, or the view has errors.
-            s.waitUntil("terminal open without errors, every kind synced", () -> Playtest.menu(TerminalMenu.class) != null
-                    && Playtest.document().diagnostics().errorCount() == 0
-                    && Playtest.text(".summary").equals(kinds[0] + " / " + kinds[0]), 40);
+            setUp(s);
             s.run(() -> s.record("every item fits the chests: " + kinds[0] + " kinds",
                     kinds[0] == BuiltInRegistries.ITEM.size() - 1 && kinds[0] > 1000));
             // Fails if the grid builds a cell per entry instead of only the rows in view.
@@ -83,22 +71,7 @@ public final class StoragePlaytest {
                     Playtest.texts(".top-name").equals(MOST) && Playtest.text(".top-count").equals("2.6k"));
             s.hover(".cell mc-item");
             s.shot("storage-open");
-            s.take("storage", t -> {
-                t.hold(1500);
-                for (int i = 0; i < 24; i++) {
-                    t.scroll(".view", -1);
-                }
-                t.hold(600);
-                t.click(".search");
-                t.type("diamond");
-                t.hold(1500);
-                t.key(GLFW.GLFW_KEY_A, Keys.MOD_CTRL);
-                t.type("@ixchel_sample");
-                t.hold(1500);
-                t.key(GLFW.GLFW_KEY_A, Keys.MOD_CTRL);
-                t.key(GLFW.GLFW_KEY_BACKSPACE);
-                t.hold(800);
-            });
+            s.take("storage", StoragePlaytest::showcase);
             s.waitUntil("the showcase leaves the grid at the top, unfiltered", () -> view().scrollTop() == 0
                     && Playtest.text(".summary").equals(kinds[0] + " / " + kinds[0]), Playtest.WAIT);
 
@@ -216,11 +189,54 @@ public final class StoragePlaytest {
             s.shot("storage-inventory");
             s.run(() -> Playtest.hoverAt(0, 0));
 
-            // Moving the terminal out of the hand closes the menu.
-            s.server(p -> p.getInventory().setItem(0, ItemStack.EMPTY));
-            s.waitUntil("terminal out of the hand: the screen closes", () -> Playtest.menu(TerminalMenu.class) == null, 40);
-            s.server(StoragePlaytest::clear);
+            tearDown(s);
         });
+    }
+
+    /** Setup, showcase and teardown, for the reel. */
+    static void scene(Playtest s) {
+        setUp(s);
+        showcase(s);
+        tearDown(s);
+    }
+
+    private static void setUp(Playtest s) {
+        s.server(StoragePlaytest::fill);
+        s.server(p -> p.getInventory().setItem(0, new ItemStack(ModItems.STORAGE_TERMINAL.get())));
+        s.waitUntil("terminal in the hand", () -> {
+            var player = Minecraft.getInstance().player;
+            player.getInventory().selected = 0;
+            return player.getMainHandItem().is(ModItems.STORAGE_TERMINAL.get());
+        }, Playtest.WAIT);
+        // The real right-click path: the client uses the item, the server opens the menu.
+        s.run(() -> Minecraft.getInstance().gameMode.useItem(Minecraft.getInstance().player, InteractionHand.MAIN_HAND));
+        // Fails if the scan misses chests, the first sync is not a full snapshot, or the view has errors.
+        s.waitUntil("terminal open without errors, every kind synced", () -> Playtest.menu(TerminalMenu.class) != null
+                && Playtest.document().diagnostics().errorCount() == 0
+                && Playtest.text(".summary").equals(kinds[0] + " / " + kinds[0]), 40);
+    }
+
+    private static void showcase(Playtest t) {
+        t.hold(1500);
+        for (int i = 0; i < 24; i++) {
+            t.scroll(".view", -1);
+        }
+        t.hold(600);
+        t.click(".search");
+        t.type("diamond");
+        t.hold(1500);
+        t.key(GLFW.GLFW_KEY_A, Keys.MOD_CTRL);
+        t.type("@ixchel_sample");
+        t.hold(1500);
+        t.key(GLFW.GLFW_KEY_A, Keys.MOD_CTRL);
+        t.key(GLFW.GLFW_KEY_BACKSPACE);
+        t.hold(800);
+    }
+
+    private static void tearDown(Playtest s) {
+        s.server(p -> p.getInventory().setItem(0, ItemStack.EMPTY));
+        s.waitUntil("terminal out of the hand: the screen closes", () -> Playtest.menu(TerminalMenu.class) == null, 40);
+        s.server(StoragePlaytest::clear);
     }
 
     /** Two layers of chests, 7 by 7, under the player, filled with a full stack of every item in registry order. */

@@ -34,23 +34,7 @@ public final class BossPlaytest {
     public static void register(Playtests playtests) {
         playtests.register("boss", s -> {
             UiHud hud = BossHud.hud();
-            s.server(p -> {
-                Vec3 at = p.position().add(p.getLookAngle().multiply(9, 0, 9));
-                Mob m = EntityType.IRON_GOLEM.create(p.serverLevel());
-                m.moveTo(at.x, p.getY(), at.z, p.getYRot() + 180, 0);
-                m.setNoAi(true);
-                m.addTag(BossState.TAG);
-                m.setCustomName(Component.literal(NAME));
-                m.getAttribute(Attributes.MAX_HEALTH).setBaseValue(MAX);
-                m.setHealth(MAX);
-                m.setAbsorptionAmount(60);
-                m.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 900, 1));
-                m.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 500));
-                m.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 300));
-                p.serverLevel().addFreshEntity(m);
-            });
-            s.run(() -> hud.show(true));
-            s.waitUntil("the bar shows the boss", () -> Playtest.query(hud, ".boss.shown").size() == 1, Playtest.WAIT);
+            setUp(s);
             s.expect("the bar reports no errors", () -> hud.document().diagnostics().errorCount() == 0);
             s.expect("name, phase I, health, the shield and three effects", () ->
                     Playtest.text(hud, ".title").equals(NAME) && Playtest.text(hud, ".phase").equals("Phase I")
@@ -58,38 +42,74 @@ public final class BossPlaytest {
                             && Playtest.query(hud, ".shield.shown").size() == 1
                             && Playtest.text(hud, ".shield-text").equals("+60")
                             && Playtest.query(hud, ".buff").size() == 3 && Playtest.query(hud, ".buff.debuff").size() == 1);
-            s.take("boss", t -> {
-                t.hold(1500);
-                t.server(boss(m -> m.setAbsorptionAmount(25)));
-                t.hold(700);
-                t.server(boss(m -> m.setAbsorptionAmount(0)));
-                // Fails if the shield does not follow the boss's absorption.
-                t.waitUntil("the shield breaks", () -> Playtest.query(hud, ".shield.shown").isEmpty(), Playtest.WAIT);
-                t.hold(800);
-                t.server(boss(m -> m.setHealth(250)));
-                t.hold(900);
-                t.server(boss(m -> m.setHealth(190)));
-                // Fails if the phase does not follow the health past the first third.
-                t.waitUntil("phase II past the first third", () -> Playtest.text(hud, ".phase").equals("Phase II"), Playtest.WAIT);
-                t.hold(1200);
-                t.server(boss(m -> m.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 400))));
-                t.waitUntil("weakness joins the row as a debuff", () -> Playtest.query(hud, ".buff.debuff").size() == 2, Playtest.WAIT);
-                t.hold(800);
-                t.server(boss(m -> m.setHealth(130)));
-                t.hold(900);
-                t.server(boss(m -> m.setHealth(80)));
-                t.waitUntil("phase III enrages the boss", () -> Playtest.text(hud, ".phase").equals("Phase III")
-                        && Playtest.text(hud, ".title").equals(NAME + ", Enraged")
-                        && Playtest.query(hud, ".boss.enraged").size() == 1, Playtest.WAIT);
-                t.hold(2000);
-                t.server(boss(m -> m.setHealth(20)));
-                t.hold(1200);
-                t.server(boss(Mob::discard));
-                t.waitUntil("the bar hides with the boss gone", () -> Playtest.query(hud, ".boss.shown").isEmpty(), Playtest.WAIT);
-                t.hold(600);
-            });
-            s.run(() -> hud.show(false));
+            s.take("boss", BossPlaytest::showcase);
+            tearDown(s);
         });
+    }
+
+    /** Setup, showcase and teardown, for the reel. */
+    static void scene(Playtest s) {
+        setUp(s);
+        showcase(s);
+        tearDown(s);
+    }
+
+    private static void setUp(Playtest s) {
+        UiHud hud = BossHud.hud();
+        s.server(p -> {
+            Vec3 at = p.position().add(p.getLookAngle().multiply(9, 0, 9));
+            Mob m = EntityType.IRON_GOLEM.create(p.serverLevel());
+            m.moveTo(at.x, p.getY(), at.z, p.getYRot() + 180, 0);
+            m.setNoAi(true);
+            m.addTag(BossState.TAG);
+            m.setCustomName(Component.literal(NAME));
+            m.getAttribute(Attributes.MAX_HEALTH).setBaseValue(MAX);
+            m.setHealth(MAX);
+            m.setAbsorptionAmount(60);
+            m.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 900, 1));
+            m.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 500));
+            m.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 300));
+            p.serverLevel().addFreshEntity(m);
+        });
+        s.run(() -> hud.show(true));
+        s.waitUntil("the bar shows the boss", () -> Playtest.query(hud, ".boss.shown").size() == 1, Playtest.WAIT);
+    }
+
+    private static void showcase(Playtest t) {
+        UiHud hud = BossHud.hud();
+        t.hold(1500);
+        t.server(boss(m -> m.setAbsorptionAmount(25)));
+        t.hold(700);
+        t.server(boss(m -> m.setAbsorptionAmount(0)));
+        // Fails if the shield does not follow the boss's absorption.
+        t.waitUntil("the shield breaks", () -> Playtest.query(hud, ".shield.shown").isEmpty(), Playtest.WAIT);
+        t.hold(800);
+        t.server(boss(m -> m.setHealth(250)));
+        t.hold(900);
+        t.server(boss(m -> m.setHealth(190)));
+        // Fails if the phase does not follow the health past the first third.
+        t.waitUntil("phase II past the first third", () -> Playtest.text(hud, ".phase").equals("Phase II"), Playtest.WAIT);
+        t.hold(1200);
+        t.server(boss(m -> m.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 400))));
+        t.waitUntil("weakness joins the row as a debuff", () -> Playtest.query(hud, ".buff.debuff").size() == 2, Playtest.WAIT);
+        t.hold(800);
+        t.server(boss(m -> m.setHealth(130)));
+        t.hold(900);
+        t.server(boss(m -> m.setHealth(80)));
+        t.waitUntil("phase III enrages the boss", () -> Playtest.text(hud, ".phase").equals("Phase III")
+                && Playtest.text(hud, ".title").equals(NAME + ", Enraged")
+                && Playtest.query(hud, ".boss.enraged").size() == 1, Playtest.WAIT);
+        t.hold(2000);
+        t.server(boss(m -> m.setHealth(20)));
+        t.hold(1200);
+        t.server(boss(Mob::discard));
+        t.waitUntil("the bar hides with the boss gone", () -> Playtest.query(hud, ".boss.shown").isEmpty(), Playtest.WAIT);
+        t.hold(600);
+    }
+
+    private static void tearDown(Playtest s) {
+        UiHud hud = BossHud.hud();
+        s.run(() -> hud.show(false));
     }
 
     /** A server step on every boss near the player. */
