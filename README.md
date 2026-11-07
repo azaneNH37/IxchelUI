@@ -21,4 +21,4 @@
 - ViewModel良好的**表现层数据协议**，设计来源Signal，免去你喜欢写的一大堆抽象轮询或者整天把网络层和UI层耦合在一起
 - **完备的离线检查**，lint，清晰的错误码，lsp（WIP），大肥鱼再也不会整天写一堆错的格式在runtime才报错
 - build gradle插件 + 编译期lint + web-editor（WIP） + 热重载，用**工作量最低的方案**提供全套对人和agent友好的**开发工具**
-- @UIElement，@UIView，宿主可轻松的实现原生元素，携带java逻辑的组件的**扩展**
+- @UiElement，@UiView，宿主可轻松的实现原生元素，携带java逻辑的组件的**扩展**
