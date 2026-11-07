@@ -2,6 +2,7 @@ package com.azane.ixchel.sample.machine;
 
 import com.azane.ixchel.sample.registry.ModMenus;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
@@ -32,20 +33,23 @@ public final class MachineMenu extends AbstractContainerMenu {
     public static final int SLOT_COUNT = HOTBAR_START + 9;
 
     final BlockPos pos;
+    /** The settings when the menu opened, for the config page to start from. */
+    final MachineConfig config;
     private final Container machine;
 
-    /** Client side, from the open packet. */
-    public MachineMenu(int id, Inventory inventory, BlockPos pos) {
-        this(id, inventory, pos, new SimpleContainer(MACHINE_SLOTS));
+    /** Client side, from the open packet: the position, then the settings. */
+    public MachineMenu(int id, Inventory inventory, FriendlyByteBuf buf) {
+        this(id, inventory, buf.readBlockPos(), MachineConfig.decode(buf), new SimpleContainer(MACHINE_SLOTS));
     }
 
     MachineMenu(int id, Inventory inventory, MachineBlockEntity be) {
-        this(id, inventory, be.getBlockPos(), be.items);
+        this(id, inventory, be.getBlockPos(), be.config(), be.items);
     }
 
-    private MachineMenu(int id, Inventory inventory, BlockPos pos, Container machine) {
+    private MachineMenu(int id, Inventory inventory, BlockPos pos, MachineConfig config, Container machine) {
         super(ModMenus.POWERED_STONECUTTER.get(), id);
         this.pos = pos;
+        this.config = config;
         this.machine = machine;
         addSlot(new Slot(machine, FUEL, 0, 0) {
             @Override

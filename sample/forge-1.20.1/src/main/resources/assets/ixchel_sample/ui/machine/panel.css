@@ -1,92 +1,136 @@
-/* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. The side
-   configuration slides out of the panel's right edge (outside the GUI area). */
+/* Top-level and centered by auto margins: the panel's box is the GUI area other mods see. The amber
+   theme draws the panel, bars, tabs and controls; this sheet lays the pages out, burns the fuel away
+   round its slot, stripes the status while the machine runs and glitches it when the output jams.
+   The machine's column sits left of the inventory; its pages share one box, and hidden pages keep
+   their slots placed but not shown. */
 @stylesheet;
-@link "../themes/container.css";
+@link "@ixchel/themes/amber.css";
+@link "@ixchel/effects/glitch.ixeffect";
+@link "@ixchel/effects/cooldown.ixeffect";
 @link "../common/slot.css";
 
 .ix-panel {
   margin: auto;
-  width: 178px;
+  flex-direction: row;
+  align-items: center;
   padding: 8px;
 }
 
-/* Title and status on their own lines: side by side they need more than the 162px inside the panel. */
+.machine {
+  width: 172px;
+}
+
+.ix-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0 7px;
+}
+
 .header {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 4px;
 }
 
 .status {
-  margin-top: 1px;
+  white-space: nowrap;
+  padding: 1px 3px;
   color: var(--ix-positive);
+  border: 1px solid transparent;
 }
 
 .status.bad {
   color: var(--ix-negative);
+  border-color: var(--ix-negative);
 }
 
-.body {
+.status.ix-busy {
+  border-color: var(--ix-accent);
+}
+
+/* A jam shakes the line apart. */
+.jammed {
+  filter: -ix-paint(Glitch);
+  --Glitch-chance: 0.3;
+}
+
+.tabs {
   flex-direction: row;
-  height: 58px;
+  gap: 2px;
   margin-bottom: 4px;
 }
 
-/* Vertical gauges: the fill stands on the bottom and grows with the value. Flat, without the theme's
-   well bevel and notched corners. */
-.bar {
-  height: 56px;
+ix-tab {
+  flex-grow: 1;
+}
+
+ix-tab::part(button) {
+  width: 100%;
+  padding: 1px 0 2px;
+}
+
+.page {
+  display: none;
+  height: 104px;
+}
+
+.page.shown {
+  display: flex;
+}
+
+/* Run: gauges, feed, work. */
+.run {
+  flex-direction: row;
+}
+
+.energy-wrap {
   margin-right: 3px;
-  background-color: #373737;
-  border: 1px solid #1E1E1E;
-  border-radius: 0;
-  box-shadow: none;
-  --ix-bar-inset: 0px;
+}
+
+.bar {
+  height: 100px;
 }
 
 .energy {
-  width: 12px;
-}
-
-ix-bar.energy::part(fill) {
-  background-color: #D03030;
-  transition: flex-basis 150ms;
+  width: 10px;
 }
 
 .tank {
-  width: 18px;
+  width: 16px;
+  margin-right: 4px;
 }
 
-/* The water sprite from the block atlas, tinted with the biome's water color (set on the tank). */
+/* The water sprite from the block atlas, tinted with the biome's water color (set on the tank), in
+   place of the theme's fuel tube. */
 ix-bar.tank::part(fill) {
   background-color: var(--water-tint, #3F76E4);
   background-image: url("sprite:minecraft:block/water_still");
   background-size: 16px 16px;
   background-blend-mode: multiply;
-  transition: flex-basis 150ms;
+}
+
+.tip-title {
+  color: var(--ix-title);
 }
 
 .feed {
-  width: 18px;
+  width: 22px;
   margin-right: 4px;
   align-items: center;
+  justify-content: space-around;
+  height: 100px;
 }
 
-.flame {
-  width: 14px;
-  height: 14px;
-  margin: 2px 0px;
-  justify-content: flex-end;
-  background-image: url("minecraft:textures/gui/container/furnace.png");
-  background-size: 256px 256px;
-  background-position: -56px -36px;
-  background-repeat: no-repeat;
+/* The fuel slot sits in a ring the burning fuel sweeps away. */
+.burn {
+  padding: 2px;
+  background-image: paint(Cooldown);
+  --Cooldown-color: #FFB828A0;
 }
 
-.flame-fill {
-  width: 14px;
-  background-image: url("minecraft:textures/gui/container/furnace.png");
-  background-size: 256px 256px;
-  background-position-x: -176px;
-  background-repeat: no-repeat;
+.burn.ix-invalid {
+  box-shadow: inset 0 0 0 1px var(--ix-negative);
 }
 
 .work {
@@ -99,28 +143,22 @@ ix-bar.tank::part(fill) {
   margin-bottom: 3px;
 }
 
-.arrow {
-  width: 24px;
-  height: 17px;
-  margin: 0px 4px;
-  background-image: url("minecraft:textures/gui/container/furnace.png");
-  background-size: 256px 256px;
-  background-position: -79px -34px;
-  background-repeat: no-repeat;
+.progress {
+  width: 28px;
+  height: 6px;
+  margin: 0 4px;
 }
 
-.arrow-fill {
-  height: 17px;
-  background-image: url("minecraft:textures/gui/container/furnace.png");
-  background-size: 256px 256px;
-  background-position: -176px -14px;
-  background-repeat: no-repeat;
+.output {
+  width: 26px;
+  height: 26px;
 }
 
 .recipes {
   flex-direction: row;
   flex-wrap: wrap;
-  height: 36px;
+  align-content: flex-start;
+  height: 70px;
   overflow: auto;
 }
 
@@ -129,21 +167,20 @@ ix-bar.tank::part(fill) {
 }
 
 .recipe {
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
   padding: 1px;
   background-color: var(--ix-well-bg);
-  transition: background-color 120ms;
 }
 
 .recipe:hover {
-  background-color: #B0B0B0;
+  background-color: var(--ix-hover);
 }
 
 .recipe.ix-selected {
-  background-color: var(--ix-selected);
-  border: 1px solid var(--ix-positive);
-  padding: 0px;
+  background-color: var(--ix-hover);
+  box-shadow: inset 0 0 0 1px var(--ix-accent);
 }
 
 .icon {
@@ -151,64 +188,80 @@ ix-bar.tank::part(fill) {
   height: 16px;
 }
 
-.output {
-  width: 26px;
-  height: 26px;
+/* Config: three settings, then the sides. */
+.config {
+  gap: 2px;
 }
 
-.buttons {
+.setting {
   flex-direction: row;
-  margin-bottom: 4px;
+  align-items: center;
+  justify-content: space-between;
+  height: 13px;
 }
 
-button {
-  padding: 2px 4px;
-  margin-right: 3px;
+.label {
+  color: var(--ix-text-muted);
 }
 
-/* Slides out to the right: the width animates from 0, the rows inside are clipped meanwhile. */
-.sides {
-  position: absolute;
-  left: 178px;
-  top: 21px;
-  width: 0px;
-  overflow: hidden;
-  background-color: var(--ix-panel-bg);
-  transition: width 200ms;
-}
-
-.sides.open {
+.redstone::part(button) {
   width: 80px;
-  padding: 1px;
-  box-shadow: var(--ix-panel-shadow);
+  padding: 0 2px;
+}
+
+.priority {
+  flex-direction: row;
+}
+
+.priority::part(input) {
+  width: 20px;
+}
+
+.sides {
+  margin-top: 3px;
 }
 
 .side {
   flex-direction: row;
   justify-content: space-between;
-  flex-shrink: 0;
-  width: 78px;
-  padding: 2px 3px;
-  transition: background-color 120ms;
-}
-
-.side:hover {
-  background-color: var(--ix-hover);
-}
-
-.face {
-  white-space: nowrap;
+  height: 9px;
+  padding: 0 2px;
 }
 
 .mode {
-  white-space: nowrap;
   color: var(--ix-text-muted);
 }
 
 .mode.input {
-  color: #2050C0;
+  color: #6EB4FF;
 }
 
 .mode.output {
   color: var(--ix-warning);
+}
+
+/* Upgrades: one card each, the accepted items turning over. */
+.upgrades {
+  gap: 2px;
+}
+
+.upgrade {
+  flex-direction: row;
+  align-items: center;
+  height: 26px;
+  padding: 2px 4px;
+}
+
+.upgrade-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
+}
+
+.upgrade-name {
+  color: var(--ix-title);
+}
+
+.upgrade-effect {
+  color: var(--ix-text-muted);
 }

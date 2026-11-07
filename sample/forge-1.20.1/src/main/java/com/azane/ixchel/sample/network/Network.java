@@ -6,7 +6,7 @@ import com.azane.ixchel.sample.machine.MachineBlockEntity;
 import com.azane.ixchel.sample.machine.MachineState;
 import com.azane.ixchel.sample.machine.OpenMachinePacket;
 import com.azane.ixchel.sample.machine.PickRecipePacket;
-import com.azane.ixchel.sample.machine.SetRedstonePacket;
+import com.azane.ixchel.sample.machine.SetConfigPacket;
 import com.azane.ixchel.sample.machine.SetSidePacket;
 import com.azane.ixchel.sample.quests.ClaimQuestPacket;
 import com.azane.ixchel.sample.quests.Claimed;
@@ -74,7 +74,7 @@ public final class Network {
         toServer(PickUpDropPacket.class, PickUpDropPacket::encode, PickUpDropPacket::decode, PickUpDropPacket::handle);
         toServer(OpenMachinePacket.class, OpenMachinePacket::encode, OpenMachinePacket::decode, OpenMachinePacket::handle);
         toServer(PickRecipePacket.class, PickRecipePacket::encode, PickRecipePacket::decode, PickRecipePacket::handle);
-        toServer(SetRedstonePacket.class, SetRedstonePacket::encode, SetRedstonePacket::decode, SetRedstonePacket::handle);
+        toServer(SetConfigPacket.class, SetConfigPacket::encode, SetConfigPacket::decode, SetConfigPacket::handle);
         toServer(SetSidePacket.class, SetSidePacket::encode, SetSidePacket::decode, SetSidePacket::handle);
         toServer(OpenTerminalPacket.class, OpenTerminalPacket::encode, OpenTerminalPacket::decode, OpenTerminalPacket::handle);
         toServer(TakePacket.class, TakePacket::encode, TakePacket::decode, TakePacket::handle);

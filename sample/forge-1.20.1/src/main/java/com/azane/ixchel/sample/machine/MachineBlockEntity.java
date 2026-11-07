@@ -29,7 +29,7 @@ import java.util.List;
  * {@link #WATER_PER_CUT} mB of water and runs the selected vanilla stonecutting recipe for the input.
  * The redstone mode can make it need a signal or its absence. Players within reach see it as a
  * replicated {@link MachineState} ({@link #view}) and change it through intent packets, which land
- * in {@link #pickRecipe}, {@link #setRedstone} and {@link #setSide}.
+ * in {@link #pickRecipe}, {@link #setConfig} and {@link #setSide}.
  */
 public final class MachineBlockEntity extends BlockEntity implements MenuProvider {
     static final int ENERGY_CAPACITY = 10_000;
@@ -53,7 +53,7 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
     private int progress;
     private int recipe = -1;
     private MachineState.Status status = MachineState.Status.NO_INPUT;
-    private MachineState.Redstone redstone = MachineState.Redstone.IGNORED;
+    private MachineConfig config = MachineConfig.DEFAULT;
     private final MachineState.SideMode[] sides = {MachineState.SideMode.NONE, MachineState.SideMode.NONE,
             MachineState.SideMode.NONE, MachineState.SideMode.NONE, MachineState.SideMode.NONE, MachineState.SideMode.NONE};
     /** The input item the recipe index was chosen for; another item clears the choice, as vanilla's stonecutter. */
@@ -69,7 +69,7 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
     public static MachineState view(ServerPlayer player, BlockPos pos) {
         MachineBlockEntity be = reachable(player, pos);
         return be == null ? null : new MachineState(be.progress, be.energy, be.water, be.burn, be.burnTotal, be.recipe,
-                be.status, be.redstone, List.of(be.sides));
+                be.status, List.of(be.sides));
     }
 
     /** Ignored unless {@code index} is a recipe for the current input, or {@code -1}. */
@@ -80,8 +80,12 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
         }
     }
 
-    void setRedstone(MachineState.Redstone mode) {
-        redstone = mode;
+    MachineConfig config() {
+        return config;
+    }
+
+    void setConfig(MachineConfig config) {
+        this.config = config;
         setChanged();
     }
 
@@ -152,6 +156,7 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
             return MachineState.Status.PICK_RECIPE;
         }
         boolean signal = level.hasNeighborSignal(pos);
+        MachineState.Redstone redstone = config.redstone();
         if (redstone == MachineState.Redstone.HIGH && !signal || redstone == MachineState.Redstone.LOW && signal) {
             return MachineState.Status.REDSTONE_OFF;
         }
@@ -207,7 +212,9 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
         tag.putInt("BurnTotal", burnTotal);
         tag.putInt("Progress", progress);
         tag.putInt("Recipe", recipe);
-        tag.putInt("Redstone", redstone.ordinal());
+        tag.putInt("Redstone", config.redstone().ordinal());
+        tag.putBoolean("AutoOutput", config.autoOutput());
+        tag.putInt("Priority", config.priority());
         int[] s = new int[sides.length];
         for (int i = 0; i < s.length; i++) {
             s[i] = sides[i].ordinal();
@@ -225,7 +232,8 @@ public final class MachineBlockEntity extends BlockEntity implements MenuProvide
         burnTotal = tag.getInt("BurnTotal");
         progress = tag.getInt("Progress");
         recipe = tag.contains("Recipe") ? tag.getInt("Recipe") : -1;
-        redstone = MachineState.Redstone.values()[Math.floorMod(tag.getInt("Redstone"), MachineState.Redstone.values().length)];
+        config = new MachineConfig(MachineState.Redstone.values()[Math.floorMod(tag.getInt("Redstone"),
+                MachineState.Redstone.values().length)], tag.getBoolean("AutoOutput"), tag.getInt("Priority"));
         int[] s = tag.getIntArray("Sides");
         for (int i = 0; i < Math.min(s.length, sides.length); i++) {
             sides[i] = MachineState.SideMode.values()[Math.floorMod(s[i], MachineState.SideMode.values().length)];
