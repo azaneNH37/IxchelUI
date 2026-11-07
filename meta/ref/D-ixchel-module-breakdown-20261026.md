@@ -245,7 +245,7 @@ M4 NeoForge 1.21.1（2026-10-27，`gradlew :testmod-neoforge-1.21.1:runClient`�
 
 M5：按槽位文档推进：反射写坐标与 `isHovering` 覆写 → `UiContainerScreen`（`VANILLA` 绘制）→ Slot 通道（轮询比较）→ 第三方 mod 兼容（L2）→ `IXCHEL` 绘制开关（#009）→ 生产环境 SRG 验证（L3）。
 
-M5 结果（2026-10-27）：`UiContainerScreen` + `<item-slot>` + 背包式改装（#32）；L2 在 `-Pslotcompat=jei|emi` 下由 `-Pbench=backpack` 跑，含真实光标悬停检查（#33）；`IXCHEL` 绘制逐槽裁剪、槽位随滚动移动（#34）；关闭时还原槽位坐标，L3 由 shade-a 的 `ContainerCheck`（`-Dixchelshadea.check=container`）在生产实例跑（#35）。详见槽位文档 §8。
+M5 结果（2026-10-27）：`UiContainerScreen` + `<item-slot>` + 背包式改装；L2 在 `-Pslotcompat=jei|emi` 下由 `-Pbench=backpack` 跑，含真实光标悬停检查；`IXCHEL` 绘制逐槽裁剪、槽位随滚动移动；关闭时还原槽位坐标，L3 由 shade-a 的 `ContainerCheck`（`-Dixchelshadea.check=container`）在生产实例跑。详见槽位文档 §8。
 
 提前探针（只用 mc 层 + testmod，不依赖 core，可在 M2 期间做）：槽位文档 §8 的 L1，验证 ModLauncher 下 `Slot` 包对反射开放、`isHovering` 覆写生效、1.20.1 零面积裁剪。失败会推翻 #008 或 #009，不应拖到 M5。
 
