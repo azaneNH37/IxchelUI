@@ -1,5 +1,6 @@
 package com.azane.ixchel.sample.client.index;
 
+import com.azane.ixchel.sample.arcane.ArcaneTree;
 import com.azane.ixchel.sample.character.CharacterScreen;
 import com.azane.ixchel.sample.config.ConfigScreen;
 import com.azane.ixchel.sample.effects.EffectsScreen;
@@ -44,6 +45,7 @@ public final class Samples {
                 Sample.screen("effects", new ItemStack(Items.AMETHYST_SHARD), EffectsScreen::open),
                 Sample.screen("themes", new ItemStack(Items.PAINTING), ShowcaseScreen::open),
                 Sample.screen("workbench", new ItemStack(Items.CRAFTING_TABLE), Workbench::open),
-                Sample.screen("spell", new ItemStack(Items.ENCHANTED_BOOK), SpellWheel::open));
+                Sample.screen("spell", new ItemStack(Items.ENCHANTED_BOOK), SpellWheel::open),
+                Sample.screen("arcane", new ItemStack(Items.AMETHYST_CLUSTER), ArcaneTree::open));
     }
 }
