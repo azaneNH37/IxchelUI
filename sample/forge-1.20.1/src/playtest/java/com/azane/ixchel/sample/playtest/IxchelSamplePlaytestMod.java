@@ -39,6 +39,7 @@ public final class IxchelSamplePlaytestMod {
             EffectsPlaytest.register(playtests);
             ThemesPlaytest.register(playtests);
             WorkbenchPlaytest.register(playtests);
+            SpellPlaytest.register(playtests);
         });
     }
 }

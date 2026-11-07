@@ -10,6 +10,7 @@ import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.machine.MachineScreen;
 import com.azane.ixchel.sample.reel.ReelBanner;
+import com.azane.ixchel.sample.spell.SpellWheel;
 import com.azane.ixchel.sample.storage.TerminalScreen;
 import com.azane.ixchel.sample.tooltips.GaugeElement;
 import com.azane.ixchel.sample.waypoints.WaypointsScreen;
@@ -51,6 +52,7 @@ public final class ClientSetup {
         KEYS.put(KeyBindings.CHARACTER, CharacterScreen::open);
         KEYS.put(KeyBindings.LOOT_LIST, LootScreens::openList);
         KEYS.put(KeyBindings.WAYPOINTS, WaypointsScreen::open);
+        KEYS.put(KeyBindings.SPELL, SpellWheel::open);
         MinecraftForge.EVENT_BUS.addListener(ClientSetup::onClientTick);
     }
 

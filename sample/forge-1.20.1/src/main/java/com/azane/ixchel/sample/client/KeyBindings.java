@@ -17,6 +17,9 @@ public final class KeyBindings {
     /** J: the waypoints list. */
     public static final KeyMapping WAYPOINTS = new KeyMapping("key.ixchel_sample.waypoints", GLFW.GLFW_KEY_J, CATEGORY);
 
+    /** R, held: the spell wheel; released, it casts the spell pointed at. */
+    public static final KeyMapping SPELL = new KeyMapping("key.ixchel_sample.spell", GLFW.GLFW_KEY_R, CATEGORY);
+
     private KeyBindings() {
     }
 
@@ -25,5 +28,6 @@ public final class KeyBindings {
         e.register(CHARACTER);
         e.register(LOOT_LIST);
         e.register(WAYPOINTS);
+        e.register(SPELL);
     }
 }
