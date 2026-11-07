@@ -9,7 +9,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 
 ## Summary
 
-实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则），TH1（主题机制与库资源显式引入，#034、#039）、RS（按资源规范重做文件种类、引用与登记，#041）、TH2–TH4（形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`）、U4（组件库）、REC（确定性录制）、CSS1、CSS2（参考前端视效补齐 CSS，依据 `ref/S-ixchel-frontend-visual-gap-20261106.md`）、TH5（`holo` 重做、`cyber` 换成 `amber`）；下一步 FT（内置字体）；Doc 分批写，第一批（站点基建、生成的参考页与 Java API 页）已合入（#87）。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
+实现顺序与状态的唯一来源；其它 meta 文档只引用本文。已完成 0、A、B、C、D0、L1、D、L2、L3、E1、T1、T2、E2、I、U1–U3、原生声明与元素定义重构 N1–N2、V1–V4（盒子外观、尺寸与排版、动画与进出、整页开关动画）、FX1–FX3（私有图层与整组 `opacity`、标准滤镜与混合、`.ixeffect` 具名特效），L4–L8（Java 组件、共享来源 Feed、库组件加载，#035、#036；库资源统一，#037；顶层外暂停轮询与 `<mc-tooltip-lines>` 组件化，#038；删除框架值，#035 修订；lint 复用 core 的组件文件判定与行内内容规则），TH1（主题机制与库资源显式引入，#034、#039）、RS（按资源规范重做文件种类、引用与登记，#041）、TH2–TH4（形状与像素化、文字、四套内置主题，`ref/SD-ixchel-themes-20261104.md`）、U4（组件库）、REC（确定性录制）、CSS1、CSS2（参考前端视效补齐 CSS，依据 `ref/S-ixchel-frontend-visual-gap-20261106.md`）、TH5（`holo` 重做、`cyber` 换成 `amber`）；下一步 FT（内置字体）；Doc 分批写，第一批（站点基建、生成的参考页与 Java API 页）已合入。阶段排序依据见 `ref/S-ixchel-ui-capability-comparison-20261102.md`。sample 迁移只做等价重构，以 `-Pplaytest=all` 为回归网。
 
 ## Detail
 
@@ -27,7 +27,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 |---|---|---|---|
 | 0 | 完成 | — | border、opacity、文本对齐与省略、`:disabled`、自定义元素 tooltip |
 | A | 完成 | S5、S4 | 环境 HUD、掉落物雷达 |
-| B | 完成（#46） | S1、S2 | `<entity>`、图集精灵与 tint |
+| B | 完成 | S1、S2 | `<entity>`、图集精灵与 tint |
 | C | 完成 | S3、S6 | 文本输入、虚拟网格、表单控件、顶层与对话框、Tab 焦点 |
 | D0 | 完成 | — | 改名与清理 |
 | L1 | 完成 | — | 表达式、`on:` 语句、`state:` |
@@ -42,7 +42,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
 | E1 | 完成 | S8 | 文字排版补完：行内流式排版、CJK 断行、`Component` 富文本、行内链接 |
 | E2 | 完成 | S9；S1、S6、S7 的 tooltip | 文档内富 tooltip `<ix-tooltip>`，兼容原版物品 tooltip |
 | I | 完成 | 全部场景的界面文本 | i18n：`t` 语言键与参数 |
-| Doc | 进行中 | — | 用户文档站 `docs/` 与语言参考（#045、#046）：第一批（plume 基建、kit 生成参考页、doclet 生成 `/java-api/` 页、名字与死链检查）已合入（#87），手写内容分批写 |
+| Doc | 进行中 | — | 用户文档站 `docs/` 与语言参考（#045、#046）：第一批（plume 基建、kit 生成参考页、doclet 生成 `/java-api/` 页、名字与死链检查）已合入，手写内容分批写 |
 | T1 | 完成 | 2026-10-31 | 静态检查：`@UiTemplate`、成员表编译、原生元素声明数据、错误码、`ixchel-kit` 的 lint 与 schema（`ref/SD-ixchel-tooling-and-editor-20261031.md`） |
 | T2 | 完成 | 2026-10-31 | 游戏内检查从 sample 提取进 core / mc / 加载器层（仅 1.20.1） |
 | U1 | 完成 | S7、S4 | `text-shadow`、`<for index>`、默认点击音、滚动条拖动与外观 |

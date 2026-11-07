@@ -146,8 +146,8 @@ GitHub 的平台防护：fork PR 不传 secret、token 只读、不能修改 `.g
 | 措施 | 防的是什么 | 时机 |
 |---|---|---|
 | `check` 不用 secret、`permissions: contents: read` | 被篡改的 workflow 拿到的东西没有价值 | 现在（§3 骨架已含） |
-| fork PR 运行审批设为"所有外部协作者" | 时长滥用；运行前能先看 diff | 转公开时 |
-| Actions 只允许 GitHub 官方与经认证的 action | 第三方 action 被投毒（如 2025-03 `tj-actions/changed-files` 的 tag 被篡改） | 转公开时 |
+| fork PR 运行审批设为"所有外部协作者" | 时长滥用；运行前能先看 diff | 已做（2026-11-07 转公开时） |
+| Actions 只允许 GitHub 官方与经认证的 action | 第三方 action 被投毒（如 2025-03 `tj-actions/changed-files` 的 tag 被篡改） | 已做（2026-11-07）；另按模式放行在用的 `gradle/actions/setup-gradle`、`pnpm/action-setup`、`lycheeverse/lychee-action`，新增第三方 action 须先加入此列表 |
 | 发布 secret 放入 GitHub Environment `release`，限定 `v*` tag 才能使用 | 分支上被改的 workflow 拿不到发布凭据 | 实现 `release` 时 |
 | ruleset 限制谁能创建 `v*` tag | 他人打 tag 触发发版 | 实现 `release` 时 |
 | `release`、`docs` 中的 action 用 commit SHA 固定 | tag 可被改指；这两个流程持有写权限与 Pages 部署权限 | 实现时；`check` 只读，用版本 tag |
@@ -176,8 +176,9 @@ GitHub 的平台防护：fork PR 不传 secret、token 只读、不能修改 `.g
 
 ### 8. 实测与待核实
 
-- 冷构建实测（2026-10-26，PR #5 两次运行，均无缓存）：`./gradlew build` 5m03s 与 4m08s，44 个任务全部执行；`timeout-minutes` 定为 20。
+- 冷构建实测（2026-10-26，首个 PR 的两次运行，均无缓存）：`./gradlew build` 5m03s 与 4m08s，44 个任务全部执行；`timeout-minutes` 定为 20。
 - 已确认：无 foojay 下载；`setup-gradle` 默认开启 wrapper 校验（日志 "All Gradle Wrapper jars are valid"）；PR 运行时缓存为只读（"Cache is read-only"），缓存从合入 `master` 后的首次运行开始写入。
-- 首个 `master` 运行（PR #5 合入后）：`./gradlew build` 4m40s，缓存写入约 12 s。PR #6 命中该缓存：恢复约 18 s，`./gradlew build` 38 s（44 个任务中 12 个取自 build cache），整个 job 69 s。待确认：私有期间每月 Actions 分钟数是否够用。
+- 首个 `master` 运行（首个 PR 合入后）：`./gradlew build` 4m40s，缓存写入约 12 s。下一个 PR 命中该缓存：恢复约 18 s，`./gradlew build` 38 s（44 个任务中 12 个取自 build cache），整个 job 69 s。待确认：私有期间每月 Actions 分钟数是否够用。
 - javadoc doclint 改为 `all,-missing`（2026-10-26 定）：保留语法类检查，去掉约 100 条"缺注释"告警，PR 上不再出现对应 annotation。
 - 转公开后：Pages 来源设为 GitHub Actions，VuePress 的 `base` 设为 `/IxchelUI/`（使用 `<user>.github.io/<repo>` 路径时）；确认 push ruleset 对个人账户公开仓库是否可用。
+- 2026-11-07 迁到新仓库后转公开：新仓库首次推送后 workflow 未被登记（`actions/workflows` 为空，PR 也不触发），重新保存一次 Actions 权限（`PUT actions/permissions`）后才登记。
