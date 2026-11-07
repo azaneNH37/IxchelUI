@@ -6,6 +6,7 @@ import com.azane.ixchel.sample.effects.EffectsScreen;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.guide.Guide;
 import com.azane.ixchel.sample.loot.LootScreens;
+import com.azane.ixchel.sample.spell.SpellWheel;
 import com.azane.ixchel.sample.machine.MachineScreen;
 import com.azane.ixchel.sample.registry.ModItems;
 import com.azane.ixchel.sample.showcase.ShowcaseScreen;
@@ -40,6 +41,7 @@ public final class Samples {
                 Sample.screen("tooltips", new ItemStack(Items.NAME_TAG), TooltipsScreen::open),
                 Sample.screen("effects", new ItemStack(Items.AMETHYST_SHARD), EffectsScreen::open),
                 Sample.screen("themes", new ItemStack(Items.PAINTING), ShowcaseScreen::open),
-                Sample.screen("workbench", new ItemStack(Items.CRAFTING_TABLE), Workbench::open));
+                Sample.screen("workbench", new ItemStack(Items.CRAFTING_TABLE), Workbench::open),
+                Sample.screen("spell", new ItemStack(Items.ENCHANTED_BOOK), SpellWheel::open));
     }
 }
