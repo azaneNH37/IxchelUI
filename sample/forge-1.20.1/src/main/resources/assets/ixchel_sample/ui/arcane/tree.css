@@ -1,0 +1,242 @@
+/* The holo theme in violet: its variables restated, and the panel's brackets and breathing frame,
+   which holo.css draws in its own cyan. The tree on a round stage: arts burn in (Dissolve) as their
+   parent is learned, open ones pulse, learned ones and their lines glow. */
+@stylesheet;
+@link "@ixchel/themes/holo.css";
+@link "@ixchel/effects/dissolve.ixeffect";
+@link "@ixchel/effects/chromatic.ixeffect";
+
+:root {
+  --ix-panel-bg: #12061EC0;
+  --ix-panel-shadow: inset 0 0 0 1px #C08CFF30, 0 0 12px #C08CFF30;
+  --ix-well-bg: #2A0E4050;
+  --ix-well-border: #C08CFF40;
+  --ix-control-bg: #C08CFF18;
+  --ix-control-border: #C08CFFB0;
+  --ix-overlay-bg: #10041CE8;
+  --ix-overlay-border: #C08CFFC0;
+  --ix-overlay-text: #F0E2FF;
+  --ix-hover: #C08CFF26;
+  --ix-active: #C08CFF55;
+  --ix-selected: #C08CFF40;
+  --ix-disabled-text: #6A4E80;
+  --ix-focus: #F0E2FF;
+  --ix-text: #E0C8FF;
+  --ix-title: #FAF2FF;
+  --ix-text-muted: #B49ACC;
+  --ix-text-dim: #7A5E92;
+  --ix-accent: #C08CFF;
+  --ix-on-accent: #1A0628;
+}
+
+.ix-panel {
+  background-image: linear-gradient(90deg, transparent, #C08CFF50, #F0E2FF90, #C08CFF50, transparent),
+      linear-gradient(#F0E2FF, #F0E2FF), linear-gradient(#F0E2FF, #F0E2FF),
+      linear-gradient(#F0E2FF, #F0E2FF), linear-gradient(#F0E2FF, #F0E2FF),
+      linear-gradient(#F0E2FF, #F0E2FF), linear-gradient(#F0E2FF, #F0E2FF),
+      linear-gradient(#F0E2FF, #F0E2FF), linear-gradient(#F0E2FF, #F0E2FF),
+      linear-gradient(#C08CFF10 50%, transparent 50%);
+  animation: arcane-frame 2.5s ease-in-out infinite alternate, ix-holo-scan 4s linear infinite,
+      ix-holo-flicker 7s linear infinite;
+}
+
+@keyframes arcane-frame {
+  from { box-shadow: inset 0 0 0 1px #C08CFF18, 0 0 12px #C08CFF18; }
+  to { box-shadow: inset 0 0 0 1px #C08CFF60, 0 0 12px #C08CFF50; }
+}
+
+.ix-title {
+  filter: drop-shadow(0 0 2px #C08CFF) -ix-paint(Chromatic);
+}
+
+button:hover, button:focus {
+  box-shadow: 0 0 6px #C08CFF60;
+}
+
+.screen {
+  width: 100%;
+  height: 100%;
+}
+
+.ix-panel {
+  margin: auto;
+  padding: 8px;
+}
+
+.header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.points,
+.cost {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  color: var(--ix-title);
+}
+
+.gem {
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
+  background-color: var(--ix-accent);
+  box-shadow: 0 0 4px #C08CFF;
+}
+
+.body {
+  flex-direction: row;
+  gap: 10px;
+}
+
+/* ArcaneModel.STAGE square; the rings at its radii, 52 and 104. */
+.stage {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background-image: radial-gradient(closest-side, #2A0E4080, #12061E40 70%, #12061E00);
+}
+
+.ring {
+  position: absolute;
+  border: 1px solid #C08CFF28;
+  border-radius: 50%;
+}
+
+.ring.outer {
+  left: 26px;
+  top: 26px;
+  width: 208px;
+  height: 208px;
+}
+
+.ring.inner {
+  left: 78px;
+  top: 78px;
+  width: 104px;
+  height: 104px;
+  border-color: #C08CFF40;
+}
+
+.edge {
+  position: absolute;
+  height: 2px;
+  transform-origin: 0 50%;
+  background-color: #C08CFF50;
+  opacity: 0;
+  transition: opacity 900ms ease-out, background-color 600ms, box-shadow 600ms;
+}
+
+.edge.shown {
+  opacity: 1;
+}
+
+.edge.lit {
+  background-color: #F0E2FF;
+  box-shadow: 0 0 4px #C08CFF;
+}
+
+/* ArcaneModel.NODE: lines join the centers of these boxes. */
+.node {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #C08CFF70;
+  border-radius: 50%;
+  background-color: #1A0A2CE0;
+  filter: -ix-paint(Dissolve);
+  --Dissolve-edge-color: #F0B0FF;
+  --Dissolve-edge: 4px;
+  transition: transform 150ms ease-out, background-color 500ms, border-color 500ms, box-shadow 500ms;
+}
+
+/* Burnt away until revealed; burning in once, when the parent is learned (learned keeps the same
+   animation, so learning does not restart it). */
+.node.sealed {
+  --Dissolve-progress: 1;
+}
+
+.node.open,
+.node.learned {
+  animation: burn-in 1400ms ease-out;
+}
+
+@keyframes burn-in {
+  from { --Dissolve-progress: 1; }
+  to { --Dissolve-progress: 0; }
+}
+
+.node.learned {
+  border-color: #F0E2FF;
+  background-color: #4A1A78E0;
+  box-shadow: 0 0 8px #C08CFFC0;
+}
+
+.node.ix-selected {
+  transform: scale(1.2);
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
+
+.hit {
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+/* Open arts call: a ring breathing out of them. */
+.open .hit {
+  animation: call 1600ms ease-in-out infinite alternate;
+}
+
+@keyframes call {
+  from { box-shadow: 0 0 0 0 #C08CFF00; }
+  to { box-shadow: 0 0 6px 1px #C08CFFC0; }
+}
+
+.detail {
+  width: 120px;
+  gap: 5px;
+  padding: 6px;
+  background-color: var(--ix-well-bg);
+  box-shadow: var(--ix-well-shadow);
+}
+
+.detail-head {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.detail-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.name {
+  color: var(--ix-title);
+}
+
+.text {
+  color: var(--ix-text-muted);
+}
+
+.cost.learned {
+  color: var(--ix-positive);
+}
+
+.learn {
+  margin-top: auto;
+}
