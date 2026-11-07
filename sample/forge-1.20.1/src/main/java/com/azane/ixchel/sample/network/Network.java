@@ -1,6 +1,7 @@
 package com.azane.ixchel.sample.network;
 
 import com.azane.ixchel.sample.IxchelSampleMod;
+import com.azane.ixchel.sample.boss.BossState;
 import com.azane.ixchel.sample.loot.PickUpDropPacket;
 import com.azane.ixchel.sample.machine.MachineBlockEntity;
 import com.azane.ixchel.sample.machine.MachineState;
@@ -60,6 +61,10 @@ public final class Network {
     /** The quests the player claimed (the key is unused, 0); every ten ticks, and at once after a claim. */
     public static final Replication.Kind<Integer, Claimed> QUESTS = Replication.snapshot(
             FriendlyByteBuf::writeVarInt, FriendlyByteBuf::readVarInt, 10, Claimed::encode, Claimed::decode, Claimed::view);
+
+    /** The boss nearest the player (the key is unused, 0); every two ticks, for its effects' time. */
+    public static final Replication.Kind<Integer, BossState> BOSS = Replication.snapshot(
+            FriendlyByteBuf::writeVarInt, FriendlyByteBuf::readVarInt, 2, BossState::encode, BossState::decode, BossState::view);
 
     private Network() {
     }

@@ -5,6 +5,7 @@ import com.azane.ixchel.sample.config.ConfigScreen;
 import com.azane.ixchel.sample.effects.EffectsScreen;
 import com.azane.ixchel.sample.env.EnvHud;
 import com.azane.ixchel.sample.guide.Guide;
+import com.azane.ixchel.sample.boss.BossHud;
 import com.azane.ixchel.sample.loot.LootScreens;
 import com.azane.ixchel.sample.spell.SpellWheel;
 import com.azane.ixchel.sample.machine.MachineScreen;
@@ -33,6 +34,7 @@ public final class Samples {
                 Sample.screen("machine", new ItemStack(ModItems.POWERED_STONECUTTER.get()), MachineScreen::openNearby),
                 Sample.screen("storage", new ItemStack(ModItems.STORAGE_TERMINAL.get()), TerminalScreen::openNearby),
                 Sample.hud("loot", new ItemStack(Items.HOPPER), LootScreens.hud()),
+                Sample.hud("boss", new ItemStack(Items.WITHER_SKELETON_SKULL), BossHud.hud()),
                 Sample.screen("loot-list", new ItemStack(Items.RECOVERY_COMPASS), LootScreens::openList),
                 Sample.screen("waypoints", new ItemStack(Items.COMPASS), WaypointsScreen::open),
                 Sample.screen("config", new ItemStack(Items.COMPARATOR), ConfigScreen::open),

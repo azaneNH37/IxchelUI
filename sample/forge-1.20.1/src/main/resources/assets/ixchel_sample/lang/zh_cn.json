@@ -394,5 +394,10 @@
   "ixchel_sample.spell.ward": "护盾",
   "ixchel_sample.spell.haste": "疾行",
   "ixchel_sample.spell.light": "照明",
-  "ixchel_sample.spell.storm": "召雷"
+  "ixchel_sample.spell.storm": "召雷",
+
+  "ixchel_sample.index.boss.title": "Boss 血条 HUD",
+  "ixchel_sample.index.boss.description": "跟随最近的带 ixchel_boss 标签的生物：带伤害拖尾的宽血条、阶段刻度与覆盖其上的护盾、标题在换阶段时故障闪入，以及 Boss 身上效果的剩余时间扫过。",
+  "ixchel_sample.boss.phase": "第 %s 阶段",
+  "ixchel_sample.boss.enraged": "%s · 狂暴"
 }
