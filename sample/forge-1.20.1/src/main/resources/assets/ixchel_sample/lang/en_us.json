@@ -111,6 +111,8 @@
   "ixchel_sample.quests.state.open": "In progress",
   "ixchel_sample.quests.state.locked": "Locked: finish the quests before it",
 
+  "ixchel_sample.storage.most": "Most stored",
+  "ixchel_sample.storage.total": "Items stored",
   "ixchel_sample.storage.search": "Search, @mod",
   "ixchel_sample.storage.sort_by": "Sort by",
   "ixchel_sample.storage.ascending": "Asc",
