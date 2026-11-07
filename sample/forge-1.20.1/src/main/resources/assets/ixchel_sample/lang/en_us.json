@@ -40,7 +40,7 @@
   "ixchel_sample.index.storage.title": "Storage terminal",
   "ixchel_sample.index.storage.description": "Every chest and item handler within 8 blocks as one virtual grid: search (@mod filters by mod), sort by name, count or mod; click takes a stack, right-click half, shift-click into the inventory; click with a stack to store it. The terminal item (Tools tab) opens it too.",
   "ixchel_sample.index.loot.title": "Loot radar HUD",
-  "ixchel_sample.index.loot.description": "Labels over the drops in view, an arrow with a count at the screen edge for the rest, and toasts for what you pick up.",
+  "ixchel_sample.index.loot.description": "Brackets over the drops in view, a nearby list with distance and a turning arrow, and pickup toasts that merge, bump their count and run out.",
   "ixchel_sample.index.loot-list.title": "Loot radar list (U)",
   "ixchel_sample.index.loot-list.description": "Drops nearest first with their direction, a rarity filter, and a pick-up button the server only honors within 8 blocks.",
   "ixchel_sample.index.waypoints.title": "Waypoints (J)",
@@ -379,5 +379,20 @@
   "ixchel_sample.machine.upgrade.efficiency": "Efficiency",
   "ixchel_sample.machine.upgrade.efficiency.effect": "Less energy per cut",
   "ixchel_sample.machine.upgrade.capacity": "Capacity",
-  "ixchel_sample.machine.upgrade.capacity.effect": "Bigger buffers"
+  "ixchel_sample.machine.upgrade.capacity.effect": "Bigger buffers",
+
+  "ixchel_sample.loot.nearby": "Nearby",
+  "key.ixchel_sample.spell": "Spell wheel (hold)",
+  "ixchel_sample.index.spell.title": "Spell wheel (hold R)",
+  "ixchel_sample.index.spell.description": "Hold R, point toward a spell, release to cast: rune rings turning against each other, sectors that run out of mana or sweep their cooldown.",
+  "ixchel_sample.spell.cost": "%s mana",
+  "ixchel_sample.spell.hint": "Point at a spell",
+  "ixchel_sample.spell.fireball": "Fireball",
+  "ixchel_sample.spell.frost": "Frost Nova",
+  "ixchel_sample.spell.blink": "Blink",
+  "ixchel_sample.spell.mend": "Mend",
+  "ixchel_sample.spell.ward": "Ward",
+  "ixchel_sample.spell.haste": "Haste",
+  "ixchel_sample.spell.light": "Light",
+  "ixchel_sample.spell.storm": "Storm Call"
 }

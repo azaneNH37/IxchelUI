@@ -40,7 +40,7 @@
   "ixchel_sample.index.storage.title": "存储终端",
   "ixchel_sample.index.storage.description": "8 格内的所有箱子和物品容器合成一个虚拟网格：搜索（@mod 按模组筛选），按名称、数量或模组排序；点击取一组，右键取一半，Shift 点击放入物品栏；手持物品点击即存入。终端物品（工具标签页）也能打开它。",
   "ixchel_sample.index.loot.title": "掉落物雷达 HUD",
-  "ixchel_sample.index.loot.description": "视野内掉落物上方的标签，其余掉落物在屏幕边缘显示带数量的箭头，捡起物品时弹出提示。",
+  "ixchel_sample.index.loot.description": "视野内掉落物的锁定框、带距离与转向箭头的附近列表，以及会合并、计数跳动并倒计时消失的拾取提示。",
   "ixchel_sample.index.loot-list.title": "掉落物雷达列表（U）",
   "ixchel_sample.index.loot-list.description": "由近到远列出掉落物及其方向，带稀有度筛选，以及服务端只在 8 格内响应的拾取按钮。",
   "ixchel_sample.index.waypoints.title": "路径点（J）",
@@ -379,5 +379,20 @@
   "ixchel_sample.machine.upgrade.efficiency": "效率",
   "ixchel_sample.machine.upgrade.efficiency.effect": "每次切割耗能更少",
   "ixchel_sample.machine.upgrade.capacity": "容量",
-  "ixchel_sample.machine.upgrade.capacity.effect": "更大的缓存"
+  "ixchel_sample.machine.upgrade.capacity.effect": "更大的缓存",
+
+  "ixchel_sample.loot.nearby": "附近",
+  "key.ixchel_sample.spell": "法术轮盘（按住）",
+  "ixchel_sample.index.spell.title": "法术轮盘（按住 R）",
+  "ixchel_sample.index.spell.description": "按住 R、指向法术、松开施放：两圈反向旋转的符文环，法力不足的扇区变为无效，冷却中的扇区扫过剩余时间。",
+  "ixchel_sample.spell.cost": "%s 法力",
+  "ixchel_sample.spell.hint": "指向一个法术",
+  "ixchel_sample.spell.fireball": "火球",
+  "ixchel_sample.spell.frost": "霜冻新星",
+  "ixchel_sample.spell.blink": "闪现",
+  "ixchel_sample.spell.mend": "治愈",
+  "ixchel_sample.spell.ward": "护盾",
+  "ixchel_sample.spell.haste": "疾行",
+  "ixchel_sample.spell.light": "照明",
+  "ixchel_sample.spell.storm": "召雷"
 }

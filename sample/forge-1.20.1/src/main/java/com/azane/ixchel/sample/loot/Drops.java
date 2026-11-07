@@ -41,11 +41,6 @@ final class Drops {
         return Math.floorMod((int) Math.round(bearing - (p.getYRot() + 180)), 360);
     }
 
-    /** Which of eight sectors around the player's facing {@code e} is in: 0 ahead, 2 right, 4 behind, 6 left. */
-    static int sector(LocalPlayer p, ItemEntity e) {
-        return Math.floorMod(Math.round(heading(p, e) / 45f), 8);
-    }
-
     /** The rarity's chat color as {@code #RRGGBB}. */
     static String color(Rarity rarity) {
         Integer rgb = rarity.color.getColor();
