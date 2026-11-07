@@ -3,6 +3,7 @@ package com.azane.ixchel.sample.client;
 import com.azane.ixchel.core.runtime.UiRegistry;
 import com.azane.ixchel.mc.UiRegistries;
 import com.azane.ixchel.sample.IxchelSampleMod;
+import com.azane.ixchel.sample.boss.BossHud;
 import com.azane.ixchel.sample.character.CharacterScreen;
 import com.azane.ixchel.sample.client.index.SampleIndex;
 import com.azane.ixchel.sample.config.ConfigScreen;
@@ -46,6 +47,7 @@ public final class ClientSetup {
         }));
         EnvHud.register(modBus);
         LootScreens.register(modBus);
+        BossHud.register(modBus);
         ReelBanner.register(modBus);
         ConfigScreen.registerFactory(context);
         KEYS.put(KeyBindings.INDEX, SampleIndex::open);

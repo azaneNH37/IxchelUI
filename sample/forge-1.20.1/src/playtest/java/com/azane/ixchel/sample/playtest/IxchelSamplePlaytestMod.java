@@ -40,6 +40,7 @@ public final class IxchelSamplePlaytestMod {
             ThemesPlaytest.register(playtests);
             WorkbenchPlaytest.register(playtests);
             SpellPlaytest.register(playtests);
+            BossPlaytest.register(playtests);
         });
     }
 }
