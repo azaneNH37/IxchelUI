@@ -14,7 +14,7 @@ import net.minecraft.world.item.ItemStack;
  * is drawn every frame without any comparison or copy; keep the handle instance stable. An empty stack
  * draws nothing and has no tooltip.
  */
-@UiElement(tag = "mc-item", payload = "item", attributes = {"count", "decorations"})
+@UiElement(tag = "mc-item", payload = "item", attributes = {"count", "decorations", "spin"})
 final class ItemElement implements ElementPainter<ItemStack> {
     @Override
     public float paint(GuiGraphics g, DrawCommand.Custom c, ItemStack stack, float z, float pointerX, float pointerY) {
