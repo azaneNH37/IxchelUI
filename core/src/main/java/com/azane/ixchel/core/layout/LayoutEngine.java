@@ -239,7 +239,7 @@ public final class LayoutEngine {
         }
     }
 
-    private final TaffyTree tree = new TaffyTree();
+    private final TaffyTree tree = new ExactCacheTree();
     private final TextShaper shaper;
     private final int[] layoutIds;
     private final Formatting formatting;

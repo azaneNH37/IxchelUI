@@ -109,6 +109,30 @@ class LayoutEngineTest {
         assertEquals("x10", layout.fragments(text).get(0).text());
     }
 
+    /**
+     * Fails if a column is sized from its content-size measurement (its width not applied, so its text
+     * wraps at min-content) because that came out at the column's width: a fixed-width child makes it.
+     */
+    @Test
+    void aFixedWidthColumnIsAsTallAsItsTextLaidOutAtItsWidth() {
+        Diagnostics diag = new Diagnostics();
+        Element root = new Element(ElementType.plain("#root"), new SourcePos("t.html", 1, 1));
+        for (Node n : ViewParser.parse("<page><div class=\"row\"><div class=\"side\"><span>most stored</span>"
+                + "<div class=\"well\"></div></div></div></page>", "t.html", com.azane.ixchel.core.html.HtmlElements.TAGS, diag).roots()) {
+            root.appendChild(n);
+        }
+        StyleSheet sheet = StyleSheet.compile(CssParser.parseStylesheet(
+                ".row { flex-direction: row; margin: auto } .side { width: 100px } .well { width: 100px; height: 20px }",
+                "t.css", diag), CssProperties.REGISTRY, diag);
+        StyleEngine style = new StyleEngine(CssProperties.REGISTRY, List.of(sheet), diag);
+        LayoutEngine layout = new LayoutEngine(new TextShaper(MONO), CssProperties.REGISTRY, diag);
+        style.restyle(root);
+        layout.layout(root, 200, 200, new TopLayer(Presence.instant()));
+        Element row = (Element) root.children().get(0);
+        Element span = (Element) ((Element) row.children().get(0)).children().get(0);
+        assertEquals(span.box().height() + 20, row.box().height(), "one line of text over the well");
+    }
+
     @Test
     void theTooltipIsPlacedAtThePointerFlipsAtTheEdgesAndNeverReflowsTheDocument() {
         Diagnostics diag = new Diagnostics();
