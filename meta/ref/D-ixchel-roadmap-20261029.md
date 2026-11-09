@@ -560,7 +560,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - `ix-bar`：两个轨道按 `dir` 带类 `ix-bar-right/left/up/down`（取代 `bind:style:flex-direction`）；组件参数不留在外壳上，主题写 `ix-bar[dir=up]` 选不中，只能用这些类。
   - 库特效：`helix`（box，管子上缠绕的细线沿 `dir` 流动，中间亮两侧暗）、`reticle`（box，跟随指针的准星：引导线、中心方块、呼吸的四角括号，指针不在盒内时不画）。
   - 主题：四套都链接 `cooldown`、在 `:root` 设可继承的 `--Cooldown-color`，并给 `.ix-bar-trail` 上色；`holo`、`amber` 在 `:root` 设字体（Orbitron、Share Tech Mono）。`dark` 强调色改 `#D8BC52`（标题与焦点仍 `#FFFF55`）。`amber` 去掉内凹斜纹，条的填充为实色叠 `Helix`、前沿 1px 亮边、`300ms ease-out`，所有 `.ix-panel` 背景画 `Reticle`。`vanilla` 按 1.20.1 贴图取值重做，见主题文档 §6.3。
-  - 验证：core、kit 测试通过；sample lint 0 错；未跑 `-Pplaytest=themes`（游戏运行中锁住产物），截图与布局断言待补。SC 阶段的全量运行中 holo、amber 的"每个盒子留在第一套主题的位置"失败，与两套主题在 `:root` 设字体改变文字宽度相符，未查。
+  - 验证：core、kit 测试通过；sample lint 0 错。themes playtest 原比较排版后的盒子，holo、amber 在 `:root` 设字体改变文字宽度后必然失败；SC 之后改为逐元素比较盒模型计算值（尺寸、margin、padding、边框宽度、flex、gap、字号、行高），四套主题通过。
 
 #### SC 展示样例
 
@@ -572,7 +572,7 @@ related: [ref/SD-ixchel-sample-scenarios-20261028.md, ref/SD-ixchel-template-and
   - playtest：各样例拆成 `setUp`/`showcase`/`tearDown`，单项 playtest 在两者之间做自己的检查；`ReelPlaytest`（`-Precord=reel`）把七段串成一条录像，段前 `ReelBanner.show`。`reel` 也在 `all` 中，兼作"七段连跑、互相清理干净"的检查。
   - 顺带修复：workbench 点分类标签后不等列表刷新就按文字点配方，首次运行会点空（`hold` 只在录制时等待）；改为等列表变为六项。
   - 验证：sample lint 0 错；七个样例的 playtest 单独与连跑通过；`-Precord=reel` 72 项全过，录像 2 分 11 秒、七张标题卡齐全；`-Pplaytest=all` 20 项 456 过 4 败：themes 的 holo、amber 布局一致检查（见 TH6，本阶段未动主题），loot 拾取后 20 tick 内的提示检查两项（此前单独与连跑均过，疑为全量运行下的时序，待查）。
-  - 已知：loot 列表录制中偶有整帧屏幕未画（约 450 帧中 4 帧，只剩世界与 HUD），疑与 HUD 进场的离屏图层有关，未查明；储存终端面板底部多 18px 空白，等于背包滚动容器的溢出高度（72 − 54），core 布局单测复现不出，疑在 `UiContainerScreen` 的面板测量。
+  - 遗留修复（2026-11-09）：loot 列表录制偶有整帧缺屏，因 `OffscreenLayers.evictIdle` 释放闲置目标时 `RenderTarget.destroyBuffers` 绑回 0 号帧缓冲，HUD 之后画的屏幕当帧丢失；改为释放前后保留绑定（两版同改），同一录制逐帧检查由 5 帧异常降为 0。储存终端底部多 18px 不在 `UiContainerScreen`，是 taffy-java 缓存复用了按内容尺寸测得的列高（#047）；core 加 `ExactCacheTree` 与回归测试。loot 提示两项此后两次全量、一次单独、一次录制均通过，未复现。全量运行 459 过 1 败，败项为 env 帧时预算（p95 6000 us），新旧缓存下单独运行均偶发超标，与改动无关。
 
 #### Doc 用户文档
 
