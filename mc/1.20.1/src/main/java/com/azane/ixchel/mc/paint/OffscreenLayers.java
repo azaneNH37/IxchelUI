@@ -365,15 +365,26 @@ final class OffscreenLayers {
         t.lastUsed = System.nanoTime();
     }
 
-    /** Frees the targets no layer used for {@value #IDLE_SECONDS} seconds. */
+    /**
+     * Frees the targets no layer used for {@value #IDLE_SECONDS} seconds. Freeing a target binds the
+     * default framebuffer ({@code RenderTarget.destroyBuffers}); the one bound before is bound again,
+     * or whatever draws next in the frame, such as the screen after a HUD, would not reach the window.
+     */
     static void evictIdle() {
         long now = System.nanoTime();
+        int bound = -1;
         for (int i = POOL.size() - 1; i >= 0; i--) {
             Target t = POOL.get(i);
             if (!t.busy && now - t.lastUsed > IDLE_SECONDS * 1_000_000_000L) {
+                if (bound < 0) {
+                    bound = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
+                }
                 t.fbo.destroyBuffers();
                 POOL.remove(i);
             }
+        }
+        if (bound >= 0) {
+            GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, bound);
         }
     }
 

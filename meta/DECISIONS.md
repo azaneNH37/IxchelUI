@@ -274,3 +274,9 @@
 - **context**: Java 跨包即 `public`，public 不能说明哪些类型是对宿主的承诺；文档站需要只呈现宿主可依赖的类型，且与站点同一套导航、搜索与样式
 - **decision**: `core.api.HostApi`（`@Documented`，CLASS 保留）标在宿主可依赖的顶层类型上；标记类型的 public/protected 成员即其 API，签名中出现的未标记类型可见但不承诺。约定插件 `ixchel.library` 对所有 Javadoc 任务按源文本 `^@HostApi` 过滤：发布的 javadoc jar 与站点页面只含标记类型。站点页由 `tools/doclet`（`ixchel-doclet`，不发布）生成 Markdown，每个库模块的 `javaApi` 任务写到 `docs/java-api/<模块>/`（不提交），每个类型一页，成员带稳定锚点；参数、返回值、异常合成一张表，注释无说明时省略。跨模块链接取编译 classpath 上的 Ixchel 项目，模块根包按规则 `com.azane.ixchel.<artifactId 去掉 ixchel- 与 MC 版本>` 推出，新库模块须守此命名
 - **rejected**: 标准 doclet 的 HTML 挂 `/api/`——与站点的导航、搜索、样式割裂，站内只能用普通 `<a>` 链过去；根构建里逐模块注册任务并手写模块与根包对照表——新增模块要改两处，且须 `evaluationDependsOn`
+
+## #047 布局缓存按输入精确命中
+- **decided**: 2026-11-09
+- **context**: 储存终端面板底部多 18px。taffy-java 1.1.5（当时最新版）的 `LayoutCache` 在已知尺寸等于缓存结果尺寸时复用该结果；行容器先按内容尺寸测量定宽列（自身 `width` 不生效，文字按 min-content 折行），若测得宽度恰等于列宽（有等宽子元素），之后按该宽度正式布局时复用了偏高的结果。上游 Rust taffy 已去掉这条捷径
+- **decision**: `LayoutEngine` 使用 `layout.ExactCacheTree`（`TaffyTree` 子类），只按 `(known, available, runMode)` 精确命中；父类缓存照常写入，供 taffy 判断脏节点，父类缓存清空后再写入时一并丢弃本类条目。taffy-java 修复后删除此类；它覆盖依赖的 `getCacheEntry`/`storeCacheEntry`/`remove`/`clear`，升级依赖时复核
+- **rejected**: sample 给列写显式 `min-width` 绕过——库缺陷留给其他宿主；只记录等上游——问题留在展示样例里；给定宽 flex 项自动设 `min-width` 等于 `width`——改变收缩语义

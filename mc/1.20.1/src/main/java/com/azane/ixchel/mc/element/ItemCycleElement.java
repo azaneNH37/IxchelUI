@@ -17,7 +17,7 @@ import java.util.List;
  * cycles of a screen stay in phase and stop while the game is paused. It holds its item while hovered.
  * An empty list draws nothing.
  */
-@UiElement(tag = "mc-item-cycle", payload = "items", attributes = {"count", "decorations", "interval"})
+@UiElement(tag = "mc-item-cycle", payload = "items", attributes = {"count", "decorations", "interval", "spin"})
 final class ItemCycleElement implements ElementPainter<List<ItemStack>> {
     @Override
     public float paint(GuiGraphics g, DrawCommand.Custom c, List<ItemStack> items, float z, float pointerX, float pointerY) {

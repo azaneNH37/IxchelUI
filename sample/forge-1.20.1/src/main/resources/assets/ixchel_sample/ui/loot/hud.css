@@ -1,39 +1,135 @@
-/* Labels and edge arrows are placed by the view model in screen pixels; the pickup toasts sit
-   bottom-left, above the hotbar's row, newest at the bottom. */
+/* Amber. Brackets are placed by the view model in GUI pixels and lock on as a drop comes into view;
+   the nearby list sits at the right edge, its arrows turned by the page; the pickup toasts sit
+   bottom-left above the hotbar's row, newest at the bottom, sliding in and out, the icon's well swept
+   by the toast's remaining life and the count bumping on each merge. */
 @stylesheet;
+@link "@ixchel/themes/amber.css";
+@link "@ixchel/effects/cooldown.ixeffect";
 
-.radar {
+.hud {
   width: 100%;
   height: 100%;
 }
 
-.label {
+/* Brackets: four corners, and the tag under them. */
+.mark {
   position: absolute;
-  width: 120px;
+  transition: transform 220ms ease-out, opacity 220ms;
+}
+
+.mark:-ix-absent {
+  transform: scale(2.2);
+  opacity: 0;
+}
+
+.corner {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border: 0 solid var(--ix-accent);
+  filter: drop-shadow(0 0 2px #F5AF19);
+}
+
+.tl {
+  left: 0;
+  top: 0;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+
+.tr {
+  right: 0;
+  top: 0;
+  border-right-width: 1px;
+  border-top-width: 1px;
+}
+
+.bl {
+  left: 0;
+  bottom: 0;
+  border-left-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.br {
+  right: 0;
+  bottom: 0;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.tag {
+  position: absolute;
+  top: 100%;
+  left: -60px;
+  right: -60px;
+  margin-top: 2px;
   text-align: center;
   white-space: nowrap;
+  filter: drop-shadow(0 0 1px #000000);
 }
 
-.edge {
+/* Nearby: the nearest drops, each with its distance and an arrow towards it. */
+.near {
   position: absolute;
-  width: 30px;
-  padding: 1px;
+  right: 4px;
+  top: 36px;
+  width: 170px;
+  padding: 4px 5px;
+  transition: opacity 200ms;
+}
+
+.near.empty {
+  opacity: 0;
+}
+
+.near-title {
+  margin-bottom: 2px;
+}
+
+.near-row {
   flex-direction: row;
   align-items: center;
-  justify-content: center;
-  column-gap: 2px;
-  color: #FFFF55;
-  background-color: #00000060;
+  height: 17px;
+  transition: transform 200ms ease-out, opacity 200ms;
 }
 
-/* The arrow item points up and right: turned by 45 degrees a sector, less 45. */
-.arrow {
+.near-row:-ix-absent {
+  transform: translateX(20px);
+  opacity: 0;
+}
+
+.near-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+}
+
+.near-name {
+  flex-grow: 1;
+  flex-shrink: 1;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.near-distance {
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin: 0 4px;
+  color: var(--ix-text-muted);
+}
+
+/* The arrow item points up and right: turned by the heading, less 45 degrees. */
+.near-arrow {
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   background-image: url("minecraft:textures/item/arrow.png");
   background-size: 8px 8px;
 }
 
+/* Toasts. */
 .toasts {
   position: absolute;
   left: 4px;
@@ -44,19 +140,55 @@
   flex-direction: row;
   align-items: center;
   margin-top: 2px;
-  padding: 2px 4px 2px 2px;
-  background-color: #000000A0;
-  color: #FFFFFF;
-  transition: background-color 600ms, color 600ms;
+  padding: 2px 5px 2px 2px;
+  background-color: var(--ix-panel-bg);
+  box-shadow: var(--ix-panel-shadow);
+  transition: transform 250ms ease-out, opacity 250ms;
 }
 
-.toast.fading {
-  background-color: #00000000;
-  color: #FFFFFF00;
+.toast:-ix-absent {
+  transform: translateX(-110%);
+  opacity: 0;
 }
 
-.icon {
+/* The toast's life, swept away round its icon; re-created, and so restarted, on each merge. */
+.life {
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  width: 18px;
+  height: 18px;
+  background-image: paint(Cooldown);
+  --Cooldown-color: #F5AF1960;
+  animation: life 3000ms linear forwards;
+}
+
+@keyframes life {
+  from {
+    --Cooldown-progress: 1;
+  }
+  to {
+    --Cooldown-progress: 0;
+  }
+}
+
+.toast-icon {
   width: 16px;
   height: 16px;
-  margin-right: 3px;
+  margin-right: 4px;
+}
+
+.toast-count {
+  margin-left: 4px;
+  color: var(--ix-title);
+  animation: bump 300ms ease-out;
+}
+
+@keyframes bump {
+  from {
+    transform: scale(1.8);
+  }
+  to {
+    transform: scale(1);
+  }
 }

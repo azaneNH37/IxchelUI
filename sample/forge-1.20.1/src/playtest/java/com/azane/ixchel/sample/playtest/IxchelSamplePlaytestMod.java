@@ -38,6 +38,11 @@ public final class IxchelSamplePlaytestMod {
             LanguagePlaytest.register(playtests);
             EffectsPlaytest.register(playtests);
             ThemesPlaytest.register(playtests);
+            WorkbenchPlaytest.register(playtests);
+            SpellPlaytest.register(playtests);
+            BossPlaytest.register(playtests);
+            ArcanePlaytest.register(playtests);
+            ReelPlaytest.register(playtests);
         });
     }
 }

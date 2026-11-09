@@ -1,0 +1,42 @@
+<link href="tree.css"/>
+<page>
+  <div class="screen">
+    <div class="ix-panel">
+      <div class="header">
+        <span class="ix-title" t="ixchel_sample.arcane.title"></span>
+        <div class="points"><div class="gem"></div><span bind:text="points"></span></div>
+      </div>
+      <div class="body">
+        <div class="stage">
+          <div class="ring outer"></div>
+          <div class="ring inner"></div>
+          <for each="edges" as="e" key="e.id"><div class="edge" bind:class:shown="e.shown" bind:class:lit="e.lit"
+               bind:style:left="e.x" bind:style:top="e.y" bind:style:width="e.length"
+               bind:style:transform="'rotate(' + e.angle + 'deg)'"></div></for>
+          <for each="nodes" as="n" key="n.id"><div class="node" bind:class:learned="n.state == 'learned'"
+               bind:class:open="n.state == 'open'" bind:class:sealed="n.state == 'sealed'"
+               bind:class:ix-selected="n.id == selected" bind:style:left="n.x" bind:style:top="n.y">
+            <mc-item class="icon" bind:item="n.icon"></mc-item>
+            <!-- Over the item, so its tooltip does not cover the tree. -->
+            <div class="hit" on:click="pick(n)"></div>
+          </div></for>
+        </div>
+        <div class="detail">
+          <if test="selected != ''">
+            <div class="detail-head">
+              <mc-item class="detail-icon" bind:item="detail.icon"></mc-item>
+              <span class="name" bind:text="detail.name"></span>
+            </div>
+            <span class="text" bind:text="detail.text"></span>
+            <if test="detail.state == 'learned'"><span class="cost learned" t="ixchel_sample.arcane.learned"></span></if>
+            <else><div class="cost"><div class="gem"></div><span bind:text="detail.cost"></span></div></else>
+            <button class="learn" bind:disabled="!detail.learnable" on:click="learn" t="ixchel_sample.arcane.learn"></button>
+          </if>
+          <else>
+            <span class="text hint" t="ixchel_sample.arcane.hint"></span>
+          </else>
+        </div>
+      </div>
+    </div>
+  </div>
+</page>

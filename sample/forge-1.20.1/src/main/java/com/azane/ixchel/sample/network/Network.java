@@ -1,12 +1,13 @@
 package com.azane.ixchel.sample.network;
 
 import com.azane.ixchel.sample.IxchelSampleMod;
+import com.azane.ixchel.sample.boss.BossState;
 import com.azane.ixchel.sample.loot.PickUpDropPacket;
 import com.azane.ixchel.sample.machine.MachineBlockEntity;
 import com.azane.ixchel.sample.machine.MachineState;
 import com.azane.ixchel.sample.machine.OpenMachinePacket;
 import com.azane.ixchel.sample.machine.PickRecipePacket;
-import com.azane.ixchel.sample.machine.SetRedstonePacket;
+import com.azane.ixchel.sample.machine.SetConfigPacket;
 import com.azane.ixchel.sample.machine.SetSidePacket;
 import com.azane.ixchel.sample.quests.ClaimQuestPacket;
 import com.azane.ixchel.sample.quests.Claimed;
@@ -15,6 +16,7 @@ import com.azane.ixchel.sample.storage.StorePacket;
 import com.azane.ixchel.sample.storage.StoredItem;
 import com.azane.ixchel.sample.storage.TakePacket;
 import com.azane.ixchel.sample.storage.TerminalMenu;
+import com.azane.ixchel.sample.workbench.CraftPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -60,6 +62,10 @@ public final class Network {
     public static final Replication.Kind<Integer, Claimed> QUESTS = Replication.snapshot(
             FriendlyByteBuf::writeVarInt, FriendlyByteBuf::readVarInt, 10, Claimed::encode, Claimed::decode, Claimed::view);
 
+    /** The boss nearest the player (the key is unused, 0); every two ticks, for its effects' time. */
+    public static final Replication.Kind<Integer, BossState> BOSS = Replication.snapshot(
+            FriendlyByteBuf::writeVarInt, FriendlyByteBuf::readVarInt, 2, BossState::encode, BossState::decode, BossState::view);
+
     private Network() {
     }
 
@@ -73,12 +79,13 @@ public final class Network {
         toServer(PickUpDropPacket.class, PickUpDropPacket::encode, PickUpDropPacket::decode, PickUpDropPacket::handle);
         toServer(OpenMachinePacket.class, OpenMachinePacket::encode, OpenMachinePacket::decode, OpenMachinePacket::handle);
         toServer(PickRecipePacket.class, PickRecipePacket::encode, PickRecipePacket::decode, PickRecipePacket::handle);
-        toServer(SetRedstonePacket.class, SetRedstonePacket::encode, SetRedstonePacket::decode, SetRedstonePacket::handle);
+        toServer(SetConfigPacket.class, SetConfigPacket::encode, SetConfigPacket::decode, SetConfigPacket::handle);
         toServer(SetSidePacket.class, SetSidePacket::encode, SetSidePacket::decode, SetSidePacket::handle);
         toServer(OpenTerminalPacket.class, OpenTerminalPacket::encode, OpenTerminalPacket::decode, OpenTerminalPacket::handle);
         toServer(TakePacket.class, TakePacket::encode, TakePacket::decode, TakePacket::handle);
         toServer(StorePacket.class, StorePacket::encode, StorePacket::decode, StorePacket::handle);
         toServer(ClaimQuestPacket.class, ClaimQuestPacket::encode, ClaimQuestPacket::decode, ClaimQuestPacket::handle);
+        toServer(CraftPacket.class, CraftPacket::encode, CraftPacket::decode, CraftPacket::handle);
     }
 
     public static void sendToServer(Object packet) {

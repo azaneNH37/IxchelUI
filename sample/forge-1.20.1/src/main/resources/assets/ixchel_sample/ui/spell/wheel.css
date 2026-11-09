@@ -1,0 +1,209 @@
+/* The holo spell wheel: two rings of runes turning against each other, eight sectors placed by hand
+   around the center, a needle toward the pointer. The pointed sector lifts and glows; one short of
+   mana goes invalid, one cooling down sweeps its remaining time; the mana bar sits in the core. */
+@stylesheet;
+@link "@ixchel/themes/holo.css";
+@link "@ixchel/effects/cooldown.ixeffect";
+
+.wheel {
+  position: relative;
+  margin: auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background-image: radial-gradient(closest-side, #04101CE8, #04101CC0 70%, #04101C00);
+  backdrop-filter: blur(4px);
+}
+
+.ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 220px;
+  height: 220px;
+}
+
+.ring.outer {
+  animation: wheel-turn 40s linear infinite;
+}
+
+.ring.inner {
+  animation: wheel-turn 24s linear infinite reverse;
+}
+
+.ring::before {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid #6EDCFF60;
+}
+
+.ring.outer::before {
+  left: 6px;
+  top: 6px;
+  width: 208px;
+  height: 208px;
+  border-top-color: #9CEBFF;
+}
+
+.ring.inner::before {
+  left: 62px;
+  top: 62px;
+  width: 96px;
+  height: 96px;
+  border-bottom-color: #C8A8FF;
+}
+
+.rune {
+  position: absolute;
+  width: 6px;
+  height: 8px;
+  font-family: "minecraft:alt";
+  color: #6EDCFFC0;
+}
+
+.ring.inner .rune {
+  color: #C8A8FFC0;
+}
+
+@keyframes wheel-turn {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.needle {
+  position: absolute;
+  left: 109px;
+  top: 30px;
+  width: 2px;
+  height: 80px;
+  transform-origin: 1px 80px;
+  background-image: linear-gradient(to bottom, #6EDCFFE0, #6EDCFF00);
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.needle.shown {
+  opacity: 1;
+}
+
+.sector {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #6EDCFFA0;
+  background-color: #0A1E30F0;
+  justify-content: center;
+  align-items: center;
+  transition: transform 120ms, border-color 120ms, background-color 120ms;
+}
+
+.sector.selected {
+  transform: scale(1.25);
+  border-color: #B8F0FF;
+  background-color: #1A4A6AE0;
+  filter: drop-shadow(0 0 3px #6EDCFFC0);
+}
+
+.sector.ix-invalid {
+  border-color: #FF6E8AE0;
+}
+
+.sector .cooldown {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-image: paint(Cooldown);
+  --Cooldown-color: #02060CC8;
+}
+
+.sector .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.sector.cooling .icon {
+  opacity: 0.5;
+}
+
+.cost {
+  position: absolute;
+  right: -3px;
+  bottom: -4px;
+  color: #CFF4FF;
+  filter: drop-shadow(0 0 1px #000000);
+}
+
+.sector.ix-invalid .cost {
+  color: #FF6E8A;
+}
+
+.seconds {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 30px;
+  text-align: center;
+  color: #FFFFFF;
+  filter: drop-shadow(0 0 1px #000000);
+}
+
+.core {
+  position: absolute;
+  left: 70px;
+  top: 76px;
+  width: 80px;
+  height: 68px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.readout,
+.hint {
+  display: none;
+  align-items: center;
+}
+
+.readout.shown,
+.hint.shown {
+  display: flex;
+}
+
+.name {
+  white-space: nowrap;
+}
+
+.name.blocked {
+  color: #FF6E8A;
+}
+
+.price,
+.hint,
+.mana-text {
+  color: #CFF4FF;
+  white-space: nowrap;
+}
+
+.mana {
+  width: 60px;
+  height: 4px;
+  margin-top: 3px;
+}
+
+/* Over the icon, so pointing at a sector does not bring up the item's tooltip. */
+.hit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+}

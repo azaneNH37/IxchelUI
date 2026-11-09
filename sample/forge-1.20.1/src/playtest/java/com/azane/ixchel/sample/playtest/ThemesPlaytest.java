@@ -1,5 +1,7 @@
 package com.azane.ixchel.sample.playtest;
 
+import com.azane.ixchel.core.css.property.CssProperties;
+import com.azane.ixchel.core.css.property.PropertyDef;
 import com.azane.ixchel.core.dom.Element;
 import com.azane.ixchel.core.dom.Node;
 import com.azane.ixchel.core.runtime.UiDocument;
@@ -12,8 +14,8 @@ import java.util.List;
 
 /**
  * {@code -Pplaytest=themes}: the showcase opens in each built-in theme through its {@code ix-tab}s
- * without errors, shows a tooltip on the overlay surface, keeps every box (the library components'
- * parts included) where the first theme put it, and holo and amber, whose animations and effects run
+ * without errors, shows a tooltip on the overlay surface, gives every box (the library components'
+ * parts included) the box model the first theme gave it, and holo and amber, whose animations and effects run
  * every frame, draw within the showcase's budget. One screenshot per theme; {@code -Precord=themes}
  * records the walk through the four themes as {@code recordings/themes.mp4}.
  */
@@ -21,10 +23,23 @@ public final class ThemesPlaytest {
     private static final List<String> THEMES = List.of("vanilla", "dark", "holo", "amber");
     /** p95 CPU time per frame of the showcase in holo, the heaviest theme (median about 5000 us), in microseconds. */
     private static final double BUDGET_US = 12000;
-    /** The boxes under the first theme, kept between steps. */
+    /** The box models under the first theme, kept between steps. */
     private static final String[] first = {null};
     /** The document open before a tab is clicked, kept between steps. */
     private static final UiDocument[] before = {null};
+    /** What places and sizes a box, other than its text; the theme contract in base.css leaves them to the user agent sheet. */
+    private static final List<PropertyDef<?>> BOX_MODEL = List.of(
+            CssProperties.DISPLAY, CssProperties.POSITION,
+            CssProperties.TOP, CssProperties.RIGHT, CssProperties.BOTTOM, CssProperties.LEFT,
+            CssProperties.WIDTH, CssProperties.HEIGHT, CssProperties.MIN_WIDTH, CssProperties.MIN_HEIGHT,
+            CssProperties.MAX_WIDTH, CssProperties.MAX_HEIGHT, CssProperties.ASPECT_RATIO,
+            CssProperties.MARGIN_TOP, CssProperties.MARGIN_RIGHT, CssProperties.MARGIN_BOTTOM, CssProperties.MARGIN_LEFT,
+            CssProperties.PADDING_TOP, CssProperties.PADDING_RIGHT, CssProperties.PADDING_BOTTOM, CssProperties.PADDING_LEFT,
+            CssProperties.BORDER_TOP_WIDTH, CssProperties.BORDER_RIGHT_WIDTH,
+            CssProperties.BORDER_BOTTOM_WIDTH, CssProperties.BORDER_LEFT_WIDTH,
+            CssProperties.FLEX_DIRECTION, CssProperties.FLEX_WRAP, CssProperties.FLEX_GROW, CssProperties.FLEX_SHRINK,
+            CssProperties.FLEX_BASIS, CssProperties.ROW_GAP, CssProperties.COLUMN_GAP, CssProperties.OVERFLOW,
+            CssProperties.FONT_SIZE, CssProperties.LINE_HEIGHT);
 
     private ThemesPlaytest() {
     }
@@ -49,7 +64,7 @@ public final class ThemesPlaytest {
                     t.expect(theme + " reports no errors", () -> Playtest.document().diagnostics().errorCount() == 0);
                     t.pause(10);
                     // Fails if a theme sets a size, margin, padding or border width: the boxes would move.
-                    t.expect(theme + " leaves every box where the first theme put it", () -> {
+                    t.expect(theme + " leaves every box model as the first theme had it", () -> {
                         String now = boxes();
                         if (first[0] == null) {
                             first[0] = now;
@@ -78,7 +93,11 @@ public final class ThemesPlaytest {
         });
     }
 
-    /** Every element's border box, in tree order; a tooltip is placed at the pointer, so it is left out. */
+    /**
+     * Every element's box-model properties, in tree order; a tooltip is placed at the pointer, so it is
+     * left out. Not the laid-out boxes: a theme's font and case change how wide text is (base.css), and
+     * every box around the text with it.
+     */
     private static String boxes() {
         StringBuilder out = new StringBuilder();
         boxes(Playtest.document().root(), out);
@@ -89,8 +108,11 @@ public final class ThemesPlaytest {
         if (e.tag().equals("ix-tooltip")) {
             return;
         }
-        out.append(e.tag()).append(' ').append(e.box().x()).append(' ').append(e.box().y()).append(' ')
-                .append(e.box().width()).append(' ').append(e.box().height()).append('\n');
+        out.append(e.tag());
+        for (PropertyDef<?> p : BOX_MODEL) {
+            out.append(' ').append(e.computed().get(p));
+        }
+        out.append('\n');
         for (Node n : e.children()) {
             if (n instanceof Element c) {
                 boxes(c, out);

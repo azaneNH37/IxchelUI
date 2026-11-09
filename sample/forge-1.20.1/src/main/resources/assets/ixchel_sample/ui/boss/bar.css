@@ -1,0 +1,227 @@
+/* The dark boss bar, top-center: the name and phase over a wide bar whose trail lags the damage,
+   marks where the phases change, the shield striped over the bar, the boss's effects below with
+   their time sweeping out. A new phase glitches the title in; enraged, the bar burns and flickers. */
+@stylesheet;
+@link "@ixchel/themes/dark.css";
+@link "@ixchel/effects/cooldown.ixeffect";
+@link "@ixchel/effects/glitch.ixeffect";
+
+.hud {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+}
+
+.boss {
+  margin-top: 6px;
+  width: 260px;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transform: translateY(-12px);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.boss.shown {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.head {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  filter: -ix-paint(Glitch);
+  animation: phase-in 900ms ease-out;
+}
+
+.head:-ix-absent {
+  opacity: 0;
+}
+
+@keyframes phase-in {
+  from {
+    --Glitch-chance: 1;
+    --Glitch-shift: 10px;
+  }
+  to {
+    --Glitch-chance: 0;
+    --Glitch-shift: 0px;
+  }
+}
+
+.title {
+  white-space: nowrap;
+  color: #F0E0C0;
+  filter: drop-shadow(0 0 2px #000000);
+}
+
+.enraged .title {
+  color: #FF6050;
+}
+
+.phase {
+  padding: 0 3px;
+  border-radius: 2px;
+  background-color: #000000A0;
+  color: #F0D890;
+  white-space: nowrap;
+}
+
+.frame {
+  position: relative;
+  width: 260px;
+  height: 10px;
+  padding: 1px;
+  border: 1px solid #00000000;
+  border-radius: 2px;
+  background-color: #000000B0;
+  outline: 1px solid #605848;
+}
+
+.health {
+  width: 256px;
+  height: 6px;
+  border-radius: 1px;
+}
+
+.health::part(fill) {
+  background-image: linear-gradient(to bottom, #E85848, #A02018);
+}
+
+.health::part(trail) {
+  display: flex;
+  background-color: #FFE8B0C0;
+}
+
+.enraged .health::part(fill) {
+  background-image: linear-gradient(to bottom, #FF7050, #C01808);
+  filter: -ix-paint(Glitch);
+  --Glitch-chance: 0.05;
+  --Glitch-shift: 2px;
+  animation: burn 700ms ease-in-out infinite alternate;
+}
+
+@keyframes burn {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.75;
+  }
+}
+
+.shield {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  height: 6px;
+  border-radius: 1px;
+  background-image: repeating-linear-gradient(45deg, #C8E8FFD0 0 2px, #6098D0A0 2px 4px);
+  opacity: 0;
+  transition: opacity 200ms, width 300ms ease-out;
+}
+
+.shield.shown {
+  opacity: 1;
+}
+
+.mark {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 10px;
+  background-color: #F0E0C0A0;
+}
+
+.mark.first {
+  left: 87px;
+}
+
+.mark.second {
+  left: 172px;
+}
+
+.numbers {
+  position: absolute;
+  right: 4px;
+  top: 13px;
+  color: #FFFFFF;
+  filter: drop-shadow(0 0 1px #000000);
+}
+
+.shield-text {
+  position: absolute;
+  left: 4px;
+  top: 13px;
+  color: #C8E8FF;
+  filter: drop-shadow(0 0 1px #000000);
+  opacity: 0;
+  transition: opacity 200ms;
+}
+
+.shield-text.shown {
+  opacity: 1;
+}
+
+.buffs {
+  flex-direction: row;
+  margin-top: 14px;
+  gap: 8px;
+}
+
+.buff {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #70C070;
+  border-radius: 2px;
+  background-color: #3A4038C0;
+}
+
+.buff.debuff {
+  border-color: #D05050;
+}
+
+.buff:-ix-absent {
+  opacity: 0;
+  transform: scale(1.6);
+}
+
+.buff {
+  transition: opacity 250ms, transform 250ms ease-out;
+}
+
+.buff-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.sweep {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  background-image: paint(Cooldown);
+  --Cooldown-color: #00000060;
+}
+
+.level {
+  position: absolute;
+  right: 1px;
+  top: 0;
+  color: #FFFFFF;
+}
+
+.time {
+  position: absolute;
+  bottom: -11px;
+  width: 24px;
+  left: -2px;
+  text-align: center;
+  color: #FFFFFF;
+  filter: drop-shadow(0 0 1px #000000);
+}

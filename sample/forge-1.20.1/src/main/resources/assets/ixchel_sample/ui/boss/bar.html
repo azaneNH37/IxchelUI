@@ -1,0 +1,28 @@
+<link href="bar.css"/>
+<link href="@ixchel/components/bar.html"/>
+<page>
+  <div class="hud">
+    <div class="boss" bind:class:shown="present" bind:class:enraged="enraged">
+      <for each="phase" as="p" key="p.number"><div class="head">
+        <span class="title ix-title" bind:text="p.title"></span>
+        <span class="phase" bind:text="p.label"></span>
+      </div></for>
+      <div class="frame">
+        <ix-bar class="health" bind:value="boss.health" bind:max="boss.maxHealth"></ix-bar>
+        <div class="shield" bind:class:shown="shielded" bind:style:width="shieldWidth"></div>
+        <div class="mark first"></div>
+        <div class="mark second"></div>
+        <span class="numbers" bind:text="healthText"></span>
+        <span class="shield-text" bind:class:shown="shielded" bind:text="shieldText"></span>
+      </div>
+      <div class="buffs">
+        <for each="buffs" as="b" key="b.effect"><div class="buff" bind:class:debuff="!b.beneficial">
+          <img class="buff-icon" bind:src="b.icon"/>
+          <div class="sweep" bind:style:--Cooldown-progress="b.left"></div>
+          <span class="level" bind:text="b.level"></span>
+          <span class="time" bind:text="b.time"></span>
+        </div></for>
+      </div>
+    </div>
+  </div>
+</page>
